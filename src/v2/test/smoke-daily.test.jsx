@@ -10,7 +10,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { PATHS } from "../spec/paths-data.js";
-import { getApp, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { getApp, growUntil, mountApp, registerSmokeHooks, SLOW_FEED_TIMEOUT_MS, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -120,7 +120,9 @@ describe("the daily tab", () => {
     expect(screen.getAllByText("Crossroads").length, "fewer than two story cards in the stream")
       .toBeGreaterThanOrEqual(2);
     expectNoBoundary("crossroads cards");
-  });
+    // The stories sit deep in the demo mix, so this case pays ~28 window
+    // top-ups to reach them — see SLOW_FEED_TIMEOUT_MS for the measurement.
+  }, SLOW_FEED_TIMEOUT_MS);
 
   // …and the other half of "like the others": a FINISHED story is an
   // answered question. It leaves the fresh stream and waits behind the
@@ -147,7 +149,8 @@ describe("the daily tab", () => {
     } finally {
       PATHS.stories().forEach((s) => PATHS.reset(s.id));
     }
-  });
+    // Same depth, same cost, same ceiling as the case above.
+  }, SLOW_FEED_TIMEOUT_MS);
 
   it("parks a previously answered feed card behind the Answered expander", () => {
     // Release feedback, twice: "I keep seeing things I have answered", then

@@ -26,6 +26,7 @@ import {
   costModel, authCost, writesPerSec, B, SCENARIOS,
   firestoreCost, functionsCost, totalCost,
   BYTES, CONTENTION_DAU, REGIONAL, LOCATION_LABEL,
+  DB_LABEL, SCHEDULER_JOBS, SCHEDULER_FREE_JOBS, SCHEDULER_USD_MO,
 } from "./cost-arith.mjs";
 
 // `--regional` is still accepted and is now a no-op wherever production is
@@ -38,7 +39,11 @@ const money = (n) => (n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString());
 const int = (n) => Math.round(n).toLocaleString();
 
 console.log(`\nInSight cost model — ${regional === REGIONAL ? LOCATION_LABEL : "nam5 multi-region"} prices`);
-console.log(`bank: ${bank} question docs (counted from functions/src/v2content.ts)\n`);
+console.log(`bank: ${bank} question docs (counted from functions/src/v2content.ts)`);
+// The database decides whether a free quota is netted at all (COST-EXPOSURE.md
+// §2), and the scheduler floor is why the launch row is not $0.00 (§1).
+console.log(`database: ${DB_LABEL}; floor $${SCHEDULER_USD_MO.toFixed(2)}/mo `
+  + `(${SCHEDULER_JOBS} scheduler jobs in the tree, ${SCHEDULER_FREE_JOBS} free)\n`);
 
 console.log("scenario                 DAU     reads/day   writes/day   Firestore  functions      TOTAL");
 console.log("-".repeat(92));

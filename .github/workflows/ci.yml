@@ -70,6 +70,29 @@ jobs:
       # scorecard path renders. The console's own operator gate (`pulse
       # --check`) is a different thing and is on a schedule, not here (D47).
       - run: npm run test:scripts
+      # THE SERVER HALF'S DEPENDENCIES, and this job is the only one that
+      # needs them named. `npm ci` above installs the root package only,
+      # and `cache: npm` restores `~/.npm` rather than `node_modules`, so
+      # `functions/node_modules` does not exist here — the gate below
+      # typechecks files that import `firebase-admin` and
+      # `firebase-functions`, which without this step is a hundred
+      # `TS2307`s and a red lint job on every PR. It passed locally
+      # because the e2e runs had already put them there; the job the gate
+      # was deliberately placed in is the one job without them.
+      - run: npm ci --prefix functions
+      # THE TYPE GATE THE SERVER'S TEST FILES NEVER HAD.
+      # functions/tsconfig.json excludes `src/**/*.test.ts` — correctly, it
+      # is the build that ships to Cloud Functions — and the root `tsc -b`
+      # does not reach functions/src at all, so every fake in that half was
+      # unchecked by anything. What drifts is the stand-in: a runner fake
+      # that stops matching the interface it stands for is only wrong where
+      # something reads the missing part, so the suite stays green. Seven
+      # such drifts were found the day this landed.
+      # Here and not on backend-checks.yml, by the same rule as check:figures
+      # above: a test file is never deployed, so a drifted fake cannot say
+      # whether a rules fix is safe to ship, and nothing that cannot answer
+      # that question gets to block one.
+      - run: npm run check:fn-types
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,
@@ -289,29 +312,6 @@ jobs:
       # `npx cap sync` may rewrite — a red line here is the only way that
       # gets noticed.
       - run: npm run check:devicebind
-      # The backend's TEST files, typechecked — which nothing did until
-      # 2026-09-09. functions/tsconfig.json excludes `src/**/*.test.ts`,
-      # correctly, because the deployed bundle must not carry 39 test files;
-      # but no other config reached them either. The root tsconfig references
-      # only tsconfig.app.json and tsconfig.node.json, `npm run build
-      # --prefix functions` is a bare `tsc` against that same excluding
-      # config, and `vitest run` does not typecheck. So ~14k lines were
-      # compiled by nobody, and the first run of this config found 27 real
-      # errors — including a pricing fixture carrying a retired field and
-      # missing three required ones, i.e. the money path asserting about a
-      # shape the server cannot receive.
-      #
-      # A raw `npx tsc` line rather than a `check:*` script on purpose:
-      # check:docs rule 4 holds every `check:*` name in package.json to a row
-      # in the ORIENTATION gate table, and this is a compiler invocation
-      # rather than a gate with reasoning of its own — the reasoning is in
-      # functions/tsconfig.test.json's header.
-      #
-      # Client-side placement rule, deliberately off backend-checks.yml: a
-      # type error in a test file says nothing about whether a rules fix is
-      # safe to deploy, and it must not be able to block an emergency one.
-      - run: npm ci --prefix functions
-      - run: npx tsc -p functions/tsconfig.test.json --noEmit
 
   typecheck-build:
     runs-on: ubuntu-latest

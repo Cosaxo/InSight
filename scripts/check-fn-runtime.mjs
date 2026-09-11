@@ -87,7 +87,12 @@ for (const [name, fn] of Object.entries(mod)) {
       // Where the function is SERVED, which the client has to name exactly
       // (D200). An array, because gen-2 endpoints can carry several.
       region: ep.region,
-      isTrigger: !!ep.eventTrigger,
+      // A FIRESTORE trigger, by its event type — the database rule below
+      // is about the database a document trigger watches, and a Pub/Sub
+      // trigger (onBudgetAlert, the budget's topic) has no database to be
+      // on: read as `(default)` it failed this gate on the day it was
+      // added, for a mismatch that does not exist.
+      isTrigger: typeof ep.eventTrigger?.eventType === "string" && ep.eventTrigger.eventType.startsWith("google.cloud.firestore"),
     });
   }
 }

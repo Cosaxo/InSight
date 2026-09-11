@@ -44,6 +44,29 @@ import NAV from "../data/nav";
 // file it governs, with one source for the number.
 export const SMOKE_TIMEOUT_MS = 15000;
 
+// …and 30s for the two cases whose subject is a card DEEP in the demo feed.
+//
+// Not a blanket raise: 15s is the right ceiling for a case that mounts and
+// asserts, and lifting it everywhere would hide the next case that gets
+// slow. These two are different in kind. The demo mix is ~194 long, the
+// window opens at WF_PAGE = 8 and adds WF_STEP = 4 per top-up, and the two
+// Crossroads stories sit well down it — so `growUntil` has to drive ~28
+// passes, each one an 80ms wait plus a re-render of a window that is
+// growing by four cards a time.
+//
+// Measured 2026-09-10 on an otherwise idle container, `--dir src/v2/test
+// smoke-daily`: 6.4s and 7.0s, against a 15s budget — 43% and 47%, and the
+// two slowest cases in the file by an order of magnitude (the next is
+// 370ms). That is the AT-REST figure; under the full suite's parallel load
+// they have been seen near 9.4s, and two separate audit passes hit them as
+// a flake. A case that is one bad neighbour away from a red CI on work that
+// has nothing to do with it is a case with the wrong ceiling.
+//
+// The alternative — dealing the stories nearer the head of the demo feed —
+// was rejected: the mix's order is the product's, and reshaping it so a
+// test finishes sooner would make the test the reason for the feed.
+export const SLOW_FEED_TIMEOUT_MS = 30000;
+
 // The boundary's own log line (app-shell.jsx, componentDidCatch). Matching on
 // this rather than on any console.error keeps the assertion deterministic —
 // React's dev build logs plenty of other things.
@@ -77,6 +100,48 @@ const REACT_BUGS = [
 
 let App;
 let errorSpy;
+
+// ── the abandoned-loop guard ───────────────────────────────────────────
+//
+// Every wait helper below ticks `act()` in a loop, and a case that TIMES
+// OUT does not stop its loop: vitest abandons the promise, runs the
+// afterEach, and the loop keeps ticking against a tree `cleanup()` has
+// already torn down — for up to its full bound, which for `growUntil` is
+// 60 passes of 80ms.
+//
+// What that costs was measured 2026-09-10 by shortening the two Crossroads
+// cases' timeout until they tripped: the NEXT case in the file failed too,
+// and not with a timeout — with `<body><div /></body>`, its own `render`
+// never flushed, because it ran inside an `act()` scope belonging to a test
+// that was already over. One slow case's timeout became three red cases,
+// and the two extra name nothing that is wrong. (A first probe missed this
+// because it timed out a loop that had no feed to grow; the abandoned loop
+// has to still be doing work for the next case to land inside it.)
+//
+// So each loop takes the generation it started in and stops the moment the
+// afterEach moves it on. It RETURNS rather than throws: the case that owned
+// the loop has already failed on its own timeout, and an unhandled
+// rejection from a dead test is one more misleading line, not a finding.
+//
+// AND THE FLAG ALONE IS NOT ENOUGH, which is the part that took a second
+// measurement. A loop is almost always INSIDE `await act(…)` when the
+// generation moves, and nothing can interrupt that — the scope stays open
+// for the rest of its 80ms tick, which is a dozen times longer than the
+// next case needs to mount and assert. With the flag but without the drain
+// below, the neighbour still failed, still with an empty body. So the
+// teardown WAITS for the abandoned tick to finish before it cleans up:
+// `ticks` holds every act() in flight, and one timed-out case pays at most
+// one tick for it.
+let generation = 0;
+const abandoned = (mine) => generation !== mine;
+const ticks = new Set();
+
+/** One `act()` beat, registered so the teardown can wait for it. */
+async function tick(ms) {
+  const p = act(async () => { await new Promise((r) => setTimeout(r, ms)); });
+  ticks.add(p);
+  try { await p; } finally { ticks.delete(p); }
+}
 
 // Registers the beforeAll/afterEach every mount suite needs. Called at the top
 // level of each `smoke-*.test.jsx`, which is where vitest expects hooks to be
@@ -117,7 +182,12 @@ export function registerSmokeHooks() {
     App = globalThis.App;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // BEFORE the drain, so a loop that wakes mid-drain sees itself abandoned
+    // and does not start another tick.
+    generation += 1;
+    // The loop is re-checked because a loop between ticks adds one more.
+    while (ticks.size) await Promise.allSettled([...ticks]);
     cleanup();
     errorSpy?.mockRestore();
   });
@@ -191,6 +261,7 @@ export function expectOpened(re, where) {
 // full-suite load — so wait for the copy itself, bounded the way growFeed
 // is: a body that never arrives should fail an assertion, not hang a suite.
 export async function awaitText(re, max = 50) {
+  const mine = generation;
   const has = () => re.test(document.body.textContent);
   if (has()) return;
   // FLUSH BEFORE SLEEPING. The chunks these wait on are prewarmed in the
@@ -204,7 +275,8 @@ export async function awaitText(re, max = 50) {
   // tick first. Three still need real ticks, which is what the loop is for.
   await act(async () => {});
   for (let i = 0; i < max && !has(); i++) {
-    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+    if (abandoned(mine)) return;
+    await tick(40);
   }
   // Deliberately does NOT throw on exhaustion, unlike growUntil. Every call
   // site follows this with its own assertion on the same content, and those
@@ -258,11 +330,13 @@ export function swipeDaily(dir = 1) {
 // Same wait, keyed on a selector instead of copy — for lazy bodies whose
 // arrival is an element rather than a sentence (the Map's canvas).
 export async function awaitNode(selector, max = 50) {
+  const mine = generation;
   const find = () => document.querySelector(selector);
   if (find()) return find();
   await act(async () => {});   // same reason as awaitText above
   for (let i = 0; i < max && !find(); i++) {
-    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+    if (abandoned(mine)) return null;
+    await tick(40);
   }
   return find();
 }
@@ -341,12 +415,15 @@ export function settleBeat() {
 // So the shape is: name the thing the case is actually about. Nearly every
 // caller wants one card on screen, not the whole bank in the DOM.
 export async function growUntil(pred, what = "the awaited condition", max = 60) {
+  const mine = generation;
   for (let i = 0; i < max; i++) {
     if (pred()) return;
+    if (abandoned(mine)) return;
     // Real timers: the top-up is a setTimeout and these suites do not
     // install fake ones. 80 > the 60ms debounce, with room for the render.
-    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    await tick(80);
   }
+  if (abandoned(mine)) return;
   throw new Error(`growUntil: the feed never reached ${what} in ${max} passes`);
 }
 
@@ -358,8 +435,10 @@ export async function growUntil(pred, what = "the awaited condition", max = 60) 
 // Bounded, because a bug that made the window grow forever should fail a
 // test rather than hang a suite.
 export async function growFeed(max = 40) {
+  const mine = generation;
   let last = -1;
   for (let i = 0; i < max; i++) {
+    if (abandoned(mine)) return;
     // The DOM's own size, not a card-class count: the feed's cards carry a
     // dozen different classes by type (and a wrong selector here would make
     // this return on its first pass and look like it had worked, which is
@@ -367,8 +446,9 @@ export async function growFeed(max = 40) {
     const n = document.body.innerHTML.length;
     if (n === last) return;
     last = n;
-    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+    await tick(80);
   }
+  if (abandoned(mine)) return;
   throw new Error(
     `growFeed: the feed was still growing after ${max} passes. Either the `
     + "window is genuinely runaway, or this caller is on the demo bank and "

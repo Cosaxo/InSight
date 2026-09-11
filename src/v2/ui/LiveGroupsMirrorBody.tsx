@@ -98,6 +98,10 @@ interface LiveGroup {
   mode?: string;
   memberUids?: string[];
   memberNames?: Record<string, string>;
+  /** The server's role ledger (D445) — `ledger.{uid}` on the group
+   * document, which the store hands over whole: the seats read it once
+   * a member's row clears the floor, and the reveals until then. */
+  ledger?: unknown;
 }
 
 const packInk = (hue: number | null | undefined) => `oklch(0.605 0.118 ${hue ?? 250})`;
@@ -165,7 +169,13 @@ const nameOf = (uid: string, names: Record<string, string>): string =>
   uid === LIVE.uid ? "You" : firstName(names[uid] || "") || names[uid] || "Someone";
 
 // ── Votes: who the room named, by pack ──────────────────────────
-function LgVotesCard({ rv, names, reading }: { rv: RoleVotes; names: Record<string, string>; reading: boolean }) {
+// ONE copy of the refused-read sentence, for the three cards that draw
+// it. All three empty on the same fetch, so a room whose history could
+// not be read must not tell one tab it is empty and another that the
+// read failed.
+const UNREAD_LINE = "Couldn’t read this room’s rounds. Close and reopen to try again.";
+
+function LgVotesCard({ rv, names, reading, unread }: { rv: RoleVotes; names: Record<string, string>; reading: boolean; unread: boolean }) {
   const [open, setOpen] = React.useState<string | null>(null);
   // By pack, latest first inside each; a role vote with no pack (an
   // untagged role, if one ever ships) gathers under its own heading.
@@ -173,9 +183,14 @@ function LgVotesCard({ rv, names, reading }: { rv: RoleVotes; names: Record<stri
   const loose = rv.roles.filter((r) => !r.pack);
   if (loose.length) packs.push({ pack: { id: "", label: "Roles", hue: 250 }, roles: loose });
   if (!rv.roles.length) {
+    // "The first role is on the table" invites the reader to start a room
+    // that may have played for weeks; the refused read has to say so
+    // rather than borrow the empty room's sentence.
     return reading
       ? <LgEmpty>Reading the rounds…</LgEmpty>
-      : <LgEmpty>No votes revealed yet — the first role is on the table.</LgEmpty>;
+      : unread
+        ? <LgEmpty>{UNREAD_LINE}</LgEmpty>
+        : <LgEmpty>No votes revealed yet — the first role is on the table.</LgEmpty>;
   }
   return (
     <div className="card">
@@ -240,7 +255,7 @@ function LgVoteRow({ role, ink, names, open, onToggle }: { role: RoleVoteRow; in
 }
 
 // ── People: the constellation, the twin, everyone's seat ─────────
-function LgPeopleCard({ g, reveals, lookup, reading }: { g: LiveGroup; reveals: PortraitReveal[]; lookup: BankLookup; reading: boolean }) {
+function LgPeopleCard({ g, reveals, lookup, reading, unread }: { g: LiveGroup; reveals: PortraitReveal[]; lookup: BankLookup; reading: boolean; unread: boolean }) {
   const names = g.memberNames || {};
   // Named the same person on the same role vote: the portrait's pairwise
   // fold, over role votes only — a rating is the group about itself and
@@ -263,8 +278,8 @@ function LgPeopleCard({ g, reveals, lookup, reading }: { g: LiveGroup; reveals: 
           this stop opens on that fetch — so the still-reading arm is said
           HERE, synchronously, not as the lazy field's empty line, which
           would arrive a chunk later than the sentence it corrects. */}
-      {reading && !P.people.length ? (
-        <LgEmpty>Reading the rounds…</LgEmpty>
+      {(reading || unread) && !P.people.length ? (
+        <LgEmpty>{reading ? "Reading the rounds…" : UNREAD_LINE}</LgEmpty>
       ) : (
         <React.Suspense fallback={null}>
           <LgField
@@ -284,7 +299,7 @@ function LgPeopleCard({ g, reveals, lookup, reading }: { g: LiveGroup; reveals: 
       {others.length > 0 && (
         <div style={{ marginTop: 13, paddingTop: 13, borderTop: LG_LINE, display: "flex", flexDirection: "column", gap: 9 }}>
           {others.map((uid) => {
-            const s = seatFor(reveals, uid, lookup);
+            const s = seatFor(reveals, uid, lookup, g.ledger);
             const named = s ? s.shares[s.seat.id] : 0;
             return (
               <div key={uid} style={{ display: "flex", alignItems: "center", gap: 9 }}>
@@ -313,7 +328,7 @@ function LgPeopleCard({ g, reveals, lookup, reading }: { g: LiveGroup; reveals: 
 }
 
 // ── Scores: how the group rates itself ──────────────────────────
-function LgScoresCard({ scores, total, names, reading }: { scores: GroupScore[]; total: number; names: Record<string, string>; reading: boolean }) {
+function LgScoresCard({ scores, total, names, reading, unread }: { scores: GroupScore[]; total: number; names: Record<string, string>; reading: boolean; unread: boolean }) {
   const [open, setOpen] = React.useState<string | null>(null);
   // Strongest lean first: a room that is 90 on Chaos says more than one
   // that is 52 on anything.
@@ -331,7 +346,9 @@ function LgScoresCard({ scores, total, names, reading }: { scores: GroupScore[];
       </div>
       {!rows.length && (
         <div style={{ marginTop: 10, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink-3)", textWrap: "pretty" }}>
-          {reading ? "Reading the rounds…" : "No ratings yet — every fourth round asks the group about itself."}
+          {reading ? "Reading the rounds…"
+            : unread ? UNREAD_LINE
+              : "No ratings yet — every fourth round asks the group about itself."}
         </div>
       )}
       {rows.length > 0 && (
@@ -456,17 +473,21 @@ function useGroupFolds(
   reveals: PortraitReveal[],
   lookup: BankLookup,
   me: string | null,
+  ledger: unknown,
 ) {
   return React.useMemo(() => {
     const rv = roleVotes(reveals, lookup, me);
     const scores = groupScores(reveals, lookup, me);
-    const mine = gid ? groupRole(reveals, me, lookup) : null;
+    // The seats read the server's ledger once a row clears the floor
+    // (D445) and the reveals until then; the Votes lens above stays over
+    // the reveals — who holds a role is the card's rule, per round.
+    const mine = gid ? groupRole(reveals, me, lookup, ledger) : null;
     const members: FieldMember[] = gid ? memberUids.map((uid) => ({
       id: uid, name: uid === me ? "You" : names[uid] || "", me: uid === me,
-      seatLine: (uid === me ? mine && { seat: mine.seat } : seatFor(reveals, uid, lookup))?.seat.line ?? null,
+      seatLine: (uid === me ? mine && { seat: mine.seat } : seatFor(reveals, uid, lookup, ledger))?.seat.line ?? null,
     })) : [];
     return { rv, scores, mine, members };
-  }, [gid, memberUids, names, reveals, lookup, me]);
+  }, [gid, memberUids, names, reveals, lookup, me, ledger]);
 }
 
 function LiveGroupsMirrorBody() {
@@ -497,11 +518,19 @@ function LiveGroupsMirrorBody() {
   const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : NO_REVEALS;
   const names: Record<string, string> = (g && g.memberNames) || NO_NAMES;
   const memberUids: readonly string[] = (g && g.memberUids) || NO_UIDS;
-  const { rv, scores, mine, members } = useGroupFolds(g ? g.id : null, memberUids, names, reveals, lookup, me);
+  const { rv, scores, mine, members } = useGroupFolds(g ? g.id : null, memberUids, names, reveals, lookup, me, g ? g.ledger : null);
 
   if (!LIVE.enabled) return null;
 
-  const reading = !!g && S.revealHistoryLoading(g.id);
+  // The read's three states, not two. This stop `void`s its own
+  // `loadRevealHistory` — the answer it throws away is the one the roles
+  // panel keeps — so a refused read used to arrive here as an empty
+  // history with no flag set, and both sentences below stated it as a
+  // fact about the room: "no rounds revealed yet" under the room's own
+  // name, and "the first role is on the table" in the votes card.
+  const hist$ = g ? S.revealHistState(g.id) : "ready";
+  const reading = hist$ === "loading";
+  const unread = hist$ === "failed";
   const bank = S.groupBankCounts();
   // Roles cast over all the roles in the packs. A role since retired from
   // the bank still counts as cast — it was — so the share is capped.
@@ -526,7 +555,9 @@ function LiveGroupsMirrorBody() {
               <div style={{ marginTop: 2, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
                 {nCast || nScores
                   ? `${nCast} role${nCast === 1 ? "" : "s"} cast · ${nScores} score${nScores === 1 ? "" : "s"}`
-                  : reading ? "reading the rounds…" : "no rounds revealed yet"}
+                  : reading ? "reading the rounds…"
+                    : unread ? "couldn’t read the rounds"
+                      : "no rounds revealed yet"}
               </div>
             </div>
           </div>
@@ -601,11 +632,11 @@ function LiveGroupsMirrorBody() {
           {!g ? (
             <LgEmpty>Start a group and this fills in from the first reveal.</LgEmpty>
           ) : tab === "votes" ? (
-            <LgVotesCard rv={rv} names={names} reading={reading} />
+            <LgVotesCard rv={rv} names={names} reading={reading} unread={unread} />
           ) : tab === "people" ? (
-            <LgPeopleCard g={g} reveals={reveals} lookup={lookup} reading={reading} />
+            <LgPeopleCard g={g} reveals={reveals} lookup={lookup} reading={reading} unread={unread} />
           ) : tab === "scores" ? (
-            <LgScoresCard scores={scores} total={bank.ratings} names={names} reading={reading} />
+            <LgScoresCard scores={scores} total={bank.ratings} names={names} reading={reading} unread={unread} />
           ) : (
             <React.Suspense fallback={null}>
               {/* The group's own name is the noun — the lens prints it in

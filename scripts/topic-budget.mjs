@@ -377,13 +377,38 @@ export function coverageAllocation({ parents, target, birth, budget, share = BRE
 /** D424's name for the top-level verdict, kept for the record's readers. */
 export const topicVerdict = topVerdict;
 
+/** The closest two hues on the feed ring may sit (25 and 40 today).
+ *
+ * IT LIVES HERE BECAUSE `hueFor` IS WHAT HAS TO OBEY IT. `check:taxonomy`
+ * owned this constant and refused a created hue under it; the function that
+ * CREATES hues never read it, so the two agreed only by luck — and the luck
+ * runs out. Measured on today's eleven feed topics: `hueFor` splits the
+ * widest arc, so each addition halves a gap, and the ninth one it hands out
+ * (the ring's twentieth topic) is 14 apart from a neighbour and refused by
+ * the gate that asked for it. The lane would have written the hue at every
+ * site and been rejected after the writing.
+ *
+ * The gate holds the row no tighter than it already is: a created hue must
+ * not make any neighbouring pair closer than the closest pair that already
+ * ships. `check-taxonomy.mjs` re-exports it, so the rule and the generator
+ * are one number. */
+export const HUE_MIN_GAP = 15;
+
 /** D231's hue pick as an algorithm rather than a judgement: "hue 115 is the
  * widest gap left in the row (85 -> 145), picked for distance from its
  * neighbours rather than for a meaning". The midpoint of the widest arc on
  * the ring — the only choice that maximises distance from both neighbours —
  * and the chroma/lightness tier never moves, so a created chip cannot
- * invent a visual language. A LEAF never calls this: colour = family. */
-export function hueFor(hues) {
+ * invent a visual language. A LEAF never calls this: colour = family.
+ *
+ * NULL WHEN THE RING IS FULL AT THIS FLOOR, rather than a hue the gate will
+ * refuse — the same choice `feedTopicCost` makes below and for the same
+ * reason (D197): a line that goes quiet is survivable, one that invents is
+ * not. Splitting the widest arc leaves two gaps of half its width, so the
+ * ring is full the moment that half is under `minGap`, and no other arc
+ * could do better by definition. A caller that wants the old behaviour
+ * asks for `minGap: 0`. */
+export function hueFor(hues, minGap = HUE_MIN_GAP) {
   const ring = [...new Set(hues.map((h) => ((h % 360) + 360) % 360))].sort((a, b) => a - b);
   if (ring.length === 0) return 0;
   if (ring.length === 1) return (ring[0] + 180) % 360;
@@ -394,7 +419,15 @@ export function hueFor(hues) {
     const gap = b - a;
     if (gap > best.gap) best = { gap, at: (a + gap / 2) % 360 };
   }
-  return Math.round(best.at);
+  // Rounded first: the gate measures the hue that gets WRITTEN, and half of
+  // an odd gap rounds toward one neighbour. A 30-wide arc split at .5 is two
+  // 15s before rounding and a 14 after it.
+  const at = Math.round(best.at);
+  // The distance to the nearest neighbour, the short way round: the `+540`
+  // folds the difference into [0, 180] whichever side of 0/360 the pair
+  // straddles, which is the same wrap `check:taxonomy` measures the row by.
+  const lo = Math.min(...ring.map((h) => Math.abs(((at - h + 540) % 360) - 180)));
+  return lo < minGap ? null : at;
 }
 
 /** The hues a surface already spends, for hueFor. */
@@ -734,7 +767,11 @@ if (invokedDirectly) {
     }
     if (v.create) {
       console.log(`    CREATE — ${v.reason}`);
-      if (level === "top" && p.surface !== "learn") console.log("    hue: hueFor(hueRing(surface, taxonomy)) — the widest gap's midpoint (D231's pick, mechanised); a leaf takes its parent's");
+      if (level === "top" && p.surface !== "learn") console.log(
+        "    hue: hueFor(hueRing(surface, taxonomy)) — the widest gap's midpoint (D231's pick,"
+        + ` mechanised), or NULL when the ring is full at HUE_MIN_GAP ${HUE_MIN_GAP}, and then the`
+        + " hue is the owner's to rule on rather than one check:taxonomy will refuse;"
+        + " a leaf takes its parent's");
       if (level === "top" && p.surface === "feed") {
         const page = feedPageCost();
         console.log(page === null

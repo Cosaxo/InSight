@@ -31,6 +31,12 @@ const h = vi.hoisted(() => ({
   /** Make the FOLLOWERS read reject, so "we could not ask who follows you
    *  back" can be told apart from "nobody does". */
   followersFail: false,
+  /** The answer maps by path (DATA-EFFICIENCY-RUNBOOK 3.5): what `getDoc`
+   *  serves. A member with no entry here has no map, and the read falls
+   *  back to the answer query. */
+  maps: {} as Record<string, Record<string, unknown>>,
+  /** Every document read, by path. */
+  gets: [] as string[],
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -53,6 +59,13 @@ vi.mock("firebase/firestore", () => ({
   // stands in for it here without weakening anything.
   documentId: () => "__name__",
   doc: (_db: unknown, ...p: string[]) => ({ __k: "doc", path: p.join("/") }),
+  getDoc: (target: { path: string }) => {
+    h.gets.push(target.path);
+    const data = h.maps[target.path];
+    return Promise.resolve(data
+      ? { exists: () => true, get: (k: string) => data[k], data: () => data }
+      : { exists: () => false, get: () => undefined, data: () => ({}) });
+  },
   limit: (n: number) => ({ __k: "limit", n }),
   // The DIRECTION is captured too, and additively — `orderBys` keeps its
   // shape so the case that already reads it does not move. Direction is
@@ -96,7 +109,7 @@ vi.mock("firebase/firestore", () => ({
   },
 }));
 
-beforeEach(() => { h.queries = []; h.docs = []; h.answersFailFor = []; h.followersFail = false; });
+beforeEach(() => { h.queries = []; h.docs = []; h.answersFailFor = []; h.followersFail = false; h.maps = {}; h.gets = []; });
 
 const following = (owner: string, to: string, atSeconds: number) => ({
   id: to,
@@ -245,7 +258,32 @@ describe("fetchFollowersOf", () => {
   });
 });
 
-describe("fetchAnswersOf", () => {
+describe("fetchAnswersOf reads the map (DATA-EFFICIENCY-RUNBOOK 3.5)", () => {
+  it("is one document read and no query when the person has a map — every answer, no cap", async () => {
+    const { fetchAnswersOf } = await import("./circle");
+    const a: Record<string, number> = {};
+    for (let i = 0; i < 400; i++) a[`q${i}`] = i % 3;
+    a.bad = -1;
+    h.maps["v2_users/u_ada/public/answers"] = { a: { ...a, junk: "x" }, at: 1 };
+    const out = await fetchAnswersOf({} as never, "u_ada");
+    expect(h.gets).toEqual(["v2_users/u_ada/public/answers"]);
+    expect(h.queries, "the map was there and the answers were queried anyway").toHaveLength(0);
+    expect(Object.keys(out)).toHaveLength(400);
+    expect(out.q5).toBe(2);
+    expect("bad" in out).toBe(false);
+    expect("junk" in out).toBe(false);
+  });
+
+  it("falls back to the answer query for a person with no map, so the window before the backfill costs what it did", async () => {
+    const { fetchAnswersOf } = await import("./circle");
+    await fetchAnswersOf({} as never, "u_ada");
+    expect(h.gets).toEqual(["v2_users/u_ada/public/answers"]);
+    expect(h.queries).toHaveLength(1);
+    expect(h.queries[0].path).toBe("v2_users/u_ada/answers");
+  });
+});
+
+describe("fetchAnswersLegacy — the fallback", () => {
   // ── D398's ORDERING, WHICH THE OWNER BOUGHT AN INDEX FOR ──────────
   //
   // Deleting either `orderBy("answeredAt","desc")` or the cap left every
@@ -263,7 +301,7 @@ describe("fetchAnswersOf", () => {
   // records the owner taking a per-answer index cost
   // (ALGORITHM-REFLECTION §4.6) specifically to buy the ordering.
   it("takes the NEWEST answers, not the alphabetically-first ones", async () => {
-    const { fetchAnswersOf } = await import("./circle");
+    const { fetchAnswersLegacy: fetchAnswersOf } = await import("./circle");
     const { CIRCLE_ANSWER_CAP } = await import("./circle");
     await fetchAnswersOf({} as never, "u_ada");
     const q = h.queries[0];
@@ -280,7 +318,7 @@ describe("fetchAnswersOf", () => {
     // test on `surface`, so a query without a matching `where` is refused
     // wholesale rather than filtered down (D65) — and the same clause is
     // what keeps sealed duel answers out of a Circle reading.
-    const { fetchAnswersOf } = await import("./circle");
+    const { fetchAnswersLegacy: fetchAnswersOf } = await import("./circle");
     await fetchAnswersOf({} as never, "u_ada");
     const q = h.queries[0];
     expect(q.path).toBe("v2_users/u_ada/answers");

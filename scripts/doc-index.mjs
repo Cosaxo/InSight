@@ -383,8 +383,29 @@ for (const key of [...new Set(mapDupes)]) {
   );
 }
 
-/** Every README in the tree, minus the vendored and frozen-reference ones. */
-function findReadmes(dir, acc = []) {
+/**
+ * Nested directories .gitignore takes out of the repo — the entries with a
+ * slash INSIDE them (`.claude/worktrees/`), which gitIgnoredTop deliberately
+ * leaves out because at the root a slash means a path, not a name.
+ * Normalised to the relative path the README walk sees.
+ *
+ * Exists because Claude Code's build agents check sibling branches out
+ * under `.claude/worktrees/<agent>/`, inside the repository, and every one
+ * of those checkouts carries the tree's own READMEs — 348 of them the
+ * first time six agents ran at once. They are other branches, and .gitignore
+ * says so; the walk has to read it, not only the top-level list.
+ */
+const gitIgnoredDirs = () => new Set(
+  read(".gitignore")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
+    .filter((l) => !/[*?[\]]/.test(l) && l.slice(0, -1).includes("/"))
+    .map((l) => l.replace(/^\.?\//, "").replace(/\/$/, "")),
+);
+
+/** Every README in the tree, minus the vendored, frozen-reference and gitignored ones. */
+function findReadmes(dir, acc = [], ignored = { top: gitIgnoredTop(), dirs: gitIgnoredDirs() }) {
   const skip = new Set([
     "node_modules",
     ".git",
@@ -397,7 +418,10 @@ function findReadmes(dir, acc = []) {
   for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (skip.has(entry.name)) continue;
-      findReadmes(join(dir, entry.name), acc);
+      const rel = join(dir, entry.name).replace(/\\/g, "/");
+      if (dir === "." && ignored.top.has(entry.name)) continue;
+      if (ignored.dirs.has(rel)) continue;
+      findReadmes(join(dir, entry.name), acc, ignored);
     } else if (entry.name === "README.md") {
       acc.push(join(dir, entry.name));
     }

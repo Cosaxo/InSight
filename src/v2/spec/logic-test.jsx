@@ -346,7 +346,17 @@ export let LOGIC;
   const LOGIC_FIELD_NOTE = 'Comparisons are a modelled yardstick — practice sends nothing anywhere.';
   const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once. Comparisons stay a modelled yardstick until enough verified scores exist.';
   const LOGIC_MEASURED_NOTE = 'Measured: your percentile is ranked against verified players so far. The charts around it are still modelled sketches.';
-  const LOGIC_VERIFY_DISCLOSURE = 'Your picks are scored on the server and join an anonymous count. Nothing else leaves this device.';
+  // WHAT VERIFIED SENDS, and it is a consent notice — a claim, not a word
+  // count (COPY.md §3). The second sentence used to read 'Nothing else
+  // leaves this device.', which was the opposite of what the app does:
+  // `logicSubmitV2` writes testResults.logic — the band, the percentile,
+  // the marks — onto v2_users/{uid}, and firestore.rules opens that
+  // document to every signed-in reader ('the rest of testResults is now
+  // PUBLIC, which is the point'). web/privacy.html says so in as many
+  // words: your verified logic score is shown to anyone signed in, in
+  // four broad bands. So the page and the app disagreed at the one
+  // moment the app asks for the picks, and the app was the one lying.
+  const LOGIC_VERIFY_DISCLOSURE = 'Your picks are scored on the server and join an anonymous count. Your score goes on your profile, in four broad bands, where anyone signed in can read it.';
 
   const LOGIC_LENSES = [
     { id: 'answers', label: 'Answers' },

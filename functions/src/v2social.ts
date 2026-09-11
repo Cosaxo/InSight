@@ -2,17 +2,16 @@
 // server-materialized reveals (decision D5).
 //
 // A duo IS a group with mode "duo" and a 2-member cap — one collection,
-// one reveal pipeline, and since D426 ONE reveal condition for both,
-// because the round replaced the day (`roundReveals`, pure.ts):
-//   never  · with nobody's answer in the round — nothing to show
-//   else   · when every member has answered (a 1v1: both; a group: all)
-//   or     · at the round's deadline, for whoever played
-//   or     · when an operator forces it (revealDuelsNowV2, the e2e)
-//
-// The both-or-nothing duo clause this header used to state is exactly what
-// D426 retired: a partner who stopped playing used to seal the other's
-// answer with no reveal, ever, while the calendar handed out a fresh
-// question anyway.
+// one reveal pipeline, and ONE reveal condition since D426/D437 (this
+// listed two calendar-day conditions until 2026-09-11, nine lines above
+// its own correct sentence about rounds):
+//   `roundReveals` (pure.ts) — an answer in it, AND complete, due or
+//   forced. Complete is both for a duo and all for a group; due is the
+//   48-hour `ROUND_DEADLINE_MS`, at which it reveals for whoever played.
+// The old "duo · ONLY if both played (else no reveal, streak 0)" is the
+// both-or-nothing 1v1 pure.ts says it retired in as many words: "a
+// partner who stops playing used to seal the other's answer with no
+// reveal, ever".
 //
 // Sealed answers live under composite ids (g_{gid}_r{n} — one per ROUND,
 // ROUNDS-PLAN / D426). Since D98 a
@@ -46,6 +45,7 @@ import {
   fcmBatches,
   fcmFanout,
   foldDuelAgg,
+  foldRoleLedger,
   inviteCodeFromBytes,
   normalizeHandle,
   isPlausibleFcmToken,
@@ -496,6 +496,9 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
       // uid left behind here is the shape D55 §8 records ownerUid having.
       ...playedRemovals(snap.get("played"), uid),
       ...stampRemoval(snap.get("pushAt"), uid),
+      // …and their role-ledger row (D445): the record of what this room
+      // made them, on a document every remaining member reads.
+      ...ledgerRemoval(snap.get("ledger"), uid),
     });
     return "left" as const;
   });
@@ -756,6 +759,22 @@ export function stampRemoval(pushAt: unknown, uid: string): Record<string, Field
   return isStamped(pushAt, uid) ? { [`pushAt.${uid}`]: FieldValue.delete() } : {};
 }
 
+/**
+ * The role-ledger row of a member who is leaving or being erased (D445,
+ * ROLES-PLAN §3.3's erasure clause) — playedRemovals' shape, for its
+ * reason. The row is what the room made THIS member, on a document every
+ * remaining member reads; a departed uid's row would outlive them there
+ * exactly as a stale `memberNames` entry would. On leave as well as on
+ * erasure, because every other per-member map on this document goes on
+ * both paths, and a rejoin starts the record fresh the way
+ * `memberJoinedAt` starts the roster's clock fresh.
+ */
+export function ledgerRemoval(ledger: unknown, uid: string): Record<string, FieldValue> {
+  const has = !!ledger && typeof ledger === "object"
+    && Object.prototype.hasOwnProperty.call(ledger as Record<string, unknown>, uid);
+  return has ? { [`ledger.${uid}`]: FieldValue.delete() } : {};
+}
+
 export interface RevealOpts {
   /** Reveal the open round on any answer at all, deadline or not — the
    *  operator's lever and the e2e. Never the schedule. */
@@ -777,12 +796,24 @@ export interface RevealOpts {
  * WHAT IS READ, and the cost model counts it (revealReadsPerMember,
  * scripts/cost-arith.mjs): one field-masked profile per member for the
  * names, then the committing transaction's getAll — the reveal, the
- * group, and one answer per member. 2 + 2m for m members. The day's
- * pipeline read 4 + 3m: a standalone reveal-exists get and a pre-read of
- * every answer, both of which `played` on the group document makes
- * unnecessary — and the reveal-exists check is redundant anyway, because
- * the reveal and the round advance in one commit, so "the round is still
- * the open one" IS "no reveal exists for it".
+ * group, and one answer per member — and then the round's question, for
+ * the role ledger (D445): whether the round was a cast or a seated role
+ * vote is a fact about the question, and the answers cannot say it.
+ * 3 + 2m for m members. The day's pipeline read 4 + 3m: a standalone
+ * reveal-exists get and a pre-read of every answer, both of which
+ * `played` on the group document makes unnecessary — and the
+ * reveal-exists check is redundant anyway, because the reveal and the
+ * round advance in one commit, so "the round is still the open one" IS
+ * "no reveal exists for it".
+ *
+ * THE ROLE LEDGER rides the settle update (ROLES-PLAN §3.3): `ledger`
+ * on the group document, one row per current member, written whole from
+ * this transaction's own read of the group plus the blind votes above
+ * (foldRoleLedger, pure.ts). No extra write — the same update that
+ * advances the round — and, because the reveal is create-guarded in the
+ * same commit, a re-run that finds the reveal standing writes nothing,
+ * so the ledger can never count a round twice. A round that moved
+ * nothing (a rating, an own round) leaves the field untouched.
  *
  * The transaction re-reads the answers for the reason it always did: a
  * duel answer stays legal until the round advances, so an answer that
@@ -869,6 +900,11 @@ export async function revealRound(
   // Who the NEXT round waits for once this one is out — the push below
   // says so to them, and nobody else (ROUNDS-PLAN §7.4).
   let waitingNext: string[] = [];
+  // The roster the TRANSACTION read, carried out to the push fan-out
+  // below — see the hoist inside it. `waitingNext` was already computed
+  // from it; `told` was not, and that was the one roster use left on the
+  // page's copy.
+  let pushRoster: string[] = [];
   await db.runTransaction(async (tx) => {
     // Reset per attempt: a transaction callback can run more than once,
     // and a retry that bails early must not inherit the previous try's
@@ -878,6 +914,7 @@ export async function revealRound(
     aggQid = null;
     aggVotes = [];
     waitingNext = [];
+    pushRoster = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
       revealRef,
       group.ref,
@@ -925,13 +962,48 @@ export async function revealRound(
       return;
     }
 
+    // THE ROSTER THE TRANSACTION READ, NOT THE PAGE'S. A member who left
+    // between the two reads, or an account erased between them, is on the
+    // page and not on the document. This was computed forty lines down for
+    // the role ledger alone, with a comment saying exactly why — "a member
+    // who left between the two would otherwise get a row written for a uid
+    // no longer on the document" — and the same reasoning was never
+    // applied to the three other roster uses in this transaction, which is
+    // why it is hoisted here now.
+    //
+    // What the page's roster cost: `leaveGroupV2` and `deleteAccount`
+    // phase 1c both scrub `pushAt.{uid}` and `memberNames.{uid}` and take
+    // the uid off `members`. A reveal landing in the window after that
+    // sweep wrote all of it back — for an ERASED account, a uid re-minted
+    // on a live group document after gone means gone, and a notification
+    // sent to a group they are no longer in. Measured: a document roster
+    // of two against a page roster of three put `pushAt.u3` on the settle
+    // update and u3 in the reveal's `members` and `names`, for a member
+    // who never answered the round.
+    const freshRoster: string[] = Array.isArray(gsnap.get("memberUids")) ? gsnap.get("memberUids") : members;
+    // …and out to the push fan-out, which is the one roster use left on
+    // the page's copy. NOT the union `revealRoster` below: that exists so
+    // an erasure can still reach a published vote, and a departed voter
+    // is exactly who must not be notified.
+    pushRoster = freshRoster;
+
     // WHO THE REVEAL SAYS WAS THERE — who was in the group when this round
     // opened, plus anyone who played it — computed once and used twice: as
     // the `members` field, and as the set the `names` map is cut down to,
     // so the reveal never names someone it does not record as present
     // (the erasure sweep walks `members`; a stray name would outlive it).
+    // THE UNION, and the union is the point. `revealMembersFor` FILTERS the
+    // roster it is given — `playedUids` is a reason to KEEP a uid, never a
+    // reason to add one — so handing it the fresh roster alone would drop
+    // someone who answered this round and left before the transaction read
+    // the group. Their vote is still published below (`freshVotes` is keyed
+    // on the page roster, so it has them), and `members` is the index
+    // deleteAccount's phase 1c-bis queries by: a voter missing from it is a
+    // vote and a name that no erasure can ever reach. The page's roster had
+    // the same hole one read earlier; the union closes it for both.
+    const revealRoster = [...new Set([...freshRoster, ...Object.keys(freshVotes)])];
     const revealMembers = revealMembersFor(
-      members,
+      revealRoster,
       joinedAtMs(gsnap.get("memberJoinedAt")),
       tsMs(gsnap.get("roundOpenedAt")),
       Object.keys(freshVotes),
@@ -954,6 +1026,25 @@ export async function revealRound(
     // question they were not answers to.
     aggVotes = votesMatchingQid(freshEntries, aggQid);
 
+    // The round's question — the one billed read the role ledger adds
+    // (D445), and a TRANSACTIONAL read placed before the first write, as
+    // Firestore requires. What it answers is whether this round was a
+    // cast or a seated role vote and, if so, which axis each option names
+    // and which seat the role sits in; the answers carry none of that. A
+    // question deleted by an operator since the answers were written
+    // folds nothing here, as it folds nothing into the signal below.
+    const qSnap = freshQid ? await tx.get(db.collection("v2_questions").doc(freshQid)) : null;
+    const nextLedger = foldRoleLedger(
+      gsnap.get("ledger"),
+      mode,
+      qSnap && qSnap.exists
+        ? { topic: qSnap.get("topic"), role: qSnap.get("role"), dims: qSnap.get("dims") }
+        : null,
+      freshQid,
+      freshVotes,
+      freshRoster,
+    );
+
     tx.create(revealRef, {
       round,
       // The calendar day the reveal landed — what the card labels a
@@ -975,6 +1066,12 @@ export async function revealRound(
     const next = round + 1;
     const nextPlayed = prunePlayed(gsnap.get("played"), next);
     const settle: Record<string, unknown> = { round: next, played: nextPlayed };
+    // The role ledger, whole, only when this round moved it — see the
+    // header. Whole rather than per-field increments: the map was read in
+    // this transaction, so the write is exactly "what the group document
+    // held plus this round", and a member leaving in between contends on
+    // the same document and retries us.
+    if (nextLedger) settle.ledger = nextLedger;
     // THE REVEAL IS THE CARRIER (ROUNDS-PLAN §7.4): opening the next round
     // is this same commit, so the push that says the round is out can say
     // "and round 8 is waiting for you" to whoever has not sealed it — and
@@ -982,7 +1079,7 @@ export async function revealRound(
     // answered — your turn" about the same round. Their own answer clears
     // the stamp (v2.ts). Members who ran ahead are told the result alone.
     const sealedNext = playedIn(nextPlayed, roundKey(next));
-    waitingNext = members.filter((u) => !sealedNext.includes(u));
+    waitingNext = freshRoster.filter((u) => !sealedNext.includes(u));
     for (const u of waitingNext) settle[`pushAt.${u}`] = FieldValue.serverTimestamp();
     if (playedIn(nextPlayed, roundKey(next)).length) {
       // Somebody ran ahead: the next round already has an answer, so its
@@ -1035,7 +1132,18 @@ export async function revealRound(
   const title = group.get("name") || (mode === "duo" ? "Your 1v1" : "Your group");
   const out = mode === "duo" ? "Your answers are out" : `Round ${round} is out`;
   const waiting = new Set(waitingNext);
-  const told = members.filter((u) => !waiting.has(u));
+  // THE TRANSACTION'S ROSTER HERE TOO, and this was the last use reading
+  // the page's. The hoist inside the transaction names the cost of the
+  // page roster in as many words — "a notification sent to a group they
+  // are no longer in" — and then closed it for the ledger, the reveal's
+  // `members`, the names and the next-round stamp, while the push that
+  // says the round is out went on being addressed from the stale list. A
+  // member who left in the window between the two reads is absent from
+  // `waitingNext` precisely BECAUSE they are off the document, so the
+  // filter below put them in `told`: the one list a departure moved them
+  // INTO. (An erased account's token doc is gone, so that arm was inert;
+  // a member who merely left still has tokens.)
+  const told = (pushRoster.length ? pushRoster : members).filter((u) => !waiting.has(u));
   await sendPushToUids(
     db,
     waitingNext,
@@ -1348,15 +1456,6 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     if (prev && prev !== handle) {
       throw new HttpsError("failed-precondition", "a handle can't be changed once it is claimed");
     }
-    if (snap.exists) {
-      // Re-claiming your own handle is a no-op rather than an error: the
-      // client retries on a dropped response, and a retry that reports
-      // "taken" about your own name is the worst possible message.
-      if (snap.get("uid") === uid) return;
-      throw new HttpsError("already-exists", "that handle is taken");
-    }
-    tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
-    tx.set(userRef, { handle }, { merge: true });
     // MERGE, and name/nameKey only when the profile already has one:
     // most accounts claim a handle on the setup screen after saving a
     // name, but the order is not guaranteed and a directory row whose
@@ -1374,9 +1473,30 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     // the package boundary, so they are kept honest by this comment and
     // by the rule that judges both.
     const nameKey = myName.replace(/[A-Z]/g, (c) => c.toLowerCase());
-    tx.set(peopleRef, myName
+    const writeRow = () => tx.set(peopleRef, myName
       ? { handle, name: myName, nameKey }
       : { handle }, { merge: true });
+    if (snap.exists) {
+      // Re-claiming your own handle is a no-op rather than an error: the
+      // client retries on a dropped response, and a retry that reports
+      // "taken" about your own name is the worst possible message.
+      // …and it REPAIRS the directory row on the way out. It used to
+      // return here, one statement short of the write below, and D440's
+      // `allow delete` made that reachable rather than theoretical: the
+      // owner may delete their own row, `writeDirectoryRow` does exactly
+      // that when a display name is cleared, and the client cannot put
+      // the handle back — `handle` is immutable to it on that document
+      // (the ternary in firestore.rules). So clearing a name and setting
+      // one again left the end state this file's own rules comment calls
+      // wrong: "an account findable by name and not by the address it
+      // just took", with nothing in the system able to fix it. The write
+      // is idempotent and already inside this transaction.
+      if (snap.get("uid") === uid) { writeRow(); return; }
+      throw new HttpsError("already-exists", "that handle is taken");
+    }
+    tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
+    tx.set(userRef, { handle }, { merge: true });
+    writeRow();
   });
   return { handle };
 });

@@ -98,8 +98,17 @@ const PICKED_ONLY = "grp_picked_only";
 // Written with admin, because most of these paths are no longer
 // client-writable (the v1 surface was retired in D4) — but deleteAccount
 // still has to clean them up for accounts that predate that.
-await adb.doc(`v2_users/${uid}`).set({ displayName: "Doomed", anon: true });
-await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optionIdx: 1 });
+// With a city, because the answer below claims one and the create trigger
+// corrects an answer's cohort to the profile's (D410, honestAnchors): a
+// profile without the city would blank the claim, and the per-city sample
+// this file asserts on is reached through exactly that chip.
+await adb.doc(`v2_users/${uid}`).set({ displayName: "Doomed", anon: true, anchors: { city: "Oslo, NO" } });
+// With the frozen city chip (D8): it is what names the per-city sample
+// the erasure arm has to reach (DATA-EFFICIENCY-RUNBOOK 2.5, below).
+await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optionIdx: 1, anchors: { city: "Oslo, NO" } });
+// The answer map (DATA-EFFICIENCY-RUNBOOK Phase 3) — under the subtree the
+// recursive delete takes; asserted gone below, which is the proof 3.6 asks for.
+await adb.doc(`v2_users/${uid}/public/answers`).set({ a: { "daily-000": 1 }, at: 1 });
 // A learn first attempt (D32) lives in the same answers subcollection —
 // erasure must cover it identically, and this seed is what proves the
 // claim instead of assuming the recursiveDelete reaches it.
@@ -113,6 +122,11 @@ await adb.doc(`insight_users/${uid}/insight_daily/${DAY}`).set({ date: DAY, mood
 await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" } });
 await adb.doc(`insight_ratelimits/${uid}`).set({ events: [] });
 await adb.doc(`v2_ratelimits/join_${uid}`).set({ events: [] });
+// The profile fan-out's hourly budget (profileFanout.ts). Seeded with the
+// shape `takeFanoutBudget` writes, and seeded EXPLICITLY rather than left
+// to the trigger, so the two assertions below are about the erasure and
+// the export rather than about whether a fan-out happened to run.
+await adb.doc(`v2_ratelimits/fanout_${uid}`).set({ events: [Date.now()], pending: true });
 
 // Agg-event ledger entries (D28): each says "this uid answered this qid at
 // this time" — the attribution that keeps aggregates correctable, and
@@ -130,8 +144,22 @@ await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 await adb.doc("v2_patterns/sample-daily-000").set({
   qid: "daily-000",
   rows: {
-    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY },
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
     [OTHER]: { o: 0, a: { city: "Bergen, NO" }, d: DAY },
+  },
+  n: 2,
+});
+// …and the per-city sample (DATA-EFFICIENCY-RUNBOOK 2.5), which the arm
+// reaches through the account's own answers rather than by listing the
+// collection. Its id is the server's `citySampleId` — pinned here as the
+// literal the device builds too (encodeURIComponent of the chip).
+const CITY_SAMPLE = "v2_patterns/city-daily-000~Oslo%2C%20NO";
+await adb.doc(CITY_SAMPLE).set({
+  qid: "daily-000",
+  city: "Oslo, NO",
+  rows: {
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
+    [OTHER]: { o: 0, a: { city: "Oslo, NO" }, d: DAY },
   },
   n: 2,
 });
@@ -242,6 +270,14 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 // creator deleting their account is the ordinary case, not the exotic one.
 await adb.doc(`v2_groups/${SHARED}`).set({
   name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
+  // The role ledger (D445): what the room has made each member, kept by
+  // the reveal pipeline on a document every remaining member reads. The
+  // doomed account's row must go; the survivor's must stay — an erasure
+  // that emptied the whole map would take the survivor's record with it.
+  ledger: {
+    [uid]: { votes: 4, seats: { engine: 3, heart: 1 } },
+    [OTHER]: { votes: 2, seats: { hands: 2 } },
+  },
 });
 // A circle this account ASKED to join and was never let into (D240).
 // Invisible to the membership sweep by definition — that phase matches on
@@ -274,6 +310,13 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
 await adb.doc(`v2_groups/${LEFT}`).set({
   name: "Left", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER],
   memberNames: { [uid]: "Doomed", [OTHER]: "Survivor" }, streak: 5,
+  // Leaving takes the leaver's ledger row with them (D445) — every
+  // per-member map on this document goes on both paths — and leaves
+  // the survivor's where it is.
+  ledger: {
+    [uid]: { votes: 3, seats: { wild: 3 } },
+    [OTHER]: { votes: 1, seats: { heart: 1 } },
+  },
 });
 await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
@@ -540,6 +583,7 @@ for (const [path, label] of [
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
   [`v2_ratelimits/join_${uid}`, "v2 join throttle"],
+  [`v2_ratelimits/fanout_${uid}`, "their profile fan-out budget"],
   [`insight_users/${OTHER}/insight_inbound_impressions/i1`, "impression they sent"],
   [`insight_users/${OTHER}/relations/r1`, "relation naming them"],
   [`v2_groups/${SOLO}`, "solo group"],
@@ -601,6 +645,9 @@ const leftGroup = await adb.doc(`v2_groups/${LEFT}`).get();
 if (!leftGroup.exists) fail("leaveGroupV2 deleted a group that still had another member");
 if ((leftGroup.get("memberUids") || []).includes(uid)) fail("leaveGroupV2 did not remove the membership");
 if ((leftGroup.get("memberNames") || {})[uid]) fail("leaveGroupV2 left the display name in memberNames");
+// The leaver's role-ledger row goes with them (D445); the survivor's stays.
+if ((leftGroup.get("ledger") || {})[uid]) fail("leaveGroupV2 left the leaver's row in the role ledger");
+if (!(leftGroup.get("ledger") || {})[OTHER]) fail("leaveGroupV2 took the surviving member's role-ledger row too");
 // The other half of the contract, asserted so a future change that starts
 // scrubbing reveals on leave has to come here and argue with it: leaving is
 // not an erasure request, and a reveal is several people's record of a day
@@ -618,6 +665,94 @@ if (pickedBefore.get("votes")?.[OTHER]?.pickUid !== uid)
 if ((pickedBefore.get("members") || []).includes(uid))
   fail("fixture: the picked-only reveal lists the account in members — the members sweep would catch it");
 ok("seeded a reveal that names the account only through someone else's pick");
+
+// ── the export, BEFORE the erasure it twins (D443) ──
+// The same seeded graph, read instead of removed, and held to the seed the
+// way the wipe assertions below are. exportAccount.test.ts proves every
+// wipe LABEL has a twin section; this proves the real callable reads the
+// real documents out of the real database — including the photo out of
+// Storage and the reveal of a circle this account has just left.
+const exp = (await httpsCallable(fns, "exportAccountV2")({})).data;
+if (!exp?.ok || exp.uid !== uid)
+  fail("exportAccountV2 did not report ok for this uid: " + JSON.stringify(exp).slice(0, 200));
+const has = (rows, id) => Array.isArray(rows) && rows.some((r) => r?.id === id);
+for (const [cond, label] of [
+  [exp.profile?.displayName === "Doomed", "the v2 profile"],
+  [has(exp.collections?.answers, "daily-000"), "the v2 answer"],
+  [has(exp.collections?.answers, "learn-cell1"), "the learn answer (D32)"],
+  [has(exp.collections?.answers, "client-written"), "the client-written answer"],
+  [has(exp.collections?.patterns, "state"), "the fit's per-person state (D395)"],
+  [has(exp.collections?.taste, "profile"), "the interest profile (D317/D322)"],
+  [has(exp.collections?.engagement, "_state") && has(exp.collections?.engagement, "2026-08-22"),
+    "the engagement pair (D268/D272)"],
+  [has(exp.collections?.foresight, "daily-000__ageBand__25-34"), "the foresight verdict (D126)"],
+  [has(exp.collections?.following, OTHER), "the account's own follow"],
+  [exp.legacy?.profile?.sharePrefs !== undefined && has(exp.legacy?.collections?.insight_daily, DAY),
+    "the v1 profile and its daily report"],
+  [has(exp.answerLedger, "evt_mine")
+    && exp.answerLedger.some((r) => r.id !== "evt_mine" && r.qid === "daily-000"),
+    "the agg-ledger entries, synthetic and organic"],
+  [exp.voterSamples?.["daily-000"]?.o === 1, "the voter-sample row (D397)"],
+  [exp.logicAttempt?.score === 9, "the verified logic attempt (D57)"],
+  [has(exp.takes, MY_TAKE), "their take"],
+  [has(exp.flags?.cast, `${MY_TAKE}_${uid}`) && has(exp.flags?.cast, `${THEIR_TAKE}_${uid}`),
+    "the flags they cast"],
+  [exp.flags?.receivedOnTakes === 1 && exp.flags?.receivedOnPhoto === 1, "the flags on them, as counts"],
+  [exp.avatar?.token === "tok0e2e0000", "the photo's document"],
+  [exp.photo?.base64 === Buffer.from([0xff, 0xd8, 0xff]).toString("base64"),
+    "the photo's bytes out of Storage (D178)"],
+  [exp.presence?.held === true && typeof exp.presence?.until === "string", "the presence square, as held-until (D84)"],
+  [exp.groups?.some((g) => g.gid === SOLO && g.owner) && exp.groups?.some((g) => g.gid === SHARED && g.owner),
+    "the circles they are in"],
+  [exp.groups?.some((g) => g.gid === SHARED && g.ledger?.votes === 4 && g.ledger?.seats?.engine === 3),
+    "their role-ledger row on the shared circle (D445, phase 1c's field)"],
+  [exp.ownedGroups?.some((g) => g.gid === OWNED_LEFT), "the circle they created and left"],
+  [exp.reveals?.some((r) => r.gid === SHARED && r.vote?.optionIdx === 1 && r.name === "Doomed" && r.picked === 1),
+    "their vote, name and pick in the shared reveal"],
+  [exp.reveals?.some((r) => r.gid === LEFT && r.name === "Doomed"),
+    "the reveal of the circle they left (phase 1c-bis's query)"],
+  [exp.reveals?.some((r) => r.gid === PICKED_ONLY && r.picked === 1 && r.vote === null),
+    "the reveal that names them only through a pick"],
+  [exp.discoverable?.location?.geohash === "u4pru", "the v1 discoverable doc"],
+  [has(exp.impressionsSent, "i1"), "the impression they sent"],
+  [exp.followers === 1, "the follow someone else holds of them, counted"],
+  [exp.handle === "erasable", "the handle (D122)"],
+  [exp.pendingJoins?.some((g) => g.gid === WAITED && g.asName === "Doomed"), "the pending join (D240)"],
+  [exp.directory?.name === "Erasable", "the directory row (D239)"],
+  [has(exp.invitesReceived, uid) && has(exp.invitesSent, "third_party"), "invitations both ways"],
+  [exp.relationsToYou === 1, "the relation naming them, counted"],
+  [exp.rateLimits?.insight && exp.rateLimits?.join && exp.rateLimits?.suggest && exp.rateLimits?.paidbook
+    // `fanout` named separately because it is the one the export omitted
+    // while the erasure below deleted it — five disclosed, six taken.
+    && exp.rateLimits?.fanout,
+    "the rate-limit ledgers"],
+  [has(exp.suggestions, `${uid}_e2e`), "their question suggestion (phase 4d)"],
+  [has(exp.purchases?.rows, `${uid}_e2e`) && has(exp.purchases?.rows, `${uid}_ad`) && has(exp.purchases?.rows, `${uid}_done`),
+    "their purchase records (phase 4e)"],
+  [has(exp.purchases?.ads, `paidad-${uid}_ad`), "the ad their row points at"],
+  [exp.purchases?.sponsoredQuestions?.some((q) => q.qid === "pd_e2e" && q.sponsor?.buyer === "Erasable Person"),
+    "the byline on their bought question"],
+  [has(exp.paidBookings, `${uid}_e2e`), "their paid-question booking (phase 4f)"],
+]) if (!cond) fail("EXPORT MISSED a document the erasure below removes: " + label);
+// …and nothing of anybody else's — asserted on the serialised file, which
+// is what a device receives. The controls seeded above are what make this
+// mean something: a walk that copied a collection instead of a uid's rows
+// passes every line in the list above.
+const expText = JSON.stringify(exp);
+for (const theirs of [
+  "someone else's words", "someone else's suggestion", "someone else's paid ask",
+  "Not this account's campaign", "evt_theirs", "somebodyelse", "fourth_party", "Someone Else",
+  `"uid":"${OTHER}"`,
+  // the survivor's role-ledger row: the only `hands` seat seeded anywhere
+  '"hands"',
+]) if (expText.includes(theirs)) fail("the export carries someone else's data: " + theirs);
+// The four things the file leaves out, and says so (exportAccount.ts's header).
+if (exp.logicAttempt?.seed !== undefined) fail("the export carries the logic attempt's seed — the answer key");
+if (exp.collections?.push !== undefined) fail("the export carries the push-token subcollection — a credential");
+if (expText.includes("5999_1074")) fail("the export carries the presence CELL — a location, in a file built to travel");
+if (!Array.isArray(exp.omitted) || !exp.omitted.some((o) => o.what === "logicAttempt.seed"))
+  fail("the export does not say what it leaves out");
+ok(`the export carries every phase's documents (${exp.bytes} bytes) and nothing of anyone else's`);
 
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
@@ -662,6 +797,16 @@ if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
 if (sampleAfter.get("n") !== 1)
   fail("the sample's basis did not follow the scrub: n is " + sampleAfter.get("n"));
 ok("the voter sample no longer names the erased account, and the other voter's row is intact");
+const citySampleAfter = await adb.doc(CITY_SAMPLE).get();
+if (!citySampleAfter.exists)
+  fail("the per-city voter sample was deleted outright — it is everyone else's list");
+if (citySampleAfter.get("rows")?.[uid] !== undefined)
+  fail("the erased account's row survived in a world-readable per-city sample (runbook 2.5)");
+if (citySampleAfter.get("rows")?.[OTHER]?.o !== 0)
+  fail("the city sample scrub removed more than the one row — the other voter is gone");
+if (citySampleAfter.get("n") !== 1)
+  fail("the city sample's basis did not follow the scrub: n is " + citySampleAfter.get("n"));
+ok("the per-city voter sample no longer names the erased account either");
 
 // ── every seeded phase must be gone ──
 for (const [path, label] of [
@@ -670,12 +815,14 @@ for (const [path, label] of [
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
   [`v2_users/${uid}/patterns/state`, "the fit's per-person state and answer map (D395)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
+  [`v2_users/${uid}/public/answers`, "the answer map (runbook 3.6)"],
   [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_users/${uid}/insight_daily/${DAY}`, "v1 daily report (subcollection)"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
   [`v2_ratelimits/join_${uid}`, "v2 join throttle"],
+  [`v2_ratelimits/fanout_${uid}`, "their profile fan-out budget"],
   [`insight_users/${OTHER}/insight_inbound_impressions/i1`, "impression they sent to someone else"],
   [`insight_users/${OTHER}/relations/r1`, "relation naming them in someone else's subtree"],
   [`v2_groups/${SOLO}`, "group they were the only member of"],
@@ -894,6 +1041,15 @@ if (!members.includes(OTHER)) fail("the surviving member was removed from the sh
 // so a leftover ownerUid publishes the deleted account's raw uid to the
 // circle forever.
 if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+// The role ledger (D445): the deleted account's row is gone from a map
+// every remaining member reads, and the survivor's row — their own
+// record of what this room made them — is exactly as seeded.
+const ledger = shared.get("ledger") || {};
+if (ledger[uid]) fail("the deleted user's row survives in the shared group's role ledger");
+const kept = ledger[OTHER] || {};
+if (kept.votes !== 2 || (kept.seats || {}).hands !== 2 || Object.keys(kept.seats || {}).length !== 1) {
+  fail(`the surviving member's role-ledger row was disturbed by the erasure: ${JSON.stringify(kept)}`);
+}
 
 // …and the same field on a circle they created and LEFT, which the
 // membership query above never visits. The assertion above passes on the

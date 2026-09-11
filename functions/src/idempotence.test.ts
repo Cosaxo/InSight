@@ -27,8 +27,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 type Doc = Record<string, unknown>;
 const store = new Map<string, Doc>();
 
-function ref(path: string) {
-  return { path, id: path.split("/").pop() as string };
+function ref(path: string): { path: string; id: string; collection: (sub: string) => { doc: (id: string) => ReturnType<typeof ref> } } {
+  return {
+    path,
+    id: path.split("/").pop() as string,
+    // A document's subcollection, for the answer map under the person's
+    // document (v2_users/{uid}/public/answers — DATA-EFFICIENCY-RUNBOOK
+    // 3.2), which the trigger now reaches through the ref it already has.
+    collection: (sub: string) => ({ doc: (id: string) => ref(`${path}/${sub}/${id}`) }),
+  };
 }
 
 const fakeDb = {
@@ -43,8 +50,22 @@ const fakeDb = {
     const tx = {
       getAll: async (...refs: { path: string }[]) => refs.map(snap),
       get: async (r: { path: string }) => snap(r),
+      // A merge merges MAPS a level down too, as Firestore's does: the
+      // answer map's `a` (DATA-EFFICIENCY-RUNBOOK 3.2) gains a key per
+      // answer, and a fake that replaced `a` whole would pass a write
+      // that wiped every earlier answer — the plumbing being thinner
+      // than the thing it stands in for, which this file's header names.
       set: (r: { path: string }, data: Doc, opts?: { merge?: boolean }) => {
-        store.set(r.path, opts?.merge ? { ...(store.get(r.path) || {}), ...data } : data);
+        if (!opts?.merge) { store.set(r.path, data); return; }
+        const prev = store.get(r.path) || {};
+        const next: Doc = { ...prev };
+        for (const [k, v] of Object.entries(data)) {
+          const old = prev[k];
+          next[k] = v && typeof v === "object" && !Array.isArray(v) && old && typeof old === "object" && !Array.isArray(old)
+            ? { ...(old as Doc), ...(v as Doc) }
+            : v;
+        }
+        store.set(r.path, next);
       },
       update: (r: { path: string }, data: Doc) => {
         store.set(r.path, { ...(store.get(r.path) || {}), ...data });
@@ -57,6 +78,16 @@ const fakeDb = {
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
 const { onV2AnswerCreated, onV2AnswerUpdated } = await import("./v2");
+const { setLogWriterForTest } = await import("./log");
+type LogRowT = import("./log").LogRow;
+
+/** The answer log's writer, injected: one row per COMMITTED ledger entry,
+ *  none on the redelivery the ledger mark turns away (log.ts, D447). */
+function fakeLog() {
+  const rows: LogRowT[] = [];
+  setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUsers() { return "done" as const; }, async tableBytes() { return null; }, async rowsFor() { return null; } } as never);
+  return rows;
+}
 
 const QID = "daily-2026-08-24";
 const AGG = `v2_question_aggs/${QID}`;
@@ -198,6 +229,61 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(store.get("v2_agg_events/evt-1")).not.toHaveProperty("fromIdx");
   });
 
+  it("the answer map gains the entry in the create's own transaction, moves on an edit, and a redelivery changes nothing (DATA-EFFICIENCY-RUNBOOK 3.2)", async () => {
+    const MAP = "v2_users/u1/public/answers";
+    await deliver("evt-1", vote);
+    const first = store.get(MAP) as { a?: Record<string, number> } | undefined;
+    expect(first?.a, "the create wrote no map entry").toEqual({ [QID]: 1 });
+    // a second question adds a key and keeps the first — the merge is the
+    // whole contract, since the map is rewritten on every answer
+    await (onV2AnswerCreated as unknown as { run: (e: unknown) => Promise<void> }).run({
+      id: "evt-other",
+      params: { uid: "u1", qid: "daily-2026-08-25" },
+      data: { exists: true, ref: ref("v2_users/u1/answers/daily-2026-08-25"), get: (f: string) => vote[f as keyof typeof vote] },
+    });
+    expect((store.get(MAP) as { a: Record<string, number> }).a).toEqual({ [QID]: 1, "daily-2026-08-25": 1 });
+    // the same event again: the ledger returns before the map write
+    store.set(MAP, { a: { [QID]: 1, "daily-2026-08-25": 1 }, at: "then" });
+    await deliver("evt-1", { ...vote, optionIdx: 0 });
+    expect((store.get(MAP) as { a: Record<string, number>; at: unknown }).a[QID], "a redelivered create rewrote the map").toBe(1);
+    expect((store.get(MAP) as { at: unknown }).at, "a redelivered create touched the map at all").toBe("then");
+    // an edit moves the entry, once, on the delivery that moves the count
+    await deliverEdit("edit-1", 1, 0);
+    expect((store.get(MAP) as { a: Record<string, number> }).a).toEqual({ [QID]: 0, "daily-2026-08-25": 1 });
+    await deliverEdit("edit-1", 1, 0);
+    expect((store.get(MAP) as { a: Record<string, number> }).a[QID]).toBe(0);
+  });
+
+  it("a create's ledger entry carries the profile's stamp; an edit's carries none (DATA-EFFICIENCY-RUNBOOK 2.1)", async () => {
+    // The sample row the nightly builds from this entry is what the device
+    // reads instead of the profile, so the name and scores have to be ON
+    // the entry — and the edit path reads no profile, so its entry must
+    // not pretend to a stamp it never took (the row keeps its create's).
+    store.set("v2_users/u1", {
+      anchors: { ageBand: "25-34", country: "NO" },
+      displayName: "  Olaf ",
+      testResults: { big5: { dims: [{ id: "O", value: 70.4 }] }, logic: { pctile: 55 } },
+    });
+    await deliver("evt-1", vote);
+    const entry = store.get("v2_agg_events/evt-1") as Record<string, unknown>;
+    expect(entry.n).toBe("Olaf");
+    expect(entry.s).toEqual({ big5: { O: 70 } });
+    expect(entry.l).toBe(55);
+    await deliverEdit("edit-1", 1, 0);
+    const edit = store.get("v2_agg_events/edit-1") as Record<string, unknown>;
+    expect(edit).not.toHaveProperty("n");
+    expect(edit).not.toHaveProperty("s");
+    expect(edit).not.toHaveProperty("l");
+    // A profile with no name and no results stamps as nothing — still a
+    // stamp, so the row can say "no name" rather than "unknown".
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    await deliver("evt-2", vote);
+    const bare = store.get("v2_agg_events/evt-2") as Record<string, unknown>;
+    expect(bare.n).toBe("");
+    expect(bare.s).toBeNull();
+    expect(bare.l).toBeNull();
+  });
+
   it("an edit that arrives before its create THROWS, so Eventarc redelivers", async () => {
     // Eventarc orders nothing between a document's create and update
     // deliveries, so the edit can land first. `retargetCounts` refuses
@@ -334,6 +420,45 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       .toEqual({ ageBand: "25-34", country: "NO" });
   });
 
+  // THE SAME LIE, ONE ARM UP. The catalog arm folds `entBy` — per-entity
+  // anchor slices — and that map is projected into the public `by` the
+  // Mirror draws. It had no honest-anchor check of any kind until
+  // 2026-09-10, so every `type: "catalog"` question was this hole with a
+  // different noun, and `rebuildAggregateV2` re-folded the same
+  // uncorrected document, which means a repair reproduced it.
+  it("folds the profile's cohort on a CATALOG pick too, and corrects that answer", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-cat-lie", {
+      surface: "feed", entity: 25,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const entBy = store.get(PRIV)?.entBy as Record<string, Record<string, Record<string, number>>>;
+    expect(entBy.ageBand["25-34"], "the profile's band took the pick").toEqual({ "25": 1 });
+    expect(entBy.ageBand["55-64"], "the claimed band got a cell anyway").toBeUndefined();
+    expect(entBy.country.NO).toEqual({ "25": 1 });
+    expect(entBy.country.JP).toBeUndefined();
+    // …and what a reader actually gets, which is the projection of it.
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>> | undefined;
+    expect(by?.ageBand?.["55-64"], "the public board published the invented cohort").toBeUndefined();
+    // …and the answer row, which the People lens reads to say who someone is.
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the catalog answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes NOTHING to an honest CATALOG answer either", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-cat-true", {
+      surface: "feed", entity: 25, anchors: { ageBand: "25-34", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest catalog answer was rewritten for nothing").toBe(false);
+  });
+
   it("writes NOTHING to the answer when the claim is honest", async () => {
     // The cost shape: an honest client — every client this repo ships —
     // pays one extra read and no write. The write is the liar's cost.
@@ -405,5 +530,36 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       "a withheld city was overwritten from the profile").toBe(false);
     const by = store.get(AGG)?.by as Record<string, Record<string, unknown>>;
     expect(by.city, "a blanked city still folded into a city cell").toBeUndefined();
+  });
+});
+
+
+describe("the answer log mirrors the ledger, once per commit (D447 phase A)", () => {
+  it("a vote, redelivered, is one row; its edit is a second row that says what it moved from", async () => {
+    const rows = fakeLog();
+    try {
+      await deliver("evt-a", vote);
+      await deliver("evt-a", vote);
+      expect(rows.map((r) => r.id)).toEqual(["evt-a"]);
+      expect(rows[0]).toMatchObject({ uid: "u1", qid: QID, surface: "daily", option_idx: 1, from_idx: null, anchors: JSON.stringify({ ageBand: "25-34", country: "NO" }) });
+      await deliverEdit("edit-1", 1, 0, vote.anchors);
+      await deliverEdit("edit-1", 1, 0, vote.anchors);
+      expect(rows.map((r) => r.id)).toEqual(["evt-a", "edit-1"]);
+      expect(rows[1]).toMatchObject({ option_idx: 0, from_idx: 1 });
+    } finally {
+      setLogWriterForTest(null);
+    }
+  });
+
+  it("the rank and catalog arms row too, without an option", async () => {
+    const rows = fakeLog();
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"], domain: "pokemon" });
+    try {
+      await deliver("evt-r", rank);
+      await deliver("evt-p", pick);
+      expect(rows.map((r) => [r.id, r.option_idx])).toEqual([["evt-r", null], ["evt-p", null]]);
+    } finally {
+      setLogWriterForTest(null);
+    }
   });
 });

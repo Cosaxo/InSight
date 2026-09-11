@@ -78,7 +78,8 @@ one write — an answer — and the surfaces differ only in how they cut it.
                        any signed-in user                        (any bucket)
 
   the duel answers above ─►  reveal doc, server-written  ──────► the MIRROR's Groups
-   (sealed until then)        next day, world-readable            portrait
+   (sealed until then)        on the round's reveal,               portrait
+                              world-readable
 ```
 
 One more read joined the picture at D112: a completed instrument writes
@@ -183,9 +184,13 @@ become a person with a reading attached.
 design). Everything is computed from `v2_groups/{gid}/reveals/r{n}`
 documents the viewer can already read, over the newest thirty of them
 (`REVEAL_HIST_CAP` — a fortnight while a reveal was a day, a few days of
-an active room under rounds; the ledger ROLES-PLAN §3.3 proposes is what
-outlives the window) — every number is one the user could recompute from
-the reveals themselves, and the stop reads only the open room's history. The head's ring is roles cast over all the roles in the packs;
+an active room under rounds) — every number is one the user could
+recompute from the reveals themselves, and the stop reads only the open
+room's history — except the SEATS, which since D445 read the room's role
+ledger once a member's row clears the floor: `ledger.{uid}` on the group
+document, the same counts kept by the server as every round reveals
+(ROLES-PLAN §3.3), so a seat reaches past the window while the Votes lens
+stays per round over the reveals. The head's ring is roles cast over all the roles in the packs;
 under the name, *Here, you are the one who gets things going · 5 of 15
 votes say so* once two votes have named you (`groupRole`, `MIN_GROUP`) —
 a seat is said as its LINE in play, its title being a result card's. The
@@ -348,7 +353,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and thirty-eight, spread over three radii, so
+holds twenty-four in a hundred and forty-two, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships
@@ -451,23 +456,22 @@ that looks broken.
 **Every stop with a population has the row now (D190).** D188 measured its
 geometry on the five that had one and recorded the gap it did not close —
 "Circle and Groups have no row at all in live mode… a missing feature, not
-a misplaced one". They have one, and since D437 the two rows differ.
-Circle keeps D190's three (`Answers · People · Compare`, `CIRCLE_TABS`),
-the three `group-mirror.jsx` gives the demo twins; Groups is
-`Votes · People · Scores · Compare` (`GROUP_TABS`) — § Groups above is
-the description of what each of those four draws. Both are drawn under
-the same `marginTop: auto` frame, so the row lands at the same height on
-all seven. Neither stop invents a source for it — each tab is a different
-cut of the fold that stop was already computing, and Compare is the
-shared lens in both (`CompareLens` at D190; `LiveCompareLens` since D193,
-over each stop's own basis).
-
-D190's refusals both survive the change: **Explore** is on neither stop,
-because it needs an "everyone" baseline and a circle of nine is not one,
-and the D187 place **Scores** lens is on neither, because it needs
-questions that rate a place. What Groups gained is a different lens
-wearing that word — the room rating ITSELF between two poles — so a
-reader meeting it here should not read D187's refusal as lifted.
+a misplaced one". They have one. Circle's is the three
+`group-mirror.jsx` gives the demo twins — `Answers · People · Compare` —
+and Groups' is FOUR since D434–D437: `Votes · People · Scores · Compare`
+(`GROUP_TABS`, `src/v2/ui/LiveGroupsMirrorBody.tsx`). Both are drawn
+under the same `marginTop: auto` frame so the row lands at the same
+height on all seven.
+Neither stop invents a source for it — each tab is a different cut of the
+fold that stop was already computing, and Compare is the shared lens in
+both (`CompareLens` at D190; `LiveCompareLens` since D193, over each
+stop's own basis). The two ends of the row are still the stop's own
+business, and one of them moved: **Explore** needs an "everyone"
+baseline, which neither stop has. **Scores** was refused here for the
+same kind of reason — it needed questions that rate a place — and D437's
+rating rounds gave Groups its own subject: the room rates ITSELF, every
+fourth round, so the lens has a published fold of its own to draw.
+Circle has no equivalent and keeps the three.
 
 Where a row is refused, it is still refused for a reason: a **failed**
 circle read draws the retry sentence and no tabs (three empty readings of

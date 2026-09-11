@@ -18,9 +18,9 @@
 //
 // Run: npm run test:scripts
 import { describe, it, expect } from "vitest";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { execFileSync } from "node:child_process";
 
 import {
@@ -35,6 +35,8 @@ import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
   AGG_POLL_MS, POLL_DOCS, LOCATION, LOCATION_LABEL, REGIONAL, priceSheet,
+  ANSWER_MAP_WRITES_PER_ANSWER,
+  DB_ID, NAMED_DB, FREE, FREE_EGRESS_GIB_MO, SCHEDULER_JOBS, SCHEDULER_USD_MO, totalCost, functionsCost,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -212,6 +214,17 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     const series = read("scripts/pulse-render.mjs").match(/key: "(\w+)"/g)
       .map((s) => s.slice(6, -1));
     expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
+  });
+
+  it("the answer map's write per world answer is in the model AND in both branches of the trigger (DATA-EFFICIENCY-RUNBOOK 3.2)", () => {
+    // One merged write per world answer, live (D446 amendment). The model
+    // charges it as a constant; the trigger has to write it on the create
+    // AND on the edit, or a moved answer stays where it was in every
+    // Circle that reads the map. Counted off the source, comments out.
+    expect(ANSWER_MAP_WRITES_PER_ANSWER).toBe(1);
+    const src = stripComments(read("functions/src/v2.ts"));
+    const sites = src.match(/tx\.set\(answerMapRef\(db, event\.params\.uid\), answerMapMerge\(/g) || [];
+    expect(sites.length, "the create and the edit branch each merge the entry onto the person's map").toBe(2);
   });
 
   it("the social term is flat above the voter cap, and only above it", () => {
@@ -437,29 +450,56 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(
       singles + batched,
       "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
-      + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
+      + "in scripts/cost-arith.mjs charges the VOTE path (3: ledger event + "
       + "the published aggregate, which is the fold's working document since "
-      + "D275 collapsed the private mirror into it); the catalog (D232) and "
-      + "rank (D233) branches each read one more — the question doc — and "
-      + "the catalog branch reads a FOURTH since 2026-09-09, the author's "
-      + "profile, because D410's honest-anchor check had never been applied "
-      + "to that fold; the model deliberately absorbs both into the vote "
-      + "rate (see the constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
+      + "D275 collapsed the private mirror into it, + the author's profile "
+      + "since D410); the rank branch (D233) reads three too, trading the "
+      + "profile for the question doc, and the catalog branch (D232) reads "
+      + "four — question doc AND profile — the one read the model "
+      + "deliberately absorbs into the vote rate (see the "
+      + "constant's comment). The duel branch reads ONE since ROUNDS-PLAN / "
       + "D426 — the group document, in the transaction that marks who "
       + "played and asks whether the round is complete (TRIGGER_READS.duel "
       + "0 → 1) — plus TWO on its late path alone (the reveal it joins and "
       + "the member's profile for the name), charged by COSTS.md's own row "
       + "for a late answer rather than by the per-answer constant, because "
       + "only an answer to a round that has already revealed takes that "
-      + "path. Recount before changing the constant.",
+      + "path. Recount before changing the constant.\n\n"
+      + "12 -> 13 on 2026-09-10: the CATALOG branch gained the author's "
+      + "profile, the D410 honest-anchor read the vote arm has had since "
+      + "D410 and this one never had — it folded whatever cohort the client "
+      + "claimed, and published it. TRIGGER_READS does NOT move for it. The "
+      + "model charges `world: 3` per world answer (event + published "
+      + "aggregate + profile) and says in its own comment that catalog and "
+      + "rank read one more than that, absorbed, `the error is one read per "
+      + "such answer`. Before this the catalog branch read three — event, "
+      + "question, private mirror, and no profile — so it matched the "
+      + "charge by coincidence while missing the guard. It now reads four, "
+      + "which is exactly the +1 the constant already tolerates.",
     ).toBe(13);
   });
 
-  it("the velocity scan still walks the ledger once per entry", () => {
-    // VELOCITY_READS_PER_LEDGER_ENTRY = 1 rests on this being a paged query
-    // over the window rather than a counter or an aggregation query.
+  it("the velocity scan's own read is a paged query over the partial day, and the whole days come off the pass's reader", () => {
+    // VELOCITY_READS_PER_LEDGER_ENTRY rests on this being a paged query
+    // over the tail rather than a counter or an aggregation query — and,
+    // since DATA-EFFICIENCY-RUNBOOK 4.4, on the whole days of the window
+    // coming off the memoised reader the pass shares (D399), which is
+    // why the constant is the partial day's share and not 1.
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
+    expect(v, "the whole days no longer come off the shared reader").toMatch(/ledgerDay\(utcDayKeyOf\(dayStart\)\)/);
+    // MATCHED TO THE SHARED READER AND NOT TO THE WHOLE CALL. What this
+    // line is here to prove is that the pass runs the scan against the
+    // store built on `ledgerDay` — the memoised reader whose sharing is
+    // the reason VELOCITY_READS_PER_LEDGER_ENTRY is a partial day's share
+    // rather than 1. The old pattern ended `, now)` and so also pinned the
+    // argument LIST, which is not a cost claim: giving the scan a time
+    // bound added two arguments and turned this tripwire red, reporting a
+    // cost regression that had not happened. A pattern that fails for a
+    // reason outside its own subject is the failure this file documents
+    // three lines down about the field list.
+    expect(read("functions/src/nightly.ts"), "the pass no longer runs the scan off the shared reader")
+      .toMatch(/runVelocityScan\(firestoreVelocityStore\(db, ledgerDay\)/);
     // The FIELD LIST is not the tripwire and must not be pinned as one:
     // `select()` narrows egress, not billed reads, so adding a field (as
     // `fromIdx` was, to tell a D86 edit's row from a create) changes the
@@ -477,13 +517,16 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       .not.toMatch(/\.aggregate\(/);
   });
 
-  it("the reveal pipeline's per-member read count still has its two parts", () => {
-    // revealReadsPerMember(m) = (2 + 2m)/m — getAll(profiles, fieldMask) and
-    // the committing tx.getAll(revealRef, group, ...answers). ROUNDS-PLAN /
-    // D426 took the day's other two out: the standalone revealRef.get()
-    // (redundant, because the reveal and the round's advance are one commit)
-    // and the pre-read of every answer (the verdict comes off `played` on
-    // the group document the page already holds).
+  it("the reveal pipeline's per-member read count still has its three parts", () => {
+    // revealReadsPerMember(m) = (3 + 2m)/m — getAll(profiles, fieldMask),
+    // the committing tx.getAll(revealRef, group, ...answers), and ONE
+    // tx.get of the round's question for the role ledger (D445): a cast
+    // or a seated role vote is a fact about the question, which the
+    // answers cannot say. ROUNDS-PLAN / D426 took the day's other two out:
+    // the standalone revealRef.get() (redundant, because the reveal and
+    // the round's advance are one commit) and the pre-read of every answer
+    // (the verdict comes off `played` on the group document the page
+    // already holds).
     //
     // EXACT, not a floor, and that is the difference between a tripwire and
     // a decoration: ADDING a document access fails here with a pointer to
@@ -491,15 +534,54 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // the function carries prose that names getAll, and a tripwire over
     // billed reads that counts prose is wrong twice.
     //
-    // The two getAll sites are the whole per-round read; a new site here
-    // means a new billed read on some path: recount cost-arith's block
-    // before moving this number.
+    // The two getAll sites and the one tx.get are the whole per-round read;
+    // a new site of EITHER shape means a new billed read on some path:
+    // recount cost-arith's block before moving these numbers. Both shapes
+    // are counted because D275's branch had a tripwire that counted only
+    // `tx.get(` after the code had moved to `tx.getAll(` — it counted zero
+    // and called it a regression — and the ledger's read is the other way
+    // round: a `tx.get(` that a getAll-only count could not see.
     const s = read("functions/src/v2social.ts");
     const fn = s.match(/async function revealRound[\s\S]*?\n\}/)[0]
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
     expect((fn.match(/getAll\(/g) || []).length).toBe(2);
+    expect((fn.match(/\btx\.get\(/g) || []).length).toBe(1);
     expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(0);
+  });
+
+  it("nets no Firestore free quota on a named database, read off db.ts, and carries the scheduler floor", () => {
+    // COST-EXPOSURE.md §2: the free quota belongs to `(default)`; production
+    // is the named database `insight` (D165) and `(default)` is deleted
+    // (D333). The model printed $0.00 for the launch row for three weeks
+    // on an allowance nothing granted. Pinned to the tree the same way the
+    // region is (D200): the id the backend defaults to, not a retyped one.
+    const db = stripComments(read("functions/src/db.ts"));
+    const id = db.match(/export const FIRESTORE_DB_ID = process\.env\.FIRESTORE_DB_ID \|\| "([^"]+)"/)[1];
+    expect(DB_ID).toBe(id);
+    expect(NAMED_DB).toBe(id !== "(default)");
+    if (NAMED_DB) {
+      expect(FREE).toEqual({ read: 0, write: 0, del: 0, storeGiB: 0 });
+      expect(FREE_EGRESS_GIB_MO).toBe(0);
+      // The first read bills: the launch row is not $0.00 any more.
+      const { model } = costModel({});
+      const m = model(50, false);
+      expect(m.cost.reads).toBeGreaterThan(0);
+      expect(m.cost.writes).toBeGreaterThan(0);
+      expect(totalCost(m.cost)).toBeGreaterThan(SCHEDULER_USD_MO);
+    }
+    // The floor: one `onSchedule(` site is one billed job past three free.
+    // Counted here by a second route (per file, comments stripped) so the
+    // model's count cannot drift from the tree without this saying so.
+    let sites = 0;
+    for (const f of readdirSync(join(ROOT, "functions/src"), { recursive: true }).map((e) => String(e).split(sep).join("/"))) {
+      if (!f.endsWith(".ts") || f.endsWith(".test.ts")) continue;
+      sites += (stripComments(read(`functions/src/${f}`)).match(/\bonSchedule\(/g) || []).length;
+    }
+    expect(SCHEDULER_JOBS).toBe(sites);
+    expect(SCHEDULER_JOBS).toBeGreaterThan(3);
+    expect(SCHEDULER_USD_MO).toBeCloseTo((sites - 3) * 0.1, 9);
+    expect(functionsCost(costModel({}).model(50, false).cost)).toBeGreaterThanOrEqual(SCHEDULER_USD_MO);
   });
 
   it("egress and index storage are billed, not assumed free", () => {

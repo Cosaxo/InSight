@@ -5,6 +5,10 @@
 //     owned by the user + every reference to them in others' subtrees
 //     and deletes them, then drops the auth user. App Store + Play
 //     Store both require this for any app with sign-up.
+//   - exportAccountV2 (./exportAccount, D443): the read-only twin of
+//     that walk — the same graph, phase by phase, returned as one JSON
+//     object. A wipe phase added here without a section there is a red
+//     test (exportAccount.test.ts reads this file's `failed` labels).
 //   - the v2 daily/mirror loop, re-exported at the foot of this file
 //     from ./v2 and ./v2social.
 //
@@ -26,7 +30,10 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
-import { playedRemovals, stampRemoval } from "./v2social";
+import { citySampleId } from "./patternsSamples";
+import { eraseUserLog, firestoreLogErasure } from "./log";
+import { rateLimitLedgers } from "./exportAccount";
+import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -188,6 +195,15 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
+      // The answer log's rows (log.ts, D447 phase A, phase 1a″): 1 when the
+      // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
+      // buffer refused it or the table is past the immediate ceiling
+      // (LOG_ERASE_NOW_MAX_BYTES — a DELETE is a pass over the whole
+      // table) and the nightly reconcile's one statement carries the
+      // marker — gone within a day either way, which is the privacy
+      // page's word.
+      log: 0,
+      logDeferred: 0,
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
@@ -295,38 +311,92 @@ export const deleteAccount = onCall(
       failed.push("aggEvents");
     }
 
+    // 1a″. THE ANSWER LOG (log.ts, D447 phase A) — the ledger's mirror in
+    //     BigQuery, which keeps rows past the ledger's TTL and so holds the
+    //     attribution longest. One DML statement now while the table is
+    //     under a gibibyte; past that, or where BigQuery refuses because
+    //     the rows are still in its streaming buffer, a server-only
+    //     marker (`v2_log_erasures`) that the nightly reconcile takes in
+    //     ONE statement with every other account the day deleted (a
+    //     DELETE is a pass over the table whatever it names — log.ts's
+    //     header) — the marker written is the promise kept, and only a
+    //     marker that cannot be written fails the phase. Where there is
+    //     no BigQuery — every emulator run — there are no rows either,
+    //     and the writer answers "done" for the same reason an empty
+    //     collection sweep does.
+    try {
+      const outcome = await eraseUserLog(firestoreLogErasure(db), uid, Date.now());
+      if (outcome === "done") counts.log = 1; else counts.logDeferred = 1;
+    } catch (err) {
+      logger.error("[deleteAccount] answer-log erasure could not even be deferred:", err);
+      failed.push("log");
+    }
+
     // 1a′. THE VOTER SAMPLES (D397) — the one derived, world-readable
     //     document family that holds uids: `v2_patterns/sample-{qid}`, the
     //     newest two hundred voters per question, rows keyed by uid so
     //     this arm is a field delete and never a rewrite of anyone else's
-    //     row. Every sample is checked rather than the ones this
+    //     row. Every world sample is checked rather than the ones this
     //     account's answer map names, because the map and the samples
     //     are written by the same nightly run and a crash between the two
     //     writes could leave a row the map does not know about — a few
     //     hundred reads once per deletion is the price of "gone means
     //     gone" holding without a caveat. e2e-delete-account.mjs asserts
     //     it, and that the other voters' rows stay.
-    try {
-      const refs = (await db.collection("v2_patterns").listDocuments())
-        .filter((r) => r.id.startsWith("sample-"));
-      let scrubbed = 0;
-      for (let i = 0; i < refs.length; i += 300) {
-        const snaps = await db.getAll(...refs.slice(i, i + 300));
-        let batch = db.batch();
-        let ops = 0;
-        for (const snap of snaps) {
-          if (!snap.exists) continue;
-          const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
-          if (!(uid in rows)) continue;
-          batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
-          scrubbed += 1;
-          if (++ops >= 450) {
-            await batch.commit();
-            batch = db.batch();
-            ops = 0;
-          }
+    //
+    //     Enumerated by ID RANGE rather than `listDocuments` since the
+    //     per-city samples joined the collection (DATA-EFFICIENCY-RUNBOOK
+    //     2.5): those are `city-{qid}~{city}` — one per (question, city)
+    //     pair the nightly has seen, which at scale is the product of two
+    //     catalogues — and a listing that walked them all is the shape
+    //     this callable's deadline cannot hold. `sample-` ≤ id < `sample.`
+    //     is exactly the world family ('.' follows '-' in ASCII).
+    let scrubbed = 0;
+    const scrub = async (snaps: FirebaseFirestore.DocumentSnapshot[]) => {
+      let batch = db.batch();
+      let ops = 0;
+      for (const snap of snaps) {
+        if (!snap.exists) continue;
+        const rows = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+        if (!(uid in rows)) continue;
+        batch.update(snap.ref, { [`rows.${uid}`]: FieldValue.delete(), n: FieldValue.increment(-1) });
+        scrubbed += 1;
+        if (++ops >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          ops = 0;
         }
-        if (ops) await batch.commit();
+      }
+      if (ops) await batch.commit();
+    };
+    try {
+      const world = await db.collection("v2_patterns")
+        .where(FieldPath.documentId(), ">=", "sample-")
+        .where(FieldPath.documentId(), "<", "sample.")
+        .get();
+      await scrub(world.docs);
+      // The city samples this account can be in are named by its OWN
+      // answers — the frozen `anchors.city` on each (D8), which is the
+      // same chip the nightly keyed the row under — so the reach is
+      // bounded by the account's answers rather than by the catalogue.
+      // An answer whose trigger has not folded yet has no row anywhere,
+      // and the answers are read here, before phase 1b deletes them.
+      const pairs = new Set<string>();
+      let query = db.collection("v2_users").doc(uid).collection("answers")
+        .orderBy(FieldPath.documentId()).select("qid", "anchors").limit(1000);
+      for (;;) {
+        const page = await query.get();
+        for (const d of page.docs) {
+          const qid = String(d.get("qid") ?? "");
+          const city = (d.get("anchors") as { city?: unknown } | undefined)?.city;
+          if (qid && typeof city === "string" && city.trim()) pairs.add(citySampleId(qid, city));
+        }
+        if (page.size < 1000) break;
+        query = query.startAfter(page.docs[page.size - 1]);
+      }
+      const ids = [...pairs].sort();
+      for (let i = 0; i < ids.length; i += 300) {
+        await scrub(await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id))));
       }
       counts.patternSamples = scrubbed;
     } catch (err) {
@@ -595,6 +665,11 @@ export const deleteAccount = onCall(
             // every remaining member reads.
             ...playedRemovals(g.get("played"), uid),
             ...stampRemoval(g.get("pushAt"), uid),
+            // …and their role-ledger row (D445, ROLES-PLAN §3.3's erasure
+            // clause): what the room made this member, counted by the
+            // server and readable by every remaining member — the same
+            // erasure leak as `memberNames`, one map over.
+            ...ledgerRemoval(g.get("ledger"), uid),
             // …and `ownerUid`, when it names the departing user. It is
             // stamped by createGroupV2 and read by NOTHING — a repo-wide
             // grep finds the one write and no reader — so dropping it is
@@ -980,6 +1055,14 @@ export const deleteAccount = onCall(
     //     registry, and worse if missed: the row holds a name, so leaving
     //     it means an erased account stays findable by the search this
     //     feature exists to provide.
+    //
+    //     The count is a CONSTANT on purpose, and since D440 that is
+    //     load-bearing: the owner may already have deleted this row by
+    //     clearing their name, and the delete below is idempotent, so an
+    //     erasure that finds no row succeeds and reports exactly as one
+    //     that found it. The old client-side deny rested on this phase
+    //     "counting on" the row; it never did, and a measurement here
+    //     (exists-then-delete) would be the change that made that true.
     try {
       await db.doc(`v2_people/${uid}`).delete();
       counts.peopleRow = 1;
@@ -1030,18 +1113,15 @@ export const deleteAccount = onCall(
     // 4b. Rate-limit ledgers keyed by this uid. Rules make them fully
     //     opaque to clients, but they contain recipient uids and
     //     activity timestamps — right-to-erasure covers them too.
+    //
+    //     THE LIST LIVES IN `exportAccount.ts`, and each ledger's reason
+    //     with it. It was written out here as well until the two copies
+    //     drifted: this phase deleted six documents and the export
+    //     disclosed five, which `TWIN` cannot catch — it pairs a wipe
+    //     PHASE with a bundle section, and both halves of this pair were
+    //     there. One list, so the read and the wipe cannot part again.
     try {
-      await db.collection("insight_ratelimits").doc(uid).delete();
-      await db.collection("v2_ratelimits").doc(`join_${uid}`).delete();
-      // D122's invitation budget, keyed the same way. Added with the
-      // callable rather than after someone noticed the ledger surviving
-      // an erasure.
-      await db.collection("v2_ratelimits").doc(`invite_${uid}`).delete();
-      // The suggestion budget (suggestions.ts), same pattern and same
-      // reasoning: added with the callable, not after an audit.
-      await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
-      // The paid-booking budget (paid.ts, D313), same pattern again.
-      await db.collection("v2_ratelimits").doc(`paidbook_${uid}`).delete();
+      for (const [, path] of rateLimitLedgers(uid)) await db.doc(path).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");
@@ -1323,6 +1403,7 @@ export const deleteAccount = onCall(
 
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
 export { seedContentV2, onV2AnswerCreated, onV2AnswerUpdated } from "./v2";
+export { onV2ProfileUpdated } from "./profileFanout";
 export {
   acceptGroupInviteV2,
   claimHandleV2,
@@ -1348,7 +1429,9 @@ export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from
 export { activateDeviceV2 } from "./deviceBind";
 // D54: the daily ledger velocity scan — detection for D28's correction
 // story. Logs flags for manual review; never denies a vote.
-export { ledgerVelocityScan } from "./velocity";
+// D54's velocity scan runs inside the nightly pass since DATA-EFFICIENCY-
+// RUNBOOK 4.4 (nightly.ts) — `ledgerVelocityScan` is no longer a function
+// of its own; the project's copy is deleted by hand (OWNER-LIST.md).
 export { logicStartV2, logicSubmitV2 } from "./logic";
 export { saveTestResultV2 } from "./testResults";
 // D194: Foresight CALL, tier A — the daily pass that grades a sealed
@@ -1394,8 +1477,23 @@ export {
 // LEDGER_RETENTION_DAYS. This repairs the breakdown too, at any age, and
 // is the safety net every later projection change rests on.
 export { rebuildAggregateV2 } from "./replay";
+// DATA-EFFICIENCY-RUNBOOK 3.4: the one-time fold of every existing answer
+// into the per-person answer maps the Circle stop reads, resumable from a
+// cursor, driven by scripts/backfill-answer-maps.mjs from its workflow.
+export { backfillAnswerMapsV2 } from "./answerMaps";
+export { backfillLogV2 } from "./log";
+// COST-EXPOSURE.md §6 C4: the Cloud Billing budget's notification, off its
+// Pub/Sub topic, sets the D332 read breaker at 100 % — the hours between a
+// budget mail and a person, closed.
+export { onBudgetAlert } from "./budget";
 // D379: the shareable results page — a public web page per sponsored
 // question at the hosting rewrite /q/{qid}, rendered here on the admin
 // SDK off the two public documents. onRequest, and no App Check, because
 // it serves the open web; the reasoning is share.ts's header.
 export { resultsPageV2 } from "./share";
+// D443: the data export — deleteAccount's read-only twin, owner-only, one
+// JSON object under a byte bound. What web/terms.html's "a chance to
+// download your data first" is now backed by, and the app's answer to
+// GDPR Art. 20; exportAccount.ts's header has the three things it leaves
+// out and why.
+export { exportAccountV2 } from "./exportAccount";

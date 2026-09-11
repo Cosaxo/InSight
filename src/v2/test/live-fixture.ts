@@ -455,7 +455,14 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.
     revealHistoryLoading: () => false,
-    loadRevealHistory: async () => {},
+    // Settled AND read: the empty history above is a room that has not
+    // played, not one this fixture failed to read for.
+    revealHistState: () => "ready" as const,
+    // Answers the word the store answers ("ok" | "failed" | "busy"), not
+    // `undefined` — LiveRolesPanel branches on it. Inert here only
+    // because this fixture hands back no groups, so the loop that reads
+    // it never runs; `social` is loosely typed, so tsc cannot say so.
+    loadRevealHistory: async () => "ok" as const,
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
     approveJoin: async () => ({ ok: true }),
@@ -488,6 +495,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // Settled: a mount test is about what the screen draws once the
     // read has landed, not about the frame before it.
     takesLoading: () => false,
+    // Same reason one line up, and the other state the pair cannot hold
+    // between them: the fixture's empty list is a room that wrote
+    // nothing, not a read that was refused. A case that wants the
+    // refused one overrides this member.
+    takesState: () => "ready" as const,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
@@ -664,7 +676,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     removeAvatar: async () => {},
     flagAvatar: async () => {},
     flaggedAvatar: () => false,
-    loadNames: async () => {},
+    // Answers, like the store: `false` is a failed profile read and
+    // Compare draws it as one.
+    loadNames: async () => true,
     // Kindred (D99): one overlapping person, so a live mount renders a
     // ranked row rather than only the empty state.
     loadKindred: async () => {},
@@ -745,6 +759,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fold has counted them. The real store returns the option index only
     // while `unaggregated` still holds it.
     pulsePending: () => null,
+    // Nothing to clear, for the reason directly above: the fixture's
+    // votes are seeded as already folded, so no id carries an unfolded
+    // mark and the real store's clear would return at its first guard
+    // too. A case that seeds an unfolded answer overrides this the same
+    // way it overrides `pulsePending`.
+    noteFolded: () => {},
     // Same reason, one question wider: the fixture's votes are seeded as
     // folded, so nothing here is unaggregated and every question answers
     // null. A case that wants the other side of the fold overrides this
@@ -896,6 +916,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // directions).
     seedContent: async () => ({ written: 0, skipped: 0 }),
     deleteAccount: async () => {},
+    exportAccount: async () => ({}),
   };
 
   // The same globals buildFeedGlobals() publishes. WORLD_FEED_COMMENTS is

@@ -41,6 +41,7 @@ import {
   deleteDoc,
   deleteField,
   serverTimestamp,
+  Timestamp,
   type Firestore,
 } from "firebase/firestore";
 
@@ -55,7 +56,15 @@ import {
  * comment calls the cheapest kind of latent bug. The emulator's reason
  * text reaches the client, so a refusal carrying it is a red test with
  * the true reason in it — not a case. Every refusal in this file goes
- * through here; `assertFails` is not called directly anywhere else.
+ * through here; `assertFails` is not called directly anywhere else, and
+ * scripts/refused-discipline.test.mjs is what makes that sentence true —
+ * it stopped being true in the commit that added the log-erasure and
+ * public-answer-map blocks, whose seven refusals copied the older idiom
+ * from a file that predated this helper. Both are `if false` paths where
+ * a budget stop cannot be the granting reason, so nothing was wrong in
+ * fact; what was wrong was the CLAIM, and the next block copied from
+ * them would have landed somewhere a `get()` runs, where D431's failure
+ * mode is silent.
  */
 async function refused(pr: Promise<unknown>): Promise<unknown> {
   const err = await assertFails(pr);
@@ -395,6 +404,18 @@ describe("v2 questions + aggregates", () => {
     await refused(setDoc(doc(asUser(OWNER), "v2_velocity", "state"), { lastScanAt: 0 }));
     await refused(deleteDoc(doc(asUser(OWNER), "v2_velocity", "state")));
   });
+
+  it("deferred answer-log erasure markers (D447 phase A) are opaque to clients", async () => {
+    // A marker names an erased account, and a writable one would let a
+    // client queue the deletion of somebody else's rows — or clear the
+    // marker that keeps the promise on their own.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_log_erasures", OWNER), { at: 1 });
+    });
+    await refused(getDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+    await refused(setDoc(doc(asUser(OWNER), "v2_log_erasures", "someone-else"), { at: 0 }));
+    await refused(deleteDoc(doc(asUser(OWNER), "v2_log_erasures", OWNER)));
+  });
 });
 
 describe("v2 profile", () => {
@@ -417,8 +438,10 @@ describe("v2 profile", () => {
   it("a profile cannot be DELETED — the only deny in the file that no test held", async () => {
     // Of the denies in firestore.rules, this was the one that could be
     // relaxed to `if request.auth != null` with the whole suite green at
-    // 178; `v2_people`'s identical `allow delete: if false` reds, as does
-    // every other.
+    // 178; `v2_people`'s then-identical `allow delete: if false` reds, as
+    // does every other. (That arm is owner-only since D440 — a directory
+    // row is derived from the profile and can be re-written from it, which
+    // is exactly what the profile itself cannot be.)
     //
     // It is not only coverage. The handle guard reads back
     // `resource.data.get("handle", null)`, so a deleted profile is one
@@ -492,8 +515,14 @@ describe("v2 profile", () => {
     await refused(setDoc(mine, { createdAt: "x".repeat(20000) }));
     await refused(setDoc(mine, { updatedAt: { nested: "y".repeat(20000) } }));
     // …and a moment is still a moment, in either shape the tree uses.
-    await assertSucceeds(setDoc(mine, { createdAt: 1730000000000 }));
-    await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }));
+    // MERGES, because these two are about the timestamps and nothing
+    // else: this profile carries a consent record (written at the top of
+    // the case), and a NON-merge write that omits it is now refused for
+    // dropping it — the arm the case below this one is about. Written as
+    // whole-document writes they would fail for a reason that has nothing
+    // to do with what they assert.
+    await assertSucceeds(setDoc(mine, { createdAt: 1730000000000 }, { merge: true }));
+    await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }, { merge: true }));
     // unknown anchor key
     await refused(setDoc(mine, { anchors: { ssn: "123" } }));
     // ── testResults is SERVER-ONLY now, and these cases are the door ──
@@ -556,6 +585,17 @@ describe("v2 profile", () => {
     await refused(setDoc(mine, {
       testResults: { big5: deleteField() },
     }, { merge: true }));
+    // …AND THE WHOLE MAP, which is the case this one only looked like.
+    // Removing a SUB-KEY was always refused, because the resulting map
+    // differs from the stored one; removing the map itself made the key
+    // ABSENT, and the clause was written as "absent OR unchanged", so it
+    // passed — every verified logic score and every political-consent
+    // coupling deletable through the ordinary profile write path.
+    // Measured 2026-09-10, both allowed.
+    await refused(updateDoc(mine, { testResults: deleteField() }));
+    // The same removal wearing a different hat: a non-merge `setDoc` that
+    // simply leaves the key out.
+    await refused(setDoc(mine, { displayName: "Ada" }));
 
     // The display name's own 60-char cap. It went untested from the day it
     // was written: this case checked the unknown-field and stranger-write
@@ -775,6 +815,44 @@ describe("v2 profile", () => {
     // anonymity toggle that has never existed. D331 took it off, and a
     // write carrying it must now be refused rather than quietly stored.
     await refused(setDoc(mine, { anon: true }));
+  });
+
+  it("refuses a write that DROPS a consent record it already has", async () => {
+    // The third clause in this rule caught spelling absence as a free
+    // pass, after `handle` and `testResults` — and the one where it costs
+    // the most, because `testResults` is frozen to the client now: the
+    // published `testResults.political` coordinate would stay while its
+    // consent record went, which reads back as "never asked". D331
+    // couples the two in ONE server write precisely so that state cannot
+    // exist.
+    //
+    // The profile here carries consent and NOTHING ELSE, deliberately. A
+    // profile that also held `testResults` would see the non-merge write
+    // below refused by that clause instead, and this case would pass
+    // without ever reaching the one it is about.
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, { consent: { political: { v: 1, at: 1730000000000 } } }));
+    // The removal wearing both its hats: a non-merge write that leaves
+    // the key out, and the explicit delete.
+    await refused(setDoc(mine, { displayName: "Ada" }));
+    await refused(updateDoc(mine, { consent: deleteField() }));
+
+    // THE CONTROLS, because "refuse absence" is only correct where there
+    // is something to remove.
+    // 1. An ordinary merge never mentions consent and must still write —
+    //    `request.resource.data` is the RESULTING document, so the stored
+    //    record is present in it.
+    await assertSucceeds(setDoc(mine, { displayName: "Ada" }, { merge: true }));
+    // 2. Withdrawal is a shape, not a deletion: `off` is set and the
+    //    record stays. (The app's withdrawal runs on the server; this is
+    //    the client arm still being legal.)
+    await assertSucceeds(setDoc(mine, {
+      consent: { political: { v: 1, at: 1730000000000, off: 1730000001000 } },
+    }, { merge: true }));
+    // 3. A profile that has never consented writes freely.
+    const theirs = doc(asUser(STRANGER), "v2_users", STRANGER);
+    await assertSucceeds(setDoc(theirs, { displayName: "Bo" }));
+    await assertSucceeds(setDoc(theirs, { displayName: "Bo again" }));
   });
 
   // D155 added `age` beside `ageBand` — the exact number, for the screens
@@ -1040,6 +1118,9 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     // …and the nightly voter samples beside it (D397) read under the same
     // rule — they are the who-voted list, which D98 made anyone's to read
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "sample-daily-000")));
+    // …and the per-city samples (DATA-EFFICIENCY-RUNBOOK 2.5), the same
+    // list for one city, under the same rule and a different prefix
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "city-daily-000~Oslo%2C%20NO")));
     // A client-writable model would make the whole map forgeable in one request.
     await refused(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 8, q: {} }));
     await refused(updateDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 9 }));
@@ -1059,6 +1140,22 @@ describe("the nightly folds' documents: published, owner-only, or nobody's", () 
     await refused(setDoc(doc(asUser(OWNER), "v2_rank", "feed"), { topics: {} }));
     await refused(updateDoc(doc(asUser(OWNER), "v2_rank", "feed"), { day: "2026-08-27" }));
     await refused(setDoc(doc(asUser(OWNER), "v2_rank", "learn"), { topics: {} }));
+  });
+
+  it("the answer map is any signed-in reader's to get, nobody's to list, and nobody's to write (DATA-EFFICIENCY-RUNBOOK 3.1)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 1 }, at: 1 });
+    });
+    // The answers' own grant (D98), one document: a stranger reads it…
+    const got = await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "public", "answers")));
+    expect((got as { get: (f: string) => unknown }).get("a")).toEqual({ "daily-000": 1 });
+    // …but cannot list the subcollection, and nobody writes it — the
+    // owner's own map included, because a client-writable map would let
+    // one person forge how alike they are to everyone.
+    await refused(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "public")));
+    await refused(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { a: { "daily-000": 0 } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers"), { "a.daily-001": 1 }));
+    await refused(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "public", "answers")));
   });
 
   it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
@@ -1615,6 +1712,40 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await refused(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
     // delete stays closed
     await refused(deleteDoc(ref));
+  });
+
+  // THE COOLDOWN'S OTHER SIDE, and it was true ZERO times across the whole
+  // suite. Every existing case reaches the clause through one of two arms:
+  // a first edit, where `editedAt` is absent from the old document, or a
+  // second edit inside the window, which is refused. The arm that says an
+  // edit is allowed AFTER the window — `request.time > resource.data
+  // .editedAt + duration.value(60, 's')` — was never taken, so a mistake
+  // in it could not redden anything.
+  //
+  // `>` flipped to `<` IS caught, by the in-window refusal above. What is
+  // not: the unit. `'s'` typed as `'h'` makes the cooldown sixty HOURS, the
+  // first edit still passes on the absent-key arm, the second is still
+  // refused, every assertion in this file stays green — and D86's edit has
+  // silently become once per answer, forever.
+  //
+  // Seeded rather than waited for: the window is real time, and a suite
+  // that sleeps sixty seconds to prove a bound is a suite people stop
+  // running.
+  it("D86: an edit is allowed again once the cooldown has passed", async () => {
+    await seedQuestion();
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID2);
+    await assertSucceeds(setDoc(ref, answer({ qid: QID2 })));
+    // Straight past the window, through the admin path — the client
+    // cannot write `editedAt` to anything but `request.time`.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID2), {
+        editedAt: Timestamp.fromMillis(Date.now() - 120_000),
+      }, { merge: true });
+    });
+    await assertSucceeds(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+    // …and the window re-arms behind it, so this proves the cooldown is a
+    // WINDOW rather than a switch the seed above simply turned off.
+    await refused(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
   });
 
   it("D86: the kill switch reaches edits, not just creates", async () => {
@@ -2182,6 +2313,33 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     expect((snap as { size: number }).size).toBe(1);
   });
 
+  // The who-voted sheet's live tail (DATA-EFFICIENCY-RUNBOOK 2.4): the
+  // same read with a range on the field it orders by. A range is not an
+  // equality, and the rule's list-query comparison has to accept it the
+  // same way — pinned rather than assumed, because a refusal here would
+  // read on the device as "we could not ask" for every cold question.
+  it("still grants the who-voted read narrowed by a range on answeredAt — the sheet's tail", async () => {
+    // Stamped, because a range drops a document that lacks the field —
+    // the case above seeds none, and the count below is the vacuity guard.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 1, anchors: { city: "Oslo, NO" }, answeredAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, "v2_users", FRIEND, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, anchors: { city: "Bergen, NO" }, answeredAt: serverTimestamp(),
+      });
+    });
+    const snap = await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", QID),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse", "call"]),
+      where("answeredAt", ">=", Timestamp.fromMillis(0)),
+      orderBy("answeredAt", "desc"),
+      limit(50),
+    )));
+    expect((snap as { size: number }).size).toBe(2);
+  });
+
   // …and the narrowing must not become a way around the duel seal, which
   // is the one thing the surface clause exists to hold.
   it("cannot reach a sealed duel answer by adding the city filter", async () => {
@@ -2191,8 +2349,15 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
         gid: "g2", round: 1, anchors: { city: "Oslo, NO" },
       });
     });
+    // WITH the surface filter, so the CITY narrowing is what is under
+    // test. Without it this query carried no surface clause at all and
+    // was refused wholesale by the list rule — which is exactly what the
+    // case below already pins, so this one proved its neighbour's point
+    // and nothing of its own. Adding "duo" to the rule's list would have
+    // left it green.
     await refused(getDocs(query(
       collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
       where("anchors.city", "==", "Oslo, NO"),
     )));
   });
@@ -2234,6 +2399,35 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await refused(getDocs(query(
       collectionGroup(asUser(FRIEND), "answers"),
       where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
+    )));
+  });
+
+  it("…and the GROUP half of the seal, which nothing read-side reached", async () => {
+    // Every case that pinned the seal — this file's, and the e2e's one
+    // sealed-read denial — seeded a `duo` answer. The rule's list is one
+    // expression covering both halves, so appending "group" to it (at
+    // either of its two sites) left EVERY seal assertion green: each
+    // holds a duo document, or a query whose filter list ends in "duo".
+    // Nothing else pinned the list either — the script that cross-reads
+    // the surfaces reads the client's constant, not the rules file, and
+    // the coverage ratchet is unmoved by an element added to an `in`.
+    // The group round is the one D437 built the role vote on: a blind
+    // vote naming a person, sealed until the reveal puts it on the table.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g3_r1"), {
+        qid: "group-gu0", surface: "group", optionIdx: 1,
+        gid: "g3", round: 1,
+      });
+    });
+    const sealed = ["v2_users", OWNER, "answers", "g_g3_r1"] as const;
+    // Yours to read, as every answer of your own is.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), ...sealed)));
+    // Not the other players'.
+    await refused(getDoc(doc(asUser(FRIEND), ...sealed)));
+    // Nor by naming the surface in a collection-group filter.
+    await refused(getDocs(query(
+      collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "group"]),
     )));
   });
 });
@@ -2573,6 +2767,55 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       });
     });
     await refused(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"), { duoMode: "romantic" }));
+  });
+
+  // ── the role ledger is server-written, member-read (D445) ─────────
+  //
+  // `ledger.{uid}` on the group document is what the room has made each
+  // member, counted by the reveal pipeline (admin SDK). No clause names
+  // it: the read rule serves it with the rest of the document, and the
+  // `affectedKeys` pin on `duoMode` is what refuses a client writing it.
+  // Both halves pinned here, because the pin is the only thing standing
+  // between a member and a row that says the room named them the engine
+  // nine times.
+  it("the role ledger is readable by members with the document, and writable by no client (D445)", async () => {
+    const LEDGER = {
+      [OWNER]: { casts: 5, axes: { trust: 3, spark: 2 }, saw: { right: 4, total: 5 }, castQid: "group-gu0" },
+      [FRIEND]: { casts: 5, axes: { constancy: 5 }, saw: { right: 1, total: 2 }, castQid: "group-gu0" },
+    };
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", GID), { ledger: LEDGER }, { merge: true });
+      await setDoc(doc(db, "v2_groups", "g_grp"), {
+        name: "Circle", mode: "group", ownerUid: OWNER,
+        memberUids: [OWNER, FRIEND], inviteCode: "EFGH6789", streak: 0,
+        ledger: { [OWNER]: { votes: 9, seats: { engine: 6, heart: 3 } } },
+      });
+    });
+    // READ: a member reads the ledger as part of the document — both rows,
+    // theirs and the other member's — and a stranger reads none of it.
+    const seen = await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID)));
+    expect((seen as { get: (f: string) => unknown }).get("ledger")).toEqual(LEDGER);
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", "g_grp")));
+    await refused(getDoc(doc(asUser(STRANGER), "v2_groups", GID)));
+    // WRITE: nobody — not a member writing their own row, not one writing
+    // the other's, not one riding the legal duoMode flip, not on a group
+    // doc, not a stranger, not a removal.
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { [`ledger.${OWNER}`]: { casts: 50, axes: { trust: 50 } } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { [`ledger.${FRIEND}`]: { casts: 0 } }));
+    await refused(updateDoc(doc(asUser(FRIEND), "v2_groups", GID),
+      { duoMode: "romantic", ledger: { [FRIEND]: { casts: 50 } } }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"),
+      { [`ledger.${OWNER}.votes`]: 99 }));
+    await refused(updateDoc(doc(asUser(STRANGER), "v2_groups", GID),
+      { ledger: {} }));
+    await refused(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { ledger: deleteField() }));
+    // …and the legal flip still lands beside an untouched ledger: the pin
+    // refuses the field, not the document.
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "romantic" }));
   });
 
   // ── join requests are server-only, both ways (D240) ──────────────
@@ -3102,6 +3345,48 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await refused(getDoc(doc(asUser(FRIEND), "v2_takes", "t_hidden")));
     // The author still reads it — the soft-hide keeps the appeal honest.
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
+  });
+
+  // AND THE SIGNED-OUT WORLD READS NONE OF IT — the one arm of the twelve
+  // this file defers that is actually load-bearing.
+  //
+  // The count two thousand lines below holds the NUMBER of sign-in-gated
+  // read arms and says outright that it does not assert each has a case:
+  // "writing twelve fixtures is tomorrow's work". Measured 2026-09-10, the
+  // twelve are not equal. Seven of them — taste's `get`, the collection-
+  // group invites, `v2_groups`, group invites, `v2_flags` create,
+  // `v2_presence` create/update and delete — fail closed WITHOUT their
+  // `request.auth != null`, because the next conjunct dereferences
+  // `request.auth.uid` and errors on a null auth. This one does not:
+  //
+  //   allow read: if request.auth != null
+  //     && (resource.data.hidden == false
+  //       || resource.data.authorUid == request.auth.uid);
+  //
+  // `resource.data.hidden == false` is TRUE for a signed-out caller, so
+  // the left disjunct carries the whole condition and `request.auth !=
+  // null` is the entire gate — on a world-scale, author-attributed
+  // free-text corpus. Delete that line and every non-hidden take in the
+  // app is readable by the unauthenticated internet, with the suite and
+  // every gate green.
+  //
+  // Both operations, because they fail differently: a `get` is decided per
+  // document, and a LIST is decided against the query's constraints — the
+  // distinction D65's leak was made of, recorded at the case below.
+  it("…and the signed-out world reads no take at all, one or many", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t_open"), {
+        gid: GID, authorUid: OWNER, text: "in the open",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await refused(getDoc(doc(asSignedOut(), "v2_takes", "t_open")));
+    await refused(getDocs(query(
+      collection(asSignedOut(), "v2_takes"),
+      where("gid", "==", GID),
+      where("hidden", "==", false),
+    )));
   });
 
   // The case whose absence WAS the bug (D65). Every take assertion above
@@ -4012,7 +4297,7 @@ describe("presence (D84 — Near by radius)", () => {
   // a modified client writes a position good for a year and stands in the
   // room permanently, whatever its own switch says. The ceiling is the
   // rule that stops it, so it is the rule worth a case.
-  it("caps how long a position may claim to last, and demands one at all", async () => {
+  it("caps how long a position may claim to last", async () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertSucceeds(setDoc(ref, cellDoc({ until: soon(179) })));
     // 180 minutes is PRESENCE_LINGER_MIN. Past it, refused.
@@ -4023,7 +4308,9 @@ describe("presence (D84 — Near by radius)", () => {
     // It is no longer REQUIRED — see the compatibility case below, which
     // owns that half now (D179). What this case owns is the ceiling, which
     // is the half that stops a modified client standing in the room for a
-    // year.
+    // year. The NAME said "and demands one at all" for as long as the body
+    // said the opposite: D179 moved that half and left the title, so the
+    // case read as covering something the case below owns.
     await refused(setDoc(ref, cellDoc({ until: "soon" })));
   });
 
@@ -4222,12 +4509,65 @@ describe("people directory: found by name (D239)", () => {
       { name: "Stranger", nameKey: "stranger" }));
   });
 
-  // deleteAccount (admin SDK) owns removal — phase 3d. A client delete
-  // would be the one path able to strip a row the erasure counts on.
-  it("nobody deletes a row from a client, not even their own", async () => {
+  // THE ORDINARY RENAME — the SECOND write, which nothing exercised.
+  //
+  // The case above ends on a handle-less account's FIRST name write, and
+  // that one takes the other disjunct: with no document yet, `resource ==
+  // null` decides it. The clause beside it — `resource.data.get("handle",
+  // null) == null` — is what decides an UPDATE to an existing row that has
+  // no handle, and that is the ordinary path: `writeDirectoryRow`
+  // (src/v2/data/socialFetch.ts) merges {name, nameKey} into the existing
+  // row every time a display name changes, and most accounts never claim a
+  // handle. Every other case here either creates the row or seeds one that
+  // HAS a handle, so across the whole run that clause was true ZERO times
+  // — the emulator's own coverage report puts it at `true 0x, false 1x,
+  // error 39x`, while the identically-shaped clause on `v2_users` is
+  // covered.
+  //
+  // NEITHER RATCHET COULD SEE IT. The never-false gate cannot, by
+  // construction: the atom IS false once, on the DROP case above, so it
+  // never reaches the never-false list. Measured 2026-09-10 by mutation —
+  // the clause rewritten to `== "zzz-mutation-never"`, so it can never
+  // hold — the suite came back fully green: 222 passed, coverage at its
+  // baseline of 8, all 15 budget probes at their pins. Every repeat name
+  // change in the people directory would have been silently refused for
+  // every account without a handle, and CI would have said nothing.
+  it("lets a handle-less account rename again — the second write, not the first", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_people", STRANGER), { name: "Stranger", nameKey: "stranger" });
+    });
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_people", STRANGER),
+      { name: "Stranger Two", nameKey: "stranger two" }));
+  });
+
+  // The owner deletes their own row (D440): clearing a display name is
+  // the only way a person who set one can stop being found by it, because
+  // the write arm refuses an empty `name` and so there is no unlisted row
+  // to write instead. Until D440 this arm was `if false`, held by a case
+  // titled "nobody deletes a row from a client, not even their own" on
+  // the argument that deleteAccount's phase 3d counts on the row. It does
+  // not: 3d is an idempotent delete followed by a constant, so a row its
+  // owner removed first changes neither the erasure's verdict nor its
+  // report — and the erasure is asserted in e2e-delete-account.mjs, by a
+  // control row that must survive, not by anything here.
+  it("you delete your own row — clearing your name unlists you (D440)", async () => {
+    await seedRow();
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+    // Twice: the second delete meets no document. The writer deletes on
+    // every blank save without reading first, and an account that never
+    // had a row saves a blank too, so a delete of nothing has to be a
+    // legal no-op — the arm reads no `resource`, which is what makes it
+    // one, and this is what holds that.
+    await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+  });
+
+  it("…and nobody deletes another's, signed in or not", async () => {
     await seedRow();
     await refused(deleteDoc(doc(asUser(STRANGER), "v2_people", OWNER)));
-    await refused(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+    // The sign-in conjunct is its own predicate on this arm, and the
+    // coverage ratchet asks that the suite see it refuse: a stranger
+    // fails the uid check, a signed-out delete fails this one.
+    await refused(deleteDoc(doc(asSignedOut(), "v2_people", OWNER)));
   });
 });
 
@@ -4906,6 +5246,7 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
   it("v2_ads refuses a signed-out read", () => refuses(["v2_ads", "ad1"]));
   it("v2_call_outcomes refuses a signed-out read", () => refuses(["v2_call_outcomes", "daily-000"]));
   it("v2_patterns refuses a signed-out read", () => refuses(["v2_patterns", "loadings"]));
+  it("the answer map refuses a signed-out read", () => refuses(["v2_users", OWNER, "public", "answers"]));
   it("v2_rank refuses a signed-out read", () => refuses(["v2_rank", "daily-000"]));
   it("v2_users refuses a signed-out read", () => refuses(["v2_users", OWNER]));
   it("following refuses a signed-out read", () => refuses(["v2_users", OWNER, "following", STRANGER]));
@@ -5001,6 +5342,9 @@ describe("every read gated on sign-in refuses a signed-out client", () => {
     // uncased.
     const rules = ruleSource().split("\n").map((l) => l.replace(/^\s*\/\/.*$/, "")).join("\n");
     const wide = (rules.match(/allow\s+(?:read|get|list)\s*:\s*if\s+request\.auth\s*!=\s*null/g) || []).length;
-    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(28);
+    // 29 since DATA-EFFICIENCY-RUNBOOK 3.1: the answer map's `get` arm
+    // under v2_users/{uid}/public, cased above ("the answer map refuses a
+    // signed-out read") and in the nightly-documents block.
+    expect(wide, "a sign-in-gated read arm was added or removed: give it a case above, or account for it here").toBe(29);
   });
 });

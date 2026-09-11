@@ -54,7 +54,10 @@ const LIVE = vi.hoisted(() => ({
   // reads it now, so the stub belongs beside its sibling.
   kindredState: (): "loading" | "ready" | "failed" => "ready",
   subscribe: () => () => {},
-  loadNames: vi.fn(() => Promise.resolve()),
+  // RESOLVES TRUE — the store answers whether the read landed, and a
+  // fixture resolving `undefined` reads as a failure. The shape is the
+  // contract, not a convenience.
+  loadNames: vi.fn(() => Promise.resolve(true)),
   testFeedItems: (): TestBankItem[] => [],
   myTestResults: (): Record<string, unknown> => ({}),
   myVotes: (): Record<string, string> => ({}),
@@ -221,7 +224,7 @@ describe("reading is not empty", () => {
   // length of one round trip, before flipping to a full profile.
   it("says it is reading while the profiles are in flight", async () => {
     let release!: () => void;
-    LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = r; }));
+    LIVE.loadNames = vi.fn(() => new Promise<boolean>((r) => { release = () => r(true); }));
     LIVE.scoresFor = () => null;
     // The viewer HAS results, or the first arm outranks this one.
     LIVE.myTestResults = () => stored({ big5: { O: 90, C: 70, E: 50 } });
@@ -235,10 +238,27 @@ describe("reading is not empty", () => {
     expect(screen.queryByText("Reading…")).toBeNull();
   });
 
+  it("…and says the read FAILED rather than that nobody has taken a test", async () => {
+    // `reading` goes false when the fetch RETURNS, thrown or not, and the
+    // store swallows a name-resolution failure by design — so this lens
+    // said "Nobody here has finished a test yet" about a room where
+    // everyone had. That is the sentence this file's own comment records
+    // being fixed for the CELLS basis; the people basis kept it, because
+    // its state was hard-coded "ready".
+    LIVE.loadNames = vi.fn(() => Promise.resolve(false));
+    LIVE.scoresFor = () => null;
+    LIVE.myTestResults = () => stored({ big5: { O: 90, C: 70, E: 50 } });
+    render(lens({ basis: "people", uids: ["a", "b"] }));
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByText(/Couldn’t read the scores here/)).toBeTruthy();
+    expect(screen.queryByText(OSLO_EMPTY), "a failed read still stated an absence").toBeNull();
+    expect(screen.queryByText("Reading…"), "a finished read still said it was working").toBeNull();
+  });
+
   it("does not say it is reading when the viewer has answered nothing", () => {
     // The first arm outranks it: someone with no test answers of their own
     // is told what to do, not made to wait for other people's profiles.
-    LIVE.loadNames = vi.fn(() => new Promise<void>(() => {}));
+    LIVE.loadNames = vi.fn(() => new Promise<boolean>(() => {}));
     LIVE.scoresFor = () => null;
     LIVE.myTestResults = () => ({});
     LIVE.myVotes = () => ({});

@@ -125,8 +125,15 @@ Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
-Duel answers stay sealed until their round's reveal, enforced as a
-`surface` test: that is game timing, not privacy.
+Duel answers stay sealed until their ROUND reveals — everyone played,
+or the round's 48-hour deadline — enforced as a `surface` test: that is
+game timing, not privacy. Not "the next day": D426 replaced the calendar
+day with a round and D437 gave it that deadline, so a 1v1 can open a
+second after the partner answers and a circle can stay sealed for two
+days. A member who missed a revealed round may still answer it, flagged
+`late` because their answer is no longer blind. This paragraph said "the
+next-day reveal" until 2026-09-11 — the cadence the copy rule four
+sections down forbids naming, in the file that states the rule.
 
 **A privacy constraint is an ASK, not a stop (D334).** Where a privacy
 argument is the only thing standing between a proposal and the tree — a
@@ -228,7 +235,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-56 modules are already off the bridge — they export and publish nothing,
+57 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -457,20 +464,16 @@ an emergency rules fix.
   (`state.testAggsLoaded`), and since it no longer unmounts, row
   navigation costs nothing; both pinned. The fields load behind one
   bounded, session-cached loader (docs/MIRROR.md §2–3). **Circle and
-  Groups carry a row too since D190**, folded out of what each stop
-  already computes and drawn even when the stop is empty — but they no
-  longer carry the SAME row. Circle is still D190's three
-  (`Answers · People · Compare`, `CIRCLE_TABS`); Groups became
-  `Votes · People · Scores · Compare` at D437 (`GROUP_TABS`), when the
-  room became a cast. D190's argument survives for both halves of what
-  is still refused: Explore is on neither stop, because it needs
-  "everyone" as a baseline and a circle of nine is not one, and Scores
-  is not Circle's, because the D187 place scorecard needs questions that
-  rate a place. The Groups **Scores** lens is a different thing wearing
-  that word — the room rating ITSELF between two poles, one row per
-  rating with the members' marks on it — and reading it as the place
-  scorecard returning would be reading D187's refusal as lifted, which
-  it is not.
+  Groups carry a row too since D190** — folded out of what each stop
+  already computes and drawn even when the stop is empty. CIRCLE'S IS
+  THE THREE the prototype gives both, `Answers · People · Compare`.
+  GROUPS' IS FOUR since D434–D437: `Votes · People · Scores · Compare`,
+  and both halves of that changed — the first tab is the room's VOTES
+  (who it named), and Scores arrived because a group rates ITSELF, every
+  fourth round, so the questions that rate a place are no longer what
+  that lens needs. The refusal that stood here is Circle's alone now,
+  and Explore's is still both: "everyone" as a baseline is not something
+  a circle of nine has.
 - **`window.MapStats` is real for three anchors and refuses for four, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` joined them

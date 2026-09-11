@@ -33,7 +33,18 @@ const LIVE = vi.hoisted(() => {
      *  been read. The reading arm has its own cases. */
     reading: false,
     revealHistoryLoading(this: { reading: boolean }) { return this.reading; },
-    loadRevealHistory: vi.fn(async () => {}),
+    /** …and settled SUCCESSFULLY by default, derived here exactly the way
+     *  the store derives it, so the fake cannot answer 'ready' about a
+     *  read the real one would call 'failed'. */
+    readFailed: false,
+    revealHistState(this: { reading: boolean; readFailed: boolean }): "loading" | "ready" | "failed" {
+      if (this.reading) return "loading";
+      return this.readFailed ? "failed" : "ready";
+    },
+    // The WORD the store answers, not `undefined`: this stop `void`s the
+    // call, but a fixture that answers a different shape from its subject
+    // is how the refused read went unnoticed here in the first place.
+    loadRevealHistory: vi.fn(async () => "ok" as const),
     bankQ: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
     groupBankCounts: () => ({ roles: 10, ratings: 4 }),
   };
@@ -46,7 +57,10 @@ const LIVE = vi.hoisted(() => {
     myVotes: () => ({}) as Record<string, string>,
     myTestResults: () => ({}) as Record<string, unknown>,
     testFeedItems: () => [] as Array<Record<string, unknown>>,
-    loadNames: vi.fn(async () => {}),
+    // Resolves TRUE: the store answers whether the profile read landed
+    // (a `false` is what puts the failure copy on Compare), so a fixture
+    // resolving `undefined` reads as a failed read.
+    loadNames: vi.fn(async () => true),
     scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   };
 });
@@ -109,7 +123,12 @@ beforeEach(() => {
   LIVE.social.groups = () => [GROUP];
   LIVE.social.revealHistory = () => [];
   LIVE.social.reading = false;
+  LIVE.social.readFailed = false;
   LIVE.social.revealHistoryLoading = function (this: { reading: boolean }) { return this.reading; } as never;
+  LIVE.social.revealHistState = function (this: { reading: boolean; readFailed: boolean }) {
+    if (this.reading) return "loading";
+    return this.readFailed ? "failed" : "ready";
+  } as never;
   LIVE.social.bankQ = (qid: string) => BANK[qid] || null;
   LIVE.social.groupBankCounts = () => ({ roles: 10, ratings: 4 });
   LIVE.myTestResults = () => ({});
@@ -140,6 +159,29 @@ describe("LiveGroupsMirrorBody · the head", () => {
     expect(screen.queryByText("no rounds revealed yet"), "an unread history was called an empty one").toBeNull();
   });
 
+  it("says the read failed rather than that the room has never played", () => {
+    // The third state, and the one this stop threw away: it `void`s
+    // `loadRevealHistory`, so the answer the roles panel keeps never
+    // reached here — a refused read arrived as an empty history with no
+    // flag set, and the subline stated it as a fact under the room's own
+    // name.
+    LIVE.social.readFailed = true;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.getByText("couldn’t read the rounds")).toBeTruthy();
+    expect(screen.queryByText("no rounds revealed yet"),
+      "a refused read was called a room that never played").toBeNull();
+  });
+
+  it("keeps the reading sentence in front of the failed one", () => {
+    // A retry in flight is about the attempt the reader is waiting on,
+    // not the one before it.
+    LIVE.social.readFailed = true;
+    LIVE.social.reading = true;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.getByText("reading the rounds…")).toBeTruthy();
+    expect(screen.queryByText("couldn’t read the rounds")).toBeNull();
+  });
+
   it(`says your seat once ${MIN_GROUP} votes have named you, in the seat's own line`, () => {
     LIVE.social.revealHistory = () => HISTORY;
     render(<LiveGroupsMirrorBody />);
@@ -155,6 +197,21 @@ describe("LiveGroupsMirrorBody · the head", () => {
     LIVE.social.revealHistory = () => [vote("2026-09-01", 1, "r_mind", { u_me: "u_ada", u_ada: "u_me", u_bo: "u_ada" })];
     render(<LiveGroupsMirrorBody />);
     expect(screen.queryByText(/Here, you are/)).toBeNull();
+  });
+
+  it("reads the seat off the server's ledger once a row clears the floor — past what the page holds (D445)", () => {
+    // The page holds ONE vote naming me (under the floor on its own); the
+    // group document's ledger holds the record — nine votes, the engine
+    // seat — so the line says the ledger's numbers, not the page's.
+    LIVE.social.groups = () => [{
+      ...GROUP,
+      ledger: { u_me: { votes: 9, seats: { engine: 6, heart: 3 } }, u_ada: { votes: 1, seats: { wild: 1 } } },
+    }];
+    LIVE.social.revealHistory = () => [vote("2026-09-01", 1, "r_fire", { u_me: "u_ada", u_ada: "u_me", u_bo: "u_ada" })];
+    render(<LiveGroupsMirrorBody />);
+    const line = screen.getByText(/Here, you are/);
+    expect(line.textContent).toContain("the one who gets things going");
+    expect(line.parentElement!.textContent).toContain("6 of 9 votes say so");
   });
 
   it("draws the role map above the row, with everyone on it", async () => {
@@ -301,6 +358,16 @@ describe("LiveGroupsMirrorBody · Votes: who the room named", () => {
     expect(panel().textContent).toMatch(/Reading the rounds/);
     expect(panel().textContent).not.toMatch(/No votes revealed yet/);
   });
+
+  it("says the read failed on the Votes tab, not that the first role is on the table", () => {
+    // "The first role is on the table" invites the reader to start a
+    // room that may have played for weeks.
+    LIVE.social.readFailed = true;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Votes");
+    expect(panel().textContent).toMatch(/Couldn’t read this room’s rounds/);
+    expect(panel().textContent).not.toMatch(/No votes revealed yet/);
+  });
 });
 
 describe("LiveGroupsMirrorBody · People: who casts the room like you, and everyone's seat", () => {
@@ -344,9 +411,25 @@ describe("LiveGroupsMirrorBody · People: who casts the room like you, and every
     expect(panel().textContent).toMatch(/Reading the rounds/);
     expect(panel().textContent).not.toMatch(/Places are taken from the first reveal/);
   });
+
+  it("says the read failed on People, not that places await a first reveal", () => {
+    LIVE.social.readFailed = true;
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    expect(panel().textContent).toMatch(/Couldn’t read this room’s rounds/);
+    expect(panel().textContent).not.toMatch(/Places are taken from the first reveal/);
+  });
 });
 
 describe("LiveGroupsMirrorBody · Scores: how the group rates itself", () => {
+  it("says the read failed on Scores, not that nothing has been rated", () => {
+    LIVE.social.readFailed = true;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Scores");
+    expect(panel().textContent).toMatch(/Couldn’t read this room’s rounds/);
+    expect(panel().textContent).not.toMatch(/No ratings yet/);
+  });
+
   it("draws a pole row per rating, strongest lean first, and opens onto the count", () => {
     LIVE.social.revealHistory = () => HISTORY;
     render(<LiveGroupsMirrorBody />);

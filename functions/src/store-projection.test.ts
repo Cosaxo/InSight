@@ -47,6 +47,13 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     // yesterday alone every night — with every unit test green, for the
     // same reason as `d`.
     ["patterns.ts", "async getUsers(", "async putUsers(", "a"],
+    // The voter sample's seed stamp (D442): the run pays a bounded
+    // collection-group query for an UNSTAMPED sample and nothing for a
+    // stamped one, deciding off what getSamples hands back — so a read
+    // that dropped `seeded` would re-seed every touched sample every
+    // night at up to 200 reads each, and a write that dropped it would
+    // remove it (set, no merge), with every unit test green either way.
+    ["patterns.ts", "async getSamples(", "async putSamples(", "seeded"],
   ];
 
   for (const [file, getFn, putFn, field] of cases) {
@@ -136,7 +143,7 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     if (!m) return;
     for (const field of ["uid", "qid", "at", "fromIdx"]) {
       expect(
-        m[1],
+        m![1],
         `velocity.ts's scan drops \`${field}\` from its projection`,
       ).toContain(`"${field}"`);
     }

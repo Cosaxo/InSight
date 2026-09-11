@@ -426,7 +426,7 @@ Run it for the live figure rather than quoting one here (D39,
 | `LiveAnswerRows` | the headline reads BY TYPE (a rating leads with its average, a scale with how much of the room agrees) — dropping `row.type` compiles and then every rating leads with the share who picked a 7; a question this cohort has not answered still draws its options at an explicit zero; a share is printed only where it reads as one, every other bar carries its exact count (D98); the standing sentence is never a percentage of ONE answer (D170); and "most divisive" and "most agreed" are the two orderings they claim |
 | `profileSetup` | the GATE, not the screen — the persistence contract `LiveProfileSetup.test.tsx` never touches (it does not import these two functions at all): the fact is on the DEVICE, re-read per call, so a boot-time snapshot would pass every other test in this tree; the key sits inside the `insight.*` namespace D51's purge sweeps, or it survives an account deletion and the next account on that device is never asked; and seen beats every reason to ask |
 | `walkthrough` | the GATE for D393's first-launch screen — `profileSetup`'s contract one screen earlier, plus two of its own: a live BUILD is the condition rather than a live boot (a first launch with no network is shown it; the demo build, where every mount suite runs, never is); the purge takes the screen down WITHOUT recording it, because a flag written on the way out would be written under the new uid; and the promise main.jsx sequences the account questions behind settles on every way out — Start, Skip, the purge, and at once when there is nothing to show — since a promise that hangs is a form that never appears |
-| `LiveWalkthrough` | the claims, not the sentences (`docs/COPY.md` §4): answers are public, under your name, said on the LAST page; the daily's three stops and the Mirror's seven by their own names, so a rename there and not here fails; "sealed until tomorrow" in the duel panel's words; NO mention of the Patterns tab (D265 — "no third button, no teaser"); and every button reports while no gesture does — a swipe or an arrow past the last page stays put |
+| `LiveWalkthrough` | the claims, not the sentences (`docs/COPY.md` §4): answers are public, under your name, said on the LAST page; the daily's three stops and the Mirror's seven by their own names, so a rename there and not here fails; the duel's SEALING and its names, pinned as claims rather than as the phrase "sealed until tomorrow" the copy used to carry; NO mention of the Patterns tab (D265 — "no third button, no teaser"); and every button reports while no gesture does — a swipe or an arrow past the last page stays put |
 | `duelMarks` | a mark is coloured by an ID and never by the name printed beside it — two members called Ada are two people, and `markHue(name || uid)` compiles, reads tidier, and gives two strangers one colour; shape is KIND (round is a person, a rounded square a circle) at every size; each mark reads its OWN initials rule, a swap tsc cannot see; and nothing is invented from an id — no name means a dot, because an initial made out of a uid is a name we made up and showed to the person it is about |
 | `Avatar` | each face is its OWN (a captured uid dresses a whole list in one stranger's photo — the only defect here that looking twice does not correct); the branch is on the URL, not the token, so a build with no bucket does not get `<img src="">` on every face; a failed load falls back to initials keyed by UID rather than by slot, since Near re-orders under a mounted component and React keeps state at the POSITION; the photo is named and the initials are silent; and `initialsOf` is executed, never stubbed — this is the only suite that runs it |
 | `EmptyField` | the licensed copy stays a copy — the geometry is compared against `LiveSimilarityField`'s original rather than pinned to literals, because neither tsc nor check:globals can see the two drift; the drawing comes first and alone, `aria-hidden`, with the sentence as the readable half; and `prime` runs BEFORE the nav jump (D190), the ordering the door depends on |
@@ -659,8 +659,30 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **28 across 7
+prints the current total on every run. The count today is **27 across 7
 files**, down from 799 when the ratchet landed.
+
+That number was 28 before the scanner learned the BARE shape, went to 32
+when it did, and came back to 28 because the four it found were taken off
+in the same night — then to the 27 above, because the duo body's reader
+was converted the same night in the other shift (`daily-split.jsx`
+`React.lazy`s the module instead of reading `window.DuoBody` at render
+time). The middle figure is the one worth remembering: for as
+long as the ratchet ran, four cross-module references sat outside it. `window.X`,
+the cast form, a JSX tag and `h(Foo, …)` were the four it could see; a
+bare identifier is none of them, so a plain `MapStats.dist(a, k)` in a
+module that neither defines nor imports the name moved this number not at
+all — and eslint stayed clean, because the same scanner seeds `no-undef`
+and a name it publishes is a name eslint accepts anywhere. That made the
+ratchet's own contract false for one shape: a module already converted
+off the bridge could be silently re-coupled. The four sites it found are
+older than the pass that found them, so the move is the meter's
+resolution rather than coupling growing, and both were cheap to take
+back: the three were one `GL` import in `city-overlay.jsx` — which took
+`glyph-icons.js` off the bridge entirely, since nothing else in the tree
+read the name — and the fourth was a bare `LIVE` in `search-overlay.jsx`
+that D354's sweep had missed, closed by the import every other spec
+module already has.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
 scanner already suppresses a JSX reference when the file declares the name

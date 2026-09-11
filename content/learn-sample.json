@@ -91,6 +91,16 @@
       "id": "flag",
       "subject": "geo",
       "label": "Flags of the world"
+    },
+    {
+      "id": "medieval",
+      "subject": "history",
+      "label": "The Middle Ages"
+    },
+    {
+      "id": "missions",
+      "subject": "space",
+      "label": "Space missions"
     }
   ],
   "cards": [
@@ -1079,6 +1089,166 @@
       "p": 48,
       "k": "No Wales in the Union Jack",
       "w": "St George, St Andrew and St Patrick — the Welsh dragon never made it in."
+    },
+    {
+      "id": "med1",
+      "f": "medieval",
+      "q": "A full suit of knight’s plate armour weighed about…",
+      "a": [
+        "15–25 kg",
+        "50–60 kg",
+        "More than 80 kg",
+        "Under 10 kg"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 45,
+      "k": "plate armour, 15–25 kilos",
+      "w": "About a modern infantry load, spread better. Knights mounted unaided — the crane story is Victorian stagecraft."
+    },
+    {
+      "id": "med2",
+      "f": "medieval",
+      "q": "Viking helmets, as archaeology finds them, were…",
+      "a": [
+        "Horned for battle",
+        "Always leather",
+        "Plain, no horns",
+        "Winged"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 30,
+      "k": "no horns on Viking helmets",
+      "w": "The horns are 19th-century opera costume — Wagner’s stage, not a battlefield. The one intact find, Gjermundbu, is plain iron."
+    },
+    {
+      "id": "med3",
+      "f": "medieval",
+      "q": "1066, the Battle of Hastings — who took England?",
+      "a": [
+        "Cnut’s Danes",
+        "Harold Godwinson kept it",
+        "William of Normandy",
+        "The Scots"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 50,
+      "k": "1066: William takes England",
+      "w": "Duke William crossed from Normandy; Harold fell at Hastings. The one date English schooling never lets go of."
+    },
+    {
+      "id": "med4",
+      "f": "medieval",
+      "q": "The Black Death of 1347–1351 killed roughly…",
+      "a": [
+        "A tenth of Europe",
+        "A third to half of Europe",
+        "Two percent",
+        "Nine in ten"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "a third of Europe, or more",
+      "w": "Estimates run 30–60% of Europe’s population in four years — the deadliest pandemic in the continent’s record."
+    },
+    {
+      "id": "med5",
+      "f": "medieval",
+      "q": "What did educated medieval Europeans think of the Earth’s shape?",
+      "a": [
+        "Flat, like a plate",
+        "A dome over a disc",
+        "Round — never seriously doubted",
+        "Forbidden to discuss"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 60,
+      "k": "the flat-earth myth",
+      "w": "Columbus’s critics doubted his distances, not the globe. The medieval-flat-earth story was largely invented in the 1800s."
+    },
+    {
+      "id": "mis1",
+      "f": "missions",
+      "q": "Voyager 1, launched in 1977, is now…",
+      "a": [
+        "The farthest human-made object",
+        "Back in a museum",
+        "Orbiting Neptune",
+        "Lost with its signal"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 35,
+      "k": "Voyager, still going",
+      "w": "In interstellar space since 2012, still calling home on power dimmer than a fridge bulb — the farthest thing we have ever thrown."
+    },
+    {
+      "id": "mis2",
+      "f": "missions",
+      "q": "The Golden Record aboard both Voyagers carries…",
+      "a": [
+        "Mission blueprints",
+        "Sounds and music of Earth",
+        "Star maps only",
+        "Nothing — it’s decorative"
+      ],
+      "c": 1,
+      "t": 2,
+      "p": 45,
+      "k": "Earth’s mixtape",
+      "w": "Greetings in 55 languages, whale song, Bach and Chuck Berry — a message for any finder, chosen by Carl Sagan’s committee."
+    },
+    {
+      "id": "mis3",
+      "f": "missions",
+      "q": "Apollo 13’s famous line, as actually spoken:",
+      "a": [
+        "“Houston, we have a problem”",
+        "“Houston, we’ve had a problem”",
+        "“Houston, help us”",
+        "“Mayday, mayday”"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "we’ve HAD a problem",
+      "w": "Jack Swigert’s real words were past tense; the film smoothed them. The crew flew around the Moon and made it home."
+    },
+    {
+      "id": "mis4",
+      "f": "missions",
+      "q": "The Hubble telescope’s first images were blurry because…",
+      "a": [
+        "Dust on the lens",
+        "Earth’s atmosphere",
+        "Its mirror was ground wrong",
+        "Software bugs"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 62,
+      "k": "Hubble’s flawed mirror",
+      "w": "Ground to the wrong shape by microns; astronauts fitted corrective optics in orbit in 1993 — glasses for a telescope."
+    },
+    {
+      "id": "mis5",
+      "f": "missions",
+      "q": "The International Space Station circles Earth about every…",
+      "a": [
+        "90 minutes",
+        "24 hours",
+        "8 hours",
+        "A week"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 38,
+      "k": "sixteen sunrises a day",
+      "w": "At 28,000 km/h an orbit takes an hour and a half — the crew sees sixteen sunrises every day."
     }
   ]
 }

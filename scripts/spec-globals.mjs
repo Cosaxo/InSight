@@ -90,6 +90,9 @@ files.push(join(root, "src/v2/spec-index.js"));
 
 const defined = new Set();
 const referenced = new Map(); // name -> [file:line]
+// Every file's stripped source and local names, for the bare-reference
+// pass at the bottom of this module.
+const perFile = [];
 // name -> the set of root-relative files that assign it. A Set rather than
 // a single owner because multi-writer globals are a real pattern here, not
 // a bug: `WORLD_FEED_QS` is created by world-feed-data.js and appended to
@@ -264,6 +267,12 @@ for (const file of files) {
     }
   }
 
+  // Kept for the BARE pass at the bottom of this module, which cannot run
+  // until every file has been read: it asks whether ANOTHER file
+  // publishes the name, and nothing knows the full published set until
+  // then.
+  perFile.push({ rel, src, localNames });
+
   const canHaveJsx = /\.(jsx|tsx)$/.test(file);
   const lines = src.split("\n");
   lines.forEach((line, i) => {
@@ -304,6 +313,58 @@ for (const file of files) {
 }
 
 
+// ── the BARE cross-module reference ─────────────────────────────────────
+//
+// The four patterns above see `window.X`, the cast form, a JSX tag and
+// `h(Foo, …)`. A bare identifier is in none of them, and rule 5's own
+// comment has said so for a while: "a BARE CROSS-MODULE CALL … is a real
+// consumer this scanner cannot see." That is a hole in RULE 4 as much as
+// in rule 5, and rule 4 is the ratchet whose stated contract is that new
+// coupling fails CI. Measured rather than argued: appending
+//
+//   export function probe(a, k) { return MapStats.dist(a, k); }
+//
+// to a spec module that neither defines nor imports `MapStats` left the
+// count at its baseline and left eslint clean — clean because this
+// scanner seeds `no-undef`, so a name it publishes is a name eslint
+// accepts anywhere. A module already converted off the bridge could be
+// silently re-coupled, which is the one thing the ratchet exists to stop.
+//
+// It has to be a SECOND PASS: the question is whether another file
+// publishes the name, and no file knows the full published set until
+// every file has been read.
+//
+// STRING LITERALS ARE BLANKED, not skipped — stripComments' own reason.
+// A line may carry a published name inside a message and a real bare
+// reference to another; skipping the line would stop checking the second.
+const STRINGS_RE = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g;
+// …and so are the two shapes ALREADY counted, for the same reason: a
+// JSX tag and an `h(Foo, …)` are cross-module references rules 3 and 4
+// have seen since the day they were written, and a bare scan sees them
+// too — `<ProfileOverlay` has no word character before the name. Counting
+// them twice would move the ratchet without anything changing.
+const COUNTED_RE = /(?:^|[^\w$)\].])<([A-Z][\w$]*)|(?:^|[^\w$.])h\(\s*([A-Z][\w$]*)/g;
+const bare = new Map(); // name -> [file:line]
+for (const { rel, src, localNames } of perFile) {
+  const lines = src
+    .replace(STRINGS_RE, (t) => " ".repeat(t.length))
+    .replace(COUNTED_RE, (t) => " ".repeat(t.length))
+    .split("\n");
+  for (const name of defined) {
+    // Not the publisher's own file, and not a name this file declares or
+    // imports — either resolves lexically and is no reference at all.
+    if (definedBy.get(name)?.has(rel) || localNames.has(name)) continue;
+    if (RUNTIME_ALLOWLIST.has(name)) continue;
+    const re = new RegExp(`(?:^|[^\\w$.])${name}\\b`, "g");
+    lines.forEach((line, i) => {
+      re.lastIndex = 0;
+      if (!re.test(line)) return;
+      if (!bare.has(name)) bare.set(name, []);
+      bare.get(name).push(`${rel}:${i + 1}`);
+    });
+  }
+}
+
 export function collectSpecGlobals() {
-  return { defined, definedBy, referenced, files, specDir, root, RUNTIME_ALLOWLIST };
+  return { defined, definedBy, referenced, bare, files, specDir, root, RUNTIME_ALLOWLIST };
 }

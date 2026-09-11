@@ -1,0 +1,166 @@
+# Delete the retired nightly functions from production, from the credential
+# that is already here.
+#
+# WHY THIS EXISTS. `firebase deploy --only functions:…` names what to UPDATE
+# and leaves everything else standing, so a function that leaves the source
+# and the --only list keeps running in production on its old schedule: the
+# Patterns fit and the taste fold (D399), then the velocity scan
+# (DATA-EFFICIENCY-RUNBOOK 4.4), each firing nightly, reading a page it no
+# longer needs, and paying Cloud Scheduler for a job the tree does not have
+# (COST-EXPOSURE.md §1 — three of the ten billed jobs). OWNER-LIST.md carried
+# the one-line delete for a fortnight as a click nobody was logged in to
+# make; this is that line, dispatched from here, the apply-monitoring
+# posture: dry by default, gated on the production environment, on no
+# pipeline.
+#
+# WHAT IT DELETES, and only this. The three names are fixed in the file
+# rather than an input, so a dispatch cannot be pointed at a live function:
+# deleting one of those is a deploy in reverse and belongs in a pull request
+# that says so. A name that is already gone is not a failure — the CLI
+# refuses to delete what does not exist, and the dry run lists what does.
+#
+# WHAT A LISTING HAS TO SHOW before anything is read off it. The Functions
+# v2 list drops a region it could not reach and says so only in a field the
+# CLI never prints, so the table comes back short and reads as complete: the
+# first dispatch (2026-09-10, run 34478645668) showed nine functions of the
+# project's earlier life and none of this tree's 46, and "already gone"
+# would have been read off it. So the list step fails unless it sees the
+# nightly pass, and a second listing off a different API — the Cloud
+# Scheduler jobs, which are what the three actually cost — goes beside it.
+#
+# WHAT IT DOES NOT TOUCH. Firestore, the rules, the indexes, the data the
+# three functions wrote (`v2_patterns`, `v2_users/*/taste`, the velocity
+# state) — a deleted function leaves its documents where they are, and the
+# nightly pass has been the writer of all three since the day each retired.
+
+name: Delete retired functions
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "DELETE the three retired functions (fitPatternsV2, fitTasteV2, ledgerVelocityScan). Off = list what is deployed and change nothing."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: delete-retired-functions
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      # Root deps bring the lockfile-pinned firebase-tools CLI (the deploy's
+      # own reason for the same step).
+      - run: npm ci
+
+      - name: Credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa-key.json"
+
+      - name: List what is deployed
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+        run: |
+          set -o pipefail
+          npx firebase functions:list --project prvfire33 2>&1 | tee "$RUNNER_TEMP/list.txt"
+          echo ""
+          # A listing the nightly pass is missing from is not a listing (the
+          # header has the run that proved it). Nothing is decided off it.
+          if ! grep -q "digestEngagementV2" "$RUNNER_TEMP/list.txt"; then
+            echo "::error::the listing does not show digestEngagementV2, the nightly pass this tree deploys — europe-west1 was not reached, and nothing is decided off this run. Re-dispatch."
+            exit 1
+          fi
+          for f in fitPatternsV2 fitTasteV2 ledgerVelocityScan; do
+            if grep -q "$f" "$RUNNER_TEMP/list.txt"; then echo "retired and still deployed: $f"; else echo "already gone: $f"; fi
+          done | tee "$RUNNER_TEMP/retired.txt"
+
+      - name: The scheduler jobs, before
+        id: jobs
+        # Evidence, not a gate: the delete step does not read this, so a
+        # refusal here (a missing permission, an API off) is printed in the
+        # summary rather than blocking the click it is there to witness —
+        # and the summary reads the outcome back, so a refusal is never a
+        # quiet green (workflow-pipefail.test.mjs holds that).
+        continue-on-error: true
+        env:
+          CLOUDSDK_CORE_PROJECT: prvfire33
+        run: |
+          set -o pipefail
+          # What the three cost is their Cloud Scheduler jobs (COST-EXPOSURE.md
+          # §1): a second listing off a different API, which a dropped region
+          # cannot fake. gcloud is on the runner image; the key is the same.
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa-key.json" --quiet
+          gcloud scheduler jobs list --location europe-west1 --format="table(name.basename(),schedule,state)" 2>&1 | tee "$RUNNER_TEMP/jobs.txt"
+
+      - name: Delete
+        if: ${{ inputs.apply }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+        run: |
+          set -o pipefail
+          # Only the names the list step found, so a re-dispatch after a
+          # partial run does not fail on the ones already gone.
+          NAMES=$(grep "retired and still deployed" "$RUNNER_TEMP/retired.txt" | sed 's/.*: //' | tr '\n' ' ')
+          if [ -z "$NAMES" ]; then
+            echo "nothing to delete — all three are already gone" | tee "$RUNNER_TEMP/delete.txt"
+            exit 0
+          fi
+          # shellcheck disable=SC2086
+          npx firebase functions:delete $NAMES --project prvfire33 --region europe-west1 --force 2>&1 | tee "$RUNNER_TEMP/delete.txt"
+          # The jobs after, for the summary: each deleted function takes its
+          # job with it, and this is where that is seen rather than assumed.
+          gcloud scheduler jobs list --project prvfire33 --location europe-west1 --format="table(name.basename(),schedule,state)" 2>&1 | tee "$RUNNER_TEMP/jobs-after.txt" || true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deleting the retired nightly functions"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/retired.txt" 2>/dev/null || echo "(the list step did not run — see the step log)"
+            echo '```'
+            if [ -f "$RUNNER_TEMP/delete.txt" ]; then
+              echo ""
+              echo '```'
+              cat "$RUNNER_TEMP/delete.txt"
+              echo '```'
+            else
+              echo ""
+              echo "DRY RUN — nothing was deleted. Re-dispatch with \`apply\` on to delete the ones listed as still deployed."
+            fi
+            if [ -f "$RUNNER_TEMP/jobs.txt" ]; then
+              echo ""
+              echo "#### Cloud Scheduler jobs, before"
+              echo '```'
+              cat "$RUNNER_TEMP/jobs.txt"
+              echo '```'
+            fi
+            if [ "${{ steps.jobs.outcome }}" != "success" ]; then
+              echo ""
+              echo "**The scheduler listing did not run clean** (outcome: ${{ steps.jobs.outcome }}) — its text above is what gcloud said; the delete does not depend on it."
+            fi
+            if [ -f "$RUNNER_TEMP/jobs-after.txt" ]; then
+              echo ""
+              echo "#### Cloud Scheduler jobs, after"
+              echo '```'
+              cat "$RUNNER_TEMP/jobs-after.txt"
+              echo '```'
+            fi
+            echo ""
+            echo "Each deleted function takes its Cloud Scheduler job with it. What they wrote stays:"
+            echo "the nightly pass (\`digestEngagementV2\`) has been the writer of all three stores since each retired."
+          } >> "$GITHUB_STEP_SUMMARY"

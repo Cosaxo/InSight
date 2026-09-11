@@ -285,7 +285,16 @@ export function qidOf(path: string, query: unknown): string | null {
 }
 
 export const resultsPageV2 = onRequest(
-  { region: FUNCTIONS_REGION, memory: "256MiB", timeoutSeconds: 30 },
+  // maxInstances 2, not the global 10: this is the one function anyone on
+  // the internet can call, every cache miss is an invocation plus two
+  // billed reads, and an attacker-chosen qid is always a miss (the CDN
+  // caches per address). At the global cap that is ~100–200 requests a
+  // second, about $10–20 a day under a hammer, and below the read-runaway
+  // alert's threshold; at two instances the same hammer is under $2 a day.
+  // Legitimate traffic is served by the CDN either way, and the page is a
+  // sponsored question's — of which there are none yet (COST-EXPOSURE.md
+  // §3.B, C2).
+  { region: FUNCTIONS_REGION, memory: "256MiB", timeoutSeconds: 30, maxInstances: 2 },
   async (req, res) => {
     for (const [k, v] of Object.entries(RESULTS_HEADERS)) res.setHeader(k, v);
     if (req.method !== "GET" && req.method !== "HEAD") {

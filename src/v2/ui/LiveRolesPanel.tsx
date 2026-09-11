@@ -19,15 +19,21 @@
 // the roses, the matcher call and this file's own weight onto first paint
 // for a tab most opens never reach.
 //
-// THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM. Each room's reveal
-// history is ONE ordered query of at most `REVEAL_HIST_CAP` reveal
-// documents (ROUNDS-PLAN §7.1), cached by the store, and the duel panel
-// already pays it for whichever room you open. This tab is the first
-// surface that wants ALL of them, so it loads them on mount and only on
+// THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM — AND ONLY FOR A ROOM
+// THE LEDGER CANNOT DRAW. Since D445 the server keeps each member's
+// counts on the group document as every round reveals (`ledger`, ROLES-PLAN
+// §3.3), and a room whose row clears the instrument's floor is read off
+// that document, which this device already holds: no history read at all,
+// and a reading that reaches past the thirty reveals a page can hold.
+// Below the floor — and on a room from before the ledger — the fold reads
+// the room's reveal history: ONE ordered query of at most
+// `REVEAL_HIST_CAP` documents (ROUNDS-PLAN §7.1), cached by the store,
+// which the duel panel already pays for whichever room you open. This tab
+// wants EVERY such room's history, so it loads them on mount and only on
 // mount — see docs/COSTS.md.
 import React from "react";
 import LIVE from "../data/live";
-import { AXES, SEATS, blendRoles, duoRole, duoCastCount, groupRole, groupVoteCount, MIN_DUO, MIN_GROUP, type BankLookup, type DuoRoleResult, type RoleResult } from "../data/roles";
+import { AXES, SEATS, blendRoles, duoRole, duoCastCount, groupRole, groupVoteCount, ledgerClearsFloor, MIN_DUO, MIN_GROUP, type BankLookup, type DuoRoleResult, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { matchArchetype } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
@@ -37,7 +43,9 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { ExplainBtn, ExplainSheet } from "../spec/explain-sheet.jsx";
 
-interface Room { id: string; mode?: string; name?: string; memberUids?: string[]; memberNames?: Record<string, string>; duoMode?: string }
+/** A room as the store holds it — the whole group document, so the
+ * server's role ledger (`ledger.{uid}`, D445) rides along with the roster. */
+interface Room { id: string; mode?: string; name?: string; memberUids?: string[]; memberNames?: Record<string, string>; duoMode?: string; ledger?: unknown }
 interface Setting { key: string; label: string; res: RoleResult }
 /** A setting still under its floor — listed with how far it has got
  * (the design's ThinRow), never silently missing from the panel. */
@@ -76,7 +84,7 @@ export default function LiveRolesPanel(): React.ReactElement {
   const S = LIVE.social as unknown as {
     groups: (mode?: string) => Room[];
     revealHistory: (gid: string) => Record<string, unknown>[];
-    loadRevealHistory?: (gid: string) => Promise<void>;
+    loadRevealHistory?: (gid: string) => Promise<"ok" | "failed" | "busy">;
     revealHistoryLoading?: (gid: string) => boolean;
     bankQ?: (qid: string) => { options?: string[]; kind?: string; role?: { id: string; label: string; seat?: string }; them?: string[]; dims?: string[] } | null;
   };
@@ -109,17 +117,40 @@ export default function LiveRolesPanel(): React.ReactElement {
     void (async () => {
       for (const r of (LIVE.enabled ? S.groups() : [])) {
         if (!live) return;
-        try {
-          await S.loadRevealHistory!(r.id);
-        } catch {
-          if (live) setFailed((prev) => new Set(prev).add(r.id));
+        // A room the ledger already draws pays no history read here (the
+        // header): its reading is on the group document in hand.
+        if (ledgerClearsFloor(r.ledger, uid, r.mode)) continue;
+        // THE ANSWER, not a throw. This was a try/catch, and the store
+        // never throws — its header says so in as many words — so the
+        // catch could not fire and `failed` was always empty: a room
+        // whose read was refused or timed out fell through to "nothing
+        // revealed yet", the definite claim the comment above says this
+        // exists to stop. The suite passed because its fixture REJECTED
+        // where the real store resolves.
+        // The catch stays as the BACKSTOP it should always have been —
+        // this loop is inside a `void (async …)()`, so a throw would be
+        // an unhandled rejection — but the answer is the mechanism.
+        let read: "ok" | "failed" | "busy" = "failed";
+        try { read = await S.loadRevealHistory!(r.id); } catch { read = "failed"; }
+        if (live) {
+          setFailed((prev) => {
+            // Set on a failure, cleared on a later "ok" — the note is
+            // about this read, not about the room forever. "busy" moves
+            // nothing: another caller owns that read and `roomNote` says
+            // "reading…" for it anyway.
+            const want = read === "failed";
+            if (read === "busy" || want === prev.has(r.id)) return prev;
+            const next = new Set(prev);
+            if (want) next.add(r.id); else next.delete(r.id);
+            return next;
+          });
         }
         if (live) bump((x) => x + 1);
       }
     })();
     const un = LIVE.subscribe(() => bump((x) => x + 1));
     return () => { live = false; if (un) un(); };
-  }, [roomIds, S]);
+  }, [roomIds, S, uid]);
 
   /** The note for a room whose history is not a fact yet — reading, or
    * refused — or null when the room's own numbers may be stated. */
@@ -145,10 +176,10 @@ export default function LiveRolesPanel(): React.ReactElement {
       const revealNames = (hist[0]?.names as Record<string, string> | undefined) || {};
       const known = firstName(revealNames[them] || (r.memberNames || {})[them] || "") || null;
       const label = known || firstName(r.name || "") || "1v1";
-      const res = them ? duoRole(hist as never[], uid, them, lookup, known, r.duoMode === "romantic") : null;
+      const res = them ? duoRole(hist as never[], uid, them, lookup, known, r.duoMode === "romantic", r.ledger) : null;
       if (res) duos.push({ key: r.id, label, res });
       else {
-        const casts = them ? duoCastCount(hist as never[], uid, them, lookup) : 0;
+        const casts = them ? duoCastCount(hist as never[], uid, them, lookup, r.ledger) : 0;
         duosThin.push({
           key: r.id, label,
           // The floor's own unit — cast rounds, which a pair reaches every
@@ -160,10 +191,10 @@ export default function LiveRolesPanel(): React.ReactElement {
         });
       }
     } else {
-      const res = groupRole(hist as never[], uid, lookup);
+      const res = groupRole(hist as never[], uid, lookup, r.ledger);
       if (res) groups.push({ key: r.id, label: r.name || "Group", res });
       else {
-        const votes = groupVoteCount(hist as never[], uid, lookup);
+        const votes = groupVoteCount(hist as never[], uid, lookup, r.ledger);
         groupsThin.push({
           key: r.id, label: r.name || "Group",
           note: roomNote(r.id) || (!hist.length

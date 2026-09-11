@@ -99,11 +99,25 @@ import {
   type PatternsSeeds,
   type PatternsUserState,
 } from "./patternsFit";
-import { mergeSample, sampleAdditions, type SampleDoc } from "./patternsSamples";
+import {
+  PATTERNS_SAMPLE_CAP,
+  PATTERNS_SEED_PER_RUN,
+  citySampleAdditions,
+  citySampleId,
+  mergeSample,
+  needsSeed,
+  sampleAdditions,
+  seedAddition,
+  seedSample,
+  type SampleAddition,
+  type SampleDoc,
+} from "./patternsSamples";
+import type { ProfileStamp } from "./profileStamp";
+import { WORLD_ANSWER_SURFACES } from "./answerSurfaces";
 import {
   ALS_LAMBDAS_U,
   PATTERNS_CROSSOVER_NIGHTS,
-  alsFit,
+  alsFitStreamed,
   alsScoreDay,
   binRows,
   candidateWon,
@@ -163,6 +177,12 @@ export interface PatternsLedgerEntry {
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the voter samples (D397). */
   anchors?: Record<string, string>;
+  /** The author's profile stamp (DATA-EFFICIENCY-RUNBOOK 2.1) — name,
+   *  parsed core scores, logic percentile — present on a create the
+   *  trigger stamped, absent on an edit and on older entries. */
+  n?: string;
+  s?: Record<string, Record<string, number>> | null;
+  l?: number | null;
 }
 
 export type PatternsEngine = "sgd" | "als";
@@ -226,6 +246,15 @@ export interface PatternsStore {
   /** The voter samples for these questions, where one exists (D397). */
   getSamples(qids: string[]): Promise<Map<string, SampleDoc>>;
   putSamples(samples: Map<string, SampleDoc>): Promise<void>;
+  /** The per-city samples (runbook 2.5), keyed by document id
+   *  (`citySampleId`), where one exists; and their writes. */
+  getCitySamples(ids: string[]): Promise<Map<string, SampleDoc>>;
+  putCitySamples(samples: Map<string, SampleDoc>): Promise<void>;
+  /** The newest PATTERNS_SAMPLE_CAP world answers to one question, as
+   * sample additions — the who-voted sheet's own query, run once per
+   * question ever, to seed its sample (D442). Up to the cap in billed
+   * reads, which is why the run bounds how often it asks. */
+  seedRows(qid: string): Promise<SampleAddition[]>;
 }
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
@@ -262,6 +291,11 @@ export interface PatternsRunSummary {
   compacted: number;
   /** Voter sample documents rewritten tonight (D397). */
   samples: number;
+  /** Per-city samples merged (runbook 2.5). */
+  citySamples: number;
+  /** Of those, seeded from the answers tonight — their one bounded
+   * query each (D442). Zero on every night after the corpus is met. */
+  seeded: number;
   users: number;
   questions: number;
   bits: number;
@@ -345,7 +379,7 @@ export async function runPatternsFit(
   }
   if (!days.length || yesterday <= lastDay) {
     return {
-      days: 0, folded: 0, compacted: 0, samples: 0, users: 0, questions: Object.keys(model.q).length,
+      days: 0, folded: 0, compacted: 0, samples: 0, citySamples: 0, seeded: 0, users: 0, questions: Object.keys(model.q).length,
       bits: 0, skill: 0, seedCos: 0, engine, candidateSkill: 0, streak: engine === "sgd" ? alsStreakPrev : sgdStreakPrev, crossed: false,
     };
   }
@@ -353,6 +387,13 @@ export async function runPatternsFit(
   let folded = 0;
   let compacted = 0;
   let samplesWritten = 0;
+  let citySamplesWritten = 0;
+  // The seed budget is per RUN, not per day (D442): a catch-up folds up
+  // to PATTERNS_CATCHUP_DAYS days in one invocation, and the bound exists
+  // to cap what one invocation reads.
+  let seedsLeft = PATTERNS_SEED_PER_RUN;
+  let seeded = 0;
+  const today = utcDay(nowMs, 0);
   const touched = new Set<string>();
   // One tally per owed day (D325) — a day with nothing eligible keeps
   // its n: 0 row, so the series says "no answers" out loud rather than
@@ -449,6 +490,14 @@ export async function runPatternsFit(
         anchorsByUid.set(e.uid, an);
       }
     }
+    // The day's profile stamp per person (runbook 2.1): the newest
+    // stamped entry of theirs, ANY question — the stamp is a fact about
+    // the person, so it goes onto every row of theirs the samples below
+    // write or rewrite tonight. Entries are in `at` order, so last wins.
+    const stampByUid = new Map<string, ProfileStamp>();
+    for (const e of dayEntries) {
+      if (typeof e.n === "string") stampByUid.set(e.uid, { n: e.n, s: e.s ?? null, l: e.l ?? null });
+    }
     const uids = [...new Set([...byUid.keys(), ...answersByUid.keys()])].sort();
     const states = await store.getUsers(uids);
     // The candidate scores the day BEFORE the day is merged into anyone's
@@ -514,14 +563,67 @@ export async function runPatternsFit(
     // the who-voted sheet's own list refreshed nightly. A set, not a step
     // — re-merging a day a dead run already merged changes nothing — so
     // it needs no stamp of its own.
-    const adds = sampleAdditions(day, answersByUid, anchorsByUid);
+    const adds = sampleAdditions(day, answersByUid, anchorsByUid, stampByUid);
     if (adds.size) {
       const qids = [...adds.keys()].sort();
       const prevSamples = await store.getSamples(qids);
       const next = new Map<string, SampleDoc>();
-      for (const qid of qids) next.set(qid, mergeSample(prevSamples.get(qid) ?? null, qid, adds.get(qid) ?? []));
-      await store.putSamples(next);
-      samplesWritten += next.size;
+      for (const qid of qids) {
+        let prev = prevSamples.get(qid) ?? null;
+        // ── seeded on first touch (D442) ────────────────────────────
+        //
+        // A sample only the ledger has fed holds the people who answered
+        // since D397 and nobody before, and the reader cannot tell. So
+        // the first night the pass meets an unstamped sample it runs the
+        // sheet's own query once — the newest cap of the question's
+        // answers — and folds them in BEFORE the day, so an entry
+        // ledgered today wins its tie with the seed's copy of the same
+        // answer. Bounded per run; in qid order so a night's budget
+        // spends the same way twice. A seeded row carries no stamp (the
+        // answer document has none); the device resolves its name live,
+        // as it does for any row without one (runbook 2.3).
+        if (needsSeed(prev)) {
+          if (seedsLeft > 0) {
+            seedsLeft -= 1;
+            prev = seedSample(prev, qid, await store.seedRows(qid), today);
+            seeded += 1;
+          } else if (!prev) {
+            // Budget spent. A sample that EXISTS still takes the day —
+            // short as it was, no shorter — but one that does not exist
+            // is not created short tonight: with no document the device
+            // keeps the live query, which is complete, and the seed lands
+            // the next night the question is met. The day's answers are
+            // not lost to it — the seed reads the answers themselves.
+            continue;
+          }
+        }
+        next.set(qid, mergeSample(prev, qid, adds.get(qid) ?? [], undefined, stampByUid));
+      }
+      if (next.size) {
+        await store.putSamples(next);
+        samplesWritten += next.size;
+      }
+      // ── and per city (runbook 2.5) ──────────────────────────────
+      //
+      // The same merge over the additions whose frozen chips name a city,
+      // one document per (question, city), hottest pairs first up to the
+      // night's budget. In CHUNKS, read-merge-write-drop, rather than the
+      // world loop's read-all-then-write-all: the world set is bounded by
+      // the corpus, this one by the product of two catalogues, and
+      // holding every merged city document until the end is the memory
+      // shape the pass is already short of.
+      const pairs = citySampleAdditions(adds);
+      for (let i = 0; i < pairs.length; i += 300) {
+        const chunk = pairs.slice(i, i + 300);
+        const ids = chunk.map((p) => citySampleId(p.qid, p.city));
+        const prevCity = await store.getCitySamples(ids);
+        const nextCity = new Map<string, SampleDoc>();
+        chunk.forEach((p, j) => {
+          nextCity.set(ids[j], mergeSample(prevCity.get(ids[j]) ?? null, p.qid, p.adds, undefined, stampByUid, p.city));
+        });
+        await store.putCitySamples(nextCity);
+        citySamplesWritten += nextCity.size;
+      }
     }
     // A DAY A DEAD RUN ALREADY FOLDED IS NOT AN EMPTY DAY. The retry guard
     // above skips everybody a previous attempt stamped, so `score` stays at
@@ -616,13 +718,19 @@ export async function runPatternsFit(
   const alsQuality = scored.length
     ? publishableQuality(alsScored.get(bestLambda)!, alsQualityPrev?.series ?? [])
     : alsQualityPrev;
-  const people: { uid: string; a: AnswerMap }[] = [];
-  await store.scanUsers((uid, st) => {
-    if (st.a && Object.keys(st.a).length) people.push({ uid, a: st.a });
+  // STREAMED (DATA-EFFICIENCY-RUNBOOK 4.3): the scan is handed to the
+  // solve as a function it runs once per sweep, so no person's map is
+  // held past the callback — the buffered `people[]` this replaced was
+  // ~1 KB a person resident, the out-of-memory this file's header
+  // predicted near 150,000 people. The reads are 1 + ALS_SWEEPS scans a
+  // night instead of one; the model carries that (PATTERNS_SCAN_READS_PER_MAU).
+  const scan = (each: (uid: string, a: AnswerMap) => void) => store.scanUsers((uid, st) => {
+    if (st.a && Object.keys(st.a).length) each(uid, st.a);
   });
   let als: AlsModel | null = alsPrev;
-  if (people.length) {
-    const solved = alsFit(alsPrev, people, index, k);
+  const streamed = await alsFitStreamed(alsPrev, scan, index, k);
+  if (streamed.people) {
+    const solved = streamed.model;
     als = alsPrev ? rotateModel(solved, procrustes(
       Object.fromEntries(Object.entries(solved.rows).map(([key, r]) => [key, r.v])),
       prevAlsPub,
@@ -757,6 +865,8 @@ export async function runPatternsFit(
     folded,
     compacted,
     samples: samplesWritten,
+    citySamples: citySamplesWritten,
+    seeded,
     users: touched.size,
     questions: Object.keys(engineRows).length,
     bits: pub.quality?.bits ?? 0,
@@ -909,6 +1019,12 @@ export function firestorePatternsStore(
             qid: chunk[j],
             rows: (snap.get("rows") as SampleDoc["rows"]) ?? {},
             n: (snap.get("n") as number) ?? 0,
+            // The seed stamp, BOTH WAYS (D442) — the `d`/`a` lesson one
+            // store method up: the run decides whether to pay the seed
+            // query off what this returns, so a read that dropped it
+            // would re-seed every touched sample every night, at up to
+            // 200 reads each, with every unit test green.
+            ...(snap.get("seeded") ? { seeded: String(snap.get("seeded")) } : {}),
           });
         });
       }
@@ -918,17 +1034,83 @@ export function firestorePatternsStore(
       // Under the loadings document's own rule: `v2_patterns/{docId}` reads
       // signed-in and writes nobody, so a sample needs no rules change —
       // and no rules change is possible for it to get wrong. `set` with no
-      // merge: the merged document is the whole sample.
+      // merge: the merged document is the whole sample — so `seeded` has
+      // to be named here or the stamp is removed on every rewrite.
       const entries = [...samples.entries()];
       for (let i = 0; i < entries.length; i += 400) {
         const batch = db.batch();
         for (const [qid, doc] of entries.slice(i, i + 400)) {
           batch.set(db.collection("v2_patterns").doc(`sample-${qid}`), {
-            qid, rows: doc.rows, n: doc.n, at: FieldValue.serverTimestamp(),
+            qid, rows: doc.rows, n: doc.n, ...(doc.seeded ? { seeded: doc.seeded } : {}), at: FieldValue.serverTimestamp(),
           });
         }
         await batch.commit();
       }
+    },
+    async getCitySamples(ids) {
+      const out = new Map<string, SampleDoc>();
+      for (let i = 0; i < ids.length; i += 300) {
+        const chunk = ids.slice(i, i + 300);
+        const snaps = await db.getAll(...chunk.map((id) => db.collection("v2_patterns").doc(id)));
+        snaps.forEach((snap, j) => {
+          if (!snap.exists) return;
+          out.set(chunk[j], {
+            qid: String(snap.get("qid") ?? ""),
+            city: String(snap.get("city") ?? ""),
+            rows: (snap.get("rows") as SampleDoc["rows"]) ?? {},
+            n: (snap.get("n") as number) ?? 0,
+          });
+        });
+      }
+      return out;
+    },
+    async putCitySamples(samples) {
+      // Same collection, same rule, a different prefix (`city-`): the
+      // erasure arm scans world samples by id range and reaches these
+      // through the account's own answers instead (index.ts, 1a′).
+      const entries = [...samples.entries()];
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        for (const [id, doc] of entries.slice(i, i + 400)) {
+          batch.set(db.collection("v2_patterns").doc(id), {
+            qid: doc.qid, city: doc.city ?? "", rows: doc.rows, n: doc.n, at: FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    },
+    async seedRows(qid) {
+      // THE WHO-VOTED SHEET'S OWN QUERY (src/v2/data/voters.ts,
+      // `fetchVoterPicks`): the newest PATTERNS_SAMPLE_CAP world answers to
+      // one question, on the collection-group index the client already
+      // needs for it (firestore.indexes.json: qid, surface, answeredAt
+      // desc). Same filter, same order, same cap, so the seeded sample IS
+      // the sheet's list rather than a different crowd. The surface
+      // clause is the server's copy of the list, held equal to the
+      // client's by answerSurfaces.test.ts — the admin SDK walks past the
+      // rules, so nothing here would refuse a drifted copy. Projected to
+      // the fields the addition needs; the uid is the path's, not a field.
+      const snap = await db
+        .collectionGroup("answers")
+        .where("qid", "==", qid)
+        .where("surface", "in", [...WORLD_ANSWER_SURFACES])
+        .orderBy("answeredAt", "desc")
+        .limit(PATTERNS_SAMPLE_CAP)
+        .select("optionIdx", "anchors", "answeredAt", "editedAt")
+        .get();
+      const out: SampleAddition[] = [];
+      for (const d of snap.docs) {
+        const uid = d.ref.parent.parent?.id;
+        if (!uid) continue;
+        const add = seedAddition(uid, {
+          optionIdx: d.get("optionIdx"),
+          anchors: d.get("anchors"),
+          answeredAt: d.get("answeredAt"),
+          editedAt: d.get("editedAt"),
+        });
+        if (add) out.push(add);
+      }
+      return out;
     },
     async scanUsers(each) {
       // Every `patterns/state` document there is, paged by path — the

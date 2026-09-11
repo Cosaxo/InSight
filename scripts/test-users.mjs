@@ -105,14 +105,20 @@ import { FUNCTIONS_REGION } from "../src/lib/region.ts";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = FUNCTIONS_REGION;
 
-// How far back a duel answer may be dated, in whole days.
+// How many ROUNDS one backfill run plays and reveals.
 //
-// firestore.rules accepts a duel answer while
-// `timestamp.date(day) > request.time - duration.value(4, 'd')`, and the day
-// key is midnight UTC — so offset -4 clears that bound only in the first
-// hours of a UTC day and is refused every afternoon. -3 holds at any hour,
-// which is what makes it the cap here rather than 4: a backfill that half
-// works depending on the clock is worse than one that states its limit.
+// It is a run length, not a date bound, and the paragraph that stood here
+// described the latter: a rules window of `request.time - 4d` on a duel
+// answer, and why the cap was 3 rather than 4. That window is the PULSE'S
+// now — D426 moved duels off day keys onto rounds and D433's pass took it
+// out of the duel arm entirely — so the number here has meant rounds for
+// some time while its own header explained days. `docs/LOCAL-TESTING.md`
+// now sends the reader to this constant, which is the other half of the
+// same correction.
+//
+// Fourteen because a run is meant to finish while somebody watches it;
+// `cmdHistory` warns and caps rather than refusing, so more history is
+// another run.
 const MAX_BACKFILL_ROUNDS = 14;
 
 const STATE_FILE = resolve(ROOT, ".test-users.json");

@@ -35,7 +35,11 @@ const LIVE = vi.hoisted(() => ({
   // D181: the field draws the ROOM now, so it reaches for the roster and
   // the cross-user scores that place it — the same batched fetch the
   // People tab uses.
-  loadNames: async () => {},
+  // Promise<BOOLEAN>: `false` is a REFUSED profile read, and NearField
+  // draws a different sentence for it. An `async () => {}` resolves
+  // undefined, which reads as the refusal and silences the caption this
+  // file asserts on.
+  loadNames: async () => true,
   scoresFor: (uid: string) => (uid ? null : null) as Record<string, Record<string, number>> | null,
   near: {
     supported: () => true as boolean,

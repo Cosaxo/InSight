@@ -127,9 +127,16 @@ import './spec/result-card.jsx';
 // first paint.
 import './spec/read-run.jsx';
 // duo-daily.jsx moved to loadOverlays(): in a SHIPPING build daily-split
-// picks LiveDuelPanel (React.lazy since D156) whenever LIVE.enabled, so the
-// `window.DuoBody` arm is dead code the installed app cannot execute — the
-// same argument D200 used to take relmap.jsx off this list.
+// picks LiveDuelPanel (React.lazy since D156) whenever LIVE.enabled — the
+// same argument D200 used to take relmap.jsx off this list. THE SENTENCE
+// THAT USED TO FOLLOW WAS WRONG and is worth keeping as a warning: it said
+// the demo arm was "dead code the installed app cannot execute", and
+// `LIVE.enabled` is FALSE on a live build whose boot has not attached
+// (live.ts's `demoInProd`: "the UI is showing demo content to a real
+// user"). An offline cold start on a shipped app takes that arm. It is
+// safe now because daily-split React.lazies the module instead of reading
+// `window.DuoBody` at render time — the move is what makes the claim true
+// rather than the claim making the move safe.
 // place-stats.js and place-stats.jsx are gone from this list too, and they
 // were the last pair. The .js was eager because the pool concatenated
 // window.PLACE_RATE_QS at module scope; the .jsx was eager because the .js
@@ -556,11 +563,12 @@ export const loadOverlays = retryable(async () => {
   // arrives first does the work; the point is that neither group has to
   // wait on the other. Same shape as learn-bits.jsx in loadMapTab.
   (await import('./spec/world-subtopics.js')).installSubtopicStock();
-  // Demo-only in practice (see the note where this used to sit eager). A
-  // demo build can reach the duo tab before this group resolves; the render
-  // site's existing `window.DuoBody || 'div'` guard draws an empty div for
-  // that frame rather than throwing, which is the same frame loadWorldFeed's
-  // own guard accepts.
+  // A PREWARM NOW, not the only path. The render site React.lazies this
+  // module (daily-split.jsx), so reaching the duo tab before this group
+  // resolves draws the Suspense fallback for a frame and then the body —
+  // rather than the empty div the old `window.DuoBody || 'div'` guard drew
+  // and never re-rendered past, because main.jsx schedules no re-render
+  // after this group. Kept here so the tap usually finds the chunk warm.
   await import('./spec/duo-daily.jsx');
   // …then the two the header opens, in the order they held in the eager
   // list above (D223). ~12 KB of the entry chunk that only a tap reaches.

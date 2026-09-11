@@ -91,40 +91,36 @@ const rulesTests =
   countTests("firestore-tests/rules.test.ts")
   + countTests("firestore-tests/storage.rules.test.ts");
 
-// The seeded question bank, PARSED — not scanned for keys.
+// The seeded question bank. `functions/src/v2content.ts` is generated data
+// — one flat array of objects, each with a literal "surface" — so counting
+// that key is exact rather than approximate. If that file ever stops being
+// generated and someone hand-writes an entry across lines, the count still
+// holds: the scan matches the key, not the object shape.
 //
-// It counted `"id":` occurrences until 2026-09-09 on the stated ground that
-// `functions/src/v2content.ts` is "one flat array of objects, each with a
-// literal id", so counting keys was exact. That ground held for as long as
-// the entries were flat, and D434 ended it the day the group became a cast:
-// a role vote carries `scen: { id … }` and `role: { id … }`, so 22 entries
-// grew two nested ids each and the key scan started reporting 1342 for a
-// bank of 1298. Nothing went red — this gate ENFORCES its own number, so it
-// pushed the wrong one into five files and `check:content`, printing the
-// real 1298 in the same CI job, disagreed with it all day.
-//
-// The lesson is the one D197 already paid for: the shared parser exists
-// (`scripts/v2content-lib.mjs`), this file already imports it and already
-// calls it five times below, and the ad-hoc regex two lines from those
-// calls was the only reader that could be wrong. So parse ONCE, here, and
-// derive both figures from the array — a nested member cannot be
-// miscounted as an entry, and a shape the parser cannot read is a loud
-// throw rather than an invented number.
+// The TOTAL is parsed, not scanned, and the difference is 52 documents.
+// This line counted `"id":` keys until D444, which was exact while every
+// id in the file was a document's — and D434 gave a role vote a nested
+// `scen.id` and `role.id`, so from that day the scan ran 44 over the bank
+// (twenty-two role votes, two ids each) and every sentence this gate holds
+// was "corrected" to the over-count. The sixth pack's four votes moved it
+// to 52, which is how it was noticed: a change that added no question
+// moved the figure by eight. `bankArray` is the parser the rest of this
+// file already trusts, and its length is `V2_QUESTIONS.length` — the
+// number `seedContent()` reports back to an operator, so the one they
+// check a seed run against.
 //
 // Two figures rather than one because they answer different questions.
-// The total is what `seedContent()` reports back to an operator, so it is
-// the number they check a seed run against. The daily count is the runway
-// figure the launch plan reasons about — 90 questions is ~13 weeks at the
-// promotion cadence — and the two move independently.
+// The total is the seed's; the daily count is the runway figure the launch
+// plan reasons about — 90 questions is ~13 weeks at the promotion cadence
+// — and the two move independently.
 const v2content = read("functions/src/v2content.ts");
-// `scripts/v2content-lib.mjs` — one parser, shared with cost-arith and
-// question-quality, because all three had their own copy and all three
-// broke differently when a second export arrived (D197). Its header has the
-// three failure modes. Parsed once here and read by every figure below,
-// which is also six fewer parses of a 492 KB file per run.
-const bank = bankArray(v2content);
-const seededQuestions = bank.length;
-const dailyQuestions = bank.filter((q) => q.surface === "daily").length;
+const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m[1]);
+const seededQuestions = bankArray(v2content).length;
+// Active test items carrying an instrument (`test`), which is what the
+// similarity sweep reads one aggregate for (src/v2/data/live.ts).
+const activeTestItems = bankArray(v2content)
+  .filter((q) => q.surface === "test" && q.test && q.active !== false).length;
+const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
 // The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
 // measured off the file, because the file is TypeScript around the data:
@@ -134,7 +130,14 @@ const dailyQuestions = bank.filter((q) => q.surface === "daily").length;
 // One decimal place, and the gate compares the rounded value — the point is
 // to catch a promotion cycle moving the figure by kilobytes, not to make a
 // whitespace change red the tree.
-const bankKiB = Math.round((JSON.stringify(bank).length / 1024) * 10) / 10;
+const bankKiB = (() => {
+  // scripts/v2content-lib.mjs — one parser, shared with cost-arith and
+  // question-quality, because all three had their own copy and all three
+  // broke differently when a second export arrived (D197). Its header has
+  // the three failure modes.
+  const arr = bankArray(v2content);
+  return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
+})();
 
 // The Patterns fit's eligible corpus (D265) — two-option daily plus
 // two-option core feed, the rule `PATTERNS_QIDS` compiles from this same
@@ -142,8 +145,11 @@ const bankKiB = Math.round((JSON.stringify(bank).length / 1024) * 10) / 10;
 // pool floor is a fraction of, which is precisely the kind of sentence
 // this file exists for: it is true today, it moves every time the bank
 // grows a core question, and nothing else would notice.
-const patternsEligibleCount = bank.filter((q) => (q.options || []).length === 2
-  && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
+const patternsEligibleCount = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => (q.options || []).length === 2
+    && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
+})();
 
 // WHAT A COLD BOOT ACTUALLY FETCHES, which stopped being "the whole
 // question bank" at D383 and was still pinned to the bank's size.
@@ -210,8 +216,9 @@ const COLD_BOOT_SURFACES = ["test", "group", "duo", "pulse", "call"];
 })();
 
 const coldBootBankDocs = (() => {
-  const whole = bank.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
-  const coreFeed = bank.filter((q) => q.surface === "feed" && q.core === true).length;
+  const arr = bankArray(v2content);
+  const whole = arr.filter((q) => COLD_BOOT_SURFACES.includes(q.surface)).length;
+  const coreFeed = arr.filter((q) => q.surface === "feed" && q.core === true).length;
   return whole + coreFeed;
 })();
 
@@ -588,8 +595,14 @@ const callSites = (call) => {
 // The political marker's two figures, and the store header's own count of
 // the dynamic-import sites it points a reader at. All three sit in source
 // comments, which is where this repo's figure drift keeps surviving.
-const politicalQuestions = bank.filter((q) => q.political === true && q.surface !== "test").length;
-const dailyFeedQuestions = bank.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+const politicalQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.political === true && q.surface !== "test").length;
+})();
+const dailyFeedQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+})();
 const getDbSites = (() => {
   const src = stripComments(read("src/v2/data/live.ts"));
   return [...src.matchAll(/await getDb\(\)/g)].length;
@@ -1410,7 +1423,11 @@ const FIGURES = [
   {
     file: "docs/COSTS.md",
     what: "reveal-pipeline reads per member for a duo",
-    re: /which is (\d+) for a duo/,
+    // `[\d.]+`, not `\d+`: the figure is (3 + 2m)/m since D445's role
+    // ledger read the round's question, which is 3.5 for a duo — and a
+    // pattern that admitted only an integer would have reported the
+    // sentence as no longer quoted rather than as wrong.
+    re: /which is ([\d.]+) for a duo/,
     actual: revealReadsPerMember(2),
     fix: (n) => `"which is ${n} for a duo"`,
   },
@@ -1430,6 +1447,18 @@ const FIGURES = [
     // script rather than restoring the sentence". A remedy that walks a
     // reader from a caught drift to a deleted gate in two steps.
     fix: (n) => `"**+${n} reads** — five whole surfaces plus the feed's core questions"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    // The similarity sweep's own comment said 110 for as long as the four
+    // instruments held 110 items; the bank has held 266 active test items
+    // since the deep items landed (D417), and the comment sat two and a
+    // half times stale beside the loop it describes. Pinned here off the
+    // bank, in the same file the sweep reads (DATA-EFFICIENCY-RUNBOOK 1.5).
+    what: "core test items the similarity sweep reads (its comment)",
+    re: /(\d+) core test items over the 30-id/,
+    actual: activeTestItems,
+    fix: (n) => `"${n} core test items over the 30-id"`,
   },
   {
     file: "docs/COSTS.md",

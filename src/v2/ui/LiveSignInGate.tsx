@@ -36,7 +36,10 @@
 // every answer kept. Someone who answered before the gate appeared keeps
 // their history. Signing IN to an account that already exists is the one
 // path that cannot: two histories do not merge, and the screen says so in
-// those words before it happens.
+// those words before it happens — at all three doors since D441. Apple
+// and Google learn it from Firebase refusing the link; a password sign-in
+// has no link to refuse, so the email door asks on the condition instead
+// (submitEmail), and for the wall's first two days it did not ask at all.
 //
 // BUILT TO design/front-door-2026-09-07 (visual request 9), which is the
 // authority for the copy and the three behaviours a static reading loses:
@@ -195,6 +198,13 @@ function GateQuiet({ label, onClick, disabled, lead }: {
  * with the consequence written on it, never something the first tap does
  * quietly. At first launch there is nothing to lose and the sentence still
  * holds; on a session that has answered, it is the only warning there is.
+ *
+ * This pattern is how Apple and Google arrive at that screen. The email
+ * door arrives WITHOUT an error to match (D441): `submitEmail` routes a
+ * sign-in from an anonymous session there before any call is made, because
+ * `signInWithEmailAndPassword` has no link step for Firebase to refuse —
+ * the first thing it does is the replacement, and the auth observer purges
+ * this session the moment it lands.
  */
 const IN_USE = /credential-already-in-use|email-already-in-use|account-exists/i;
 
@@ -271,8 +281,13 @@ function LiveSignInGate() {
   const [failure, setFailure] = React.useState<EmailFailure | null>(null);
   const [err, setErr] = React.useState<string | null>(null);
   // WHICH door hit it, not just that one did. This was a boolean and the
-  // recovery below always signed in with Google — see there.
-  const [inUse, setInUse] = React.useState<null | "apple" | "google" | "email">(null);
+  // recovery below always signed in with Google — see there. `known` is
+  // the second thing the screen needs and the door alone cannot say: Apple
+  // and Google arrive here because Firebase REFUSED the link, so the other
+  // account is a fact; the email door arrives on the condition alone,
+  // before any call, so at that point the address may have no account at
+  // all. Both set it, so the property is stated where it is established.
+  const [inUse, setInUse] = React.useState<null | { door: "apple" | "google" | "email"; known: boolean }>(null);
   const [address, setAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
   // A proxy for the keyboard, and the honest one available to a WebView:
@@ -295,7 +310,7 @@ function LiveSignInGate() {
     } catch (e) {
       const f = (e as { failure?: EmailFailure }).failure;
       if (f) setFailure(f);
-      else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse(which);
+      else if (IN_USE.test(String((e instanceof Error && e.message) || e))) setInUse({ door: which, known: true });
       // The store's auth observer is what flips `linked`, and it will not
       // fire for a failed attempt — so the error has to land on screen or
       // the gate just sits there. A SENTENCE, not a code: see SAY_FOR.
@@ -307,9 +322,30 @@ function LiveSignInGate() {
     setFlight(null);
   };
 
-  const submitEmail = () => fly("email", () =>
-    signin ? LIVE.emailSignIn(address.trim(), password)
-           : LIVE.emailCreate(address.trim(), password));
+  // SIGN-IN FROM AN ANONYMOUS SESSION ASKS FIRST (D441). Apple and Google
+  // get their warning from Firebase: the link is refused, `fly` sees
+  // credential-already-in-use, and the in-use screen names the cost before
+  // the second tap signs in. A password sign-in has no link to refuse —
+  // the call IS the replacement, and the auth observer purges this
+  // session the moment it lands — so from the day the wall went up (D414)
+  // this was the one door with no warning, and the door the create path's
+  // "Sign in instead" steered people to. The condition is the session, not
+  // the mode: at this screen `!LIVE.linked` reads as "anonymous, with a
+  // history to leave", because SignInGate mounts it only while the session
+  // is unlinked and initLive() has already signed that session in (the
+  // header). It stays an explicit check rather than an always, so the
+  // property is stated where it is enforced and a screen that is ever
+  // mounted for a linked session keeps the direct call. The second tap is
+  // signInToExisting — the same button the other two doors use.
+  const submitEmail = () => {
+    if (signin && !LIVE.linked) {
+      setFailure(null); setErr(null); setInUse({ door: "email", known: false });
+      return;
+    }
+    return fly("email", () =>
+      signin ? LIVE.emailSignIn(address.trim(), password)
+             : LIVE.emailCreate(address.trim(), password));
+  };
 
   // The verify screen's three controls. Each keeps its own word rather
   // than sharing `err`: "still not confirmed" is not an error, it is the
@@ -357,16 +393,28 @@ function LiveSignInGate() {
     // door — so reinstall → Apple → already-in-use was the PRIMARY recovery
     // path, and it handed the user Google's sheet. Landing in a different
     // account, or minting a third, after a screen that said "sign in to it".
-    // The email door cannot reach here: emailSignIn/emailCreate throw an
-    // EmailAuthError carrying `failure`, which the catch above takes first.
-    const door = inUse === "apple" ? "apple" : "google";
+    // Since D441 the email door lands here too — not through `fly`'s catch
+    // (emailSignIn throws an EmailAuthError carrying `failure`, which that
+    // catch takes first) but from submitEmail, on the condition alone.
+    const door = inUse?.door;
+    if (!door) return;
     setFlight(door); setErr(null);
     try {
       // live.ts's auth observer sees the uid change and runs
       // resetForNewUid, which is what clears this session's local state —
       // so nothing here has to know how to do that.
-      await (door === "apple" ? appleSignIn() : googleSignIn());
-    } catch (e) { setErr(readable(e)); }
+      if (door === "email") await LIVE.emailSignIn(address.trim(), password);
+      else await (door === "apple" ? appleSignIn() : googleSignIn());
+    } catch (e) {
+      const f = (e as { failure?: EmailFailure }).failure;
+      // An email failure goes BACK TO THE FORM rather than onto this
+      // screen: the way out it names — Forgot password?, a retyped
+      // address — is a control the form has and this screen does not,
+      // and the form is still filled. The next Sign in asks again; a
+      // wrong password does not spend the acknowledgement.
+      if (f) { setFailure(f); setInUse(null); }
+      else setErr(readable(e));
+    }
     setFlight(null);
   };
 
@@ -452,8 +500,15 @@ function LiveSignInGate() {
       <GateShell>
         <GateTitle />
         <GateBody>
-          That account already has an InSight history. Signing in to it leaves
-          this phone&rsquo;s answers behind &mdash; they are not merged.
+          {inUse.known
+            // Firebase already refused the link, so the other account is a
+            // fact and the screen may name it.
+            ? <>That account already has an InSight history. Signing in to it leaves
+              this phone&rsquo;s answers behind &mdash; they are not merged.</>
+            // Nothing has been asked yet at the email door, so the history
+            // is the one thing this screen must not assert. What IS certain
+            // is the cost, which is what the screen exists to name.
+            : <>Signing in leaves this phone&rsquo;s answers behind &mdash; they are not merged.</>}
         </GateBody>
         <GateButton label={"Sign in and leave this phone\u2019s answers"}
           onClick={() => void signInToExisting()} busy={inFlight} />

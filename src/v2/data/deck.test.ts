@@ -71,6 +71,74 @@ describe("countsFor (own-vote subtraction)", () => {
     expect(out).toEqual([5, 2, 0]);
   });
 
+  it("subtracts a pending EDIT from the option it moved AWAY from", () => {
+    // `pending` means "the published aggregate does not hold this answer
+    // yet", which is true of a create and false of a D86 edit: the
+    // trigger folded the original, so the crowd already counts this
+    // device at the old option. Without this arm the old option kept the
+    // viewer's vote while the UI layer added its +1 to the new one — a
+    // total one higher than the crowd, and every share on the card drawn
+    // over a denominator that does not exist.
+    const out = countsFor(options, {
+      agg: { counts: { "0": 5, "1": 2 } },
+      mine: "1",
+      pending: true,
+      pendingFrom: "0",
+    });
+    expect(out).toEqual([4, 2, 0]);
+    // The reader's arithmetic, said once: five plus two is what the crowd
+    // holds, and after the UI adds the viewer back at their new option the
+    // card totals seven — not eight.
+    expect(out.reduce((a, b) => a + b, 0) + 1).toBe(7);
+  });
+
+  it("…and a pending CREATE still subtracts nothing — the control", () => {
+    // The case directly above must not become "always subtract": a first
+    // answer is not in the aggregate at all, and taking a vote out of it
+    // would show the crowd one short.
+    const out = countsFor(options, {
+      agg: { counts: { "0": 5, "1": 2 } },
+      mine: "1",
+      pending: true,
+    });
+    expect(out).toEqual([5, 2, 0]);
+  });
+
+  it("…and an edit that followed an UNFOLDED create subtracts nothing", () => {
+    // The other side of the arm above, and the one its first version got
+    // wrong: its premise — "the crowd already holds this device at the
+    // old option" — is exactly what the pending mark DENIES. An edit is
+    // refused only while the create is in flight, so from the moment that
+    // write acks until its delayed refresh lands, an edit is accepted on
+    // an answer the trigger has not folded. Subtracting there takes a
+    // vote out of a crowd that never had it — the same off-by-one, with
+    // the sign reversed.
+    //
+    // The store's half of this is that `editVote` records no origin in
+    // that case (live.ts, `wasFolded`); this is what `countsFor` must do
+    // when it therefore has none, and it is the same shape as the case
+    // below for a restored answer whose origin this process never knew.
+    const out = countsFor(options, {
+      agg: { counts: { "0": 2, "1": 5 } },
+      mine: "0",
+      pending: true,
+    });
+    expect(out).toEqual([2, 5, 0]);
+  });
+
+  it("…and an edit whose origin is gone subtracts nothing either", () => {
+    // A restored pending answer (D357) comes back with no origin index —
+    // the process that knew it died — so the old behaviour stands for it
+    // rather than guessing an option to take a vote from.
+    const out = countsFor(options, {
+      agg: { counts: { "0": 5, "1": 2 } },
+      mine: "1",
+      pending: true,
+      pendingFrom: undefined,
+    });
+    expect(out).toEqual([5, 2, 0]);
+  });
+
   it("never lets a count go below zero", () => {
     const out = countsFor(options, {
       agg: { counts: { "1": 0 } },

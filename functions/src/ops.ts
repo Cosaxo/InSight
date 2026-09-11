@@ -113,7 +113,7 @@ export const ENFORCE_APP_CHECK =
 /**
  * WHERE EVERY FUNCTION RUNS (D201).
  *
- * One constant, imported by all fourteen modules that define functions, for the
+ * One constant, imported by all seventeen modules that define functions, for the
  * reason `db.ts` is one accessor rather than 37 literal edits: this value
  * was spelled out in ten places on this side and eight on the client's, and
  * a move that reaches some of them is worse than one that reaches none —
@@ -180,6 +180,18 @@ export const LIGHT_CALLABLE = { memory: "256MiB", timeoutSeconds: 60 } as const;
 // unbounded in principle, and a timeout mid-delete leaves a half-erased
 // group — so it keeps the long deadline it will almost never use.
 export const LIGHT_UNBOUNDED = { memory: "256MiB", timeoutSeconds: 480 } as const;
+
+// The nightly pass (nightly.ts): five folds in one invocation, one of which
+// — the candidate engine's scan in patterns.ts — buffers every fitted
+// person's answer map in memory, ~1 KB a person, which that file's own
+// header prices at 150 MB at 150,000 people. On the 256 MiB LIGHT_UNBOUNDED
+// footprint that is an out-of-memory before the size the cost tables
+// reach, and a pass that dies before it advances its cursor dies the same
+// way every night after. 1 GiB buys roughly four times the headroom for a
+// fraction of a cent a night — memory is billed only while the pass runs —
+// until DATA-EFFICIENCY-RUNBOOK 4.3 streams the scan and the buffer goes.
+// The timeout stays: the folds already page and bound themselves.
+export const NIGHTLY = { memory: "1GiB", timeoutSeconds: 480 } as const;
 
 // The hot path: one invocation per answer, ~3 documents touched. Memory is
 // not the lever here, CONCURRENCY is — at concurrency 1 every simultaneous

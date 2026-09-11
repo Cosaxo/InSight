@@ -17,12 +17,35 @@
 // a bound that can be widened to 6000 or deleted with the suite still green
 // (the lesson `firestore-tests/rules.test.ts` records about `displayName`).
 
-import { describe, expect, it } from "vitest";
-import {
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FieldValue } from "firebase-admin/firestore";
+
+// Firestore's PLUMBING, not its semantics. The callable issues exactly one
+// `set` and reads nothing back, so what is worth recording is the CALL — the
+// path, the payload and the options — and a fake store would only
+// re-implement merge, which no case below is about.
+type Doc = Record<string, unknown>;
+const sets: { path: string; data: Doc; merge: boolean }[] = [];
+const fakeDb = {
+  collection: (name: string) => ({
+    doc: (id: string) => ({
+      set: async (data: Doc, opts?: { merge?: boolean }) => {
+        sets.push({ path: `${name}/${id}`, data, merge: opts?.merge === true });
+      },
+    }),
+  }),
+};
+vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
+
+// Imported after the fake exists: `vi.mock` is hoisted above every statement
+// in the file, so a static import would run the factory while `fakeDb` is
+// still in its temporal dead zone.
+const {
   CLIENT_TEST_KINDS,
   REMOVABLE_TEST_KINDS,
+  saveTestResultV2,
   validatePassiveResult,
-} from "./testResults";
+} = await import("./testResults");
 
 /** A result in exactly the shape `passiveResult` emits, at Big Five width. */
 function ok(over: Record<string, unknown> = {}) {
@@ -163,5 +186,104 @@ describe("the kind lists", () => {
     expect([...REMOVABLE_TEST_KINDS].sort()).toEqual(
       ["attachment", "big5", "logic", "political", "values"],
     );
+  });
+});
+
+// ── THE CALLABLE ITSELF ──
+//
+// Everything above executes the validator; nothing above — and until
+// 2026-09-09 nothing anywhere — executed the function that CALLS it.
+// Replacing the whole consent guard with `if (false)` left the backend
+// suite green at 47 files, which is how the hole below survived being
+// written into the same change that closed its twin.
+//
+// The hole: `politicalConsent` was handed to `set` verbatim. This runs on
+// the admin SDK, which does not evaluate `firestore.rules` — so
+// `consent.political.keys().hasOnly(["v", "at", "off"])`, the bound that
+// holds the shape on the client path, applies to every writer of that
+// field EXCEPT this one. Measured against the callable the same day: a
+// consent object carrying two extra keys was written whole, 300,075 bytes
+// of it, onto `v2_users/{uid}` — the world-readable document (D98) that
+// `voters.ts` fetches thirty at a time with no field mask, and the exact
+// document this file exists to keep at roughly seven hundred bytes.
+const UID = "u_me";
+
+// `null`, not `undefined`, for the signed-out case: a default parameter is
+// applied to an explicit `undefined` too, so the signed-out case would have
+// run as `u_me` and passed while proving nothing. It did, once.
+const run = (data: Record<string, unknown>, auth: { uid: string } | null = { uid: UID }) =>
+  (saveTestResultV2 as unknown as { run: (r: unknown) => Promise<unknown> })
+    .run({ auth: auth ?? undefined, data });
+
+/** A withdrawal record in the shape the client path is bounded to. */
+const withdrawal = (over: Record<string, unknown> = {}) => ({
+  v: 1, at: 1_757_000_000_000, off: 1_757_000_009_999, ...over,
+});
+
+describe("saveTestResultV2 — the write the rules do not see", () => {
+  beforeEach(() => { sets.length = 0; });
+
+  it("stores the rebuilt result under its kind, merged into the profile", async () => {
+    await run({ kind: "big5", result: ok({ blob: "x".repeat(100_000) }) });
+    expect(sets).toHaveLength(1);
+    expect(sets[0].path).toBe(`v2_users/${UID}`);
+    // `merge: false` here would take every anchor on the profile with it.
+    expect(sets[0].merge).toBe(true);
+    expect(sets[0].data.testResults).toEqual({ big5: ok() });
+    expect(sets[0].data).not.toHaveProperty("consent");
+  });
+
+  // THE ONE THIS FILE WAS EXTENDED FOR. Same rebuild, same reason, one
+  // field over: a validated payload is not an accepted one.
+  it("rebuilds the consent record, so no extra key rides onto a world-readable doc", async () => {
+    await run({
+      kind: "political",
+      result: null,
+      politicalConsent: withdrawal({ blob: "x".repeat(300_000), evil: { deeper: true } }),
+    });
+    expect(sets).toHaveLength(1);
+    expect(sets[0].data.consent).toEqual({ political: withdrawal() });
+    expect(JSON.stringify(sets[0].data.consent).length).toBeLessThan(200);
+  });
+
+  it("removes the result with a delete sentinel, in the same write as the record", async () => {
+    await run({ kind: "political", result: null, politicalConsent: withdrawal() });
+    // ONE `set`, both halves. The state this rules out is a profile still
+    // publishing a six-axis coordinate behind a switch reading "off",
+    // which is worse than no switch because it is a claim.
+    expect(sets).toHaveLength(1);
+    // A stored `null` would be a value, not a removal — the coordinate
+    // would still be there, and readable.
+    expect((sets[0].data.testResults as Doc).political).toBe(FieldValue.delete());
+  });
+
+  it("refuses a grant-shaped consent record on the withdrawal path", async () => {
+    // No `off` is a GRANT. Accepting one would take the coordinate down and
+    // leave consent reading ON, so the next fold republishes it.
+    await expect(run({ kind: "political", result: null, politicalConsent: { v: 1, at: 1 } }))
+      .rejects.toThrow(/withdrawal record/);
+    expect(sets).toHaveLength(0);
+  });
+
+  it("refuses consent riding along with anything but a political removal", async () => {
+    await expect(run({ kind: "big5", result: null, politicalConsent: withdrawal() }))
+      .rejects.toThrow(/may only ride along/);
+    await expect(run({ kind: "political", result: ok(), politicalConsent: withdrawal() }))
+      .rejects.toThrow(/may only ride along/);
+    expect(sets).toHaveLength(0);
+  });
+
+  // The kind lists are pinned by name above; this is the branch that READS
+  // them, which is direction-dependent and therefore its own case.
+  it("will not write a logic result but will remove one", async () => {
+    await expect(run({ kind: "logic", result: ok() })).rejects.toThrow(/logicSubmitV2 only/);
+    expect(sets).toHaveLength(0);
+    await run({ kind: "logic", result: null });
+    expect(sets).toHaveLength(1);
+  });
+
+  it("refuses an unauthenticated caller before it validates anything", async () => {
+    await expect(run({ kind: "big5", result: ok() }, null)).rejects.toThrow(/sign-in/);
+    expect(sets).toHaveLength(0);
   });
 });

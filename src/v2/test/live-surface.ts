@@ -114,7 +114,11 @@ export const LIVE_MEMBERS = [
   // withheld is never rendered as one that is absent.
   "budgetPaused",
   "confirmedVotes", "dailyBank", "deck",
-  "deleteAccount", "demoInProd", "displayName", "handle",
+  "deleteAccount",
+  // D443: the data export — the read-only twin of deleteAccount, called
+  // from the same panel one row up.
+  "exportAccount",
+  "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/
   // test answer to a different option. Returns false without writing when
   // there is nothing to move or the 60s cooldown holds.
@@ -146,6 +150,10 @@ export const LIVE_MEMBERS = [
   "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",
+  // The clear the store's two drains apply, for an aggregate THIS STORE
+  // DID NOT FETCH: `data/pulse` reads its own day-keyed documents, so a
+  // pulse id reached neither drain and its mark stood for the session.
+  "noteFolded",
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
   // that is the only thing the server ever returns about anyone.
   "near",
@@ -231,6 +239,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "revealHistoryLoading",
+  // …and the reader that finishes its sentence, for the caller that
+  // `void`s the loader's own answer rather than keeping it.
+  "revealHistState",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
   // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
@@ -245,6 +256,10 @@ export const LIVE_SOCIAL_MEMBERS = [
   // what makes the surface reviewed, and this one existed in state for a
   // long time without it.
   "takesLoading",
+  // …and the reader that finishes its sentence: 'loading' | 'ready' |
+  // 'failed', because the in-flight flag alone still let a refused read
+  // print "No takes yet."
+  "takesState",
   // Handles and invitations (D122) — the uid-addressed way into a circle.
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.

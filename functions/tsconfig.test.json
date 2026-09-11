@@ -1,46 +1,44 @@
 {
-  // THE BACKEND'S TEST FILES, TYPECHECKED — which nothing did until
-  // 2026-09-09.
+  // THE TYPE GATE THE TEST FILES NEVER HAD.
   //
-  // `tsconfig.json` beside this one ends `"exclude": ["src/**/*.test.ts"]`,
-  // and that exclusion is right for the BUILD: the deployed bundle must not
-  // carry 39 test files. But nothing else reached them either — the root
-  // `tsconfig.json` references only `tsconfig.app.json` (include: src) and
-  // `tsconfig.node.json` (vite/capacitor config, two scripts, and
-  // firestore-tests), `functions/package.json`'s `build` is a bare `tsc`,
-  // and `vitest run` does not typecheck. So 39 files, ~14k lines, were
-  // compiled by nobody, and the first run of this config found 27 real
-  // errors in six of them.
+  // tsconfig.json excludes `src/**/*.test.ts`, and that exclusion is
+  // correct for what it is: the BUILD emits into lib/ and ships to Cloud
+  // Functions, where a compiled test file is dead weight at best. What it
+  // also did was leave every test file unchecked by any gate in the repo
+  // — `tsc -b` at the root does not reach functions/src at all — so a
+  // fake that stops matching the interface it stands in for is invisible.
   //
-  // `tsconfig.node.json`'s own header records this exact hole having shipped
-  // once already, for `firestore-tests/rules.test.ts`. This is the same hole
-  // one directory over.
+  // Measured, repeatedly: the nightly pass's runner fakes drifted from
+  // `NightlyRunners` four times before tonight and three more times
+  // during it (the answer-map heal, the rollup drain and the velocity
+  // scan each gained a parameter and a summary field while their fakes
+  // did not), and in every case the suite stayed green because a fake
+  // that returns too little is only wrong where something reads the
+  // missing part.
   //
-  // WHAT A DRIFTED FIXTURE COSTS. Nothing in production — these files never
-  // ship. What it costs is the test's meaning: `paid.test.ts` priced the
-  // money path against a `PricingCard` carrying a field the type retired and
-  // missing three the type requires, so it was asserting about a shape the
-  // server cannot receive. A suite that typechecks cannot drift away from
-  // the code it is testing without saying so.
+  // Same options as the build, so a test cannot rely on a looser rule
+  // than the code it exercises; `noEmit` because nothing here is shipped.
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    // Checking only — the build config's `outDir`/`rootDir` are for emit,
-    // and this must never write anything into `lib/`. `rootDir` is cleared
-    // with them: it is `src`, and `vitest.config.ts` sits beside this file,
-    // which TS6059 refuses while a rootDir is set.
     "noEmit": true,
-    "rootDir": ".",
-    // `esnext` + `bundler`, NOT the build's `node16` pair, and the reason is
-    // vitest: it resolves these files itself and permits extensionless
-    // relative imports (`from "./pure"`), which `node16` refuses. Matching
-    // the runner is the point — this config exists to check the files as
-    // vitest actually loads them.
+    // THE MODULE FORMAT IS VITEST'S, NOT THE DEPLOY'S, and that is the
+    // one option that may not be inherited. The build emits CommonJS
+    // (node16 + no `"type"` in package.json), but these files are only
+    // ever loaded by vitest, as ESM: they use `import.meta`, top-level
+    // `await import()` and extensionless relative specifiers, all three
+    // of which the build's settings reject on sight. Checking them as
+    // CommonJS produced 60-odd errors about the format and hid the
+    // handful that are about the code.
     "module": "esnext",
     "moduleResolution": "bundler",
+    // NO rootDir, and it has to go: `profileStamp.test.ts` deliberately
+    // imports the DEVICE's copy of the same parsers to hold the two
+    // halves to one behaviour, which a `rootDir` of `src` rejects
+    // outright. Nothing is emitted here, so the option has nothing left
+    // to constrain.
+    "rootDir": "..",
     "types": ["node"]
   },
-  // The build's `exclude` is exactly what this config is for, so it is
-  // cleared rather than inherited.
-  "exclude": [],
-  "include": ["src/**/*.test.ts", "vitest.config.ts"]
+  "include": ["src"],
+  "exclude": []
 }

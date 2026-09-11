@@ -325,7 +325,11 @@ export function firestoreRankStore(db: Firestore): RankStore {
       for (let i = 0; i < qids.length; i += 300) {
         const chunk = qids.slice(i, i + 300);
         const refs = chunk.map((qid) => db.collection("v2_question_aggs").doc(qid));
-        const snaps = await db.getAll(...refs);
+        // Two scalars are read; the document also carries the `by`
+        // breakdown — up to ~40 KB — which the wire would otherwise
+        // carry 500+ times a night for nothing. Billed reads are the
+        // same either way (DATA-EFFICIENCY-RUNBOOK 1.2).
+        const snaps = await db.getAll(...refs, { fieldMask: ["total", "counts"] });
         snaps.forEach((snap, j) => {
           if (snap.exists) {
             out.set(chunk[j], {
@@ -355,10 +359,15 @@ export function firestoreRankStore(db: Firestore): RankStore {
 const REGION = FUNCTIONS_REGION;
 
 export const rankBankV2 = onSchedule(
-  // Nightly at 3:07 UTC — after the patterns fit (2:37) so a device that
-  // reads both sees the same night's world, before the velocity scan
-  // (3:47). Cost: O(bank) agg reads per night plus two writes; a device
-  // pays one read per order doc it actually uses.
+  // Nightly at 3:07 UTC — after the nightly pass (nightly.ts,
+  // `digestEngagementV2`, 02:23), which is where the patterns fit runs, so
+  // a device that reads both sees the same night's world. That reason is
+  // unchanged; the clock times this note used to give for it are not.
+  // Both jobs it named — the fit at 02:37 and the velocity scan at 03:47
+  // this was timed to precede — were folded INTO the 02:23 pass (D399,
+  // DATA-EFFICIENCY-RUNBOOK 4.4), so "before the velocity scan" has been
+  // false by 44 minutes since. Cost: O(bank) agg reads per night plus two
+  // writes; a device pays one read per order doc it actually uses.
   { schedule: "7 3 * * *", region: REGION, ...LIGHT_UNBOUNDED },
   async () => {
     const summary = await runBankRank(firestoreRankStore(firestore()), Date.now());

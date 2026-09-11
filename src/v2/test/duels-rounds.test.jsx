@@ -13,6 +13,7 @@ import React from 'react';
 import { render, screen, fireEvent, cleanup, within, act } from '@testing-library/react';
 import { IS_DATA } from '../spec/sample-data.js';
 import { DUELS } from '../spec/duels-data.js';
+import { SEATS } from '../data/roles';
 import { GroupDailyBody } from '../spec/group-daily.jsx';
 import '../spec/duo-daily.jsx';
 
@@ -79,7 +80,7 @@ describe('the demo store plays rounds', () => {
     expect(DUELS.groupPicksRound('g3', 12).counts.reduce((a, b) => a + b, 0)).toBe(DUELS.groupPicksRound('g3', 12).played.length);
   });
 
-  it('reads the room as a cast: the latest vote per role, a seat from the votes cast at you, a score per rating', () => {
+  it('reads the room as a cast: the latest vote per role, a seat from two votes, a score per rating', () => {
     const rv = DUELS.roleVotes('g1');
     // eight roles in the sample's two packs, nine role votes revealed —
     // the ninth is the first role again, so eight rows
@@ -89,22 +90,52 @@ describe('the demo store plays rounds', () => {
       expect(role.votes[role.winner]).toBeGreaterThan(0);
       expect(role.seat).toMatch(/^(engine|hands|heart|wild)$/);
     }
-    // UNCONDITIONAL, and the premise first. `A.total` is a sum of vote
-    // counts, so `toBeGreaterThanOrEqual(0)` could not fail, and the seat
-    // assertion behind `if (A.total >= 2)` ran only if the fixture happened
-    // to satisfy it. MEASURED: it does not — the demo room casts exactly ONE
-    // role vote at the reader (`TOTAL=1 SEAT=wild`), so that branch had never
-    // executed and the property in the case's own name was never asserted.
-    // The name said "a seat from two votes"; the fixture gives one, and one
-    // is enough to earn a seat, so the name moved to what is true.
-    const A = DUELS.archetypeOf('g1', 'me');
-    expect(A.total, 'the room cast no role votes at "me" — the seat below would be null')
-      .toBeGreaterThan(0);
-    expect(A.seat, 'a room that voted has no seat for the reader').not.toBeNull();
-    expect(A.seat.line).toMatch(/^the one/);
-    // …and the seat is one the roster defines, not a shape that merely has
-    // a `line`.
-    expect(DUELS.SEATS.map((s) => s.id)).toContain(A.seat.id);
+    // THE FLOOR IS THE CONSUMER'S, NOT THE FOLD'S — and that is why this
+    // pair of lines could not fail. `archetypeOf` names a seat at ANY
+    // total; both consumers gate it at two votes (group-mirror.jsx's
+    // "Here, you are …" and group-role-map.jsx's `p.seat`). `me` has
+    // exactly ONE vote in this seeded room, so `if (A.total >= 2)` was
+    // always false and its body never ran, while the assertion above it
+    // (`>= 0`) cannot fail at all: a total is a sum of non-negative
+    // counts. The floor itself is pinned in both directions by the live
+    // twin (LiveGroupsMirrorBody's suite), which is the half that ships.
+    //
+    // What belongs here is the shape those consumers rely on, over the
+    // WHOLE seeded population so it cannot go vacuous the way one
+    // member's reading did — including that the seed carries members on
+    // both sides of the floor, without which no consumer case could
+    // exercise it at all.
+    // The four seats themselves, from the definition the demo imports —
+    // not from whatever the seed happened to produce. The per-member loop
+    // below only ever reaches the seats these rooms hand out, so renaming
+    // a seat nobody in the seed holds would slip past it.
+    expect(SEATS).toHaveLength(4);
+    for (const s of SEATS) {
+      expect(s.line, `${s.id}'s line is what the app prints`).toMatch(/^the one/);
+      expect(s.label, `${s.id}'s label is for result cards only (D437)`).not.toMatch(/^the one/);
+    }
+    let below = 0;
+    let above = 0;
+    for (const g of DUELS.groups()) {
+      for (const m of (g.members || g.memberIds || [])) {
+        const X = DUELS.archetypeOf(g.id, m.id || m);
+        if (!X) continue;
+        expect(Object.values(X.shares).reduce((a, b) => a + b, 0)).toBe(X.total);
+        if (X.total > 0) {
+          expect(X.seat.id).toMatch(/^(engine|hands|heart|wild)$/);
+          // the LINE, never the label — the string the consumers print
+          expect(SEATS.some((s) => s.id === X.seat.id && s.line === X.seat.line)).toBe(true);
+        }
+        if (X.total >= 2) above += 1; else below += 1;
+      }
+    }
+    expect(above, 'no seeded member clears the seat floor — a consumer case could not exercise it').toBeGreaterThan(0);
+    expect(below, 'every seeded member clears the floor — the under-floor branch is unreachable').toBeGreaterThan(0);
+    // …and the measured fact that made the old guard dead, kept as the
+    // inequality rather than the count: YOU are under the floor in this
+    // seeded room, so anything written as `if (yourTotal >= 2)` here
+    // tests nothing. Named so the next person does not write it again.
+    expect(DUELS.archetypeOf('g1', 'me').total).toBeLessThan(2);
     // two ratings revealed in eleven rounds at phase 0
     const scores = DUELS.groupScores('g1');
     expect(scores).toHaveLength(2);
