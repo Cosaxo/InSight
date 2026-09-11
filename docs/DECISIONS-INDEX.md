@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 485 lines instead of
-50,280. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 486 lines instead of
+50,317. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -496,6 +496,7 @@ detect it.
 | **D451** | [The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow](DECISIONS.md#d451--the-oracle-starts-from-your-own-groups-split-a-cohort-prior-on-the-device-with-the-worlds-guess-sealed-beside-it-as-the-shadow) | D454 (+2) | 49764 |
 | **D452** | [Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it](DECISIONS.md#d452--anchors-as-items-in-the-fit-the-candidate-engine-learns-a-vector-per-profile-value-and-every-lens-that-solves-a-vector-reads-it) | D456 (+2) | 49861 |
 | **D453** | [Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag](DECISIONS.md#d453--catalogue-picks-as-items-in-the-fit-the-pick-rides-the-ledger-the-compaction-keeps-it-and-the-popular-entities-are-rows--on-the-owners-instruction-since-the-pick-questions-are-tail-by-the-banks-flag) | D456 (+1) | 49951 |
-| **D454** | [Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls](DECISIONS.md#d454--calibration-and-the-meter-the-links-slope-is-swept-beside-the-ridge-the-record-says-skill-against-plain-guessing-and-the-question-rule-learns-first-and-then-calls) | D456 | 50059 |
-| **D455** | [The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map](DECISIONS.md#d455--the-walls-measured-and-moved-the-loadings-document-exempt-from-indexing-the-ring-the-topics-own-the-dailys-lists-first-for-the-people-map) | — | 50128 |
-| **D456** | [The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot](DECISIONS.md#d456--the-owners-five-answers-on-the-patterns-plans-rows-the-you-arc-the-whole-world-map-ruled-the-question-rule-kept-the-pick-cards-core-and-one-rule-for-every-kind-of-dot) | — | 50196 |
+|  | ↳ *amendment 2026-09-11* — [The items are compiled inside the streamed fit](DECISIONS.md#d453-amendment-2026-09-11--the-items-are-compiled-inside-the-streamed-fit) | — | 50059 |
+| **D454** | [Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls](DECISIONS.md#d454--calibration-and-the-meter-the-links-slope-is-swept-beside-the-ridge-the-record-says-skill-against-plain-guessing-and-the-question-rule-learns-first-and-then-calls) | D456 | 50096 |
+| **D455** | [The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map](DECISIONS.md#d455--the-walls-measured-and-moved-the-loadings-document-exempt-from-indexing-the-ring-the-topics-own-the-dailys-lists-first-for-the-people-map) | — | 50165 |
+| **D456** | [The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot](DECISIONS.md#d456--the-owners-five-answers-on-the-patterns-plans-rows-the-you-arc-the-whole-world-map-ruled-the-question-rule-kept-the-pick-cards-core-and-one-rule-for-every-kind-of-dot) | — | 50233 |

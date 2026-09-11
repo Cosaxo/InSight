@@ -50056,6 +50056,43 @@ fitted from picks alone across two nights. On the device,
 pick, and `votersSample.test.ts` the sample reader. Both packages'
 suites, `tsc`, eslint and the check gates were green at the commit.
 
+## D453 amendment (2026-09-11) · The items are compiled inside the streamed fit
+
+**Written on the merge that brought `main` under this branch, because the
+resolution changed code neither side wrote.**
+
+D452 and D453 compiled the anchor and pick items from `people` — the crowd
+the buffered `alsFit` already held in memory — and handed the fit an index
+that carried them. `main` replaced that driver the same week
+(DATA-EFFICIENCY-RUNBOOK 4.3, `alsFitStreamed`): the crowd is no longer
+resident, it is a SCAN the solve runs once per sweep, holding per-item
+sufficient statistics and nothing per person. The two are not compatible as
+written — the compilation needs counts over the whole population, and the
+only thing that sees the population is the scan.
+
+**The resolution.** The scan hands over the person, not the answer map
+(`PeopleScan`'s callback takes `{ a } & PersonKnown`), and the compilation
+moved into the streamed fit's own pass 0, which already walks everyone: the
+anchor and pick counts ride that pass, the items are compiled from them
+after it, and the index is extended before the sweeps.
+
+**Their statistics are derived, not re-scanned**, which is what keeps the
+read count where 4.3 left it (1 + `ALS_SWEEPS` scans). A person carrying a
+dim is one observation of EVERY kept item of that dim — +1 on their own
+value, −1 on the rest — so for an item with `c` carriers out of the dim's
+`n`: the basis is `n`, the sum is `2c − n`, and every encoded value is ±1,
+so the sum of squares is `n`. Picks are the same over the people who
+answered the catalogue card. This is exactly what `itemStats` counts from
+the people, and `patternsAls.test.ts` holds the streamed fit against the
+buffered one on a fixture that now carries anchors and picks.
+
+**What did not change.** `compileAnchorItems` and `compilePickItems` keep
+their people-shaped form for the callers that do have the crowd (the
+scorecard, the tests); the counts→specs half is split out rather than
+copied, so the floor, the cap and the tie order are written once. The
+floors, the caps, the keys, the device's reading and every published shape
+are D452's and D453's, untouched.
+
 ## D454 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
 
 **2026-09-10.** **Status:** binding. Step 4 of `PATTERNS-PLAN.md` (§6),
