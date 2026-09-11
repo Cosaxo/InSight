@@ -203,10 +203,66 @@ const log = (path) => api("logging.googleapis.com", `/v2/projects/${PROJECT}${pa
 function must(what, res, role) {
   if (res.ok) return res.body;
   const why = res.status === 403 ? `\n    Grant ${role} to ${sa.client_email}.`
-    : res.status === 404 ? "\n    A 404 on a project path usually means the API is not enabled for this project."
-      : "";
+    : res.status === 404 && METRIC_NOT_READY.test(res.message)
+      // Measured 2026-09-11, D452: this 404 is NOT a missing API. It is a
+      // metric this same run created seconds earlier and Cloud Monitoring
+      // has not published yet. The generic hint below sent the operator to
+      // the API-enablement page for a project whose APIs were all on.
+      ? "\n    That metric was created by this run. Cloud Monitoring publishes a new\n"
+        + "    log-based metric to the alerting API on its own schedule (Google says up\n"
+        + "    to 10 minutes), and the retry above has already waited. Re-dispatch this\n"
+        + "    workflow in a few minutes — everything else is idempotent and will skip."
+      : res.status === 404 ? "\n    A 404 on a project path usually means the API is not enabled for this project."
+        : "";
   console.error(`apply-monitoring: ${what} failed (${res.status}): ${res.message}${why}`);
   process.exit(1);
+}
+
+/** Google's own wording for "the metric exists but I cannot see it yet".
+ *  Matched on the message because the STATUS is an ordinary 404 — the same
+ *  code a genuinely missing project path returns. */
+const METRIC_NOT_READY = /Cannot find metric\(s\) that match type/i;
+
+/**
+ * Create a policy, waiting out the metric-propagation window.
+ *
+ * WHY THIS EXISTS, measured rather than reasoned (2026-09-11, D452). This
+ * script has always created log-based metrics BEFORE the policies that read
+ * them — its own header says why, and that ordering is correct. What the
+ * ordering does not buy is VISIBILITY: a metric accepted by the Logging API
+ * is not immediately resolvable by the Monitoring API, so the policy POST
+ * that follows it in the same run takes a 404 naming the metric this run
+ * just made. That is exactly what happened arming `agg_evict` and the
+ * breakdown-cap policy: the metric was created, the policy was not, and the
+ * run went red having done half the job — the "half an alert chain" failure
+ * `must()` exists to prevent, arriving through the one door it did not watch.
+ *
+ * Sleeping is the fix Google's own message asks for ("try again soon"), so
+ * the retry is the operation rather than a workaround. Bounded and loud: it
+ * says what it is waiting for, so a run that takes two minutes does not look
+ * like a hung one.
+ */
+async function createPolicyWithRetry(label, body) {
+  // Overridable for the suite alone, the way GOOGLE_API_BASE is: a test that
+  // really waited out this schedule would take four minutes, and a suite that
+  // slow is a suite nobody runs. Unset in every real run.
+  const waits = process.env.MONITORING_RETRY_MS
+    ? process.env.MONITORING_RETRY_MS.split(",").map(Number)
+    : [15_000, 30_000, 60_000, 120_000];
+  for (let attempt = 0; ; attempt++) {
+    const res = await googleFetch(mon("/alertPolicies"), token, { method: "POST", body });
+    if (res.ok || !(res.status === 404 && METRIC_NOT_READY.test(res.message))) {
+      return must(`creating policy "${label}"`, res, "roles/monitoring.alertPolicyEditor");
+    }
+    if (attempt >= waits.length) {
+      // Out of patience, not out of options: everything else this run did is
+      // already in place, and re-dispatching skips it all and creates this.
+      return must(`creating policy "${label}"`, res, "roles/monitoring.alertPolicyEditor");
+    }
+    const secs = waits[attempt] / 1000;
+    console.log(`    … the metric it reads is not published yet — waiting ${secs}s and retrying`);
+    await new Promise((r) => setTimeout(r, waits[attempt]));
+  }
 }
 
 let created = 0;
@@ -344,14 +400,7 @@ for (const rel of POLICIES) {
       console.error("apply-monitoring: no notification channel id — the channel step did not complete.");
       process.exit(1);
     }
-    must(
-      `creating policy "${body.displayName}"`,
-      await googleFetch(mon("/alertPolicies"), token, {
-        method: "POST",
-        body: { ...body, notificationChannels: [channel.name] },
-      }),
-      "roles/monitoring.alertPolicyEditor",
-    );
+    await createPolicyWithRetry(body.displayName, { ...body, notificationChannels: [channel.name] });
   });
 }
 

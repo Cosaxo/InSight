@@ -49875,3 +49875,114 @@ same commit that caused it. Fixing it found that the table under that
 sentence had been missing `apply-bigquery.yml` and `backfill-log.yml`
 since the day they were counted — the gate holds the COUNT, and nothing
 holds the ROWS.
+
+## D452 · Arming what D451 built: three readings that contradicted the record, and the propagation window that broke the fourth
+
+**2026-09-11, the same day.** D451 built the backup lane and left arming it
+as an owner dispatch. The owner said to do the rest. What the dispatches
+found is worth more than the arming: **three of the four things this repo
+believed about its own production were wrong, in both directions.**
+
+### 1. Backups: armed, and the exposure was real
+
+Dry run first, as `backups.yml` instructs. It reported `+ … would create`
+on all three and `restorable now: 0 backup(s)` — so the claim D451 made
+from a grep was confirmed against production itself: **zero backups, PITR
+off.** Then `apply`: `backups: done, 3 created` — PITR on at 7 days, a
+daily schedule at 7-day retention, a weekly on SUNDAY at 14 weeks.
+
+Verified by the instrument rather than by eye, which is the whole reason
+D451 built the reader: *Observe production* says `✓ backups
+point-in-time recovery: ON` and `✓ backupSched. 2 schedule(s) —
+daily=true weekly=true retention=8467200s,604800s`. The retention is read
+BACK, not assumed.
+
+Unchanged and still owed: `restorable now` is 0 until the first schedule
+fires, and **a schedule is not a restore**.
+
+### 2. App Check: the record was wrong, and one read-only dispatch settled it
+
+`COST-EXPOSURE.md` §7 listed enforcement as *"which the owner reports done
+and no instrument here reads"*. D388 said no build had ever sent a token.
+Both could not be true. `App Check → report`, `apply` off, changed nothing
+and answered it:
+
+    firestore.googleapis.com           UNENFORCED
+    firebasestorage.googleapis.com     UNENFORCED
+    identitytoolkit.googleapis.com     UNENFORCED
+    firebasedatabase.googleapis.com    UNENFORCED (unset)
+    oauth2.googleapis.com              UNENFORCED
+
+**Nothing is enforced.** D388 was right. `COSTS.md` §2 calls the Firestore
+toggle the kill switch for unmetered reads, and the `v2_attention`
+shard-flooding row recommends the same toggle for a correctness reason —
+neither control is in place.
+
+The same output closed a second row for free: the two debug tokens runbook
+1.4 asks for are **already registered** (`CI`, `Owner browser`, on the web
+app). That row had been open since D367.
+
+The finding under all of it: *"the owner reports done"* is not a reading,
+and it sat in a page that had a dispatch available to check it the whole
+time. One dispatch, no risk, and it had never been run.
+
+### 3. Monitoring: mostly already armed, so the rating that said otherwise was wrong
+
+The dry run found the channel `InSight oncall` present and already
+pointing at the operator's address — the script warns when the existing
+channel's address differs and printed no warning — plus **7 of 8 metrics
+and 8 of 10 policies already live**. The belief that ten policies were
+committed and none was live was false. What was genuinely missing was one
+metric (`agg_evict`) and the D398 breakdown-cap policy that reads it.
+
+### 4. The propagation window, which is a real defect and is now fixed
+
+`apply` created `agg_evict` and then, seconds later, failed:
+
+    creating policy "onV2AnswerCreated is discarding cohort counts at the
+    breakdown cap" failed (404): Cannot find metric(s) that match type =
+    "logging.googleapis.com/user/agg_evict". If a metric was created
+    recently, it could take up to 10 minutes to become available.
+
+**Ordering was never the problem; visibility was.** This script has always
+created metrics before the policies that read them, and its header says
+why. What that ordering does not buy is that the Monitoring API can
+RESOLVE a metric the Logging API has just accepted. So the run went red
+having created the metric and not the policy — *half an alert chain*,
+which is precisely the failure `must()` exists to prevent, arriving
+through the one door it did not watch.
+
+Worse, the error blamed the wrong thing: `must()`'s 404 hint read *"the
+API is not enabled for this project"*, which would send an operator to
+enable APIs that were all already on.
+
+Both fixed. `createPolicyWithRetry` waits the window out on that specific
+404 (15s/30s/60s/120s, saying what it waits for so a slow run does not
+look hung), and the hint now names the propagation window and tells the
+operator to re-dispatch. Sleeping is what Google's own message asks for,
+so the retry is the operation rather than a workaround. Two cases in
+`apply-monitoring.test.mjs`, both mutation-checked in-tree: reverting the
+retry fails *"retries instead of failing"*, and restoring the old hint
+fails *"blames the propagation window, never the API being disabled"*. The
+wait schedule is a `MONITORING_RETRY_MS` seam for the suite alone, the way
+`GOOGLE_API_BASE` already is — four minutes of real sleeping would make
+this a suite nobody runs.
+
+### What this says about the instruments generally
+
+Three of four readings contradicted the written record, and **every one of
+them was one dispatch away from being checked**. The dispatches are
+read-only or idempotent, they existed already, and nobody had run them.
+That is the same finding as D300 (an instrument that runs beats a
+better-provisioned one that does not), one layer up: an instrument that
+runs and is never RUN is not an instrument, it is a file. The gates in
+this repo hold the tree against itself and cannot see production at all —
+`check:monitoring` validates the policy files against each other, which is
+worth having and is not the same as knowing whether anything is armed.
+
+### Measured
+
+`test:scripts` green including the two new cases (both mutation-checked),
+`eslint --max-warnings 0`, `check:docs`, `check:figures`,
+`check:policy-claims` green. Production readings above are from run logs,
+not from reasoning.
