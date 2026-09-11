@@ -3457,5 +3457,55 @@
         "Adventure"
       ]
     ]
+  },
+  {
+    "id": "140",
+    "type": "binary",
+    "prompt": "Naps: a superpower, or a trap?",
+    "tag": "Naps",
+    "options": [
+      "A superpower",
+      "A trap"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Sleep"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Rest"
+      ],
+      [
+        "Home",
+        "Afternoons"
+      ]
+    ]
+  },
+  {
+    "id": "141",
+    "type": "binary",
+    "prompt": "Showing someone your favourite film: the joy, or the pressure?",
+    "tag": "The screening",
+    "options": [
+      "The joy",
+      "The pressure"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "Sharing"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Sharing"
+      ],
+      [
+        "Mind",
+        "Stakes"
+      ]
+    ]
   }
 ]
