@@ -105,9 +105,19 @@ export const PATTERNS_SEED_PER_RUN = 25;
  * 120.8 KiB of JSON at PATTERNS_SAMPLE_CAP rows with stamps, and the
  * admin SDK retains the decoded field proto, not the JSON. At the 542
  * fitted questions of that day the unpaged read was 63.9 MiB on the wire
- * and 233.2 MiB retained (RSS 317.8 MiB) — inside a 256 MiB function.
- * The corpus only grows, so that was a cliff with a date on it rather
- * than a limit already passed.
+ * and 233.2 MiB retained, RSS 317.8 MiB.
+ *
+ * THE TWO CALLERS SIT AT DIFFERENT LIMITS, and the first version of this
+ * comment said 256 MiB for both, which is the hand-kept-figure error this
+ * repo keeps re-committing. `exportAccountV2` takes LIGHT_UNBOUNDED —
+ * 256 MiB — so at that corpus it was ALREADY over, a live defect rather
+ * than a future one. `deleteAccount` passes no runtime options and takes
+ * the 512 MiB global default, so it had roughly 200 MiB of headroom:
+ * real, and spent by the corpus growing, not by anything else. Its
+ * sharper limit is the 480 s deadline the same global sets.
+ *
+ * Read the options, not this paragraph: ops.ts's `setGlobalOptions` and
+ * LIGHT_UNBOUNDED are where those numbers live.
  *
  * 50 keeps a page near 6 MiB and costs one extra round trip per 50
  * documents, which is nothing beside the reads the walk already bills. */

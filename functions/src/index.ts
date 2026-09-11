@@ -371,8 +371,11 @@ export const deleteAccount = onCall(
     };
     try {
       // PAGED (WORLD_SAMPLE_PAGE) — this was `.get()` on the whole family,
-      // which at the corpus of 2026-09-11 retained 233 MiB inside a 256
-      // MiB function. The constant carries the measurement. Each page is
+      // which at the corpus of 2026-09-11 retained 233 MiB, RSS 317.8.
+      // This callable takes the 512 MiB global default, so that was
+      // headroom being spent rather than a limit already passed; its
+      // sibling in exportAccount.ts runs on 256 and was over it. The
+      // constant carries the measurement. Each page is
       // scrubbed and released before the next is asked for; the scrub
       // needs one row per document and never two documents at once.
       let world = db.collection("v2_patterns")
