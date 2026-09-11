@@ -488,3 +488,84 @@ describe("a job that runs a remote script keeps no credential on disk", () => {
     expect(/persist-credentials:\s*false/.test(jobs(fixed)[0].text)).toBe(true);
   });
 });
+
+/**
+ * The hosting deploy runs the gates that guard what it ships.
+ *
+ * `firebase-deploy.yml` triggers on `web/**` and deploys hosting, and its
+ * only `needs:` is `backend-checks.yml`, which says nothing about the
+ * hosting payload. The five gates that DO — headers, CSP hashes, policy
+ * claims, public copy, the ask page's price — live in `ci.yml` alone,
+ * which on a push to main runs in PARALLEL with the deploy and therefore
+ * gates nothing it does.
+ *
+ * The precedent is one gate over, and it is written in this repo's own
+ * comments: `check:pricing` was moved onto the deploy path after "a push
+ * to main deployed the stale card while ci.yml went red beside it, in
+ * parallel, too late". `check:ask-pricing` — the gate on the price the
+ * PUBLIC door prints — did not move with it. The CSP case is the silent
+ * one: a stale hash ships a page whose own scripts are blocked, with
+ * nothing red anywhere.
+ *
+ * A rule rather than a fix at one site, because the next gate added to
+ * ci.yml for `web/` will be added by somebody who has not read this.
+ */
+const HOSTING_GATES = [
+  "check:web-headers",
+  "check:csp-hashes",
+  "check:policy-claims",
+  "check:public-copy",
+  "check:ask-pricing",
+];
+
+describe("the hosting deploy runs the gates that guard what it ships", () => {
+  const src = readWorkflow(join(dir, "firebase-deploy.yml"));
+  const blocks = runBlocks(src);
+  const deploysHosting = (b) => /firebase\s+deploy\b[^\n]*--only\s+"hosting"/.test(b.body);
+  const hostingAt = blocks.findIndex(deploysHosting);
+  const gatesMissingBefore = (bs, at) => {
+    const before = bs.slice(0, at).map((b) => b.body).join("\n");
+    return HOSTING_GATES.filter((g) => !new RegExp(`npm run ${g}(\\s|$)`, "m").test(before));
+  };
+
+  it("finds the hosting deploy at all — the rule must not pass vacuously", () => {
+    expect(
+      hostingAt,
+      "no step in firebase-deploy.yml deploys hosting — has the deploy moved, or has runBlocks stopped parsing?",
+    ).toBeGreaterThanOrEqual(0);
+  });
+
+  it("every one of them runs in an earlier step of the same job", () => {
+    expect(
+      gatesMissingBefore(blocks, hostingAt),
+      "firebase-deploy.yml deploys hosting without running these gates first — they guard exactly what that step "
+        + "ships, and ci.yml runs them in parallel with this workflow, which is too late",
+    ).toEqual([]);
+  });
+
+  it("a commented-out gate does not satisfy it — a positive control", () => {
+    // The trap this whole file was rewritten for: a rule that reads raw
+    // text is satisfied by prose. Blanking the `npm run` line behind a
+    // `#` must read as absent, and deleting it must read the same way.
+    const synthetic = [
+      "jobs:",
+      "  deploy:",
+      "    steps:",
+      "      - name: Gate the hosting payload",
+      "        run: |",
+      ...HOSTING_GATES.map((g) => `          npm run ${g}`),
+      "      - name: Deploy hosting",
+      '        run: npx firebase deploy --project x --non-interactive --only "hosting"',
+      "",
+    ].join("\n");
+    const ok = runBlocks(stripYamlComments(synthetic));
+    expect(gatesMissingBefore(ok, ok.findIndex(deploysHosting))).toEqual([]);
+
+    const commented = synthetic.replace("          npm run check:csp-hashes", "          # npm run check:csp-hashes");
+    const hidden = runBlocks(stripYamlComments(commented));
+    expect(
+      gatesMissingBefore(hidden, hidden.findIndex(deploysHosting)),
+      "commenting a gate out left the rule green — the comment stripper is not reaching the run body",
+    ).toEqual(["check:csp-hashes"]);
+  });
+});
