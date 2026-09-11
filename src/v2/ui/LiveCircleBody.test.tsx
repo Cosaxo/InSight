@@ -28,7 +28,7 @@ const LIVE = vi.hoisted(() => ({
   kindredState: (): "loading" | "ready" | "failed" => "ready",
   uid: "u_me",
   subscribe: () => () => {},
-  loadCircle: async () => {},
+  loadCircle: vi.fn(async () => {}),
   circle: () => [] as Array<Record<string, unknown>> | null,
   circleLoading: () => false as boolean,
   // The follow list, which is the circle's SIZE — the fold below drops
@@ -70,8 +70,22 @@ beforeEach(() => {
   LIVE.budgetPaused = false;
   LIVE.testFeedItems = () => [];
   LIVE.myTestResults = () => ({});
+  LIVE.loadCircle.mockClear();
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+describe("LiveCircleBody · the read it opens on", () => {
+  it("asks the store for the circle on mount", () => {
+    // The stop IS the cost gate — the list is fetched when this opens and
+    // not at boot — so this effect is the only thing that fills the
+    // screen. Nothing asserted it ran: with the fixture answering
+    // `circle()` fully populated whether or not the loader was called,
+    // deleting the effect left every case here green and the real stop
+    // permanently empty, showing "nobody here yet" to a circle of nine.
+    render(<LiveCircleBody />);
+    expect(LIVE.loadCircle, "the stop no longer fetches the circle it draws").toHaveBeenCalled();
+  });
+});
 
 describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => {
   it("counts the people you FOLLOW, not the ones whose answers could be read", () => {

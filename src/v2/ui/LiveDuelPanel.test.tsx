@@ -106,7 +106,7 @@ const LIVE = vi.hoisted(() => {
     // stranger's name on a screen these cases are not about.
     invites: () => [] as Array<Record<string, unknown>>,
     invitesLoading: () => false,
-    loadInvites: async () => {},
+    loadInvites: vi.fn(async () => {}),
     whoIs: async (h: string) => { void h; return null as string | null; },
     // The name half of finding somebody (D239). A prefix over the
     // people directory, where whoIs is an exact address.
@@ -184,6 +184,18 @@ const openManage = () => fireEvent.click(screen.getByRole("button", { name: /^Ma
 // 11, state 9): every case that types into it opens it first.
 const openStart = () => fireEvent.click(screen.getByRole("button", { name: /^Start a (1v1|group)$/ }));
 afterEach(cleanup);
+
+describe("LiveDuelPanel · the read it opens on", () => {
+  it("asks the store for invitations on mount", () => {
+    // The invitation list is fetched by the panel that shows it — a
+    // collection-group query, paid once per open — and the fixture
+    // answers `invites()` whether or not the loader ran, so deleting that
+    // effect left every case here green while a real account's pending
+    // invitations simply never appeared.
+    render(<LiveDuelPanel mode="duo" />);
+    expect(LIVE.social.loadInvites, "the panel no longer fetches the invitations it lists").toHaveBeenCalled();
+  });
+});
 
 describe("LiveDuelPanel · before the reveal, only your own pick is on screen", () => {
   it("shows your sealed choice and names nobody else", () => {

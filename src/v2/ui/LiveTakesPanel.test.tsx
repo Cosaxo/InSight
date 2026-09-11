@@ -402,6 +402,18 @@ describe("a take carries the side its author voted", () => {
     expect(screen.getAllByText("Super Bowl").length).toBeGreaterThan(0);
   });
 
+  it("asks the store for the voters it badges with", () => {
+    // The positive half of the case below, and it was missing: nothing
+    // asserted the read ever happens, while the fixture answers
+    // `voters()` fully populated whether or not it did. Deleting the
+    // effect left every case here green — including the negative one —
+    // and took every side badge off world takes in production.
+    LIVE.social.takeList = [wtake("w1", "u_named", "words")];
+    LIVE.voterList = [{ uid: "u_named", optionIdx: 0 }];
+    sidePanel();
+    expect(LIVE.loadVoters, "the panel no longer fetches the sides it badges with").toHaveBeenCalledWith("q1");
+  });
+
   it("badges nobody when the caller has no options to badge with", () => {
     // A dial, a field, a catalogue pick and a sealed duel row all reach
     // this panel. None of them has sides, and none of them should pay for
