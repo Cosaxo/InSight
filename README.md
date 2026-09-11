@@ -95,9 +95,11 @@ enforces is the opposite of what it used to (decision **D98**):
 - **Every question slices, including the political ones.** D44's
   special-category carve-out is gone; there is no category held back.
 - **Reveals are materialized server-side.** Group/duo answers stay sealed
-  until a Cloud Function writes the reveal doc the next day — that is the
-  *game*, not a privacy promise, and rules deny answering a day that is
-  already revealed so nobody peeks then plays.
+  until a Cloud Function writes the round's reveal doc — a 1v1 when the
+  partner answers, a circle when the last member does, and otherwise at
+  the round's 48-hour deadline for whoever played (D426, D437) — that is
+  the *game*, not a privacy promise, and rules deny answering a round that
+  is already revealed so nobody peeks then plays.
 - **No fake anything.** Still binding, and now the only reason anything
   is ever hidden: no seeded comments, no synthetic users, no demo
   progress in live mode (decision D1). Passive tests start at zero. Where
@@ -156,7 +158,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups, sealed duels) — 221 emulator tests
+                   member-only groups, sealed duels) — 224 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -187,7 +189,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 221 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 224 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

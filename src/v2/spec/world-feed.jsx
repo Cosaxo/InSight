@@ -517,6 +517,9 @@ class WorldFeed extends React.Component {
       // the OLD account's answered-ness, and a new account inheriting it
       // would open on a feed sorted by someone else's history.
       this._sunk = null;
+      // …and the deferral snapshot with it, for the same reason: it holds
+      // the OLD account's "later" list.
+      this._heldAtBuild = null;
       this.setState({ votes: {}, passed: {}, deferred: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
     };
     window.addEventListener('insight:local-purge', this._onPurge);
@@ -4374,8 +4377,36 @@ class WorldFeed extends React.Component {
     // Filtered here rather than inside partitionAnswered because a deferral
     // is not an answer: it must not join the `done` half, which is the
     // record of what you have said.
+    // THE SET IS SAMPLED ONCE PER SITTING, the way `_sunk` above is, and
+    // this line is why the paragraph above was false. It read
+    // `this.state.deferred` LIVE, so `setDefer(id, true)` — which writes
+    // `now + 20h` — made `isDeferred` true on the very next render and the
+    // card was filtered straight out of the woven stream. Freezing
+    // `heldNow` did nothing about it: the timestamp was never what moved.
+    //
+    // Two comments described the behaviour that did not happen. This one:
+    // "the tap that says 'later' does not vanish the row under the thumb".
+    // And `renderCard`'s, about the slim row it renders for a held card:
+    // "Both stay tappable in THIS sitting so an accidental skip costs one
+    // tap to undo". That `held === 'defer'` branch — the "later · undo"
+    // row — could never render at all, because nothing deferred was ever
+    // still in the list to reach it.
+    //
+    // Measured 2026-09-11: `skip` on a world card leaves its undo row on
+    // screen (the contrast case, working as designed); `later` on a test
+    // card wrote the deferral and left `deferUndoRow: false`. The button
+    // sits centred directly under the ballot on every test and lens card,
+    // so one mis-tap removed the question for twenty hours with the list
+    // jumping under the thumb and no way back.
+    //
+    // A snapshot fixes it in the shape the file already uses: an id
+    // deferred BEFORE this sitting is in the snapshot and stays filtered
+    // out, an id deferred DURING it is not, so it keeps its place as the
+    // slim row until the next rebuild — which is when "later" starts,
+    // exactly as the paragraph above always claimed.
     const heldNow = Date.now();
-    const notHeld = (q) => !isDeferred(this.state.deferred, q.id, heldNow);
+    if (!this._heldAtBuild) this._heldAtBuild = { ...(this.state.deferred || {}) };
+    const notHeld = (q) => !isDeferred(this._heldAtBuild, q.id, heldNow);
     const tqs = testSplit.fresh.filter(notHeld);
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks

@@ -217,9 +217,12 @@
       <strong>Your duel answers and guesses.</strong> These work
       differently, and it is a game rule rather than a privacy promise: a
       group or 1v1 pick is sealed &mdash; readable by nobody but you,
-      including us &mdash; until its round reveals. A 1v1 reveals when the
-      other person answers; a circle when everyone has played, or at the
-      round&rsquo;s deadline two days on. Once published they read like
+      including us &mdash; until its round reveals. Either reveals when
+      everyone has played &mdash; a 1v1 when the other person answers, a
+      circle when the last member does &mdash; and otherwise at the
+      round&rsquo;s deadline two days on, for whoever played: a 1v1
+      included, so a partner who stops answering does not keep your pick
+      sealed for good. Once published they read like
       your other answers:
       anyone signed in who has that circle&rsquo;s id can see them, not
       only the people who played. It is a hand of cards played face-down,
@@ -375,7 +378,7 @@
       collected.
     </li>
     <li>
-      <strong>If you buy a question or an ad.</strong> A record of the contract is
+      <strong>If you buy a question.</strong> A record of the contract is
       kept on your account — what was asked, the place and window it was
       bought for, the rate and the cap — and only you can read it. What a
       buyer receives is the same public numbers everyone reads; there is
@@ -390,7 +393,7 @@
       anyone can open, at an address the buyer can share: it shows the
       counts, the audience they bought and the window, and never who
       answered. Deleting your account deletes the record with it.
-      Submitted questions and ads are checked automatically — by our own
+      Submitted questions are checked automatically — by our own
       rules and by an AI reviewer (Anthropic&rsquo;s Claude) that reads only
       what you typed into the ask — before any payment exists. Payment
       itself runs on <strong>Stripe</strong>, on the web, as our payment
@@ -523,8 +526,16 @@
   <ul>
     <li>
       <strong>Your answers, your profile details, your display name, your
-      photo, your test results, the Big Five type read from them, and who
+      test results, the Big Five type read from them, and who
       you follow:</strong> anyone signed in to the app.
+    </li>
+    <li>
+      <strong>Your photo:</strong> anyone signed in to the app, and anyone
+      they pass the link to. It is served from a storage address carrying
+      its own access token, and that address opens the picture for whoever
+      holds it &mdash; no account, no sign-in. Deleting your account, or a
+      moderator removing the photo, deletes the file the address points
+      at, and the address stops working with it.
     </li>
     <li>
       <strong>Aggregate counts:</strong> anyone signed in to the app,

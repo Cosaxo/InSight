@@ -97,3 +97,60 @@ describe("the Map's rating ridge, when the cohort is you alone", () => {
     expect(screen.getByText(/most chose 4/i)).toBeTruthy();
   });
 });
+
+// ── and the same card's ORDINARY VOTE branch, which the fix missed ──
+//
+// The refusal above was computed inside `if (node.qtype === 'rating')`,
+// so the branch below it — a plain choice, which is most of the bank —
+// never saw it. `d` for a single answer is [100, 0], so the segments came
+// out at flexGrow 100 against 1.2: a full-width fill with "100%" and "0%"
+// printed under it, directly beneath the line saying nobody else has
+// answered in this cell.
+//
+// `world-feed.jsx` states the standard this violated where it draws its
+// own bars: gating the numeral but not the fill "would publish the split
+// geometrically instead of numerically, which is the same disclosure in a
+// different alphabet". Both are gated here.
+const voteNode = {
+  id: 'daily-002', prompt: 'Would you tell them?', qid: 'daily-002',
+  n: 2, aidx: 0, qtype: 'binary',
+};
+
+const drawVote = () => {
+  const MTAnswerCard = window.MTAnswerCard;
+  render(<MTAnswerCard node={voteNode} cat={{ id: 'c', label: 'Cat' }}
+    anchors={anchors} activeA="age" onFilter={() => {}} />);
+};
+
+const grows = () => [...document.querySelectorAll('.mmt-dbar-seg')]
+  .map((el) => el.style.flexGrow);
+
+describe("the Map's option bar, when the cohort is you alone", () => {
+  it('draws no split, and prints no percentage, under the same line', () => {
+    cohort(1, [100, 0]);
+    drawVote();
+    expect(screen.getByText(/only answer here yet/i)).toBeTruthy();
+    const g = grows();
+    expect(g.length, 'the bar drew no segments').toBe(2);
+    expect(new Set(g).size, `one answer was drawn as a split: ${g.join(', ')}`).toBe(1);
+    // The numeral is the same claim in the other alphabet.
+    expect(document.body.textContent).not.toMatch(/\d+%/);
+    // …and nothing names a majority that one answer cannot have.
+    expect(document.querySelector('.mmt-dbar-mark.is-most')).toBeNull();
+    // The reader's own answer is still named and still marked — the point
+    // is that the CROWD claim goes, not the row.
+    expect(document.querySelector('.mmt-dbar-mark.is-you')).toBeTruthy();
+  });
+
+  it('…and draws the real split as soon as there is a crowd', () => {
+    // The control, for the same reason the ridge has one: every assertion
+    // above is about sameness, which is also what a bar that stopped
+    // drawing looks like.
+    cohort(30, [70, 30]);
+    drawVote();
+    expect(screen.queryByText(/only answer here yet/i), 'a crowd of 30 got the lonely line').toBeNull();
+    const g = grows();
+    expect(new Set(g).size, 'a published split was flattened').toBeGreaterThan(1);
+    expect(document.body.textContent).toMatch(/70%/);
+  });
+});
