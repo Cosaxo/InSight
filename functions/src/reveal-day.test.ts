@@ -62,6 +62,12 @@ function snapOf(from: Map<string, Doc>, path: string) {
   return { exists: d !== undefined, id: path.split("/").pop(), data: () => d, get: (f: string) => d?.[f] };
 }
 
+/** Every path the push fan-out asks for, which is the only place the
+ *  recipient list is observable: `sendPushToUids` reads one token
+ *  document per addressee and never throws, so who it was ADDRESSED to
+ *  leaves no other trace in this harness. */
+const pushReads: string[] = [];
+
 const fakeDb = {
   doc: (path: string) => ref(path),
   collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
@@ -69,6 +75,7 @@ const fakeDb = {
   // argument (the profile read passes a fieldMask), so anything without a
   // path is that, not a document.
   async getAll(...refs: Array<{ path?: string }>) {
+    for (const r of refs) if (typeof r.path === "string" && r.path.endsWith("/push/tokens")) pushReads.push(r.path);
     return refs.filter((r) => typeof r.path === "string").map((r) => snapOf(store, r.path as string));
   },
   async runTransaction(cb: (tx: unknown) => Promise<unknown>) {
@@ -126,6 +133,7 @@ beforeEach(() => {
   fresh.clear();
   contendWith = null;
   attempts = 0;
+  pushReads.length = 0;
   store.set(`v2_groups/${GID}`, {
     mode: "group", memberUids: ["u1", "u2"], round: ROUND,
     played: { [KEY]: ["u1", "u2"] }, streak: 0, ...DUE,
@@ -208,6 +216,43 @@ describe("the roster the transaction read", () => {
     const g = store.get(`v2_groups/${GID}`) as Doc;
     expect(Object.keys(g), "a member who left was stamped for the next round")
       .not.toContain("pushAt.u3");
+    // …AND NOT TOLD THE ROUND IS OUT, which is the half `freshRoster`
+    // was hoisted for and did not reach. The push that says "see who said
+    // what" was addressed from the PAGE's roster, and a member who left
+    // in the window between the two reads is absent from `waitingNext`
+    // precisely because they are off the document — so the filter put
+    // them in the other list, the one a departure moves them INTO. The
+    // hoist's own comment names the cost in as many words: "a
+    // notification sent to a group they are no longer in".
+    expect(pushReads, "the reveal push was addressed to somebody who had left")
+      .not.toContain("v2_users/u3/push/tokens");
+    // Not vacuous: the two who are still in the room were addressed.
+    expect(pushReads).toContain("v2_users/u1/push/tokens");
+    expect(pushReads).toContain("v2_users/u2/push/tokens");
+  });
+
+  it("…and still tells a member who ran ahead — the control for the list u3 fell into", async () => {
+    // The case above alone does not reach `told`: u1 and u2 are both
+    // waiting on the next round, so both are addressed by the OTHER push.
+    // Sending nobody at all would satisfy it. Here u2 has already sealed
+    // round 4, so they are the "told the result alone" list by
+    // themselves — the exact list a departure used to move u3 into.
+    store.set(`v2_groups/${GID}`, {
+      mode: "group", memberUids: ["u1", "u2"], round: ROUND,
+      played: { [KEY]: ["u1", "u2"], [`r${ROUND + 1}`]: ["u2"] }, streak: 0,
+      memberNames: { u1: "Bo", u2: "Ada" },
+      ...DUE,
+    });
+    store.set(...answer("u1", "qA", 0));
+    store.set(...answer("u2", "qA", 1));
+
+    expect(
+      await revealRound(group as unknown as FirebaseFirestore.DocumentSnapshot),
+    ).toBe(true);
+
+    expect(pushReads, "the member who ran ahead was never told the round is out")
+      .toContain("v2_users/u2/push/tokens");
+    expect(pushReads).toContain("v2_users/u1/push/tokens");
   });
 });
 
