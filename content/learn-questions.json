@@ -96,6 +96,11 @@
       "id": "medieval",
       "subject": "history",
       "label": "The Middle Ages"
+    },
+    {
+      "id": "missions",
+      "subject": "space",
+      "label": "Space missions"
     }
   ],
   "cards": [
@@ -3933,6 +3938,486 @@
       "p": 48,
       "k": "four ringed giants",
       "w": "Jupiter, Uranus and Neptune wear faint ones — Saturn’s are just the only rings you can see from a garden."
+    },
+    {
+      "id": "mis1",
+      "f": "missions",
+      "q": "Voyager 1, launched in 1977, is now…",
+      "a": [
+        "The farthest human-made object",
+        "Back in a museum",
+        "Orbiting Neptune",
+        "Lost with its signal"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 35,
+      "k": "Voyager, still going",
+      "w": "In interstellar space since 2012, still calling home on power dimmer than a fridge bulb — the farthest thing we have ever thrown."
+    },
+    {
+      "id": "mis2",
+      "f": "missions",
+      "q": "The Golden Record aboard both Voyagers carries…",
+      "a": [
+        "Mission blueprints",
+        "Sounds and music of Earth",
+        "Star maps only",
+        "Nothing — it’s decorative"
+      ],
+      "c": 1,
+      "t": 2,
+      "p": 45,
+      "k": "Earth’s mixtape",
+      "w": "Greetings in 55 languages, whale song, Bach and Chuck Berry — a message for any finder, chosen by Carl Sagan’s committee."
+    },
+    {
+      "id": "mis3",
+      "f": "missions",
+      "q": "Apollo 13’s famous line, as actually spoken:",
+      "a": [
+        "“Houston, we have a problem”",
+        "“Houston, we’ve had a problem”",
+        "“Houston, help us”",
+        "“Mayday, mayday”"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "we’ve HAD a problem",
+      "w": "Jack Swigert’s real words were past tense; the film smoothed them. The crew flew around the Moon and made it home."
+    },
+    {
+      "id": "mis4",
+      "f": "missions",
+      "q": "The Hubble telescope’s first images were blurry because…",
+      "a": [
+        "Dust on the lens",
+        "Earth’s atmosphere",
+        "Its mirror was ground wrong",
+        "Software bugs"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 62,
+      "k": "Hubble’s flawed mirror",
+      "w": "Ground to the wrong shape by microns; astronauts fitted corrective optics in orbit in 1993 — glasses for a telescope."
+    },
+    {
+      "id": "mis5",
+      "f": "missions",
+      "q": "The International Space Station circles Earth about every…",
+      "a": [
+        "90 minutes",
+        "24 hours",
+        "8 hours",
+        "A week"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 38,
+      "k": "sixteen sunrises a day",
+      "w": "At 28,000 km/h an orbit takes an hour and a half — the crew sees sixteen sunrises every day."
+    },
+    {
+      "id": "mis6",
+      "f": "missions",
+      "q": "Opportunity, the Mars rover, was designed for 90 days. It worked for…",
+      "a": [
+        "90 days exactly",
+        "A year",
+        "Nearly 15 years",
+        "It never landed"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 70,
+      "k": "the 90-day rover’s 15 years",
+      "w": "From 2004 to the 2018 dust storm — marathon distance driven on another planet, ninety days at a time."
+    },
+    {
+      "id": "med7",
+      "f": "medieval",
+      "q": "Magna Carta, sealed in 1215, was…",
+      "a": [
+        "A king-and-barons peace deal",
+        "A tax code",
+        "A church decree",
+        "A peasants’ charter"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 42,
+      "k": "Magna Carta: a peace deal",
+      "w": "King John’s barons forced terms at Runnymede; its clause on lawful judgment outgrew the quarrel that wrote it."
+    },
+    {
+      "id": "med8",
+      "f": "medieval",
+      "q": "Copying one Bible by hand took a medieval scribe roughly…",
+      "a": [
+        "A weekend",
+        "A month",
+        "A year or more",
+        "A decade, always"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 55,
+      "k": "a year per Bible",
+      "w": "Steady work at a desk; one reason books were chained like treasure. Gutenberg’s press collapsed the year into days."
+    },
+    {
+      "id": "med9",
+      "f": "medieval",
+      "q": "Medieval people bathed…",
+      "a": [
+        "Never — thought sinful",
+        "More than the myth claims",
+        "Only royalty",
+        "Once a year, at Easter"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 48,
+      "k": "the bathhouse myth",
+      "w": "Towns ran public bathhouses and soap was a trade; the filthy Middle Ages is mostly a later caricature."
+    },
+    {
+      "id": "med10",
+      "f": "medieval",
+      "q": "Vikings reached America around the year…",
+      "a": [
+        "1000 — Newfoundland",
+        "1492",
+        "1300",
+        "They never did"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 62,
+      "k": "Vinland, circa 1000",
+      "w": "L’Anse aux Meadows in Newfoundland holds the Norse camp — five centuries before Columbus, remembered in the sagas."
+    },
+    {
+      "id": "flag11",
+      "f": "flag",
+      "q": "The red disc on Japan’s flag is…",
+      "a": [
+        "The rising sun",
+        "A cherry blossom",
+        "The red planet",
+        "An island"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 30,
+      "k": "Hinomaru, the sun disc",
+      "w": "The sun-mark flag — the country’s own name reads as “origin of the sun”."
+    },
+    {
+      "id": "flag12",
+      "f": "flag",
+      "q": "The colour almost absent from national flags:",
+      "a": [
+        "Purple",
+        "Orange",
+        "Black",
+        "Green"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 52,
+      "k": "almost no purple",
+      "w": "Purple dye was long costlier than gold; today only tiny details — Dominica’s parrot — carry it."
+    },
+    {
+      "id": "flag13",
+      "f": "flag",
+      "q": "Which national flag differs front from back?",
+      "a": [
+        "Paraguay’s",
+        "Brazil’s",
+        "Mexico’s",
+        "Canada’s"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 74,
+      "k": "Paraguay’s two faces",
+      "w": "The state seal on the front, the treasury seal on the reverse — the only national flag with different sides."
+    },
+    {
+      "id": "flag14",
+      "f": "flag",
+      "q": "Canada’s maple leaf flag dates from…",
+      "a": [
+        "1867",
+        "1965",
+        "1931",
+        "1900"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 44,
+      "k": "the leaf, 1965",
+      "w": "Confederation kept the Red Ensign for a century; the eleven-point leaf arrived after a fierce 1964 flag debate."
+    },
+    {
+      "id": "str18",
+      "f": "stars",
+      "q": "Past a black hole’s event horizon, what escapes?",
+      "a": [
+        "Light, barely",
+        "Nothing at all",
+        "Radio waves",
+        "Fast ships"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 48,
+      "k": "past the horizon, nothing",
+      "w": "Inside the horizon every path leads inward; Hawking radiation seeps from the edge, never the inside."
+    },
+    {
+      "id": "str19",
+      "f": "stars",
+      "q": "A shooting star is…",
+      "a": [
+        "A dust grain burning up",
+        "A dying star",
+        "A satellite",
+        "A distant comet"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 28,
+      "k": "a grain of grit, glowing",
+      "w": "Most meteors are sand-sized; the streak is air heated to glowing, seventy kilometres up."
+    },
+    {
+      "id": "str20",
+      "f": "stars",
+      "q": "Polaris, the North Star, is…",
+      "a": [
+        "The brightest star",
+        "Around the 48th brightest",
+        "A planet",
+        "The nearest star"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 60,
+      "k": "famous for position, not power",
+      "w": "Its gift is sitting over the pole — it barely cracks the top fifty; Sirius outshines it twenty-fold."
+    },
+    {
+      "id": "str21",
+      "f": "stars",
+      "q": "The gold in your ring was forged…",
+      "a": [
+        "In colliding neutron stars",
+        "In Earth’s core",
+        "In the Sun",
+        "In volcanoes"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 66,
+      "k": "jewellery from a stellar crash",
+      "w": "Supernovae and neutron-star mergers forge the heavy elements; the 2017 merger GW170817 was watched doing it live."
+    },
+    {
+      "id": "anc19",
+      "f": "ancient",
+      "q": "The Terracotta Army guards…",
+      "a": [
+        "A temple",
+        "China’s first emperor",
+        "A famous general",
+        "A queen"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Qin Shi Huang’s clay army",
+      "w": "Thousands of individual soldiers buried 2,200 years ago to guard the First Emperor — farmers digging a well found them in 1974."
+    },
+    {
+      "id": "anc20",
+      "f": "ancient",
+      "q": "Roman harbour concrete, two thousand years on, is…",
+      "a": [
+        "Still hardening in seawater",
+        "Long dissolved",
+        "Replaced by brick",
+        "A tourist myth"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 64,
+      "k": "concrete that likes the sea",
+      "w": "Seawater reacts with the volcanic-ash mix to grow new minerals — some piers are stronger now than when poured."
+    },
+    {
+      "id": "anc21",
+      "f": "ancient",
+      "q": "The Antikythera mechanism, from a Greek shipwreck, is…",
+      "a": [
+        "A geared astronomical computer",
+        "A ship’s anchor",
+        "A music box",
+        "A loom"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 68,
+      "k": "a computer from 100 BC",
+      "w": "Bronze gears predicting eclipses and planetary positions — nothing as intricate survives for the next thousand years."
+    },
+    {
+      "id": "anc22",
+      "f": "ancient",
+      "q": "Who could vote in ancient Athens’ democracy?",
+      "a": [
+        "Everyone in the city",
+        "Free adult male citizens",
+        "Landowners only",
+        "Priests"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 52,
+      "k": "democracy, with an asterisk",
+      "w": "Women, the enslaved and foreigners were all outside it — a broad idea practised narrowly."
+    },
+    {
+      "id": "body19",
+      "f": "body",
+      "q": "The tongue map — sweet at the tip, bitter at the back — is…",
+      "a": [
+        "Textbook fact",
+        "A myth — all zones taste all",
+        "True for children",
+        "True for supertasters"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 54,
+      "k": "no tongue map",
+      "w": "Every region senses every taste; the map came from a mistranslated 1901 study and stuck for a century."
+    },
+    {
+      "id": "body20",
+      "f": "body",
+      "q": "Cracking your knuckles causes arthritis — true?",
+      "a": [
+        "True",
+        "False — it’s just gas bubbles",
+        "Only in winter",
+        "True after forty"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 42,
+      "k": "knuckles, acquitted",
+      "w": "Studies — including a doctor who cracked one hand for sixty years — find no arthritis link; the pop is a bubble collapsing."
+    },
+    {
+      "id": "body21",
+      "f": "body",
+      "q": "The blood in your veins, before air touches it, is…",
+      "a": [
+        "Dark red",
+        "Blue",
+        "Purple",
+        "Clear"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 36,
+      "k": "never blue",
+      "w": "Deoxygenated blood is dark red; veins look blue because skin filters light. Squid manage actual blue blood."
+    },
+    {
+      "id": "body22",
+      "f": "body",
+      "q": "The smallest bone in your body sits in your…",
+      "a": [
+        "Little toe",
+        "Nose",
+        "Ear",
+        "Wrist"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 30,
+      "k": "the stirrup, 3 mm",
+      "w": "The stapes — smaller than a rice grain — relays sound in the middle ear."
+    },
+    {
+      "id": "c2019",
+      "f": "c20",
+      "q": "The World Wide Web was invented at…",
+      "a": [
+        "Silicon Valley",
+        "CERN, by Tim Berners-Lee",
+        "MIT",
+        "Bell Labs"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "the web, born at CERN",
+      "w": "A 1989 memo for sharing physics papers; his boss wrote “vague but exciting” on it. The code was given away free."
+    },
+    {
+      "id": "c2020",
+      "f": "c20",
+      "q": "The South Pole was first reached, in 1911, by…",
+      "a": [
+        "Scott’s British party",
+        "Amundsen’s Norwegians",
+        "Shackleton",
+        "Byrd, by plane"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 62,
+      "k": "Amundsen first, by a month",
+      "w": "Amundsen’s dog-sled route won by 34 days; Scott arrived to find the tent and flag already standing."
+    },
+    {
+      "id": "c2021",
+      "f": "c20",
+      "q": "Woodstock, 1969, was billed as…",
+      "a": [
+        "Three days of peace and music",
+        "A protest march",
+        "A film festival",
+        "A political rally"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 50,
+      "k": "three days of peace and music",
+      "w": "Half a million people on a dairy farm; the fences failed and it became free — the defining festival."
+    },
+    {
+      "id": "c2022",
+      "f": "c20",
+      "q": "Everest was first climbed, in 1953, by…",
+      "a": [
+        "Hillary and Tenzing",
+        "Mallory and Irvine",
+        "Messner, alone",
+        "A Swiss team"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 44,
+      "k": "Hillary and Tenzing, 1953",
+      "w": "Whether Mallory reached the top in 1924 stays unknown; Hillary and Tenzing Norgay came back to say so."
     }
   ]
 }
