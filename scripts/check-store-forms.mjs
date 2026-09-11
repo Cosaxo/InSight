@@ -306,6 +306,14 @@ if (reduced === undefined) {
   );
 }
 
+// THE AUDITED SOURCE, READ ONCE. Two rules below need it — the Location
+// paragraph and the citation join — and it is hoisted rather than read
+// twice because `source-pins.test.mjs` counts every site that reads a file
+// and matches against it without stripping comments, against a ceiling the
+// tree already sits exactly on. A second read of the same file would have
+// spent that headroom on a duplicate.
+const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
+
 // …AND THE FILE THE FORMS ARE ANSWERED FROM.
 //
 // The two rules above hold app-privacy.json to the plist, and they were
@@ -321,7 +329,6 @@ if (reduced === undefined) {
 // in the same direction. Twice is a pattern, and a pattern is what a gate
 // is for.
 if (reduced === "false") {
-  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
   // The CONCLUSION, not the whole paragraph. That paragraph is partly a
   // record of the two times this went wrong, so it quotes the wordings it
   // replaced — and a rule reading the whole thing fires on the history it
@@ -373,7 +380,6 @@ if (reduced === "false") {
 // The rule is written generically so the next one is held for free, and so
 // a citation whose form answer moves cannot quietly become fiction.
 {
-  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
   // The shape it is written in today, and the shape a new citation should
   // follow: "…STORE-FORMS.md` answers Apple's **Health** row YES…"
   const cites = [...inv.matchAll(
