@@ -505,6 +505,27 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
   });
 });
 
+describe("v2_patterns: the whole collection group is exempt from single-field indexing (D461)", () => {
+  // Nothing queries INSIDE the loadings document or a voter sample: both
+  // are read by id (`getDoc` in data/patterns.ts and data/voters.ts, the
+  // admin SDK's `get`/`listDocuments` in functions/). Left indexed, every
+  // row of the loadings document — eight vector elements, a basis, a sum,
+  // an sd, and the item metadata beside it — counts toward Firestore's
+  // 40,000 index entries per document, a wall the fit's own growth (D458's
+  // anchor rows, D459's pick rows, the second engine's block) walks
+  // toward with no query to show for it. The wildcard exemption is the
+  // collection-group form the Firestore docs give for "index nothing
+  // here"; scripts/loadings-budget.mjs is the arithmetic.
+  it("carries the wildcard exemption, with no index kept", () => {
+    const o = override("v2_patterns", "*");
+    expect(o, "the v2_patterns wildcard exemption is gone — the loadings document is indexed field by field again").toBeTruthy();
+    expect(o!.indexes).toEqual([]);
+  });
+  it("…and no composite reaches into that collection group either", () => {
+    expect(cfg.indexes.some((i) => i.collectionGroup === "v2_patterns")).toBe(false);
+  });
+});
+
 describe("the collections nobody queries by field carry exemptions (DATA-EFFICIENCY-RUNBOOK 1.1)", () => {
   // Every reader of these is `getDoc` or `documentId() in`, so their
   // automatic single-field indexes served nothing: ~2 entries per leaf of
@@ -532,7 +553,7 @@ describe("the collections nobody queries by field carry exemptions (DATA-EFFICIE
     for (const f of ["by", "counts", "total", "edits"]) {
       expect(override("v2_question_aggs", f)?.indexes, `v2_question_aggs.${f}`).toEqual([]);
     }
-    for (const [group, field] of [["v2_aggs_private", "entBy"], ["v2_agg_overflow", "city"], ["v2_patterns", "rows"], ["v2_rank", "topics"]]) {
+    for (const [group, field] of [["v2_aggs_private", "entBy"], ["v2_agg_overflow", "city"], ["v2_rank", "topics"]]) {
       expect(override(group, field)?.indexes, `${group}.${field}`).toEqual([]);
     }
   });

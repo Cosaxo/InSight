@@ -40,7 +40,23 @@
 // engine keeps the prototype's own pool rule — two options, daily or core
 // feed. The candidate's is wider (the owner's call, 2026-09-06): every
 // option-shaped core item, the instrument items included, with ordinal
-// and one-hot encodings (patternsAls.ts's header).
+// and one-hot encodings (patternsAls.ts's header) — and, since D458, the
+// profile anchors as items: the values the scanned people carry, floored
+// and capped per dim, compiled from the people rather than the bank. The
+// compaction keeps each person's newest anchors on their state document
+// beside the answer map (`an`), the fit reads both, and the scorecard
+// solves a person from both — so a vector starts from the person's
+// demographics before their first answer, which is what the Oracle, the
+// People lens and the Map all read. And since D459 the catalogue picks:
+// a `pick` answer's canonical entity key rides the ledger entry as
+// `entity`, the compaction keeps each person's picks beside the map
+// (`p`), and every entity enough people picked is an item like an
+// anchor's value. The pick cards were tail by the bank's flag when
+// D459 admitted them on the owner's instruction, and are core since
+// D462 (the owner's word, 2026-09-10) — shipped whole to every device,
+// so their answerers are no longer interest-selected. PICK_QIDS stays
+// gated on the TYPE either way: a pick is never option-shaped, and the
+// flag is the serving rule, not this fold's.
 //
 // Scale note, recorded not built (D7) — and CORRECTED 2026-08-31, because
 // it named the wrong term and therefore the wrong fix.
@@ -118,10 +134,15 @@ import type { ProfileStamp } from "./profileStamp";
 import { WORLD_ANSWER_SURFACES } from "./answerSurfaces";
 import {
   ALS_LAMBDAS_U,
+  ALS_TAUS,
   PATTERNS_CROSSOVER_NIGHTS,
   alsFitStreamed,
   alsScoreDay,
+  anchorSpecsOf,
+  observationsOf,
+  ridgeTheta,
   binRows,
+  pickSpecsOf,
   candidateWon,
   compileItems,
   indexItems,
@@ -129,13 +150,17 @@ import {
   procrustes,
   publishableAls,
   rotateModel,
+  validAnchors,
   type AlsModel,
   type AlsRow,
+  type AnchorMap,
   type AnswerMap,
   type DayEntry,
   type ItemIndex,
   type ItemMeta,
   type ItemSpec,
+  type PersonKnown,
+  type PickMap,
 } from "./patternsAls";
 
 /** The ONLINE engine's pool: two options (the engine is one bit per
@@ -161,6 +186,13 @@ export const PATTERNS_ITEMS: readonly ItemSpec[] = compileItems(V2_QUESTIONS);
  * PATTERNS_QIDS. */
 export const PATTERNS_ITEM_QIDS: ReadonlySet<string> = new Set(PATTERNS_ITEMS.map((s) => s.qid));
 
+/** The catalogue questions whose picks the compaction records (D459):
+ * every `catalog` card in the bank. Gated on the type, not the flag —
+ * see the header — so a pick on anything else is not one. */
+export const PICK_QIDS: ReadonlySet<string> = new Set(
+  V2_QUESTIONS.filter((q) => q.type === "catalog" && typeof (q as { domain?: unknown }).domain === "string").map((q) => q.id),
+);
+
 /** A missed night folds on the next run, up to a week back — bounded, so
  * a long outage cannot turn the catch-up into an unbounded ledger scan.
  * Beyond it, unfolded days stay unfolded and the basis counts say so. */
@@ -169,6 +201,10 @@ export const PATTERNS_CATCHUP_DAYS = 7;
 /** The device ridge the ONLINE engine's scorecard is measured at — the
  * shipped `estimateTheta` default, published so the phone reads it. */
 export const SGD_LAMBDA_U = 0.5;
+/** The online engine's link slope — the shipped link, never swept: its
+ * scorecard is the fold's own arm (patternsFit.foldUserDay), which
+ * guesses `marginal + θ·L` as it always has. */
+export const SGD_TAU = 1;
 
 export interface PatternsLedgerEntry {
   uid: string;
@@ -179,6 +215,8 @@ export interface PatternsLedgerEntry {
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the voter samples (D397). */
   anchors?: Record<string, string>;
+  /** A catalogue pick's canonical entity key (D459), on catalog entries. */
+  entity?: string;
   /** The author's profile stamp (DATA-EFFICIENCY-RUNBOOK 2.1) — name,
    *  parsed core scores, logic percentile — present on a create the
    *  trigger stamped, absent on an edit and on older entries. */
@@ -206,8 +244,15 @@ export interface PatternsCandidate {
   /** Consecutive nights this candidate has out-skilled the engine. */
   streak: number;
   /** The candidate's pooled bits under each device ridge tried tonight —
-   * the reader's view of why `lambdaU` is what it is. */
+   * the reader's view of why `lambdaU` is what it is (the best link slope
+   * for that ridge). */
   lambdaSweep?: Record<string, number>;
+  /** The link's slope this scorecard was measured at (D460): the guess is
+   * `marginal + tau·θ·L`, and the phone reads it beside `lambdaU`. */
+  tau?: number;
+  /** Pooled bits under each slope tried tonight, at that slope's best
+   * ridge — why `tau` is what it is. */
+  tauSweep?: Record<string, number>;
 }
 
 /** The whole loadings document, minus the server clock. Read and written
@@ -225,6 +270,9 @@ export interface PatternsPublication {
   items?: Record<string, ItemMeta>;
   /** The device ridge the engine's scorecard was measured at. */
   lambdaU: number;
+  /** The link slope the engine's scorecard was measured at (D460); the
+   * online engine's is the shipped 1. Absent on a document before it. */
+  tau?: number;
   quality?: PatternsQuality;
   displacement: PatternsDisplacement;
   seeds: PatternsSeeds;
@@ -252,12 +300,24 @@ export interface PatternsStore {
    *  (`citySampleId`), where one exists; and their writes. */
   getCitySamples(ids: string[]): Promise<Map<string, SampleDoc>>;
   putCitySamples(samples: Map<string, SampleDoc>): Promise<void>;
+  /** The world map's position documents (D462): one per country plus the
+   *  world's own, keyed by document id. A set, like the samples — the
+   *  document is rebuilt whole every night. */
+  putWorldMaps(docs: Map<string, WorldMapDoc>): Promise<void>;
   /** The newest PATTERNS_SAMPLE_CAP world answers to one question, as
    * sample additions — the who-voted sheet's own query, run once per
    * question ever, to seed its sample (D442). Up to the cap in billed
    * reads, which is why the run bounds how often it asks. */
   seedRows(qid: string): Promise<SampleAddition[]>;
 }
+
+import {
+  WORLD_MAP_MIN_ANSWERS,
+  WorldMapBuilder,
+  positionModel,
+  roundPos,
+  type WorldMapDoc,
+} from "./patternsWorld";
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
 // because this module's own test imports it from here, and because the
@@ -295,6 +355,11 @@ export interface PatternsRunSummary {
   samples: number;
   /** Per-city samples merged (runbook 2.5). */
   citySamples: number;
+  /** World-map documents written — one per country with anyone placed,
+   *  plus the world's own (D462). */
+  worldMaps: number;
+  /** People a position was published for. */
+  worldPlaced: number;
   /** Of those, seeded from the answers tonight — their one bounded
    * query each (D442). Zero on every night after the corpus is met. */
   seeded: number;
@@ -365,12 +430,21 @@ export async function runPatternsFit(
   const alsQualityPrev = engine === "als" ? prev?.quality : prev?.candidates.als?.quality;
   const alsStreakPrev = engine === "als" ? 0 : (prev?.candidates.als?.streak ?? 0);
   const alsLambdaPrev = engine === "als" ? (prev?.lambdaU ?? ALS_LAMBDAS_U[0]) : (prev?.candidates.als?.lambdaU ?? ALS_LAMBDAS_U[0]);
+  const alsTauPrev = engine === "als" ? (prev?.tau ?? SGD_TAU) : (prev?.candidates.als?.tau ?? SGD_TAU);
+  // the (ridge, slope) grid the candidate is scored on (D395, D460)
+  const gridKey = (lam: number, tau: number): string => `${lam}|${tau}`;
+  const grid: { lam: number; tau: number }[] = [];
+  for (const lam of ALS_LAMBDAS_U) for (const tau of ALS_TAUS) grid.push({ lam, tau });
   // the published rows each displacement compares against
   const prevSgdPub: Record<string, number[]> = {};
   for (const [qid, r] of Object.entries(sgdRows)) prevSgdPub[qid] = [...r.v];
   const prevAlsPub: Record<string, number[]> = {};
   if (alsPrev) for (const [key, r] of Object.entries(alsPrev.rows)) prevAlsPub[key] = [...r.v];
-  const index: ItemIndex = indexItems(items);
+  // The scorecard solves a person against the model as it stood BEFORE
+  // the day, so its anchor items are the ones that model published; the
+  // fit's own index is compiled below, from the people it is about to
+  // read (D458).
+  const index: ItemIndex = indexItems([...items, ...anchorSpecsOf(alsPrev?.items), ...pickSpecsOf(alsPrev?.items)]);
   const itemQids = new Set(items.map((s) => s.qid));
 
   // the days still owed, oldest first, bounded by the catch-up window
@@ -381,7 +455,7 @@ export async function runPatternsFit(
   }
   if (!days.length || yesterday <= lastDay) {
     return {
-      days: 0, folded: 0, compacted: 0, samples: 0, citySamples: 0, seeded: 0, users: 0, questions: Object.keys(model.q).length,
+      days: 0, folded: 0, compacted: 0, samples: 0, citySamples: 0, worldMaps: 0, worldPlaced: 0, seeded: 0, users: 0, questions: Object.keys(model.q).length,
       bits: 0, skill: 0, seedCos: 0, engine, candidateSkill: 0, streak: engine === "sgd" ? alsStreakPrev : sgdStreakPrev, crossed: false,
     };
   }
@@ -401,14 +475,15 @@ export async function runPatternsFit(
   // its n: 0 row, so the series says "no answers" out loud rather than
   // skipping the date (the putModel zero-rather-than-nothing idiom).
   const scored: { day: string; score: PatternsDayScore }[] = [];
-  // The candidate's tally for the same days, under each device ridge
-  // tried — the best of them is what it publishes as its scorecard.
-  const alsScored = new Map<number, { day: string; score: PatternsDayScore }[]>();
-  for (const lam of ALS_LAMBDAS_U) alsScored.set(lam, []);
+  // The candidate's tally for the same days, under each device ridge and
+  // link slope tried — the best pair is what it publishes as its
+  // scorecard, and what the phone is told to solve and guess with.
+  const alsScored = new Map<string, { day: string; score: PatternsDayScore }[]>();
+  for (const g of grid) alsScored.set(gridKey(g.lam, g.tau), []);
   for (const day of days) {
     const score = emptyDayScore();
     scored.push({ day, score });
-    for (const lam of ALS_LAMBDAS_U) alsScored.get(lam)!.push({ day, score: emptyDayScore() });
+    for (const g of grid) alsScored.get(gridKey(g.lam, g.tau))!.push({ day, score: emptyDayScore() });
     const dayEntries = await store.ledgerDay(day);
     const entries = dayEntries.filter(
       (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
@@ -418,8 +493,11 @@ export async function runPatternsFit(
     // included — newest last, so the last write below is the person's
     // current answer, edits and all.
     const wide = dayEntries.filter((e) => itemQids.has(e.qid) && typeof e.optionIdx === "number" && e.optionIdx >= 0);
+    // The picks (D459): a catalogue card's entries, the entity where a
+    // vote has its option — compacted beside the map, and sampled.
+    const picks = dayEntries.filter((e) => PICK_QIDS.has(e.qid) && typeof e.entity === "string" && e.entity !== "");
     let refolded = 0;
-    if (!entries.length && !wide.length) continue;
+    if (!entries.length && !wide.length && !picks.length) continue;
     // group by person; sort each person's day by qid so a replay
     // reproduces the run (the fit is order-sensitive within a day)
     //
@@ -482,10 +560,30 @@ export async function runPatternsFit(
     // map is a set, not a step, so an edit simply overwrites its key.
     const answersByUid = new Map<string, AnswerMap>();
     const anchorsByUid = new Map<string, Record<string, Record<string, string>>>();
+    // The person's NEWEST anchors of the day, kept to what the cube would
+    // count (D458) — a snapshot the compaction sets whole, last wins like
+    // the answer map. Read off every entry of the day, the two-option
+    // ones included: an anchor is on the answer whatever its question.
+    const newestAnchors = new Map<string, AnchorMap>();
+    for (const e of dayEntries) {
+      const an = validAnchors(e.anchors);
+      if (an) newestAnchors.set(e.uid, an);
+    }
     for (const e of wide) {
       const a = answersByUid.get(e.uid) ?? {};
       a[e.qid] = e.optionIdx as number;
       answersByUid.set(e.uid, a);
+      if (e.anchors) {
+        const an = anchorsByUid.get(e.uid) ?? {};
+        an[e.qid] = e.anchors;
+        anchorsByUid.set(e.uid, an);
+      }
+    }
+    const picksByUid = new Map<string, PickMap>();
+    for (const e of picks) {
+      const pm = picksByUid.get(e.uid) ?? {};
+      pm[e.qid] = e.entity as string;
+      picksByUid.set(e.uid, pm);
       if (e.anchors) {
         const an = anchorsByUid.get(e.uid) ?? {};
         an[e.qid] = e.anchors;
@@ -500,7 +598,7 @@ export async function runPatternsFit(
     for (const e of dayEntries) {
       if (typeof e.n === "string") stampByUid.set(e.uid, { n: e.n, s: e.s ?? null, l: e.l ?? null });
     }
-    const uids = [...new Set([...byUid.keys(), ...answersByUid.keys()])].sort();
+    const uids = [...new Set([...byUid.keys(), ...answersByUid.keys(), ...picksByUid.keys()])].sort();
     const states = await store.getUsers(uids);
     // The candidate scores the day BEFORE the day is merged into anyone's
     // map: each person's vector is re-solved from the answers they had
@@ -513,6 +611,13 @@ export async function runPatternsFit(
     // alsScoreDay's header).
     const dayEntries2: DayEntry[] = [];
     const history = new Map<string, AnswerMap>();
+    // What else is known about a person before the day: their anchors —
+    // the state's, else the ones on today's own entries, since the
+    // profile precedes the answer and a newcomer's demographics are
+    // evidence one step ahead too (D458) — and their picks from before
+    // the day (D459; today's are not, since a pick and a vote on one day
+    // have no order the ledger keeps).
+    const known = new Map<string, PersonKnown>();
     for (const uid of uids) {
       const user = states.get(uid);
       // A person a dead run already stamped has today's answers merged in
@@ -521,15 +626,17 @@ export async function runPatternsFit(
       const seen = byUid.get(uid);
       if (!seen) continue;
       history.set(uid, user?.a ?? {});
+      const an = user?.an ?? newestAnchors.get(uid);
+      if (an || user?.p) known.set(uid, { ...(an ? { an } : {}), ...(user?.p ? { p: user.p } : {}) });
       for (const [qid, v] of [...seen.entries()].sort((p, q) => (p[0] < q[0] ? -1 : 1))) {
         dayEntries2.push(v.prev === undefined ? { uid, qid, x: v.x } : { uid, qid, x: v.x, prev: v.prev });
       }
     }
     const marginalStart = new Map<string, { n: number; sum: number }>();
     for (const [qid, L] of Object.entries(model.q)) marginalStart.set(qid, { n: L.n, sum: L.sum });
-    for (const lam of ALS_LAMBDAS_U) {
-      const rows = alsScored.get(lam)!;
-      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, lam);
+    for (const g of grid) {
+      const rows = alsScored.get(gridKey(g.lam, g.tau))!;
+      rows[rows.length - 1].score = alsScoreDay(alsPrev, index, history, dayEntries2, marginalStart, g.lam, known, g.tau);
     }
     const write = new Map<string, PatternsUserState>();
     for (const uid of uids) {
@@ -553,6 +660,13 @@ export async function runPatternsFit(
         user.a = { ...(user.a ?? {}), ...todays };
         compacted += Object.keys(todays).length;
       }
+      const an = newestAnchors.get(uid);
+      if (an) user.an = an;
+      const todaysPicks = picksByUid.get(uid);
+      if (todaysPicks) {
+        user.p = { ...(user.p ?? {}), ...todaysPicks };
+        compacted += Object.keys(todaysPicks).length;
+      }
       user.d = day;
       write.set(uid, user);
       touched.add(uid);
@@ -565,7 +679,7 @@ export async function runPatternsFit(
     // the who-voted sheet's own list refreshed nightly. A set, not a step
     // — re-merging a day a dead run already merged changes nothing — so
     // it needs no stamp of its own.
-    const adds = sampleAdditions(day, answersByUid, anchorsByUid, stampByUid);
+    const adds = sampleAdditions(day, answersByUid, anchorsByUid, picksByUid, stampByUid);
     if (adds.size) {
       const qids = [...adds.keys()].sort();
       const prevSamples = await store.getSamples(qids);
@@ -659,7 +773,7 @@ export async function runPatternsFit(
     // says that is that everybody was already folded.
     if (!score.n && refolded > 0) {
       scored.pop();
-      for (const lam of ALS_LAMBDAS_U) alsScored.get(lam)!.pop();
+      for (const g of grid) alsScored.get(gridKey(g.lam, g.tau))!.pop();
     }
   }
 
@@ -702,23 +816,38 @@ export async function runPatternsFit(
   // a question with an answer — D325's unaligned displacement was defined
   // for the online fit, which folds one persistent model forward).
   let bestLambda = alsLambdaPrev;
+  let bestTau = alsTauPrev;
   const lambdaSweep: Record<string, number> = {};
+  const tauSweep: Record<string, number> = {};
   if (scored.length) {
     let best = Infinity;
-    for (const lam of ALS_LAMBDAS_U) {
-      const rows = alsScored.get(lam)!;
+    const round4 = (x: number) => Math.round(x * 10000) / 10000;
+    for (const g of grid) {
+      const rows = alsScored.get(gridKey(g.lam, g.tau))!;
       const n = rows.reduce((a, r) => a + r.score.n, 0);
       const bits = rows.reduce((a, r) => a + r.score.bits, 0);
       const mean = n > 0 ? bits / n : Infinity;
-      lambdaSweep[String(lam)] = n > 0 ? Math.round((bits / n) * 10000) / 10000 : 0;
-      if (mean < best - 1e-12) { best = mean; bestLambda = lam; }
+      // each sweep reads the OTHER knob at its best, so a reader sees one
+      // curve per knob rather than the whole grid
+      if (n > 0) {
+        const lk = String(g.lam), tk = String(g.tau);
+        lambdaSweep[lk] = Math.min(lambdaSweep[lk] ?? Infinity, round4(mean));
+        tauSweep[tk] = Math.min(tauSweep[tk] ?? Infinity, round4(mean));
+      }
+      if (mean < best - 1e-12) { best = mean; bestLambda = g.lam; bestTau = g.tau; }
     }
-    // no observation scored tonight: keep last night's ridge rather than
-    // "win" on an empty comparison
-    if (!Number.isFinite(best)) bestLambda = alsLambdaPrev;
+    // no observation scored tonight: keep last night's ridge and slope
+    // rather than "win" on an empty comparison — and say the sweeps saw
+    // nothing, zero being the scorecard's own idiom for that
+    if (!Number.isFinite(best)) {
+      bestLambda = alsLambdaPrev;
+      bestTau = alsTauPrev;
+      for (const lam of ALS_LAMBDAS_U) lambdaSweep[String(lam)] = 0;
+      for (const tau of ALS_TAUS) tauSweep[String(tau)] = 0;
+    }
   }
   const alsQuality = scored.length
-    ? publishableQuality(alsScored.get(bestLambda)!, alsQualityPrev?.series ?? [])
+    ? publishableQuality(alsScored.get(gridKey(bestLambda, bestTau))!, alsQualityPrev?.series ?? [])
     : alsQualityPrev;
   // STREAMED (DATA-EFFICIENCY-RUNBOOK 4.3): the scan is handed to the
   // solve as a function it runs once per sweep, so no person's map is
@@ -726,8 +855,18 @@ export async function runPatternsFit(
   // ~1 KB a person resident, the out-of-memory this file's header
   // predicted near 150,000 people. The reads are 1 + ALS_SWEEPS scans a
   // night instead of one; the model carries that (PATTERNS_SCAN_READS_PER_MAU).
-  const scan = (each: (uid: string, a: AnswerMap) => void) => store.scanUsers((uid, st) => {
-    if (st.a && Object.keys(st.a).length) each(uid, st.a);
+  //
+  // What the callback hands over is the whole person, not the answer map:
+  // the anchor items (D458) and the pick items (D459) are compiled from
+  // the values the population carries, so the compilation moved into the
+  // streamed fit's own pass 0 — the buffered fit could be handed a
+  // ready-made index because it had the crowd in hand, and this one has
+  // it only while the scan is running. A person with picks and no answers
+  // still has a map to fit from, so the filter takes either.
+  const scan = (each: (uid: string, person: { a: AnswerMap } & PersonKnown) => void) => store.scanUsers((uid, st) => {
+    const hasA = !!st.a && Object.keys(st.a).length > 0;
+    const hasP = !!st.p && Object.keys(st.p).length > 0;
+    if (hasA || hasP) each(uid, { a: st.a ?? {}, ...(st.an ? { an: st.an } : {}), ...(st.p ? { p: st.p } : {}) });
   });
   let als: AlsModel | null = alsPrev;
   const streamed = await alsFitStreamed(alsPrev, scan, index, k);
@@ -832,12 +971,15 @@ export async function runPatternsFit(
     lambdaU: bestLambda,
     streak: nextEngine === "sgd" ? candidateStreak : 0,
     lambdaSweep,
+    tau: bestTau,
+    tauSweep,
   };
   const sgdCandidate: PatternsCandidate = {
     q: sgdRowsOut,
     ...(sgdQuality ? { quality: sgdQuality } : {}),
     displacement: sgdDisplacement,
     lambdaU: SGD_LAMBDA_U,
+    tau: SGD_TAU,
     streak: nextEngine === "als" ? candidateStreak : 0,
   };
   const enginePub = { q: engineRows, items: engineItems };
@@ -849,6 +991,7 @@ export async function runPatternsFit(
     q: engineRows,
     ...(engineItems ? { items: engineItems } : {}),
     lambdaU: nextEngine === "als" ? bestLambda : SGD_LAMBDA_U,
+    tau: nextEngine === "als" ? bestTau : SGD_TAU,
     ...((nextEngine === "als" ? alsQuality : sgdQuality) ? { quality: nextEngine === "als" ? alsQuality : sgdQuality } : {}),
     displacement: nextEngine === "als" ? alsDisplacement : sgdDisplacement,
     // Distance from birth, not from last night: the one number that says
@@ -858,6 +1001,66 @@ export async function runPatternsFit(
     candidates: nextEngine === "als" ? { sgd: sgdCandidate } : { als: alsCandidate },
     ...(crossed ? { crossedAt: yesterday } : prev?.crossedAt ? { crossedAt: prev.crossedAt } : {}),
   };
+  // ── the world map's positions (D462) ──────────────────────────
+  //
+  // One more scan, and the only one that reads the people AFTER the rows
+  // are final: every person is solved against the rows this publication
+  // is about to hand the devices, so the dots and the viewer's own dot —
+  // which the phone solves from those same rows — are in one space. A
+  // position solved against any other frame is a dot in the wrong place.
+  //
+  // THIS IS WHAT ANSWERS THE ROTATION GROUND `PEOPLE-MAP.md` §7 deferred
+  // on. The worry was that the fit's axes drift night to night, so a
+  // published position would reshuffle the world without anyone changing
+  // their mind. They do not drift any more than the rows do: the ALS rows
+  // are rotated onto last night's published rows before they are
+  // published (the procrustes block above), and the online engine's rows
+  // move by a step size. Solving from the published rows inherits that
+  // alignment exactly — the map moves as little as the rows do, which is
+  // the most any lens over them can promise.
+  //
+  // What it costs: one scan of the fitted people per night, on top of the
+  // fit's own 1 + ALS_SWEEPS (DATA-EFFICIENCY-RUNBOOK 4.3), and one write
+  // per country plus one. The scan holds nothing per person — the builder
+  // is bounded at countries × cap — for the reason the streamed fit is.
+  const posModel = positionModel(k, engineRows, engineItems);
+  const posIndex: ItemIndex = indexItems([
+    ...items,
+    ...anchorSpecsOf(engineItems),
+    ...pickSpecsOf(engineItems),
+  ]);
+  const posLambda = pub.lambdaU;
+  const world = new WorldMapBuilder();
+  let placed = 0;
+  await store.scanUsers((uid, st) => {
+    const answers = st.a ?? {};
+    const n = Object.keys(answers).length;
+    // ANSWERS, not observations: a profile alone must not buy a dot, for
+    // the reason patternsReady's own floor counts answers (§7.5).
+    if (n < WORLD_MAP_MIN_ANSWERS) return;
+    const obs = observationsOf(posModel, {
+      a: answers,
+      ...(st.an ? { an: st.an } : {}),
+      ...(st.p ? { p: st.p } : {}),
+    }, posIndex);
+    if (!obs.length) return;
+    const theta = ridgeTheta(obs, k, posLambda * obs.length + 0.5);
+    let norm = 0;
+    for (const x of theta) norm += x * x;
+    norm = Math.sqrt(norm);
+    if (!(norm > 0)) return;
+    placed += 1;
+    world.add({
+      uid,
+      x: roundPos((theta[0] ?? 0) / norm),
+      y: roundPos((theta[1] ?? 0) / norm),
+      n,
+      ...(typeof st.an?.country === "string" && st.an.country ? { country: st.an.country } : {}),
+    });
+  });
+  const worldDocs = world.docs(yesterday);
+  await store.putWorldMaps(worldDocs);
+
   await store.putModel(pub);
   if (crossed) {
     logger.info("patterns crossover", { metric: "patterns_crossover", from: engine, to: nextEngine, streak, day: yesterday });
@@ -868,6 +1071,8 @@ export async function runPatternsFit(
     compacted,
     samples: samplesWritten,
     citySamples: citySamplesWritten,
+    worldMaps: worldDocs.size,
+    worldPlaced: placed,
     seeded,
     users: touched.size,
     questions: Object.keys(engineRows).length,
@@ -924,6 +1129,7 @@ export function firestorePatternsStore(
         q: d.q ?? {},
         ...(d.items ? { items: d.items } : {}),
         lambdaU: typeof d.lambdaU === "number" ? d.lambdaU : SGD_LAMBDA_U,
+        ...(typeof d.tau === "number" ? { tau: d.tau } : {}),
         ...(d.quality ? { quality: d.quality } : {}),
         displacement: d.displacement ?? EMPTY_DISPLACEMENT,
         seeds: d.seeds ?? { n: 0, meanCos: 0, share90: 0, meanNorm: 0, seedNorm: 0 },
@@ -1012,6 +1218,10 @@ export function firestorePatternsStore(
               // into what this returns, so a read that dropped it would
               // publish a candidate fitted on yesterday alone, every night.
               ...(snap.get("a") ? { a: snap.get("a") as Record<string, number> } : {}),
+              // the anchors, both ways as well (D458) — same reason as `a`
+              ...(snap.get("an") ? { an: snap.get("an") as Record<string, string> } : {}),
+              // and the picks (D459)
+              ...(snap.get("p") ? { p: snap.get("p") as Record<string, string> } : {}),
             });
           }
         });
@@ -1025,9 +1235,10 @@ export function firestorePatternsStore(
         for (const [uid, s] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
-            // `set` with no merge replaces the document — `d` and `a` have
-            // to be named or the stamp and the map never land.
-            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}) },
+            // `set` with no merge replaces the document — `d`, `a`, `an` and
+            // `p` have to be named or the stamp, the maps and the anchors
+            // never land.
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.a ? { a: s.a } : {}), ...(s.an ? { an: s.an } : {}), ...(s.p ? { p: s.p } : {}) },
           );
         }
         await batch.commit();
@@ -1088,6 +1299,22 @@ export function firestorePatternsStore(
         });
       }
       return out;
+    },
+    async putWorldMaps(docs) {
+      // `v2_patterns/{docId}` again: signed-in reads, nobody writes — the
+      // loadings document's own rule, so this family needs no rules change
+      // and none can get it wrong. `set` with no merge: the document is
+      // rebuilt whole, so a person who stopped clearing the cap leaves it
+      // the same night, and `deleteAccount`'s field delete is the only
+      // thing that has to reach in between two nights.
+      const entries = [...docs.entries()];
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        for (const [id, doc] of entries.slice(i, i + 400)) {
+          batch.set(db.collection("v2_patterns").doc(id), doc);
+        }
+        await batch.commit();
+      }
     },
     async putCitySamples(samples) {
       // Same collection, same rule, a different prefix (`city-`): the
@@ -1155,6 +1382,8 @@ export function firestorePatternsStore(
             n: (d.get("n") as number) ?? 0,
             ...(d.get("d") ? { d: String(d.get("d")) } : {}),
             ...(d.get("a") ? { a: d.get("a") as Record<string, number> } : {}),
+            ...(d.get("an") ? { an: d.get("an") as Record<string, string> } : {}),
+            ...(d.get("p") ? { p: d.get("p") as Record<string, string> } : {}),
           });
         }
         if (snap.size < PAGE) break;

@@ -38,7 +38,7 @@ function healthy(): NightlyRunners & { ran: string[]; deadlines: number[]; deadl
     patterns: async () => {
       ran.push("patterns");
       return {
-        days: 1, folded: 5, compacted: 5, samples: 2, citySamples: 1, seeded: 1, users: 3, questions: 10, bits: 0.9, skill: 0.1,
+        days: 1, folded: 5, compacted: 5, samples: 2, citySamples: 1, worldMaps: 3, worldPlaced: 12, seeded: 1, users: 3, questions: 10, bits: 0.9, skill: 0.1,
         seedCos: 0.2, engine: "sgd" as const, candidateSkill: 0, streak: 0, crossed: false,
       };
     },
@@ -250,7 +250,7 @@ describe("runNightlyPass", () => {
   it("a night with nothing owed still beats for the fit (days counts), and a fold with no days stays quiet for taste", async () => {
     const r = healthy();
     r.patterns = async () => ({
-      days: 1, folded: 0, compacted: 0, samples: 0, citySamples: 0, seeded: 0, users: 0, questions: 10, bits: 0, skill: 0,
+      days: 1, folded: 0, compacted: 0, samples: 0, citySamples: 0, worldMaps: 1, worldPlaced: 0, seeded: 0, users: 0, questions: 10, bits: 0, skill: 0,
       seedCos: 0, engine: "sgd" as const, candidateSkill: 0, streak: 0, crossed: false,
     });
     r.taste = async () => ({ days: 0, counted: 0, people: 0 });

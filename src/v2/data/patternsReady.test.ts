@@ -169,3 +169,16 @@ describe("patternsEligible", () => {
     expect(patternsEligible(q({ active: false }))).toBe(false);
   });
 });
+
+describe("the viewer's own count is answers to two-option core questions, and nothing else (D461)", () => {
+  // D458 and D459 put the viewer's anchors and catalogue picks into the
+  // vector; the tab is earned by ANSWERS, so neither may count toward
+  // PATTERNS_MIN_MINE — a tab earned by filling in a form is the tab D265
+  // refused. A catalogue card has no options and an anchor is no question
+  // at all, so the eligibility rule refuses both by shape.
+  it("refuses a catalogue card and anything without two options", () => {
+    expect(patternsEligible({ surface: "feed", core: true, options: [] } as never)).toBe(false);
+    expect(patternsEligible({ surface: "feed", core: true, options: ["a"] } as never)).toBe(false);
+    expect(patternsEligible({ surface: "daily", options: ["a", "b"] } as never)).toBe(true);
+  });
+});

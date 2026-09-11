@@ -91,7 +91,11 @@ export const SIZE_BASELINE = {
   // raise here is deliberate and lands in the commit that says why —
   // which is the whole claim: not that the file has a target, but that it
   // cannot get bigger without someone signing for it.
-  "src/v2/data/live.ts": { mode: "ratchet", lines: 9257 },
+  // 9,257 -> 9,283 at the 2026-09-11 22:45 merge (main's 26 commits: the
+  // Patterns items work, D457-D464). Two hours after the entry above said
+  // the file grows four times faster than it is split, it grew again. The
+  // raise is signed for, which is the whole and only claim this file makes.
+  "src/v2/data/live.ts": { mode: "ratchet", lines: 9283 },
   // +31 from main's feed work at the 2026-09-11 merge.
   "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4650 },
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2323 },
@@ -102,9 +106,9 @@ export const SIZE_BASELINE = {
   // Both raised at the 2026-09-11 merge: +191 and +151 of real coverage
   // from main's shifts. Growth that buys assertions is still growth a
   // reader has to walk, so it is signed for here rather than exempted.
-  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4455 },
+  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4461 },
   "firestore-tests/rules.test.ts": { mode: "ratchet", lines: 5350 },
-  "functions/src/pure.ts": { mode: "ratchet", lines: 2798 },
+  "functions/src/pure.ts": { mode: "ratchet", lines: 2805 },
   // GENERATED and appended daily by the content lanes — hence `ceiling`.
   // 40,000 is chosen from what actually breaks rather than from taste: it
   // is ~1.4x today's 28,442, the file went 2,926 → 28,442 in five weeks,

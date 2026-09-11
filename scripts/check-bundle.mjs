@@ -922,6 +922,68 @@ const MAX_TOTAL_JS_KB = 2440;
 // trip MEANS: no question lane can cause one — check:eager-content's
 // allowlist is down to three demo archives, none of which grows when a lane
 // writes — so this ceiling is measuring code in first paint and nothing else.
+// 552 → 553 (2026-09-11, D464): ninety-five bytes, and the argument for
+// them is worth more than they are.
+//
+// THE BYTES, measured against origin/main (565,245 → 565,340; 552 KB is
+// 565,248, which main clears by three). Two things: the Map draws a dot
+// per published ROW now, so `data/deck` carries a catalogue question's
+// `domain` and `coreFeedAggregated` stops filtering to two options — the
+// typed path that lets a choice, a scale and a catalogue card reach the
+// lens at all; and the card shows a bead's picture, so a lazy chunk
+// imports `data/catalogArt`, which splits it out of the feed's chunk and
+// puts a new chunk NAME in the entry's preload manifest. Nothing new is
+// fetched before paint — the 27 KB that name points at is fetched on a
+// tap, if ever.
+//
+// WHAT WAS GIVEN BACK FIRST, because this block has said "trim, do not
+// raise" every time before and it was right to: teaching `data/voters`'
+// sample parse to keep a catalogue pick's row cost 86 bytes here for the
+// benefit of ONE lazy caller, so the Patterns tab reads that document
+// itself, in its own chunk. That is better placed as well as cheaper.
+//
+// AND ONE TRIM THAT ANOTHER GATE REFUSED, which is the part worth
+// keeping. Reading the feed's pool through `globalThis.WORLD_FEED_QS`
+// would have saved the first 64 bytes — the pool is already published and
+// already carries every field the join needs. `check:globals` rule 4
+// failed it: that is new cross-module coupling through global scope, and
+// its count only moves down. Two ratchets pulled opposite ways and the
+// architectural one won, which is the right outcome — bytes are
+// recoverable, a convention going backwards is not.
+//
+// WHAT THIS RAISE DOES NOT GIVE BACK. The argument above — this constant
+// is what keeps the Firestore SDK (~200 KB) out of first paint — is
+// untouched at 553; reaching it would take a raise two orders of
+// magnitude larger. What it DOES concede is that 552 was the exact
+// measurement, so the gate had stopped being a budget and become an alarm
+// on every byte, which this block itself calls the thing to watch for
+// forty lines up.
+//
+// THE HEADROOM IS STILL OWED, and where it is is measured: `data/voters`
+// is ~8 KB of the eager graph because `data/live.ts` imports it
+// statically, while all ~30 of its uses sit in methods that run long
+// after first paint. Deferring it the way D122's handles and invitations
+// are deferred, one file over, is the next change to this graph — its
+// own change, not a rider on a feature.
+//
+// BOTH OF THOSE RAISES ARE THIS SAME NIGHT, AND THE CONSTANT IS 553 EITHER
+// WAY — which is the only reason the merge is a union rather than a choice.
+// Two branches measured two different overruns against a ceiling main had
+// left at three bytes of headroom, and each wrote its own entry believing
+// it was the one raise. Neither is wrong and neither subsumes the other:
+// the 95 bytes below are the Map's catalogue rows and a lazy chunk NAME,
+// the 369 above are the blind-vote filter, the Patterns skill read and the
+// first slice out of live.ts. Together they measure 552.578 KB against
+// the 553, so the raise covers both without a further one — but the margin
+// it leaves is 432 bytes, which is the same alarm one turn later.
+//
+// The two entries also name two different ways out, and they are not the
+// same KIND of change. `data/voters` (~8 KB, below) is a pure deferral of
+// a statically-imported module whose uses all run after first paint —
+// nobody has to decide anything. `<PassiveMeter />` (~38 KB, above) is
+// bigger and is a design call: the header's lens ring would pop in after
+// the paint. Take the deferral first; the design call is on
+// docs/OWNER-LIST.md and can wait for an answer.
 //
 // 552 → 553 (2026-09-11): 1 KB, and the smallest raise in this file's
 // history by an order of magnitude, because the overrun is 369 BYTES. It is

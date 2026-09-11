@@ -9,29 +9,70 @@
 // basis to state, so this is the port's own rule to hold).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { PairSay, PoolItem } from "../data/patterns";
+import type { MapRow, RowSay } from "../data/patterns";
 
 const PATTERNS = vi.hoisted(() => ({
-  say: vi.fn(async (): Promise<PairSay | null> => null),
+  sayRow: vi.fn(async (): Promise<RowSay | null> => null),
 }));
 vi.mock("../data/patterns", () => ({ default: PATTERNS, PATTERNS }));
 
 const LIVE = vi.hoisted(() => ({ enabled: true, vote: vi.fn() }));
 vi.mock("../data/live", () => ({ default: LIVE, LIVE }));
 
-const { default: PatternsMap } = await import("./PatternsMap");
+const { default: PatternsMap, MAP_DOT_BUDGET } = await import("./PatternsMap");
 
 const vec = (...head: number[]): number[] =>
   Array.from({ length: 8 }, (_, i) => head[i] ?? 0);
 
-const item = (qid: string, L: number[], mine: number | null, cat = "sport"): PoolItem =>
+const item = (qid: string, L: number[], mine: number | null, cat = "sport"): MapRow =>
   ({
-    q: { id: qid, text: `Q ${qid}`, cat, options: [{ id: `${qid}:0`, label: `${qid}-yes` }, { id: `${qid}:1`, label: `${qid}-no` }] },
+    key: qid,
+    kind: "bin",
+    qid,
+    title: `Q ${qid}`,
+    label: "",
+    cat,
+    optionLabels: [`${qid}-yes`, `${qid}-no`],
+    options: [{ id: `${qid}:0`, label: `${qid}-yes` }, { id: `${qid}:1`, label: `${qid}-no` }],
     L,
     n: 60,
     marginal: 0,
     mine,
-  }) as unknown as PoolItem;
+  }) as MapRow;
+
+/** One bead of a choice — a question with several rows (D464). */
+const bead = (qid: string, opt: number, L: number[], mine: number | null, cat = "sport"): MapRow =>
+  ({
+    key: `${qid}~${opt}`,
+    kind: "opt",
+    qid,
+    title: `Q ${qid}`,
+    label: `${qid}-${opt}`,
+    cat,
+    options: [0, 1, 2].map((i) => ({ id: `${qid}:${i}`, label: `${qid}-${i}` })),
+    opt,
+    L,
+    n: 60,
+    marginal: 0,
+    mine,
+  }) as MapRow;
+
+/** A profile value — the You arc's own row. */
+const anc = (dim: string, bucket: string, L: number[], mine: number | null): MapRow =>
+  ({
+    key: `anchor~${dim}~${bucket}`,
+    kind: "anc",
+    qid: `anchor~${dim}`,
+    title: dim,
+    label: bucket,
+    cat: null,
+    dim,
+    bucket,
+    L,
+    n: 60,
+    marginal: 0,
+    mine,
+  }) as MapRow;
 
 /** qa answered "yes", qb answered "no", qc open — one tight factor. */
 const ITEMS = [
@@ -40,8 +81,8 @@ const ITEMS = [
   item("qc", vec(0.8, -0.1), null),
 ];
 
-const SAY: PairSay = {
-  pick: "qa-yes", then: "qb-yes", pickIdx: 0, thenIdx: 0, pct: 78, base: 50, both: 40,
+const SAY: RowSay = {
+  pick: "qa-yes", then: "qb-yes", thenIdx: 0, pct: 78, base: 50, both: 40, over: "both",
 };
 
 /** The dots on the rim. The beacon's own dot is drawn on the top layer, so
@@ -51,7 +92,7 @@ const dots = (c: HTMLElement) => [...c.querySelectorAll<SVGCircleElement>('circl
 const chords = (c: HTMLElement) => [...c.querySelectorAll<SVGPathElement>("svg > g:first-child > path")];
 
 beforeEach(() => {
-  PATTERNS.say.mockResolvedValue(SAY);
+  PATTERNS.sayRow.mockResolvedValue(SAY);
   LIVE.vote = vi.fn();
 });
 afterEach(cleanup);
@@ -73,7 +114,7 @@ describe("the idle card counts one pool, not two", () => {
   const idle = (c: HTMLElement) => c.querySelector(".qm-idle")?.textContent ?? "";
 
   it("counts only the picked topic's questions, and says which topic", async () => {
-    PATTERNS.say.mockResolvedValue(null);
+    PATTERNS.sayRow.mockResolvedValue(null);
     const { container } = render(<PatternsMap items={MIXED} version={1} topic="sport" />);
     const text = idle(container);
     expect(text, "the idle card did not render — the case is vacuous").toContain("links hold across");
@@ -88,7 +129,7 @@ describe("the idle card counts one pool, not two", () => {
     // THE CONTROL. Without it the case above is satisfied by a card that
     // always filters, which would understate the count on the default view
     // every reader starts from.
-    PATTERNS.say.mockResolvedValue(null);
+    PATTERNS.sayRow.mockResolvedValue(null);
     const { container } = render(<PatternsMap items={MIXED} version={1} topic="all" />);
     const text = idle(container);
     expect(text).toContain("across the 5 questions");
@@ -206,13 +247,13 @@ describe("the idle card belongs to its own pair", () => {
   ];
 
   it("draws nothing rather than the last pair's number while the next loads", async () => {
-    PATTERNS.say.mockResolvedValueOnce(SAY);
+    PATTERNS.sayRow.mockResolvedValueOnce(SAY);
     const { rerender } = render(<PatternsMap items={TWO_TOPICS} version={1} topic="sport" />);
     expect(await screen.findByText("78%")).toBeTruthy();
     expect(screen.getByText(/counted over the 40 people/)).toBeTruthy();
     // The reader changes the topic filter. The food pair's read is still
     // in flight, so there is no number to state yet.
-    PATTERNS.say.mockReturnValueOnce(new Promise<PairSay | null>(() => {}));
+    PATTERNS.sayRow.mockReturnValueOnce(new Promise<RowSay | null>(() => {}));
     rerender(<PatternsMap items={TWO_TOPICS} version={1} topic="food" />);
     expect(screen.queryByText("78%"), "the food card wore the sport pair's percentage").toBeNull();
     expect(screen.queryByText(/counted over the 40 people/)).toBeNull();
@@ -323,7 +364,7 @@ describe("a selection", () => {
   // people in both samples" over a hundred voters and over a read that
   // never happened. This line had no test at all.
   it("says nothing predicts strongly enough, rather than blaming the sample", async () => {
-    PATTERNS.say.mockResolvedValue(null);
+    PATTERNS.sayRow.mockResolvedValue(null);
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     fireEvent.click(container.querySelectorAll("svg g g")[0]!);
     expect(await screen.findByText(/predicts its neighbours strongly enough/)).toBeTruthy();
@@ -331,10 +372,152 @@ describe("a selection", () => {
   });
 
   it("…and says the read refused when it did", async () => {
-    PATTERNS.say.mockRejectedValue(new Error("permission-denied"));
+    PATTERNS.sayRow.mockRejectedValue(new Error("permission-denied"));
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     fireEvent.click(container.querySelectorAll("svg g g")[0]!);
     expect(await screen.findByText(/Couldn’t read the crowd/)).toBeTruthy();
     expect(screen.queryByText(/predicts its neighbours/)).toBeNull();
+  });
+});
+
+describe("the ring is the topic's own (D461)", () => {
+  const MIXED = [
+    item("sa", vec(1, 0), 1, "sport"),
+    item("sb", vec(0.9, 0.1), -1, "sport"),
+    item("fa", vec(0, 1), 1, "food"),
+    item("fb", vec(0.1, 0.9), -1, "food"),
+    item("fc", vec(-0.1, 0.8), null, "food"),
+  ];
+  const idle = (c: HTMLElement) => c.querySelector(".qm-idle")?.textContent ?? "";
+
+  it("puts only the chosen topic's questions on the rim, and every one of them at full voice", () => {
+    PATTERNS.sayRow.mockResolvedValue(null);
+    const all = render(<PatternsMap items={MIXED} version={1} topic="all" />);
+    // four on the rim's own layer plus the beacon's dot on the top one:
+    // fc is open, and the open question most tied to the rest is drawn there
+    expect(dots(all.container)).toHaveLength(4);
+    cleanup();
+    const sport = render(<PatternsMap items={MIXED} version={1} topic="sport" />);
+    expect(dots(sport.container)).toHaveLength(2);
+    // one arc, undimmed — there is nothing else on the ring to dim it against
+    const arcs = [...sport.container.querySelectorAll<SVGPathElement>("path.qm-arc")];
+    expect(arcs).toHaveLength(1);
+    expect(arcs[0].getAttribute("opacity")).toBe("0.92");
+  });
+
+  it("rings the viewer's own answers under \"answered\", and says so", () => {
+    PATTERNS.sayRow.mockResolvedValue(null);
+    const { container } = render(<PatternsMap items={MIXED} version={1} topic="answered" />);
+    expect(dots(container)).toHaveLength(4);
+    expect(idle(container)).toContain("across the 4 questions you answered");
+    cleanup();
+    const none = render(<PatternsMap items={MIXED.map((p) => ({ ...p, mine: null }))} version={1} topic="answered" />);
+    expect(none.container.textContent).toContain("Nothing you’ve answered is on the map yet.");
+  });
+
+  it("keeps each topic's strongest hubs above the dot budget, and says how many of the pool are drawn", () => {
+    PATTERNS.sayRow.mockResolvedValue(null);
+    // 320 questions over two topics, 3:1 — a rim past the budget
+    const many = Array.from({ length: 320 }, (_, i) =>
+      item(`q${i}`, vec(Math.cos(i / 7), Math.sin(i / 7)), i % 2 ? 1 : null, i % 4 === 0 ? "food" : "sport"));
+    const { container } = render(<PatternsMap items={many} version={1} topic="all" />);
+    // the budget, less the beacon's own dot on the top layer
+    expect(dots(container)).toHaveLength(MAP_DOT_BUDGET - 1);
+    const text = idle(container);
+    expect(text).toContain("across the 320 questions in the pool");
+    expect(text).toContain(`${MAP_DOT_BUDGET} of them drawn`);
+    // in proportion: food had 80 of 320, so 75 of 300
+    const arcs = [...container.querySelectorAll<SVGPathElement>("path.qm-arc")];
+    expect(arcs).toHaveLength(2);
+    cleanup();
+    // and under the budget nothing is trimmed, nor said to be
+    const few = render(<PatternsMap items={many.slice(0, 40)} version={1} topic="all" />);
+    expect(dots(few.container)).toHaveLength(39); // forty, one of them the beacon
+    expect(idle(few.container)).not.toContain("of them drawn");
+  });
+});
+
+
+// ── every kind of dot (D464) ────────────────────────────────────────
+//
+// The request the canvas answered: a node with more than two answers.
+// What has to hold is the RULE — a dot is a row — and the four things
+// that follow from it: a question's beads stay together with a tick
+// between groups, a group is trimmed as a group, the card opens on the
+// tapped bead with its siblings as chips, and the You arc is off until
+// it is asked for.
+describe("a bead group (D464)", () => {
+  const GROUP = [
+    bead("pick", 0, vec(1, 0), 1),
+    bead("pick", 1, vec(0.9, 0.2), -1),
+    bead("pick", 2, vec(-0.8, 0.1), -1),
+    item("qz", vec(0.2, 0.9), null, "food"),
+  ];
+
+  it("draws one dot per row, and parts the groups with a hairline", () => {
+    const { container } = render(<PatternsMap items={GROUP} version={1} topic="all" />);
+    // four rows, one of them the beacon's (drawn on the top layer)
+    expect(dots(container).length).toBe(GROUP.length - 1);
+    // one tick: between the three-bead group and its topic's next question
+    // (qz is another topic, so the only boundary inside a topic is none —
+    // the beads are one run)
+    const ticks = [...container.querySelectorAll("line")];
+    expect(ticks.length, "a tick was drawn inside a bead group").toBe(0);
+  });
+
+  it("opens on the tapped bead and offers its siblings as chips", async () => {
+    const { container } = render(<PatternsMap items={GROUP} version={1} topic="sport" />);
+    fireEvent.click(dots(container)[0]!);
+    const chips = [...container.querySelectorAll(".qm-chip")];
+    expect(chips.length, "a three-option question drew no chip row").toBe(3);
+    expect(chips[0].className, "the tapped bead leads and is the one on").toContain("is-on");
+    expect(chips.map((c) => c.textContent)).toEqual(["pick-0", "pick-1", "pick-2"]);
+    // tapping a sibling re-reads the ties for THAT answer
+    PATTERNS.sayRow.mockClear();
+    fireEvent.click(chips[2]);
+    await screen.findByText(/Q pick/);
+    expect(PATTERNS.sayRow.mock.calls.some((c: unknown[]) => String(c[0]) === "pick~2"),
+      "the chip did not re-read its own ties").toBe(true);
+  });
+
+  it("says a scale and a catalogue pick in their own words", async () => {
+    const scale = { ...bead("sc", 0, vec(1, 0), null), key: "sc", kind: "ord", label: "" } as MapRow;
+    PATTERNS.sayRow.mockResolvedValue({ pick: "high", then: "qb-yes", thenIdx: 0, pct: 71, base: 52, both: 96, over: "both" });
+    render(<PatternsMap items={[scale, item("qb", vec(0.9, 0.1), -1)]} version={1} topic="all" />);
+    // the scale is unanswered, so it is the beacon — tapped by its name
+    fireEvent.click(screen.getByLabelText(/Answer next/));
+    // "Rate it high", not "Pick high" — a scale has no options to pick
+    expect(await screen.findByText(/Rate it/)).toBeTruthy();
+  });
+});
+
+describe("the You arc (D464)", () => {
+  const WITH_YOU = [
+    item("qa", vec(1, 0), 1),
+    item("qb", vec(0.9, 0.1), -1),
+    anc("gender", "Woman", vec(0.8, 0.2), 1),
+    anc("ageBand", "25-34", vec(0.1, 0.9), -1),
+  ];
+
+  it("is off by default — the map is a map of questions until asked", () => {
+    const { container } = render(<PatternsMap items={WITH_YOU} version={1} topic="all" />);
+    expect(container.querySelector(".qm-you")).toBeTruthy();
+    expect(container.querySelector(".qm-you")!.getAttribute("aria-checked")).toBe("false");
+    // the two anchors are NOT on the rim — both questions are answered,
+    // so there is no beacon and both are ordinary dots
+    expect(dots(container).length).toBe(2);
+  });
+
+  it("draws the arc when it is switched on, solid where you carry the value", () => {
+    const { container } = render(<PatternsMap items={WITH_YOU} version={1} topic="all" />);
+    fireEvent.click(container.querySelector(".qm-you")!);
+    expect(container.querySelector(".qm-you")!.getAttribute("aria-checked")).toBe("true");
+    // the two rim dots plus the two on the arc
+    expect(dots(container).length).toBe(4);
+  });
+
+  it("offers no toggle at all when the fit folds no profile values", () => {
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    expect(container.querySelector(".qm-you"), "a control for something that is not there").toBeNull();
   });
 });
