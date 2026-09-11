@@ -145,8 +145,17 @@ describe("the currency switch and the amount actually charged", () => {
     // Stripe charges `Math.round(capEur * 100)` cents in EUR whatever this
     // page displays (paid.ts's checkoutLineItem), so the two sites that
     // name the CHARGE are not conversions. They printed one: with the €5
-    // budget in NOK the cap read "60 kr" — fmtWhole's round-to-ten band
-    // over a true 58 — above a debit of €5.00.
+    // budget in NOK the cap read "58 kr" above a debit of €5.00.
+    //
+    // 58 IS the true conversion, and saying so matters — the first version of
+    // this comment claimed "60 kr", which is wrong: fmtWhole's
+    // round-to-ten band starts at 100, so a €5 budget is not rounded at
+    // all. The defect is not the rounding. It is that the page named a
+    // kroner figure for money debited in euro, which is true at every
+    // budget. The rounding is a SECOND error on top of it and shows up
+    // higher: €10 is 116 and printed 120 (overstated), €320 is 3712 and
+    // printed 3700 (understated) — the same two directions
+    // `data/pricing.ts` records for the in-app control.
     //
     // The app settled this one surface over and said why: "converting here
     // would put an approximation on the one number that is exact"
