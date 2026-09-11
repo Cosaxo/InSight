@@ -301,7 +301,11 @@ reads until its second half is built, and says so.
       that folded nothing (junk rows the fold declines and never marks —
       asking again returns the same ones forever, the attention fold's
       own rule) or the time budget (`ROLLUP_FOLD_BUDGET_MS`, 300 of the
-      pass's 480 s). `capped` is true only when the budget ended it, and
+      pass's 480 s — a SLICE, which `runNightlyPass` turns into an
+      absolute instant: the earlier of that slice from where the fold
+      actually starts and the invocation's own ceiling less its tail,
+      since this fold runs LAST and 300 counted from t=250 would end
+      past the kill). `capped` is true only when the budget ended it, and
       then the summary carries `left` — a `count()` aggregation over the
       unfolded rollups, one read per 1,000 counted, paid only on a
       budget stop — so the warning names a number rather than a hope. `engagement.test.ts`: a 25,000-rollup fixture

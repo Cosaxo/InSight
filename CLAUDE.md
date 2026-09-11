@@ -125,8 +125,11 @@ Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
-Duel answers stay sealed until the next-day reveal, enforced as a
-`surface` test: that is game timing, not privacy.
+Duel answers stay sealed until their ROUND's reveal — everyone played,
+or the round's 48-hour deadline — enforced as a `surface` test: that is
+game timing, not privacy. Not "the next day": D426 moved duels off day
+keys onto rounds, and a member who missed a revealed round may still
+answer it, flagged `late` because their answer is no longer blind.
 
 **A privacy constraint is an ASK, not a stop (D334).** Where a privacy
 argument is the only thing standing between a proposal and the tree — a
@@ -457,11 +460,16 @@ an emergency rules fix.
   (`state.testAggsLoaded`), and since it no longer unmounts, row
   navigation costs nothing; both pinned. The fields load behind one
   bounded, session-cached loader (docs/MIRROR.md §2–3). **Circle and
-  Groups carry a row too since D190** — `Answers · People · Compare`, the
-  three the prototype gives both, folded out of what each stop already
-  computes and drawn even when the stop is empty. Scores and Explore are
-  not theirs: one needs questions that rate a place, the other needs
-  "everyone" as a baseline, and a circle of nine has neither.
+  Groups carry a row too since D190** — folded out of what each stop
+  already computes and drawn even when the stop is empty. CIRCLE'S IS
+  THE THREE the prototype gives both, `Answers · People · Compare`.
+  GROUPS' IS FOUR since D434–D437: `Votes · People · Scores · Compare`,
+  and both halves of that changed — the first tab is the room's VOTES
+  (who it named), and Scores arrived because a group rates ITSELF, every
+  fourth round, so the questions that rate a place are no longer what
+  that lens needs. The refusal that stood here is Circle's alone now,
+  and Explore's is still both: "everyone" as a baseline is not something
+  a circle of nine has.
 - **`window.MapStats` is real for three anchors and refuses for four, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` joined them

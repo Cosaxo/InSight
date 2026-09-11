@@ -74,13 +74,14 @@ import {
   firestoreRollupStore,
   SHARD_FOLD_CAP,
   ROLLUP_FOLD_CAP,
+  ROLLUP_FOLD_BUDGET_MS,
 } from "./engagement";
 import { runPatternsFit, firestorePatternsStore } from "./patterns";
 import { runTasteFold, firestoreTasteStore } from "./taste";
-import { runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
-import { runVelocityScan, firestoreVelocityStore } from "./velocity";
+import { ANSWER_MAP_HEAL_SLICE_MS, runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
+import { VELOCITY_AUTH_SLICE_MS, runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
-import { runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
+import { FANOUT_HEAL_SLICE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
 
 /** The five things a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
@@ -90,15 +91,15 @@ export interface NightlyRunners {
   patterns: () => ReturnType<typeof runPatternsFit>;
   taste: () => ReturnType<typeof runTasteFold>;
   attention: () => ReturnType<typeof runAttentionFold>;
-  rollup: () => ReturnType<typeof runRollupFold>;
+  rollup: (deadlineAt: number) => ReturnType<typeof runRollupFold>;
   /** The answer maps' heal (DATA-EFFICIENCY-RUNBOOK 3.3) — the sixth,
    *  off the same ledger read; a night that skips it leaves the trigger's
    *  own writes standing, which is the whole point of a heal. */
-  answerMaps: () => ReturnType<typeof runAnswerMapHeal>;
+  answerMaps: (deadlineAt: number) => ReturnType<typeof runAnswerMapHeal>;
   /** D54's velocity scan (runbook 4.4) — the seventh, its whole days off
    *  the same reader and the partial day its own read. It logs its own
    *  flags and heartbeat (`velocity_scan`). */
-  velocity: () => ReturnType<typeof runVelocityScan>;
+  velocity: (deadlineAt: number) => ReturnType<typeof runVelocityScan>;
   /** The answer log's reconcile (log.ts, D447 phase A) — the eighth, off
    *  the same ledger read: yesterday's entries the BigQuery table lacks,
    *  and the erasures the day deferred. Skips itself where there is no
@@ -107,7 +108,11 @@ export interface NightlyRunners {
   /** The profile fan-out's heal (profileFanout.ts) — the ninth: every
    *  account whose stamp change the hourly budget deferred gets the
    *  fan-out from its profile as it is now. Bounded by the markers. */
-  fanout: () => ReturnType<typeof runFanoutHeal>;
+  /** …and it takes the pass's own DEADLINE, an absolute instant rather
+   *  than a duration: the only honest way to say "leave the folds behind
+   *  you their share" is to measure from when the night began, not from
+   *  when this fold happened to start (profileFanout.ts's constant). */
+  fanout: (deadlineAt: number) => ReturnType<typeof runFanoutHeal>;
 }
 
 /** The three log levels the pass speaks — `logger`'s, injectable. */
@@ -118,12 +123,45 @@ export interface NightlyOutcome {
   failed: string[];
 }
 
+/** The invocation's own ceiling, read from the deployed setting rather
+ *  than written out again — a second copy of 480 is a number that can
+ *  drift from the thing it describes. */
+export const PASS_CEILING_MS = NIGHTLY.timeoutSeconds * 1000;
+
+/** What the pass keeps back from its last time-bounded fold: the
+ *  summary, the heartbeat log and the failure report all run after it,
+ *  and a fold that spends the ceiling exactly leaves the invocation to be
+ *  killed mid-tail — which reads to monitoring as the pipeline going
+ *  silent, the one signal this file exists to keep honest. */
+export const PASS_TAIL_MS = 20_000;
+
 /**
  * Run the night: digest, fit, taste, attention, rollups — each isolated,
  * each heartbeat emitted only for a fold that completed, the first
  * failure rethrown at the end.
  */
-export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger): Promise<NightlyOutcome> {
+export async function runNightlyPass(
+  r: NightlyRunners,
+  log: NightlyLog = logger,
+  nowMs: () => number = Date.now,
+): Promise<NightlyOutcome> {
+  // THE PASS'S OWN START, which is the clock every bound below is
+  // measured against. Both time-bounded folds — the fan-out heal and the
+  // rollup drain — used to count from their own first line, so a late
+  // start moved their ceilings with them and neither could see the
+  // invocation it was spending.
+  const startedAt = nowMs();
+  // THE CEILING, and the reason a fold's own slice is not enough on its
+  // own. Every time-bounded fold gets the EARLIER of its slice measured
+  // from where it actually starts and this instant — so a late start
+  // costs a fold time without erasing it, and no fold can run past the
+  // invocation and take the tail with it. A fixed mark measured from
+  // `startedAt` alone does both of the wrong things at once: it zeroes a
+  // fold whose predecessors ran long, and it stops the LAST fold at its
+  // own mark with the rest of the invocation unspent (FANOUT_HEAL_SLICE_MS
+  // has the arithmetic).
+  const sliceDeadline = (sliceMs: number): number =>
+    Math.min(nowMs() + sliceMs, startedAt + PASS_CEILING_MS - PASS_TAIL_MS);
   const failed: { fold: string; err: unknown }[] = [];
   const attempt = async <T>(fold: string, run: () => Promise<T>): Promise<T | null> => {
     try {
@@ -148,30 +186,57 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   // The velocity scan (runbook 4.4) speaks for itself — its flags and its
   // `velocity_scan` heartbeat are logged inside the runner, unchanged
   // from the scheduled function's, so the silence policy keeps counting.
-  await attempt("velocity", r.velocity);
+  const vel = await attempt("velocity", () => r.velocity(sliceDeadline(VELOCITY_AUTH_SLICE_MS)));
+  // A CLUSTER SCAN THAT SAW PART OF THE POPULATION IS NOT A CLEAN NIGHT.
+  // The other three signals fold the ledger this pass already read; the
+  // birth-cluster one asks Admin Auth about every active account, one
+  // round trip per hundred, and stopping there means "no clusters" was
+  // computed over whoever sorted first. Said out loud, because an absence
+  // of flags is the whole output of this fold on an ordinary night.
+  if (vel && vel.authScanned < vel.authTotal) {
+    log.warn(
+      `[velocity] the birth-cluster scan read ${vel.authScanned} of ${vel.authTotal} active accounts before the pass's clock — its "no clusters" covers that many, and the window advances anyway, so what it did not look at is not deferred`,
+      { metric: "velocity_auth_partial", scanned: vel.authScanned, total: vel.authTotal },
+    );
+  }
   // The heal speaks only when it healed: in steady state the trigger
   // wrote every entry live and the heal's read finds nothing missing, so
   // a line every night would be a heartbeat for the absence of work. A
   // healed count is the thing worth seeing — it means a live write was
   // missed, and monitoring should notice a night with many.
-  const heal = await attempt("answerMaps", r.answerMaps);
+  const heal = await attempt("answerMaps", () => r.answerMaps(sliceDeadline(ANSWER_MAP_HEAL_SLICE_MS)));
   // The log's reconcile speaks for itself too (`log_reconcile`), and runs
   // after the heal so a night that dies in the folds still mirrors the
   // day — the ledger keeps it for ninety days either way.
   await attempt("log", r.log);
   // The fan-out heal speaks only when it healed, like the map heal: a
   // healed account is a stamp change the budget refused in the day.
-  const fan = await attempt("fanout", r.fanout);
+  const fan = await attempt("fanout", () => r.fanout(sliceDeadline(FANOUT_HEAL_SLICE_MS)));
   if (fan && fan.pending > 0) {
     // A backlog is a WARNING, not a line in the info stream: the heal is
     // what keeps the header's promise that the last name lands within a
     // day, and a night that did not reach everyone is a night that
     // promise was not kept for. Not a count — the query stops one past
     // the cap and does not know how many more there are.
-    (fan.left ? log.warn : log.info)(
+    (fan.left || fan.stopped ? log.warn : log.info)(
       `[v2] fan-out heal: ${fan.healed} of ${fan.pending} deferred stamp change(s) applied, ${fan.touched} sample(s) touched`
+      // Two different facts, and the second is the one about THIS pass:
+      // a long queue is the app being busy, a short night is this runner
+      // spending the folds' share of the 480 seconds behind it.
+      + (fan.stopped ? " — STOPPED on the pass's clock with the page unfinished; the rest keep their markers for tomorrow" : "")
       + (fan.left ? ` — MORE than ${fan.pending} were waiting; the rest keep their markers for tomorrow` : ""),
       { metric: "profile_fanout_heal", ...fan });
+  }
+  // …and a heal the clock ended speaks whether or not it healed anything,
+  // which the healed-only rule above cannot do: the people it did not
+  // reach are not in tomorrow's queue (this fold reads yesterday and
+  // nothing else), so a stop is the one outcome that must never be
+  // silent.
+  if (heal?.stopped) {
+    log.warn(
+      `[answerMaps] heal STOPPED on the pass's clock after ${heal.people - heal.unreached} of ${heal.people} people on ${heal.day} — ${heal.unreached} unread, and tomorrow heals tomorrow's day, not this one`,
+      { metric: "answer_map_heal_stopped", ...heal },
+    );
   }
   if (heal && heal.healed > 0) {
     log.warn(`[answerMaps] heal filled ${heal.entries} entr${heal.entries === 1 ? "y" : "ies"} for ${heal.healed} of ${heal.people} people on ${heal.day} — the trigger missed a live write`, { metric: "answer_map_heal", ...heal });
@@ -188,7 +253,7 @@ export async function runNightlyPass(r: NightlyRunners, log: NightlyLog = logger
   }
   // …and rung 2's rollups (R3/D272), unfolded-flag driven so late
   // arrivals sweep like late shards do.
-  const roll = await attempt("rollup", r.rollup);
+  const roll = await attempt("rollup", () => r.rollup(sliceDeadline(ROLLUP_FOLD_BUDGET_MS)));
   if (roll?.capped) {
     // The TIME budget ended the night (DATA-EFFICIENCY-RUNBOOK 4.1) — a
     // full page is no longer a stop — so the number that matters is what
@@ -249,12 +314,12 @@ export const digestEngagementV2 = onSchedule(
       digest: () => runEngagementDigest(firestoreEngagementStore(db, ledgerDay), now),
       patterns: () => runPatternsFit(firestorePatternsStore(db, ledgerDay), now),
       taste: () => runTasteFold(firestoreTasteStore(db, ledgerDay), now),
-      velocity: () => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now),
-      answerMaps: () => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now),
+      velocity: (deadlineAt) => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now, logger, { deadlineAt }),
+      answerMaps: (deadlineAt) => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now, { deadlineAt }),
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
-      fanout: () => runFanoutHeal(firestoreFanoutHealStore(db)),
+      fanout: (deadlineAt) => runFanoutHeal(firestoreFanoutHealStore(db), { deadlineAt }),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
-      rollup: () => runRollupFold(firestoreRollupStore(db)),
+      rollup: (deadlineAt) => runRollupFold(firestoreRollupStore(db), ROLLUP_FOLD_CAP, { deadlineAt }),
     });
   },
 );

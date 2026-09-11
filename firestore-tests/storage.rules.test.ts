@@ -107,9 +107,24 @@ describe("storage: the profile photo (D178)", () => {
     await assertSucceeds(getBytes(avatar(asAnonAuth(), OWNER)));
   });
 
-  it("but not by the signed-out world", async () => {
-    // The bucket is not a public CDN. Signed-in is the floor everywhere
-    // else in this app and it is the floor here.
+  it("but not by the signed-out world THROUGH THE SDK — which is not how the app draws it", async () => {
+    // What this proves and what it does not, because the sentence that
+    // stood here — "the bucket is not a public CDN, signed-in is the
+    // floor everywhere else in this app and it is the floor here" — was
+    // true of this call and false of the app.
+    //
+    // PROVES: the SDK route (`getBytes`) obeys the rule, so a signed-out
+    // caller cannot read the object through the Firebase client.
+    //
+    // DOES NOT: say anything about how a face actually reaches a screen.
+    // The app never calls getBytes for a photo — `avatarUrl`
+    // (src/v2/data/avatar.ts) builds the download-token endpoint,
+    // `…?alt=media&token=…`, and an `<img>` fetches it. That endpoint
+    // does not evaluate Security Rules, so this assertion cannot fail for
+    // the thing it was read as promising, and no assertion in an
+    // emulator can: the token is a bearer credential and the served
+    // audience is anyone holding the link. storage.rules carries the
+    // whole argument and what it would cost to change.
     await env.withSecurityRulesDisabled(async (ctx) => {
       await uploadBytes(avatar(ctx.storage(), OWNER), small(), JPEG);
     });

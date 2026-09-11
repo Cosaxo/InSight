@@ -405,6 +405,10 @@ function LiveTakesPanel({ gid, qid, options }: {
   const canFilter = wantSides && perSide.some((n) => n > 0);
   const openSide = canFilter && side >= 0 && side < opts.length ? side : -1;
   const takes = openSide < 0 ? all : all.filter((t) => sideOf[t.authorUid] === openSide);
+  // Read here rather than inside the empty branch: the store notifies on
+  // both edges of the read, so this has to be part of what the render
+  // depends on.
+  const takes$ = LIVE.social.takesState(gid, qid);
   // World scope: one take per person per question — the doc id enforces it
   // (qid_uid, rules), so the composer folds away instead of inviting a
   // write the server must refuse. Measured on the WHOLE list, not the
@@ -495,18 +499,28 @@ function LiveTakesPanel({ gid, qid, options }: {
           {/* Paused before empty (D332): unloaded is not "nobody wrote".
               The composer stays — writing still works, and your own take
               echoes locally until the next real fetch. */}
-          {/* READING IS NOT EMPTY, and both sentences below are claims
-              about the room rather than about the read: `takes()` answers
-              [] for "never fetched", "in flight" and "genuinely nothing"
-              alike. The paused arm stays in front — that state is true
-              whatever the query would have found. */}
+          {/* READING IS NOT EMPTY, and neither is REFUSED: the two
+              sentences at the bottom are claims about the room rather
+              than about the read, and `takes()` answers [] for "never
+              fetched", "in flight", "the query threw" and "genuinely
+              nothing" alike. `takesState` is the reader that keeps them
+              apart — the in-flight flag alone left the failed read
+              printing "No takes yet. Say the first thing." for the life
+              of the mount, which is a definite claim about a room that
+              may be full and an invitation to be first in it. The
+              composer below is outside this branch on purpose: writing
+              still works when the read did not. The paused arm stays in
+              front — that state is true whatever the query would have
+              found. */}
           {LIVE.budgetPaused
             ? <>{BUDGET_PAUSED_BODY}</>
-            : LIVE.social.takesLoading(gid, qid)
+            : takes$ === "loading"
               ? <>Reading the room…</>
-              : openSide >= 0
-                ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
-                : <>No takes yet. Say the first thing.</>}
+              : takes$ === "failed"
+                ? <>Couldn’t read the takes here. Close and reopen to try again.</>
+                : openSide >= 0
+                  ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
+                  : <>No takes yet. Say the first thing.</>}
         </span>
       )}
       {mineAlready ? (

@@ -85,14 +85,21 @@ Each `history` pass plays the next round and closes it, so the streak
 reads as a run up to today whatever order you run things in — under the
 day it mattered, and that paragraph is gone with it.
 
-Two limits the harness states rather than hides:
+One limit the harness states rather than hides:
 
-- **Backfill reaches 3 days, not 6.** `firestore.rules` accepts a duel answer
-  while `timestamp.date(day) > request.time - 4d`, and the day key is
-  midnight UTC, so `-4` clears that bound only in the small hours.
-- **A duo backfill only settles days you also played.** `shouldReveal` is
-  both-or-nothing for duos, so the harness reports the days it could not
-  reveal instead of writing one-sided history.
+- **Backfill is bounded in ROUNDS, at 14 a run.** `cmdHistory` plays and
+  reveals one round at a time up to `MAX_BACKFILL_ROUNDS`
+  (`scripts/test-users.mjs`) and warns when you ask for more — run it
+  again for the next fourteen.
+
+BOTH OF THE LIMITS THAT STOOD HERE DESCRIBED A MECHANISM THAT IS GONE.
+One said backfill "reaches 3 days, not 6" because `firestore.rules`
+bounds a duel answer at `request.time - 4d`: that day window is the
+PULSE'S now, and the rules say so in place — D426 moved duels off day
+keys onto rounds and D433's pass took the window out of that arm
+entirely. The other named `shouldReveal`, which does not exist anywhere
+in the tree. A harness note is a thing somebody follows at two in the
+morning, so a wrong one costs more than a wrong aside.
 
 `reset` forgets the roster; `reset --purge` deletes the accounts through the
 real `deleteAccount` callable. Neither rolls back the aggregate counts their
@@ -106,7 +113,7 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 221 security-rules tests (Firestore + Storage emulators), then the coverage ratchet and the budget gate
+npm run test:rules            # 222 security-rules tests (Firestore + Storage emulators), then the coverage ratchet and the budget gate
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
