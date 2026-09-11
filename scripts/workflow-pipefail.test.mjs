@@ -488,3 +488,82 @@ describe("a job that runs a remote script keeps no credential on disk", () => {
     expect(/persist-credentials:\s*false/.test(jobs(fixed)[0].text)).toBe(true);
   });
 });
+
+/**
+ * WHY THIS RULE EXISTS. GitHub evaluates every dollar-double-brace
+ * expression in a run body before bash is handed the script — the same
+ * substitution the free-text rule above is about — and it evaluates the
+ * WHOLE body, comments included: a bash comment is not a YAML comment.
+ * So an expression that does not parse, anywhere in a run body, is not a
+ * bad line but an INVALID WORKFLOW FILE. GitHub refuses the file whole,
+ * cannot read its branch filter either, and so creates a failed run with
+ * zero jobs on every push to every branch, named after the file path
+ * rather than the workflow.
+ *
+ * #498 did exactly that in firebase-deploy.yml: a bash comment explaining
+ * this very substitution wrote its syntax literally, and empty. Runs
+ * 225–258, 2026-09-11 18:06Z–22:33Z, and no production deploy for #498
+ * or #500 in that window. Every local gate was green — the YAML parses —
+ * and this file could not have seen it either: `readWorkflow` blanks `#`
+ * comments, which is why THIS rule reads the raw text. The stripper would
+ * erase the exact characters that broke the file.
+ *
+ * `auth-config.yml` and `play-release.yml` carry the same literal safely,
+ * between YAML keys where the YAML parser strips it before GitHub reads a
+ * single expression; runBlocks() does not reach those lines. The rule is
+ * the empty expression only — the one shape that has actually shipped —
+ * rather than a grammar for GitHub's expression language, which would be
+ * a much larger thing to get wrong.
+ */
+describe("no run body carries an empty expression", () => {
+  const EMPTY = /\$\{\{\s*\}\}/;
+  const ANY = /\$\{\{[^}]*\}\}/g;
+  const rawRunBlocks = (f) => runBlocks(readFileSync(join(dir, f), "utf8"));
+
+  it("finds expressions in run bodies at all — the rule must not pass vacuously", () => {
+    const n = files.reduce(
+      (acc, f) => acc + rawRunBlocks(f).reduce((m, s) => m + (s.body.match(ANY) || []).length, 0),
+      0,
+    );
+    expect(n, "no expression found in any run body — runBlocks() has stopped parsing").toBeGreaterThan(3);
+  });
+
+  for (const f of files) {
+    if (!rawRunBlocks(f).length) continue;
+    it(`${f} has no empty expression in any run body`, () => {
+      const bad = rawRunBlocks(f)
+        .filter((s) => EMPTY.test(s.body))
+        .map((s) => (s.head.split("\n").find((l) => /^\s*-\s+name:/.test(l)) || "(unnamed step)").trim());
+      expect(
+        bad,
+        `${f}: an empty \`\${{ }}\` inside a run body — GitHub evaluates the body, comments included, `
+          + "and refuses the whole workflow file. Name the syntax instead of writing it.",
+      ).toEqual([]);
+    });
+  }
+
+  it("the rule can actually fail — a positive control", () => {
+    // The exact shape that shipped: the literal inside a bash comment,
+    // inside a run body, with a YAML comment on the same theme above the
+    // step that must NOT count.
+    const src = [
+      "jobs:",
+      "  demo:",
+      "    steps:",
+      "      # a YAML comment may say `${{ }}` — the parser strips it",
+      "      - name: Write a file",
+      "        run: |",
+      "          # THROUGH THE ENVIRONMENT, never the run body: `${{ }}` is",
+      "          # a textual substitution GitHub performs before bash",
+      "          echo hi",
+      "",
+    ].join("\n");
+    const [only] = runBlocks(src);
+    expect(only.head.includes("Write a file")).toBe(true);
+    expect(only.body.includes("a YAML comment"), "the YAML comment above the step is not part of the body").toBe(false);
+    expect(EMPTY.test(only.body), "the bash comment inside the body carries the empty expression").toBe(true);
+    // …and readWorkflow's stripper would have hidden it, which is why the
+    // rule reads raw text.
+    expect(EMPTY.test(runBlocks(stripYamlComments(src))[0].body)).toBe(false);
+  });
+});
