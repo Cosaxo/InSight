@@ -647,6 +647,48 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
     data: { qid: id, surface, optionIdx: 0, answeredAt: { toMillis: () => 5 } },
   });
 
+  it("the feed mirror follows an edit made on ANOTHER device", async () => {
+    // The feed renders prior votes from `insight.feedVotes.v1`, not from
+    // the store — and the mirror wrote an id only once, so an edit that
+    // arrived through hydrate's delta (the only way another device's edit
+    // reaches this one) left the entry at the pre-edit option. The card
+    // highlighted the option the reader had moved AWAY from, and tapping
+    // the one they had actually chosen was refused with "your vote
+    // stands". Permanent on that device: nothing else rewrote the entry.
+    h.bankDocs.push(bank("q_moved", {}));
+    h.answerDocs.push({
+      id: "q_moved",
+      data: { qid: "q_moved", surface: "feed", optionIdx: 1, answeredAt: { toMillis: () => 5 } },
+    });
+    storage.setItem(WF_LS, JSON.stringify({ q_moved: 0 }));
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ q_moved: "1" });
+    expect(
+      JSON.parse(storage.getItem(WF_LS) || "{}"),
+      "the feed mirror kept the pre-edit option, so the card highlights the wrong one",
+    ).toMatchObject({ q_moved: 1 });
+  });
+
+  it("…and leaves a dial's own position alone — the control", async () => {
+    // A dial mirrors as its BUCKET'S MIDPOINT, while the local entry is
+    // the reader's exact position on the range. Replacing it would round
+    // their dial on every boot, and nothing here can tell "the answer
+    // changed" from "the same answer, stored more precisely" — the
+    // inverse of the midpoint map lives in the spec layer. So the old
+    // behaviour stands for the two continuum types, deliberately.
+    h.bankDocs.push(bank("q_dial", { type: "dial", lo: 0, hi: 10, options: ["0", "10"] }));
+    h.answerDocs.push({
+      id: "q_dial",
+      data: { qid: "q_dial", surface: "feed", optionIdx: 6, answeredAt: { toMillis: () => 5 } },
+    });
+    storage.setItem(WF_LS, JSON.stringify({ q_dial: 5.42 }));
+    await bootLive();
+    expect(
+      JSON.parse(storage.getItem(WF_LS) || "{}").q_dial,
+      "the reader's own dial position was rounded to a bucket midpoint",
+    ).toBe(5.42);
+  });
+
   it("reads the fit's published count off v2_meta/app", async () => {
     h.getDocImpl = (path) => (path === "v2_meta/app"
       ? { patternsPool: 30, patternsBasis: 8 }

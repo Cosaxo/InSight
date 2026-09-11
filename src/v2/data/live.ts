@@ -2087,9 +2087,37 @@ function mirrorFeedVotes(): void {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v == null || wf[q.id] != null) return;
+      if (v == null) return;
       const mv = mirrorVoteValue(q, v);
-      if (mv != null) wf[q.id] = mv;
+      if (mv == null) return;
+      // AN EXISTING ENTRY IS REPLACED ONLY WHERE THAT CANNOT LOSE
+      // ANYTHING, which is the plain vote card — its mirror value IS the
+      // stored option index, in the same units.
+      //
+      // Why it has to be replaced at all: a D86 edit made on ANOTHER
+      // device arrives here through hydrate's edit delta, which writes
+      // `state.votes` and nothing else. The guard that stood here was
+      // `wf[q.id] != null`, so the mirror kept the pre-edit option — and
+      // `world-feed.jsx` renders from the mirror, not from the store. The
+      // card highlighted the option the reader had moved AWAY from, and
+      // tapping the one they had actually chosen was refused with "your
+      // vote stands". Permanent on that device: nothing else ever rewrote
+      // the entry. The paragraph at hydrate's edit query reasons at
+      // length about one way an edit fails to propagate and misses this
+      // one.
+      //
+      // Why NOT for a dial or a field: their mirror value is the bucket's
+      // MIDPOINT, and the local entry is the reader's own exact position
+      // on the range. Replacing it would round their dial every boot, and
+      // telling "the answer changed" from "the same answer, stored more
+      // precisely" needs the inverse of the midpoint map, which lives in
+      // the spec layer that data/ cannot import (the note above
+      // `mirrorVoteValue` says why the midpoint math is duplicated at
+      // all). So they keep the old behaviour, and the gap is written down
+      // rather than closed by rounding.
+      const replaceable = q.type !== "dial" && q.type !== "field";
+      if (wf[q.id] != null && !replaceable) return;
+      wf[q.id] = mv;
     });
     lsSet(WF_LS, JSON.stringify(wf));
   } catch {
