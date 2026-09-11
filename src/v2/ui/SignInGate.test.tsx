@@ -21,7 +21,7 @@
 // for a walled test build. "Costs nothing when it is off" stopped being a
 // courtesy to the test track and became the shipping path.
 //
-// Four properties, each a way this file can be wrong while tsc, eslint and
+// Five properties, each a way this file can be wrong while tsc, eslint and
 // check:globals all stay green:
 //
 //   1. A build that will not show the wall never asks for it. The lazy
@@ -30,10 +30,10 @@
 //      nothing static can see it: `import LiveSignInGate from
 //      "./LiveSignInGate"` here type-checks, renders identically, passes
 //      every other gate, and shows up only in a bundle ceiling that runs
-//      after a full build. Held twice — the flag off, and the flag on with
-//      a session already linked, which is the returning tester and the
-//      reason the `import()` sits inside the lazy thunk rather than at
-//      module scope.
+//      after a full build. Held twice — the flag off, and the flag on for
+//      a device that has already passed the wall, which is the returning
+//      tester and the reason the `import()` sits inside the lazy thunk
+//      rather than at module scope.
 //   2. Off, it is INVISIBLE — no element of its own between `#root` and
 //      the app. `#root { display: contents }` is in styles.css so `.app`
 //      is body's flex child; a wrapper here would take that place and
@@ -42,7 +42,7 @@
 //      one frame, not hidden. A `fallback` that leaked `children` is a
 //      wall with a hole in it, and the app's mount effects would run
 //      behind a screen that exists to precede them.
-//   4. The wall comes DOWN. `linked` flips on the store's auth observer,
+//   4. The wall comes DOWN. `wallPass` flips on the store's auth observer,
 //      not on a remount, so the subscription is the whole mechanism: drop
 //      it and a user who signs in successfully sits in front of the wall
 //      forever. The same case covers the panel header's hook-order
@@ -50,6 +50,15 @@
 //      early return above the hooks does not throw here — it makes the
 //      WALLED render subscribe to nothing, so the wall simply never comes
 //      down. Measured while mutation-checking, not predicted.
+//   5. It asks the STORE whether the wall is up, in one read, and honours
+//      the answer in its FIRST frame (D453). The two flags this used to
+//      compose here are both false until the auth observer has spoken,
+//      which is several hundred milliseconds after the render D356
+//      releases off the device's own caches — so the composition put the
+//      sign-in screen in front of every returning signed-in user and then
+//      took it away. The mock below is the pin: it offers `wallPass` and
+//      nothing else, so a component that goes back to composing `linked`
+//      and `needsEmailVerify` walls every case in the file.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
@@ -62,7 +71,11 @@ import { useEffect } from "react";
 const LIVE = vi.hoisted(() => {
   const subs = new Set<() => void>();
   return {
-    linked: false,
+    /**
+     * The wall's verdict, composed in the store since D453 — auth's word
+     * once there is one, this device's last verdict until then.
+     */
+    wallPass: false,
     subscribe(fn: () => void) {
       subs.add(fn);
       return () => { subs.delete(fn); };
@@ -105,7 +118,7 @@ const gate = () => render(<SignInGate><TheApp /></SignInGate>);
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 
 beforeEach(() => {
-  LIVE.linked = false;
+  LIVE.wallPass = false;
   mounts = 0;
 });
 
@@ -133,16 +146,24 @@ describe("the screen is fetched only by a build that will show it", () => {
     expect(container.firstElementChild).toBe(screen.getByTestId("app"));
   });
 
-  it("is never asked for by a walled build whose session is already linked", async () => {
+  it("is never asked for by a walled build whose device already passed the wall", async () => {
     // The returning tester, and the reason the `import()` lives inside the
     // lazy thunk instead of at module scope: with the flag ON, a build
     // that never renders the wall must still not pay for it.
     vi.stubEnv("VITE_REQUIRE_SIGNIN", "true");
-    LIVE.linked = true;
+    LIVE.wallPass = true;
 
-    gate();
+    const { container } = gate();
+
+    // THE FIRST FRAME, asserted before anything is awaited (D453). This is
+    // the whole of the reported bug: the app has to be on screen in the
+    // render that happens, not in a later one that a store notification
+    // triggers, because on a device the gap between them is the auth
+    // restore and it is long enough to read.
+    expect(screen.getByText("the app")).toBeTruthy();
+    expect(container.firstElementChild).toBe(screen.getByTestId("app"));
+
     await settle();
-
     expect(screen.getByText("the app")).toBeTruthy();
     expect(chunk.fetched).toBe(0);
   });
@@ -186,7 +207,7 @@ describe("with the wall on", () => {
     // wrapper — `main.jsx` keeps the same element at the root precisely so
     // React never does — so without the subscription the wall stays up
     // over a signed-in user, with the sign-in button still on it.
-    LIVE.linked = true;
+    LIVE.wallPass = true;
     await act(async () => { LIVE.announce(); });
 
     expect(screen.getByText("the app")).toBeTruthy();
@@ -194,5 +215,29 @@ describe("with the wall on", () => {
     // Once: the app was not mounted behind the wall, and the wall coming
     // down did not throw away the mount it finally got.
     expect(mounts).toBe(1);
+  });
+
+  // LAST IN THE FILE, because it is the only case that needs the chunk
+  // already resolved: it starts with the wall DOWN, so the fetch it
+  // eventually makes must not be the one another case is counting.
+  it("goes back up when auth contradicts the device's own verdict", async () => {
+    // The failure mode the provisional answer buys, priced rather than
+    // ignored (D453): a device whose mirror says the wall was passed, for
+    // a session auth then reports as anonymous — revoked, deleted
+    // elsewhere, or storage cleared unevenly. The app is on screen for
+    // the length of the auth restore and the wall then closes over it.
+    LIVE.wallPass = true;
+    gate();
+    expect(screen.getByText("the app")).toBeTruthy();
+
+    // The store's first word from auth. It is announced even though no
+    // flag of auth's own moved — live.ts notifies on the FIRST
+    // observation for exactly this case — and without that announcement
+    // this screen never arrives.
+    LIVE.wallPass = false;
+    await act(async () => { LIVE.announce(); });
+
+    expect(await screen.findByText("the sign-in screen")).toBeTruthy();
+    expect(screen.queryByText("the app")).toBeNull();
   });
 });

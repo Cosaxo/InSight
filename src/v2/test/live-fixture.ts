@@ -931,6 +931,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // (profile-overlay.jsx, D344 amendment). A case that needs the linked
     // branch flips this in its prep.
     linked: false,
+    // …and the wall's own read of the same fact (D453). False with
+    // `linked`: the mount suites build a walled build only by stubbing
+    // VITE_REQUIRE_SIGNIN, and none of them does.
+    wallPass: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).

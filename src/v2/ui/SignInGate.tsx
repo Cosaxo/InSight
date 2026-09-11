@@ -55,16 +55,32 @@ const RETRY_MAX = 6;
 function SignInGate({ children }: { children?: React.ReactNode }) {
   const [, tick] = React.useState(0);
   const [Screen, setScreen] = React.useState<React.ComponentType | null>(null);
-  // `LIVE.linked` flips when the anonymous session is upgraded, and the
+  // `LIVE.wallPass` flips when the anonymous session is upgraded, and the
   // store announces that (D134's live.ts half) — without the subscription
-  // the wall would stay up after a successful sign-in.
+  // the wall would stay up after a successful sign-in. Since D453 it also
+  // carries the correction in the other direction: the first thing auth
+  // says is announced even when it moves neither flag, which is the only
+  // way a wall opened off the mirror can close again.
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
 
   // Computed before the effect and read by both, so the two cannot
   // disagree about whether the wall is up. Same build constant as the
   // return below — see the note there for why an early return after hooks
   // is safe in this component.
-  const wall = signInRequired() && !(LIVE.linked && !LIVE.needsEmailVerify);
+  //
+  // ONE STORE MEMBER RATHER THAN THE TWO FLAGS COMPOSED HERE (D453).
+  // `linked` and `needsEmailVerify` are both false until the auth
+  // observer has spoken, and this component renders long before that —
+  // D356 releases the render off the device's own caches, before the
+  // Auth SDK has even been imported. So composing them here meant the
+  // wall was UP for every returning signed-in user until the auth
+  // restore landed, and then came down: the flash the owner reported
+  // from a device on 2026-09-11. `wallPass` answers provisionally off
+  // the verdict auth last handed this device and switches to auth's own
+  // word the moment there is one, announcing the correction through the
+  // subscription above — so a session that really did end still meets
+  // the wall, a beat later instead of a beat early.
+  const wall = signInRequired() && !LIVE.wallPass;
 
   // THE FETCH, WITH A RETRY, because the whole point of leaving
   // `React.lazy` is that a first failure must not be final. Bounded: six
@@ -99,14 +115,10 @@ function SignInGate({ children }: { children?: React.ReactNode }) {
   // at BUILD time, so it is constant for the life of the process and the
   // hook order above can never change between renders of one instance.
   //
-  // TWO CONDITIONS, NOT ONE. An account created at the email door exists
-  // the moment Firebase accepts the password — linked is already true —
-  // and nothing has yet shown that the address belongs to whoever typed
-  // it. Passing on `linked` alone would let a typo'd or borrowed address
-  // through with a full account behind it, and the reset mail that is the
-  // only way back into such an account goes to the wrong inbox. Apple and
-  // Google hand over an address they have already verified, so they never
-  // meet this arm (live.ts's observer has the precise rule).
+  // What `wallPass` is composed of, and why it is TWO conditions rather
+  // than one, is written at the getter (`data/live.ts`) — it moved there
+  // with the composition, because the unverified-address arm is a fact
+  // about the account rather than about this component.
   if (!wall) {
     return <>{children}</>;
   }
