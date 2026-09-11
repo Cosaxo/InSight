@@ -158,9 +158,21 @@ export function compilePickItems(
       counts.set(qid, m);
     }
   }
+  return pickItemsFromCounts(counts, floor, cap);
+}
+
+/** The same rule from counts already taken — what the streamed fit uses,
+ * because it cannot hold the people to count them twice. The two halves
+ * are split rather than duplicated so the floor, the cap and the tie
+ * order can only be written once. */
+export function pickItemsFromCounts(
+  counts: ReadonlyMap<string, ReadonlyMap<string, number>>,
+  floor: number = PICK_ITEM_FLOOR,
+  cap: number = PICK_ITEM_CAP,
+): ItemSpec[] {
   const out: ItemSpec[] = [];
   for (const qid of [...counts.keys()].sort()) {
-    const kept = [...(counts.get(qid) as Map<string, number>).entries()]
+    const kept = [...(counts.get(qid) as ReadonlyMap<string, number>).entries()]
       .filter(([, n]) => n >= floor)
       .sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0))
       .slice(0, cap);
@@ -242,6 +254,16 @@ export function compileAnchorItems(
       counts.set(dim, m);
     }
   }
+  return anchorItemsFromCounts(counts, floor, cap);
+}
+
+/** The same rule from counts already taken — the streamed fit's half,
+ * for `pickItemsFromCounts`'s reason. */
+export function anchorItemsFromCounts(
+  counts: ReadonlyMap<string, ReadonlyMap<string, number>>,
+  floor: number = ANCHOR_ITEM_FLOOR,
+  cap: number = BREAKDOWN_MAX_BUCKETS,
+): ItemSpec[] {
   const out: ItemSpec[] = [];
   for (const dim of BREAKDOWN_DIMS) {
     const m = counts.get(dim);
@@ -732,6 +754,170 @@ export function alsFit(
     }
   }
   return model;
+}
+
+// ── the same fit, streamed (DATA-EFFICIENCY-RUNBOOK 4.3) ─────────────
+//
+// `alsFit` above takes the crowd as an array — every person's answer map
+// resident at once, ~1 KB a person, which the header of patterns.ts
+// priced at 150 MB near 150,000 people on the instance the pass runs on,
+// and a pass that dies before it advances its cursor dies the same way
+// every night after. The solve does not need the crowd resident: the
+// item step needs, per item, only the Gram of the person-vectors that
+// answered it and their residual-weighted sum — K×K + K numbers — and the
+// person step needs only that person's own map and the current rows. So
+// this version takes a SCAN — a function that visits every person once —
+// and runs it once per sweep, holding the per-item sufficient statistics
+// and nothing per person. Bit-for-bit the same arithmetic as alsFit when
+// the scan visits people in uid order (the buffered fit sorts, and the
+// Firestore scan is path-ordered, which is uid-ordered); patternsAls
+// .test.ts holds the two together.
+//
+// The price is reads: 1 + ALS_SWEEPS scans of the fitted people a night
+// where the buffered fit read them once (cost-arith's
+// PATTERNS_SCAN_READS_PER_MAU). The incremental step — keeping the
+// per-item statistics between nights and re-reading only the people who
+// answered since — is the runbook's 4.3b and is not built here.
+
+/** Visit every fitted person once, in a stable order. The callback takes
+ * the whole person, not the answer map alone: the anchor and pick items
+ * (D452, D453) are compiled from the population, and the population is
+ * exactly what a scan walks. */
+export type PeopleScan = (each: (uid: string, person: { a: AnswerMap } & PersonKnown) => void) => Promise<void>;
+
+/** Per-item sufficient statistics for one item step: Σ θθᵀ and Σ rθ over
+ * the people who answered it, plus how many did. */
+interface ItemAcc {
+  A: number[][];
+  b: number[];
+  n: number;
+}
+
+const newAcc = (k: number): ItemAcc => ({
+  A: Array.from({ length: k }, () => new Array<number>(k).fill(0)),
+  b: new Array<number>(k).fill(0),
+  n: 0,
+});
+
+export async function alsFitStreamed(
+  prev: AlsModel | null,
+  scan: PeopleScan,
+  index: ItemIndex,
+  k: number = PATTERNS_K,
+  opts: { sweeps?: number; lambda?: number } = {},
+): Promise<{ model: AlsModel; people: number }> {
+  const sweeps = opts.sweeps ?? ALS_SWEEPS;
+  const lam = opts.lambda ?? ALS_LAMBDA;
+  // Pass 0: the item statistics — counts, recomputed from the maps every
+  // night, exactly as the buffered fit computes them.
+  //
+  // The anchor and pick items (D452, D453) are compiled HERE rather than
+  // by the caller, which is the one place the streamed shape differs from
+  // the buffered one: their floors and caps are counts over the whole
+  // population, and a scan is the only thing that has seen it. The counts
+  // ride along on this pass, so it costs no extra read.
+  const stats: Record<string, { n: number; sum: number; sumSq: number }> = {};
+  const anCounts = new Map<string, Map<string, number>>();
+  const pickCounts = new Map<string, Map<string, number>>();
+  const bump = (m: Map<string, Map<string, number>>, outer: string, inner: string) => {
+    const t = m.get(outer) ?? new Map<string, number>();
+    t.set(inner, (t.get(inner) ?? 0) + 1);
+    m.set(outer, t);
+  };
+  let people = 0;
+  await scan((_uid, person) => {
+    people += 1;
+    for (const { key, x } of encodedOf(index, person)) {
+      const t = (stats[key] ??= { n: 0, sum: 0, sumSq: 0 });
+      t.n += 1;
+      t.sum += x;
+      t.sumSq += x * x;
+    }
+    const an = validAnchors(person.an);
+    if (an) for (const [dim, value] of Object.entries(an)) bump(anCounts, dim, value);
+    if (person.p) {
+      for (const [qid, entity] of Object.entries(person.p)) {
+        if (typeof entity === "string" && entity) bump(pickCounts, qid, entity);
+      }
+    }
+  });
+  const extra = [...anchorItemsFromCounts(anCounts), ...pickItemsFromCounts(pickCounts)];
+  // An anchor or pick item's statistics, exactly what `itemStats` counts
+  // from the people — derived rather than re-scanned, because the counts
+  // already determine them. Everyone carrying the dim (or answering the
+  // catalogue question) is ONE observation of EVERY kept item there: +1 on
+  // their own value, −1 on the rest. So the basis is the carriers, the sum
+  // is `2c − n`, and every value is ±1, so the sum of squares is the basis.
+  // Pinned against `itemStats` in patternsAls.test.ts.
+  for (const s of extra) {
+    const m = s.kind === "anc" ? anCounts.get(s.dim as string) : pickCounts.get(s.qid);
+    if (!m) continue;
+    let n = 0;
+    for (const c of m.values()) n += c;
+    const c = m.get((s.kind === "anc" ? s.bucket : s.entity) as string) ?? 0;
+    stats[s.key] = { n, sum: 2 * c - n, sumSq: n };
+  }
+  const full = extra.length ? indexItems([...index.specs, ...extra]) : index;
+  const keys = Object.keys(stats).sort();
+  const rows: Record<string, AlsRow> = {};
+  const items: Record<string, ItemMeta> = {};
+  for (const key of keys) {
+    const s = full.byKey.get(key) as ItemSpec;
+    const t = stats[key];
+    const sd = s.kind === "ord" ? sdOf(t) : undefined;
+    const warm = prev?.rows[key]?.v;
+    rows[key] = {
+      v: warm && warm.length === k ? [...warm] : seedLoading(key, k).map((x) => x * 4),
+      n: t.n,
+      sum: t.sum,
+      ...(sd === undefined ? {} : { sd }),
+    };
+    items[key] = {
+      kind: s.kind, qid: s.qid, nOptions: s.nOptions,
+      ...(s.opt === undefined ? {} : { opt: s.opt }),
+      ...(s.dim === undefined ? {} : { dim: s.dim, bucket: s.bucket as string }),
+      ...(s.entity === undefined ? {} : { entity: s.entity }),
+    };
+  }
+  const model: AlsModel = { k, rows, items };
+  if (!people) return { model, people };
+  // Passes 1..sweeps: each person's vector from the rows as they stand,
+  // folded into the per-item statistics; then every item from those.
+  for (let sw = 0; sw < sweeps; sw++) {
+    const acc = new Map<string, ItemAcc>();
+    await scan((_uid, person) => {
+      const obs: { key: string; r: number }[] = [];
+      for (const { key, x } of encodedOf(full, person)) {
+        const row = rows[key];
+        if (!row) continue;
+        const r = residualOf(items[key], row, x);
+        if (r !== null) obs.push({ key, r });
+      }
+      if (!obs.length) return;
+      const theta = ridgeTheta(obs.map((o) => ({ L: rows[o.key].v, r: o.r })), k, lam * obs.length + 0.5);
+      for (const o of obs) {
+        let t = acc.get(o.key);
+        if (!t) { t = newAcc(k); acc.set(o.key, t); }
+        t.n += 1;
+        for (let i = 0; i < k; i++) {
+          t.b[i] += o.r * theta[i];
+          const Ai = t.A[i];
+          const ti = theta[i];
+          for (let j = 0; j < k; j++) Ai[j] += ti * theta[j];
+        }
+      }
+    });
+    for (const key of keys) {
+      const t = acc.get(key);
+      if (!t?.n) continue;
+      const ridge = lam * t.n + 0.5;
+      const A = t.A.map((row, i) => row.map((x, j) => (i === j ? x + ridge : x)));
+      const v = solve(A, t.b);
+      const norm = Math.sqrt(v.reduce((a, x) => a + x * x, 0));
+      rows[key].v = norm > 1 ? v.map((x) => x / norm) : v;
+    }
+  }
+  return { model, people };
 }
 
 // ── the scorecard, one step ahead ────────────────────────────────────

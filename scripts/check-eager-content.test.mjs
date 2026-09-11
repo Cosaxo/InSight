@@ -134,6 +134,46 @@ describe("check:eager-content", () => {
     expect(r.out).toContain("src/v2/spec/archetype-data.js");
   });
 
+  it("REFUSES a content module the CONTENT set does not name, eager or not", () => {
+    // The set is hand-maintained on purpose — a pattern over filenames
+    // would quietly adopt or miss files as the tree moves — and that
+    // reasoning covers over-adoption while saying nothing about the
+    // missing direction. The missing direction has already happened:
+    // `test-definitions.js` was absent while a first-paint module
+    // imported it statically, so the gate reported "all 6 named as debt"
+    // with a seventh sitting in the eager graph, invisible to
+    // check:bundle because a module inlined into the entry chunk has no
+    // chunk of its own to name.
+    //
+    // NOT imported here, deliberately: a content file belongs in the set
+    // whether or not it is eager today, or the gate learns about it on
+    // the day it is already too late.
+    const r = runIn({
+      ...DEBT,
+      "src/v2/main.jsx": DEBT_IMPORTS,
+      "src/v2/spec/quiz-data.js": "export const QUIZ = [];\n",
+    });
+    expect(r.code).toBe(1);
+    expect(r.out).toMatch(/content by name, missing from CONTENT/);
+    expect(r.out).toMatch(/quiz-data\.js/);
+  });
+
+  it("…and does not adopt a spec module whose name announces nothing — the control", () => {
+    // The other direction, and the reason the rule is on the two
+    // CONVENTIONAL suffixes rather than on anything under spec/. An
+    // ordinary module is not content, and a gate that said so would fail
+    // on every file in the layer. It is also the honest limit of this
+    // rule: it would NOT have caught `test-definitions.js`, whose name
+    // announces nothing — which is exactly why that one was missed.
+    const r = runIn({
+      ...DEBT,
+      "src/v2/main.jsx": DEBT_IMPORTS,
+      "src/v2/spec/quiz-overlay.jsx": "export const Q = 1;\n",
+      "src/v2/spec/definitions.js": "export const D = 1;\n",
+    });
+    expect(r.code, r.out).toBe(0);
+  });
+
   it("treats any content/ seed as content, not just the listed modules", () => {
     const r = runIn({
       ...DEBT,

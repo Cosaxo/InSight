@@ -226,6 +226,33 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
         />
       );
     }
+    // AND THE READS THAT SETTLED AND RETURNED NOTHING — the state between
+    // the two arms above. `loadVoters` swallows each failure, leaves
+    // `state.voters[qid]` ABSENT on purpose (so a later open retries) and
+    // drops its loading flag, so after a total refusal `votersLoading` is
+    // false everywhere and execution used to fall straight through to the
+    // sentence below. Twelve lists that never arrived were reported as a
+    // crowd too thin — a confident claim about the crowd, made from
+    // nothing, which is the same failure the circle arm above it was
+    // added for.
+    //
+    // `field.basis` is the number that tells them apart and it was already
+    // being computed: its own comment reads "the basis is how many of
+    // those actually came back with rows, because a list that failed or
+    // was refused placed nobody". Until now its only reader was the legend
+    // of the DRAWN state, where it can never be zero.
+    //
+    // Zero basis with something asked for is the refusal; zero asked for
+    // is a reader who has answered nothing, which the thin sentence
+    // already says truthfully.
+    if (fetchSet.length > 0 && field.basis === 0) {
+      return (
+        <Empty
+          head="Could not read the crowd"
+          line="These questions' answers did not load, so this cannot say who is here. Try again in a moment."
+        />
+      );
+    }
     return pop === "circle"
       ? <Empty head="Crowd too thin" line="Nobody from your circle is placed here yet — you appear to each other as you both answer." />
       : <Empty head="Crowd too thin" line="Too few people share your questions yet. The map fills as the crowd answers." />;

@@ -93,20 +93,6 @@ const LEVERS = [
     notices: "nothing — until a region outage, which is the trade being made",
   },
   {
-    band: "client",
-    name: "Refresh only today on foreground",
-    change: "reattach reads DECK_DAYS -> 1 (the back days keep their boot values)",
-    opts: { deckListeners: 1 },
-    effort: "hours",
-    risk: "low",
-    // Now the SECOND-largest client term, because polling removed the one
-    // that used to dwarf it: `reattach` is bgCycles x DECK_DAYS reads a day
-    // against the poll's own handful. The app refreshes the whole deck on
-    // every foreground, which is the conservative choice; this lever is the
-    // less conservative one.
-    notices: "a back day's count can lag until the next cold boot",
-  },
-  {
     band: "product",
     name: "Kindred walks 4 lists, not 12",
     change: "KINDRED_QUESTIONS 12 -> 4",
@@ -123,15 +109,6 @@ const LEVERS = [
     effort: "one constant + a 'load more'",
     risk: "low",
     notices: "'the latest 50 of N' instead of 200 — the honesty rule already covers it",
-  },
-  {
-    band: "product",
-    name: "Circle reads 100 answers/member",
-    change: "CIRCLE_ANSWER_CAP 300 -> 100",
-    opts: { social: { circleAnswerCap: 100 } },
-    effort: "one constant",
-    risk: "low",
-    notices: "Circle compares over ~5 weeks of a member's answers, not ~13",
   },
   {
     band: "architecture",
@@ -252,9 +229,11 @@ const PATHS = [
   },
   {
     name: "R + the remaining client trim",
-    opts: merge(pick("Refresh only today on foreground", "Serve the bank off Hosting"),
+    // "Refresh only today on foreground" was a lever here until it shipped
+    // (DATA-EFFICIENCY-RUNBOOK 1.4); it is the baseline now, like polling.
+    opts: merge(pick("Serve the bank off Hosting"),
       { regional: true, streamAggs: false }),
-    note: "nothing a user can see, beyond a back day's count lagging a boot",
+    note: "nothing a user can see",
   },
   {
     name: "A · Keep it live",

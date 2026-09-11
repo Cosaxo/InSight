@@ -115,14 +115,20 @@ describe("cacheStore", () => {
     await cs.write("answers", [["q_1", "0"]], { meta: [["answers", { uid: "u" }]] });
     expect(listeners["insight:local-purge"]).toBeTypeOf("function");
     listeners["insight:local-purge"]();
-    // The listener's clear is fire-and-forget; clearAll from here queues
-    // behind it on the same connection, so awaiting a no-op settles the
-    // order before reading.
-    await cs.clearAll();
-    expect((await cs.readAll("bank")).size).toBe(0);
-    expect((await cs.readAll("aggs")).size).toBe(0);
-    expect((await cs.readAll("answers")).size).toBe(0);
-    expect(await cs.readMeta("answers")).toBeNull();
+    // WAITED FOR, not helped along. This used to `await cs.clearAll()`
+    // here — described as a sequencing device, since the listener's clear
+    // is fire-and-forget and a second call queues behind it on the same
+    // connection — and it doubled as the thing under test: replacing the
+    // listener's body with `Promise.resolve()` left this case green, and
+    // `check:purge` green beside it, because the test cleared the stores
+    // itself. Measured 2026-09-09, which is how it was found. Polling
+    // asserts what the listener DID and nothing else.
+    await vi.waitFor(async () => {
+      expect((await cs.readAll("bank")).size).toBe(0);
+      expect((await cs.readAll("aggs")).size).toBe(0);
+      expect((await cs.readAll("answers")).size).toBe(0);
+      expect(await cs.readMeta("answers")).toBeNull();
+    });
   });
 
   it("reads empty and swallows writes when IndexedDB does not exist", async () => {

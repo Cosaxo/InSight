@@ -25,8 +25,8 @@ still excuses it for an iOS build. **For an iOS launch the count is
 zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 138
-questions of 1264 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 142
+questions of 1536 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1264 questions land in `v2_questions` — idempotent and, since D34,
+      1536 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1264** after the K=5 test expansion, D103's
+      and the bank is **1536** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -588,6 +588,21 @@ arithmetic.
       `skipped` did not — rather than to read this file. Runs 15 and 16
       are the worked example: same commit `2933dc0`, eight minutes apart,
       `skipped` then `success`, so only one of the two spent a build.
+
+      **BUILD 34 UPLOADED 2026-09-07** (run 57, `9069f62`, upload step
+      `success`) — the first submittable build. The bump after it did not
+      happen: run 58 on 2026-09-09 (a dry run, upload `skipped`) and the
+      tree that merged #456 still carried 34, so the release for #456's
+      rules deploy (the group guess refused from 17:16 UTC that day, every
+      installed build affected until it updates) was dispatched from a
+      branch carrying the bump to 35.
+
+      **BUILD 35 UPLOADED 2026-09-09** (run 59, `2d286f8`, upload step
+      `success` at 17:29 UTC, 94 s) — the first build whose group card
+      sends no guess, dispatched thirteen minutes after the rules that
+      refuse one went live. **`appBuild` is now 36**, bumped off run 59's
+      step 17 in the same session, before the run's record was written —
+      the convention's second half, done in the order it asks for.
 
       **BUILD 12 UPLOADED 2026-08-13** (run 18, `d0cf435`, 5m 32s, upload
       step `success`). Builds 11 and 12 went up a day apart — run 17
@@ -1091,7 +1106,9 @@ start.
       Test **duels first**: they work at N=2, need no crowd, and are the
       most distinctive surface in the product. Two phones exercise
       everything that needs more than one person — the sealed duel and
-      its next-day reveal, cross-device push, a second name in the
+      its round reveal, which on a 1v1 lands the moment the second phone
+      answers rather than the next day (D426/D437), cross-device push, a
+      second name in the
       who-voted sheet. Add testers to widen device and iOS coverage,
       which is a real reason; do not wait on a headcount to start.
       `SHIP-CHECKLIST §3`.
@@ -1129,7 +1146,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1264 seeded questions are live regardless.
+      working, not a leak — the 1536 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1705,7 +1722,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 34.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 36.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -2187,6 +2204,15 @@ That is a tester-count problem, not a workflow problem.
       it agrees with D165's residency argument. Nothing in the app changes;
       no rules change; no read path moves.
 
+      **Superseded 2026-09-09 (D447 phase A, `LOG-FIRST-RUNBOOK.md`):** the
+      answer trigger appends the row itself (`functions/src/log.ts`) — one
+      code path and one bill, the nightly reconcile catching what an
+      append missed — so the extension is not installed. The timing
+      argument below still holds and is met differently: the clicks are
+      the dataset (`apply-bigquery.yml`) and the backfill
+      (`backfill-log.yml` with the deploy's day), on `OWNER-LIST.md`, and
+      the backfill loads what the extension's late import would have.
+
       **Why the timing is the whole step.** The extension streams from the
       moment it is installed. Install it late and you are running
       `fs-bq-import-collection` to catch up, and rows belonging to accounts
@@ -2348,6 +2374,21 @@ That is a tester-count problem, not a workflow problem.
       recovery hand the device a fresh session. Test it once on a build
       before submitting: type a wrong address, create, and check that the
       doors come back.
+
+- [ ] **5.17 Stand the budget's wire up — one click after the deploy
+      (`COST-EXPOSURE.md` §6 C4, 2026-09-10).** `functions/src/budget.ts`
+      sets the D332 read breaker when the month's spend reaches the
+      budget; the deploy creates its topic. Then, in the console: Billing
+      → Budgets & alerts → "InSight" → Manage notifications → *Connect a
+      Pub/Sub topic to this budget* → `budget-alerts` → Save — the one
+      action that attaches the topic and grants its service agent
+      Publisher. The API path (*Arm budget* with `apply`) is refused from
+      the deploy credential, which lacks `pubsub.topics.setIamPolicy` on
+      the topic (measured 2026-09-10); its dry run is the check afterwards
+      ("exists and matches"). Proof: within half an hour a `budget_message`
+      line on `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The
+      budget's wire). What it does not do: detach billing — that is the
+      owner's row on `OWNER-LIST.md`, with the arithmetic.
 
 ## Phase 6 — Submit
 

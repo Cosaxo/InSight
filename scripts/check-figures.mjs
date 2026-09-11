@@ -92,19 +92,34 @@ const rulesTests =
   + countTests("firestore-tests/storage.rules.test.ts");
 
 // The seeded question bank. `functions/src/v2content.ts` is generated data
-// — one flat array of objects, each with a literal "id" and "surface" — so
-// counting the keys is exact rather than approximate. If that file ever
-// stops being generated and someone hand-writes an entry across lines, the
-// count still holds: the scan matches the key, not the object shape.
+// — one flat array of objects, each with a literal "surface" — so counting
+// that key is exact rather than approximate. If that file ever stops being
+// generated and someone hand-writes an entry across lines, the count still
+// holds: the scan matches the key, not the object shape.
+//
+// The TOTAL is parsed, not scanned, and the difference is 52 documents.
+// This line counted `"id":` keys until D444, which was exact while every
+// id in the file was a document's — and D434 gave a role vote a nested
+// `scen.id` and `role.id`, so from that day the scan ran 44 over the bank
+// (twenty-two role votes, two ids each) and every sentence this gate holds
+// was "corrected" to the over-count. The sixth pack's four votes moved it
+// to 52, which is how it was noticed: a change that added no question
+// moved the figure by eight. `bankArray` is the parser the rest of this
+// file already trusts, and its length is `V2_QUESTIONS.length` — the
+// number `seedContent()` reports back to an operator, so the one they
+// check a seed run against.
 //
 // Two figures rather than one because they answer different questions.
-// The total is what `seedContent()` reports back to an operator, so it is
-// the number they check a seed run against. The daily count is the runway
-// figure the launch plan reasons about — 90 questions is ~13 weeks at the
-// promotion cadence — and the two move independently.
+// The total is the seed's; the daily count is the runway figure the launch
+// plan reasons about — 90 questions is ~13 weeks at the promotion cadence
+// — and the two move independently.
 const v2content = read("functions/src/v2content.ts");
 const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m[1]);
-const seededQuestions = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+const seededQuestions = bankArray(v2content).length;
+// Active test items carrying an instrument (`test`), which is what the
+// similarity sweep reads one aggregate for (src/v2/data/live.ts).
+const activeTestItems = bankArray(v2content)
+  .filter((q) => q.surface === "test" && q.test && q.active !== false).length;
 const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
 // The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
@@ -1408,7 +1423,11 @@ const FIGURES = [
   {
     file: "docs/COSTS.md",
     what: "reveal-pipeline reads per member for a duo",
-    re: /which is (\d+) for a duo/,
+    // `[\d.]+`, not `\d+`: the figure is (3 + 2m)/m since D445's role
+    // ledger read the round's question, which is 3.5 for a duo — and a
+    // pattern that admitted only an integer would have reported the
+    // sentence as no longer quoted rather than as wrong.
+    re: /which is ([\d.]+) for a duo/,
     actual: revealReadsPerMember(2),
     fix: (n) => `"which is ${n} for a duo"`,
   },
@@ -1428,6 +1447,18 @@ const FIGURES = [
     // script rather than restoring the sentence". A remedy that walks a
     // reader from a caught drift to a deleted gate in two steps.
     fix: (n) => `"**+${n} reads** — five whole surfaces plus the feed's core questions"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    // The similarity sweep's own comment said 110 for as long as the four
+    // instruments held 110 items; the bank has held 266 active test items
+    // since the deep items landed (D417), and the comment sat two and a
+    // half times stale beside the loop it describes. Pinned here off the
+    // bank, in the same file the sweep reads (DATA-EFFICIENCY-RUNBOOK 1.5).
+    what: "core test items the similarity sweep reads (its comment)",
+    re: /(\d+) core test items over the 30-id/,
+    actual: activeTestItems,
+    fix: (n) => `"${n} core test items over the 30-id"`,
   },
   {
     file: "docs/COSTS.md",

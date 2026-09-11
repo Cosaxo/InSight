@@ -1,5 +1,14 @@
 # Getting the bill down
 
+> **Read [`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md) beside this (2026-09-08).**
+> This page's levers are caps and cadences on the shapes as built, and its
+> §5 refuses to trim the three D98 surfaces because a thinner picture is
+> not a saving. That page keeps the picture and changes the DOCUMENTS the
+> surfaces read — one precomputed document where three hundred answer
+> documents are read today — and prices it with `npm run costs:structure`:
+> the same reads per user per day this page's tables carry, about 380,
+> become about 60.
+
 > **Partly executed, 2026-08-13 (D129).** The owner read the analysis below
 > and chose to build the big one rather than defer it. The deck is polled
 > instead of streamed, and the voter name cache is persisted. What that did:

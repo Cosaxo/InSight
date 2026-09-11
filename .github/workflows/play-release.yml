@@ -89,7 +89,7 @@ jobs:
           node-version: "22"
           cache: npm
 
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: "21"
@@ -235,6 +235,20 @@ jobs:
       - name: Install the upload keystore
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          # BOUND HERE RATHER THAN INTERPOLATED BELOW. `${{ }}` is a textual
+          # substitution GitHub performs BEFORE bash parses the line, so a
+          # secret spliced into a run body is code rather than an argument:
+          # inside the double quotes it was in, `$( )` and backticks
+          # execute, in a job that also holds the Play service account, the
+          # google-services file and the decoded keystore. The mundane
+          # version is likelier and costs a release: a password containing
+          # a quote, a backtick or a dollar breaks or silently truncates the
+          # sanity check immediately before signing.
+          #
+          # Every other secret in every other workflow here already does it
+          # this way — measured 2026-09-11, this was the ONLY site in the
+          # repo — and the very next step binds this same secret correctly.
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           if [ -z "$KS_B64" ]; then
             echo "::error::ANDROID_KEYSTORE_BASE64 is empty. Without it the release build is UNSIGNED and Play rejects it — see docs/PLAY-RELEASE.md §2.1."
@@ -246,7 +260,7 @@ jobs:
           # Prove it decoded to a keystore rather than to base64 of an error
           # message, before it is used to sign something uploadable.
           keytool -list -keystore "$RUNNER_TEMP/keys/upload.jks" \
-            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >/dev/null
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null
           echo "keystore decoded and opens"
 
       - name: Build the signed bundle

@@ -525,3 +525,36 @@ describe("v2_patterns: the whole collection group is exempt from single-field in
     expect(cfg.indexes.some((i) => i.collectionGroup === "v2_patterns")).toBe(false);
   });
 });
+
+describe("the collections nobody queries by field carry exemptions (DATA-EFFICIENCY-RUNBOOK 1.1)", () => {
+  // Every reader of these is `getDoc` or `documentId() in`, so their
+  // automatic single-field indexes served nothing: ~2 entries per leaf of
+  // an aggregate's `by` map, rewritten on every answer, and ~32 per ledger
+  // entry for 90 days. The exemptions are storage and write latency, not
+  // billed operations — but a query added later against an exempted field
+  // fails with FAILED_PRECONDITION in production and passes in the
+  // emulator, which is why the two fields the ledger IS queried on are
+  // pinned as un-exempted below, and why a new field query on any of
+  // these collections has to come back here first.
+  it("exempts the ledger's copy of the answer, and keeps uid and at indexed", () => {
+    // …and the profile stamp the create trigger adds since
+    // DATA-EFFICIENCY-RUNBOOK 2.1 (`n`, `s`, `l`): `s` is a map of maps,
+    // so un-exempted it would be ~2 entries per axis per entry.
+    for (const f of ["qid", "optionIdx", "fromIdx", "anchors.city", "anchors.country", "n", "s", "l"]) {
+      expect(override("v2_agg_events", f)?.indexes, `v2_agg_events.${f}`).toEqual([]);
+    }
+    // deleteAccount's sweep queries `uid ==` (functions/src/index.ts) and
+    // every nightly reader ranges on `at` (ledger.ts, velocity.ts).
+    expect(override("v2_agg_events", "uid")).toBeUndefined();
+    expect(override("v2_agg_events", "at")).toBeUndefined();
+  });
+
+  it("exempts the aggregate's fields — every reader is by document id", () => {
+    for (const f of ["by", "counts", "total", "edits"]) {
+      expect(override("v2_question_aggs", f)?.indexes, `v2_question_aggs.${f}`).toEqual([]);
+    }
+    for (const [group, field] of [["v2_aggs_private", "entBy"], ["v2_agg_overflow", "city"], ["v2_rank", "topics"]]) {
+      expect(override(group, field)?.indexes, `${group}.${field}`).toEqual([]);
+    }
+  });
+});

@@ -181,12 +181,15 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    its derived `jobField` instead.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
   { qid, uid, optionIdx?, fromIdx?, dedup: at-least-once delivery can't
-    anchors?, entity?, at,         double-count. `entity` is a catalogue
-    expireAt }                     pick's canonical key (D453), what the
+    anchors?, entity?, n?, s?, l?, double-count. `entity` is a catalogue
+    at, expireAt }                 pick's canonical key (D453), what the
                                    fit reads where a vote has optionIdx;
                                    `anchors` the answer's frozen chips
                                    (D397, and on catalog entries since
-                                   D453). Attribution: uid is what
+                                   D453); `n`, `s`, `l` the profile
+                                   stamp the create trigger adds
+                                   (DATA-EFFICIENCY-RUNBOOK 2.1).
+                                   Attribution: uid is what
                                    lets an operator subtract a discovered
                                    fake-account ring from the exact counts
                                    and republish (DEPLOYMENT.md,
@@ -196,6 +199,22 @@ v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268
                                    the nightly Patterns fit reads as its
                                    stream (patterns.ts); it adds nothing
                                    the answer doc does not publish (D98).
+                                   FIVE OPTIONAL FIELDS the writer adds
+                                   and this block used to omit: `anchors`
+                                   (D8's frozen chips, for D397's voter
+                                   samples), `fromIdx` (present only on a
+                                   D86 edit — its ABSENCE is what marks a
+                                   first answer, so a reader that does
+                                   not know the field counts every edit
+                                   as one), and the profile stamp `n`,
+                                   `s`, `l`. `ledger.ts`'s own header
+                                   states the cost of the omission one
+                                   level down: a field forgotten in the
+                                   projection "arrives as undefined at
+                                   every reader — no error, no log", and
+                                   a field forgotten HERE is how the
+                                   projection comes to be written without
+                                   it.
                                    Activity log: the nightly engagement
                                    digest counts people by it — the
                                    fourth job, the purpose D268 widened
@@ -402,6 +421,14 @@ v2_patterns/sample-{qid}           the nightly voter sample (D397)
                                    a person is one row (an edit moves it)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
+  seeded?                          the UTC day the sample was seeded from
+                                   the answers themselves (D442) — the
+                                   newest cap of the question's world
+                                   answers, folded in once the first night
+                                   the pass met it; absent on a document
+                                   only the ledger has fed, which is the
+                                   pass's cue to seed it (at most 25 a
+                                   night, PATTERNS_SEED_PER_RUN)
 read: signed-in (the loadings document's own rule — same collection) ·
 write: NOBODY — merged nightly by the pass (D399) from the ledger day it
 already reads. What Kindred, the People lens and the pair card read in
@@ -461,9 +488,10 @@ v2_engagement_daily/{day}          the engagement digest's trail (R1/D268)
                                    never as zero
   people {rollups, sessions,       D272: the rollup fold's counts of
     quiet, answers, depthEnd,      PEOPLE — how many rollups folded, the
-    fading,                        sessions and quiet sessions they held,
+    fading, mirrorRead, lensOpen,  sessions and quiet sessions they held,
     dayparts {d0..d3},             how many hit the feed's end, how many
-    fgBuckets {b0..b4}}            trailing foreground windows are
+    fgBuckets {b0..b4},            trailing foreground windows are
+    feedBuckets {f0..f4}}
                                    SINKING (fading — the win-back
                                    trigger), dayparts and foreground
                                    brackets as histograms. Maps rather
@@ -635,6 +663,36 @@ v2_groups/{gid}                    groups AND duos (mode: group|duo)
                                    member's next answer. One push per turn,
                                    not per answer. Server-written; dropped
                                    on leave and erasure with `played`)
+  ledger{ uid: { casts, axes{axisId: n}, saw{right,total}, castQid } }?   (a 1v1)
+  ledger{ uid: { votes, seats{seatId: n} } }?                             (a group)
+                                   (THE ROLE LEDGER — D445, ROLES-PLAN
+                                   §3.3, ROUNDS-PLAN §7.2: what the room
+                                   has made each member, kept by the
+                                   reveal as every round reveals, so the
+                                   roles reading outlives the thirty
+                                   reveals a device pages. A 1v1 row: cast
+                                   rounds both answered blind, the times
+                                   the OTHER said this member is each axis
+                                   — keyed by the bank's `dims` id for the
+                                   option — this member's guesses at what
+                                   the other said of them, and the cast
+                                   question the receipts read their them
+                                   forms from. A group row: votes received
+                                   from OTHER members on role votes, by the
+                                   seat of the role, off the D224 snapshots.
+                                   Written WHOLE in the settle update that
+                                   advances the round, from the reveal
+                                   transaction's own read, and only when
+                                   the round moved it; rows for current
+                                   members only. Absent on every group from
+                                   before D445 and filled forward from the
+                                   next reveal — no backfill; the device
+                                   fold pages reveals until a row clears
+                                   the instrument's floor. A late answer
+                                   moves nothing here. Server-written;
+                                   dropped on leave and erasure with
+                                   `played`, and asserted in the erasure
+                                   e2e)
   duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
   serves the pair; absent = friends. D40 part 4)
   (memberNames rides on the group doc as a denormalization: it used to be
@@ -770,7 +828,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (1264 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (1536 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -847,7 +905,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (1264 docs) caches in localStorage keyed by
+everything. The question bank (1536 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -882,7 +940,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 213 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 225 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

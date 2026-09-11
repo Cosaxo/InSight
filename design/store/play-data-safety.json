@@ -7,7 +7,7 @@
 
   "rows": [
     { "category": "Personal info → User IDs", "collected": true, "shared": false, "optional": "Required", "purpose": "App functionality" },
-    { "category": "Personal info → Email address", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "Personal info → Email address", "collected": true, "shared": false, "optional": "Required", "purpose": "App functionality" },
     { "category": "Personal info → Name", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
     { "category": "Personal info → Political or religious beliefs", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
     { "category": "Personal info → Gender", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },

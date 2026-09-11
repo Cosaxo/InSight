@@ -9248,6 +9248,25 @@ need read paths no client module has yet: a collection-group query on
 `answers` (the rule and the composite index ship here; the query does
 not) and batched uid→name resolution. Sequenced as follow-on work.
 
+## D98 amendment (2026-09-09) · Exact, and never more than a poll behind
+
+**Date:** 2026-09-09 · **Status:** Adopted, on the owner's word. D98's
+*no publish cadence* was written against the cadence it retired — the
+privacy one: hours and days, floors and suppression. The log-first
+structure (D446) publishes a question's document through a compactor
+once a minute for the questions that changed, which is the interval the
+card already re-reads at (D129), so nothing a user sees moves and a
+person's own vote still confirms at once. The owner was asked in plain
+words — *"Allow counts to be published once a minute instead of on every
+answer. One old decision says 'no publish cadence', and only you can
+change its wording"* — and answered *"that sound like a good direction
+lets do that."* The sentence is now: **counts are exact from the first
+answer, and never more than a poll behind.** Everything else in D98
+stands as written — answers public, exact counts, no floor, no
+suppression, no special-category carve-out. Built at
+`LOG-FIRST-RUNBOOK.md` phase B; until then the document is rewritten on
+every answer as it is today.
+
 ## D99 · The Mirror's lens row comes back, on data that was already there
 
 **Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
@@ -46240,6 +46259,110 @@ and `check:tap-targets` unmoved, `check:public-copy` clean.
 **Nothing in the plan is left unbuilt.** The lane's daily cadence, the
 one owner click the tree could not make, the owner made the same day.
 
+## D426 amendment (2026-09-08, the evening) · World questions leave the duels: the owner's ruling at the first reveal
+
+**Status:** binding; reverses the second amendment's §6.2 paragraph and
+stands over it. Built in the afternoon, retired in the evening, both on
+the owner's word.
+
+The owner opened a 1v1 on a device and met the first world round's
+reveal — *Round 28 · World · revealed*, "What do you want more of this
+year?", three columns (you · Henrik · World), *Henrik answered this in
+the World feed, so there was no guess* — and ruled on it in three
+sentences: *"i suspect world questions has snuck into 1v1 and group and
+they shouldent"*; *"its worst for group as that should mostly be about
+what role you have in the group"*; *"but this can go that is stufff you
+already find on the world feed so is totaly pointless."*
+
+### Why the record had it as approved, and what that teaches
+
+The second amendment built §6.2 on *"yeah lets do that"* — the owner's
+answer to the whole model read back in plain words, which named world
+questions as one item among six. The `OWNER-LIST.md` row that carried
+the question was annotated as answered and **never ticked**, which is
+exactly the state D352 designed the tick for: the row is the question,
+the tick is the approval, and a sentence that covers six items at once is
+provisional until the owner has seen each of them. The owner's own canvas
+drew the World round (request 12, state 8), the plan argued for it (§6.2
+— the bank multiplied by ten, the ties axiom's shared items, the pair
+against the crowd on one card), and none of that survived first contact
+with the built thing, because the argument missed what the owner saw at
+once: **the Mirror already draws every feed answer against the crowd.**
+The third column put a link that is drawn already in a second place, and
+a group round exists to read the ROOM — *"what role you have in the
+group"*, the roles instrument of `ROLES-PLAN.md` — which a feed question
+cannot do. The word *snuck* is the finding: an item that changes what a
+surface IS gets its own question to the owner, not a place in a bundle,
+and a bundled yes is a yes to try, not a yes to keep.
+
+### What came out
+
+Every piece of step 7, the same evening, so the tree says what the owner
+ruled rather than carrying a dial set to zero:
+
+- **The rotation.** `worldDuelPool` and `duelQFor`'s even-round branch
+  are gone (`data/deck.ts`); every round walks the room's own bank, as
+  before the afternoon. `live.ts` no longer builds the pool.
+- **The rules.** `isDuelAnswer`'s second arm is gone and the surface
+  equality is again the whole test — a daily or feed question is refused
+  on a duel surface, which `rules.test.ts` pins again beside the catalog
+  refusal. Three get() sites went with it: `scripts/pulse.test.mjs`'s
+  count is back at 34, and the billed cost never moved in either
+  direction. The rules-coverage baseline is unmoved, since each retired
+  predicate had its refusal.
+- **The store.** `worldSplit`, `ensureWorldSplit`, `loadPartnerAnswers`
+  and `partnerAnswer` are off `LIVE.social`, with their three state
+  fields and their purge lines; `live-surface.ts` and the fixtures no
+  longer pin them.
+- **The card.** The `· World` kicker, the three columns, the no-guess
+  path and its note (*already answered this in the World feed*), and the
+  sealed list's *World* part (`ui/LiveDuelPanel.tsx`); the ask takes the
+  guess on every round again. The describe block that pinned them is
+  gone with them.
+- **The e2e's 8a leg** (a round over a world question, the world's count
+  unmoved) and **the COSTS row** for a world round's reveal.
+
+**What stays, deliberately:** `bankQ`'s lookup of a feed or daily qid,
+marked *history only*. The reveals written on 2026-09-08 name a feed
+question, a reveal has to draw the question it was about (D71), and
+without the lookup the card would label those rounds' options with the
+members' names — the catalog fall-through one surface over. Nothing
+serves such a question now, so the door opens only on what already
+exists. The first run's stand-in (request 12, state 9) is also unchanged:
+it stands in for a room's question and says so, and it is not a round.
+
+### What it changes downstream
+
+- **The bank is the whole constraint again** (§6). 32 1v1 and 26 group
+  questions at rounds pace is one evening, and §6.1's burst — `RUN_CAP`
+  25, `POOL_TARGET` 400, the lane daily since the owner re-paced it — is
+  now the only answer to it. The duel lane's quality gates are unchanged;
+  its content is what a round is made of, and the owner's ruling says
+  what that content is FOR: reading a person, and a person's role in a
+  room.
+- **The ties axiom** (`AXIOMS.md`) gets its shared items from that
+  growth, not from the feed; `tie-2`'s decomposition waits on the bank
+  rather than on a lens.
+- **The lists.** The `OWNER-LIST.md` row records both answers and stays
+  the owner's to tick; `WORKLIST.md`'s step-7 row keeps its build and
+  says it was retired; `ROUNDS-PLAN.md` §6.2 stands as the record of the
+  argument, with the retirement at its head and §0a saying what came out.
+
+**Measured, not assumed.** `test:unit` (2 940), `test --prefix
+functions` (817, untouched — nothing server-side was specific to a world
+round), `test:scripts` (1 199, once the store header's `await getDb()`
+figure moved 44 → 42 with the two fetches — `check:figures` caught the
+prose, as it exists to), `test:rules` (204; the coverage baseline 46 is
+unmoved, since every retired predicate had its refusal), `lint`, `tsc
+-b`, `check:globals` (30, unmoved), `check:figures`, `check:docs`,
+`check:public-copy`, `check:policy-claims`, `check:a11y` (6, unmoved),
+`check:tap-targets`. **`test:e2e:all` did not run in this session:** the
+sandbox answers 403 to `firebase-public.firebaseio.com`, which kills the
+functions emulator's trigger registration — `CLAUDE.md`'s documented
+case — and the session's proxy rules forbid the documented workaround,
+so the three suites are left to CI's `backend-checks`, where they run on
+every pull request. What the e2e change is: one leg deleted; the write
+it made is now the refusal `rules.test.ts` pins.
 ## D426 amendment (2026-09-08, the profiles) · The 1v1 and group profiles under rounds: keyed by round, worded in rounds, thirty reveals until the ledger
 
 The owner asked, after the merge, whether the 1v1 and group profiles
@@ -47105,6 +47228,2538 @@ Runbook 1.3, `SHIP-CHECKLIST.md` §2 and `App.entitlements` all carried the
 measurement. The owner row is closed as answered rather than done, because
 nothing was changed — only learned.
 
+## D432 · Phase 0 of the rules budget: the instrument — and a filler conjunct costs eight units, not three
+
+**2026-09-09.** **Status:** binding (a measurement, and the method behind
+every later number). Built on the owner's *"go on phase 1, merge when
+green"*, because `RULES-BUDGET-PLAN.md` conditioned Phase 1 on Phase 0
+answering five questions first. This record is those answers; D433 is
+what was done with them.
+
+**What was built.** `scripts/rules-budget.mjs`, run inside the same
+`emulators:exec` as the rules suite, with `scripts/rules-budget.test.mjs`
+pinning its pure parts (19 cases, in `test:scripts`). For each of fifteen
+probe writes — eight legal creates (the suite's seven "heaviest LEGAL"
+cases plus a pulse), six refusal shapes the e2e hits, one D86 edit — it
+boots a fresh project, seeds with rules disabled, sends the one write and
+reports three things: the **verdict**, told apart three ways because the
+emulator's reason text reaches the client (*allowed*, *refused*, or
+*budget* — "maximum of 1000 expressions to evaluate has been reached");
+the **cost**, the coverage report's delta for that write attributed to
+the line; and the **headroom**, D429's filler method automated — append
+N conjuncts, bisect for the N at which the verdict changes. It measures
+the **compile ceiling** first and bounds the bisection by it; it can
+**ablate** any helper (`--ablate NAME=EXPR`) to price a clause by
+difference; and `--write-baseline` checks the table in as
+`scripts/rules-budget-baseline.json`. Every transform REFUSES when its
+anchor text is absent or doubled rather than measuring an unmodified
+file — the first run found the create rule's last conjunct is also the
+profile rule's, word for word, and would have measured the wrong rule.
+
+**The five questions, answered.**
+
+| question (plan §2) | answer, measured |
+| --- | --- |
+| Does the coverage count agree with the filler headroom? | **No, and not by a constant factor.** A base-tree duel write that is ALLOWED counts 1,410 — over the 1,000 it did not exceed. Routing the arms (D433 (c)) halved that write's count, 1,257 → 616, and moved its headroom by one filler, 60 → 59. So the filler method is the oracle for the ceiling and the report is a guide to WHICH line, which is what the plan said to do if the answer was no. (On the routed tree the report comes within ~10% of budget units — cost + 8.1·fillers lands at 1,063–1,133 on the eight legal probes — which says the base tree's excess was the arms a write walked and abandoned; recorded as an observation, not a model.) |
+| What does one `get(…).data.x` site cost? | The duel arm's fetch sites went 14 → 2 in D433 (a), and its writes gained 10 fillers ≈ **81 units, ~7 a site** — inside the plan's 6–8 estimate. Not memoised by the emulator as an expression, then; only as a read. |
+| Is a function's `let` evaluated before its `return`? | **Yes.** Ablating `isDuelAnswer` on the base tree made a pulse and a rank write ~6 fillers (~49 units) cheaper: the group fetch in its `let`, paid by writes that never reached the arm. Plan §3(b) was real. |
+| Per `allow` statement or per request? | **Per request**, from D431's row (a `set` over an existing answer evaluates create AND update against one budget and the pair exceeds it where either alone fits), and the coverage report agrees: the update arm is entered on every create and errors at its first `resource.data` read, 18 counts. `--fillers-on update` exists for the direct measurement and was not run in this session — D433's zero on the e2e is what the question was for. |
+| What does `hasOnly([ten names])` cost? | **Not isolated.** After (a) the duel arm still counts ~609 with nothing fetched twice; the ten-name `hasOnly`, the aid composition and the member test are what is left, and the instrument can price them by ablation the day someone needs the number. |
+
+**The unit — the finding that reprices everything before it.** D429
+read a filler conjunct (`&& request.resource.data.surface != "zzfillN"`)
+as "~3 expressions" and every headroom figure since has been quoted in
+that currency, this plan's included. The instrument has a calibration
+block: a rule whose own cost is a handful of units (`request.auth !=
+null`, in a match block of its own at the top of the file), tipped over
+the 1,000 by fillers of known weight — five compares in one conjunct,
+then ten — so the N at the flip brackets what a plain filler costs.
+Weight 5 is allowed at N = 24 and refused by budget at 25; weight 10 at
+12 and 13. Brackets (7.92, 8.33] and (7.62, 8.33]; they overlap, and the
+middle is **8.1 budget units a filler**. So D429's "~130 expressions of
+headroom" on the thinnest legal create was **~375**, and the plan's §0
+arithmetic, written in the same currency, was low by the same factor.
+Nothing that was ordered by those numbers changes order; what changes is
+the distance, and D433's target reads against the measured unit.
+
+**The base tree, in that unit** (`origin/main` at D431; compile ceiling
+85 fillers on the create arm):
+
+| probe | verdict | fillers (units) |
+| --- | --- | ---: |
+| world · all ten anchors at their bounds | allowed | 75 (608) |
+| duel · own bank | allowed | 53 (429) |
+| duel · world content *(thinnest, D429)* | allowed | 46 (373) |
+| duel · pick round *(thinnest, D429)* | allowed | 47 (381) |
+| duel · late answer | allowed | 50 (405) |
+| rank | allowed | 56 (454) |
+| duel · 32-member room | allowed | 53 (429) |
+| pulse | allowed | 55 (446) |
+| six refusal shapes (revealed round, entity on a non-catalog question, a second ranking, optionIdx on a rank question, a killed question, a non-member) | **budget**, all six | over |
+| update · optionIdx edit | allowed | — |
+
+D429's hand measurement reproduced exactly (46–47 on the two thinnest,
+the 32-member room flipping with its two-member twin, the compile
+ceiling at 85), and the six refusals are D431's thirteen e2e messages
+seen from the other side: not one of them was refused by the rule it was
+sent to test.
+
+**Ablations on the base tree**, for the plan's §0 ranking: the anchors
+cost every duel, rank and pulse write ~28 fillers (~225 units — the
+world probe capped at the compile ceiling before its ablation flipped);
+the world arm costs a duel write 1–2 fillers on the way past, so `||`
+does short-circuit on a failed surface guard; the duel arm's eager `let`
+costs a pulse or rank write ~6; and with the duel arm ablated every
+refusal FITS, with 11 fillers to spare — the arm was the whole of the
+refusals' excess.
+
+**What the instrument found about itself.** Three fixture defects on
+first contact, each now a flagged verdict rather than a number nobody
+questions: fillers scoped to the answers block (above); the pulse probe
+had seeded the per-day answer id where the arm reads the BASE question;
+and the "duplicate ranking" probe was a repeated index, which
+`isRankAnswer` bounds the length of and never the distinctness — a legal
+order measured as a refusal until it became a second answer to the same
+question. **Not a gate**: the plan's Phase 3 is the gate, and it is
+built on this record's numbers, not the other way round.
+
+## D433 · Phases 1 and 2 of the rules budget: the answer rule restructured with every verdict identical — refusals by budget go from thirteen to zero
+
+**2026-09-09.** **Status:** binding. The owner: *"go on phase 1, merge
+when green"*. The plan's four moves and its Phase 2, each a commit, each
+measured by D432's instrument, under one invariant: **every allow/deny
+verdict in `firestore-tests/rules.test.ts` identical (213 of 213 at every
+commit), `rules-coverage`'s never-false count at its baseline of 8, and
+`test:e2e:all` green.** The suite is the oracle for meaning; the
+instrument is the oracle for cost.
+
+**The moves, and what each measured.**
+
+*(a)+(b)+(d), one commit — fetch each document once, guard before
+`let`, hoist the update arm.* `isDuelAnswer` fetched the question at ten
+sites and the group at four; now it is guards, then `exists(question)`,
+then `duelBody(d, q, g)` with the two documents fetched once each as
+arguments and the `let`s (`open`, `late`) inside the body, so a write
+that fails the guards never pays the fetch. The same shape for
+`isWorldAnswer`, `isRankAnswer`, `isCatalogAnswer`, `isPulseAnswer` and
+`isCallAnswer`; `duelIndexSpace(q, g)` takes what it used to fetch
+three times; the update arm reads its question once through `editOk(q)`.
+Fetch and exists sites in the answers block: **39 → 16**. (b) is not a
+separate commit because it is not separable from (a): the `let`s move
+into the body function (a) creates. Headroom, in fillers: the duel arms
++10 (46 → 56 on the thinnest), rank +7, pulse +6, world +3. Refusals:
+still over budget — every one of them still walked six arms.
+
+*(c) One discriminator, one arm.* The create rule's six-way `||` became
+`createArm()`: a ternary that routes on the field only one arm admits
+(`order` → rank, `entity` → catalog), then on the `optionIdx` bound, then
+on `surface` — duel, pulse, call, world — with the anchors INSIDE each
+branch, because the base measurement had found a refused write paying
+every arm and the anchors both, so "last" bought a refusal nothing. The
+partition is exact, which is what makes this a refactor: every arm's
+`hasOnly` refuses the other arms' distinguishing keys and the surface
+lists are disjoint, so no write could ever have been accepted by an arm
+other than the one it now routes to; the suite is the proof, case for
+case. Measured: **every refusal now reports *refused*, at ≥ 94 fillers
+of headroom** — the compile ceiling, which the instrument reached
+without a flip — so each costs under ~240 units where it had exceeded
+1,000. The legal arms moved by at most one filler either way (a write
+pays four discriminators instead of the arms' guards), except rank, +16:
+it had been the LAST alternative and is now the first test. The compile
+ceiling itself rose 85 → 94, the statement being shorter. The router
+also made three clauses dead — the `surface` guards opening the duel,
+pulse and call arms, each repeating what the router had decided —
+`rules-coverage` reported never-false 8 → 11 the moment it landed, and
+the honest fix was to remove them and name the router as the guard, not
+to add cases that cannot exist. Back at 8.
+
+*(e), Phase 2 — the anchors read once.* `isShortAnchor` read the map
+twice per key, once for `is string` and once for `size()`; a `let` binds
+it once. Same verdicts, ten keys deep on every answer and profile write.
+Measured: +2–3 fillers (16–24 units) on every legal create, the plan's
+"~15" estimate. `check:anchors` still parses the call form it always
+parsed.
+
+**Before and after** (fillers, with budget units at D432's 8.1):
+
+| probe | base | (a)(b)(d) | (c) | (e) — now |
+| --- | ---: | ---: | ---: | ---: |
+| world · all ten anchors at their bounds | 75 (608) | 78 | 73 | **74 (599)** |
+| duel · own bank | 53 (429) | 60 | 59 | **62 (502)** |
+| duel · world content *(thinnest)* | 46 (373) | 56 | 56 | **58 (470)** |
+| duel · pick round *(thinnest)* | 47 (381) | 56 | 56 | **58 (470)** |
+| duel · late answer | 50 (405) | 58 | 57 | **60 (486)** |
+| rank | 56 (454) | 63 | 79 | **80 (648)** |
+| duel · 32-member room | 53 (429) | 60 | 59 | **62 (502)** |
+| pulse | 55 (446) | 61 | 62 | **64 (518)** |
+| the six refusal shapes | over, *by budget* | over | ≥94, *refused* | **≥94 (≥761), refused** |
+| compile ceiling, create arm | 85 | 85 | 94 | **94** |
+| `test:e2e:all` budget messages | 13 | — | 0 | **0** |
+
+**Against the plan's target.** §3 asked for ≥ 400 on every legal create,
+"provisional until Phase 0"; all seven clear it in the measured unit
+(470–648), and would read 174 in the unit that was wrong. The honest
+reading of the legal column is modest: **the restructure bought the
+thinnest legal create ~100 units and bought every refusal its verdict
+back**, which is the finding D431 opened — a suite whose refusals were
+granted by exhaustion rather than by the rules under test, and an e2e
+that said so thirteen times a run and was green. What did not move is
+the duel arm's own body, ~609 counts after nothing is fetched twice: the
+ten-name `hasOnly`, the aid composition, the member test, the question
+checks. Trimming it is a design change to what a duel answer is, not a
+refactor, and it is why Phase 4 stays priced rather than started.
+
+**What else changed.** `scripts/rules-budget.mjs` now carries the
+calibration block and prints headroom in both currencies; the create
+rule's own comment, the suite's budget header and the plan's §9 carry
+the measured numbers instead of D429's reading; `docs/OWNER-LIST.md`'s
+row is closed as done with Phase 3 named as the next step, which needs
+no decision. **Phase 3 — the gate** — is the plan's next commit: a
+headroom ratchet in the rules job so the number in
+`rules-budget-baseline.json` can only go up, a compile-headroom probe,
+and a `refused()` helper that turns a denial-by-budget into a red test.
+## D434 · The group is a cast: the owner's 2026-09-08 design lands as role votes in packs, a rating every fourth round, and the fold that reads them
+
+**Date:** 2026-09-08 · **Status:** binding, step 1 built. The owner's
+`InSight_12` upload, delivered with a ruling: *"yeah this is
+functonality that should not have been added they should be more like
+this"* — *this* being the upload's 1v1 and group — after *"its worst for
+group as that should mostly be about what role you have in the group."*
+D426's third amendment took the world rounds out the same evening; this
+is what the upload puts in their place. The plan is
+[`VISION-2026-09-08.md`](VISION-2026-09-08.md); the record is
+[`design/standalone-2026-09-08/`](../design/standalone-2026-09-08/README.md).
+
+### What the design says a group round is
+
+A **role vote in a scenario pack** — *Bank Heist · Who plans the whole
+thing?* — with the members and *You* as the options and the pack's own
+hue on the kicker; five packs of four roles. Every **fourth round rates
+the group itself** between two poles on five steps — *This group's
+energy? Calm ↔ Chaos*; ten dims. The reveal of a vote names the cast (*Ada
+is the mastermind*, or *Ada and Bo share the mastermind · contested*);
+the reveal of a rating puts the members on the five stops and the group's
+dot on the track (*The group lands on mostly Chaos · 75*). The run at the
+foot is one mark per round: filled in the pack's colour where the room
+named you, a ring where it named someone else, a square for a rating.
+The Mirror's Groups stop draws the cast, and the group instrument gets
+its fourth dim — Standing — and its nine types back.
+
+### The finding: the mechanism existed, the content did not
+
+A role vote is the group bank's `pick` kind — the members as options
+(D40), the snapshot of who an index meant (D224), the rules' fall-through
+to the member count — which had eight questions. The design adds the pack
+around it and one new kind whose answer is still an option index. So
+nothing moved in the write path, the rules, the trigger or the reveal.
+What moved is which questions a group is asked, and what the card and the
+fold make of them:
+
+- **The bank** (`content/duel-questions.json`): twenty role votes
+  (`gr0`–`gr19`) as `pick` questions naming their pack (`scen`, the five
+  packs written once in `scenarios`) and the role they cast (`role`);
+  ten ratings (`gs0`–`gs9`) as `kind: "rate"` with two `poles`, the five
+  step labels derived at seed time and by the demo layer alike so they
+  cannot drift. Five older prompts the design re-asks word for word as
+  ratings are retired (`active: false`, D52's shape; both dedup gates
+  skip retired entries, as they did for the feed). The file went 25.2 →
+  22.8 KiB against its 24 KiB bundle cap by writing the packs once and
+  deriving the steps — and the daily burst crosses that cap on its first
+  run, which is recorded, not solved (VISION §4.3).
+- **The seed**: `scen`, `role` and `poles` in `V2SeedQuestion`, the
+  payload, `SEEDED_FIELDS` and the seed test's mirror — `check:seed-fields`
+  holds the four equal, which is the D234 lesson applied before rather
+  than after.
+- **The rotation** (`duelQFor`): a group walks two pools — the ratings
+  on every fourth round, one step per rating, the votes on the rest, one
+  step per vote — so the ten dims come round in turn and consecutive
+  votes are consecutive questions. The older `us`/`classic` questions
+  are in the bank and out of the rotation, so the reveals that name them
+  still draw their prompt. A bank without ratings plays votes; a bank
+  without picks plays the whole surface.
+- **The card** (`ui/LiveDuelPanel.tsx`): the pack on the kicker in its
+  ink, a member's mark on every option, the pole ballot sealing on one
+  tap with no call, the crown and the contested pair on the reveal's
+  rows (ordered by count, the crown read off D224's snapshots when they
+  agree), the rating's track, the verdicts, and the run's marks.
+- **The fold** (`data/roles.ts`): a rating round leaves the group
+  instrument entirely — its "majority" is a step, not a pick — through
+  `isRatingReveal`, shared with the Mirror's portrait so the stop and the
+  role agree; and **Standing** arrives as an aside, *the room named you
+  in N of M role votes*, scored against luck, counted only on a role
+  vote two or more answered. An aside because the tables do not carry it
+  (D386's rule).
+
+### Two things kept against the design, and said so
+
+- **The room's call stays on a role vote.** The design asks no guess on
+  a group round; D386 built *And the room lands on…?* on the owner's
+  word, and ROLES-PLAN §3.5 makes it the Bellwether's measurement. A
+  rating takes no call, as designed. Whether the call stays is on
+  `OWNER-LIST.md`.
+- **The thirteen older group questions stay in the bank**, out of the
+  rotation: retiring them on the live documents is the operator's flip,
+  and folding the eight plain picks into packs is a content call. Also
+  on `OWNER-LIST.md`.
+
+### What is not built, and why
+
+The tables (Standing as a dim, nine types — or ROLES-PLAN §3.5's eight),
+the Mirror's cast and scores (request 6, now `designed`), and the lane's
+contract are steps 2–4 of the plan, each with its gate. The extraction
+did not diff every module of the upload against a reconstructed baseline
+— the bundle's build changed shape (compacted, comments stripped), so the
+record's byte comparison is dead — and says so; it carries the bundle's
+own hashes so the next one can.
+
+**Measured, not assumed.** `check:content` (1 175 questions, the file
+at 22.8 KiB under its 24 KiB cap), `check:quality`, `check:neighbors`
+(one lexical collision — `gp5` against `gs7`, `runs`+`group` — recorded
+in `ALLOW` with its reason, as the gate's header asks), `check:seed-fields`
+(43 generated fields, all transported, compared and mirrored),
+`test:unit` (2 953 — thirteen new: the rotation, the card's role vote,
+rating, reveals and run, the fold's rating exclusion and Standing),
+`test:scripts` (1 199), `test --prefix functions` (817), `test:rules`
+(204; no rule moved), `lint`, `tsc -b`, `check:globals` (30, unmoved),
+`check:figures` (the bank's counts moved in eight places — 1 145 → 1 215
+docs, 336.5 → 344.6 KiB, +492 → +522 boot reads — each corrected to the
+gate's own number), `check:docs`, `check:public-copy`,
+`check:policy-claims`, `check:a11y` (6, unmoved), `check:tap-targets`
+(331 buttons, the ballot's five at 56 px). **One thing the build found
+the hard way:** a pre-existing rotation test hunted rounds until a
+fixture id was served, and with the fixture rewritten for the cast the
+id no longer existed — the loop never ended, and the whole unit suite
+hung at the first file rather than failing. The search is bounded now
+and says so. `test:e2e:all` is left to CI, as D426's third amendment
+records: this sandbox answers 403 to `firebase-public.firebaseio.com`.
+
+## D435 · The duel bank leaves the JavaScript: learn's treatment, one bank over
+
+**Date:** 2026-09-09 · **Status:** binding, built. The owner's *"yeah do
+that"*, after the D434 build reported that the bank file was compiled
+into the demo under a 24 KiB cap, stood at 22.8, and the daily burst
+would cross it on its next run — and after two questions that are worth
+keeping beside the record: *"is it so important that the demo is
+perfect"* and *"explain simpler why is there a demo for all users that
+downloads questions this sound relly dumb."* The answer to the second is
+the finding; the answer to the first is why the sample is small.
+
+### The finding
+
+`spec/duels-data.js` imported the whole of `content/duel-questions.json`,
+so every duel question was compiled into every install — the live builds
+included, which never read it: a live build reads the seeded bank through
+`duelQFor` (data/deck.ts) over the store's surface bank and does not load
+`duels-data.js` at all (pinned since the rounds, `daily-live-duels.test`).
+The import existed for the DEMO build — no backend, App Store review,
+the screenshot run, every `smoke-*` suite — and the demo cannot draw a
+question it was not compiled with. That is the whole reason a bank was in
+the JavaScript, and it is the reason D284 gave when it moved learn and
+left this one: *a weekly lane at 14.6 KiB has years of slack.*
+
+The slack went in a week. D426 ran the lane daily at 25 a run; D434 put
+thirty cast questions in the file and folded the packs to get it back
+under the cap at 22.8 KiB. `BUNDLED_CONTENT`'s own instruction for
+crossing was *learn's treatment, not a higher number*, and the arithmetic
+said the next run would cross.
+
+### The shape, and the property that matters
+
+The bundle now carries `content/duel-sample.json`, generated by
+`scripts/gen-duel-sample.mjs` and held equal to its source by
+`check:duel-sample` (deploy path, beside `check:learn-sample`, for its
+reason). `duels-data.js` imports the sample; nothing else changed in it —
+the pack resolution, the step labels, the offsets and the depth ladder's
+wrap all read a shorter pool the same way.
+
+**The sample is a slice, never a transformation, and its size does not
+move.** In bank order: the first `PER_KIND` served questions of each
+group kind (`us` 4 · `pick` 3 · `classic` 2 · role votes 8 · `rate` 4 —
+a `pick` naming a pack is counted apart, or "the first few picks" would
+be all plain picks and no pack) and the first `PER_DOMAIN` (4) of each
+1v1 domain in both pools, plus the scenario packs those role votes name.
+An append at the end of any pool changes nothing, so the lane can write
+ten thousand questions and the build never notices; the packs are
+derived from the votes rather than shipped whole, because the lane opens
+a pack every time it writes four roles and a hue.
+
+The counts are floors set by the demo, not taste. Four a domain because
+`DOMAIN_MIN` is four: a 1v1 domain row draws only once it holds four
+correct reads each way, and the long seeded records (f1 at 24 days) walk
+the pool by depth and wrap, so a domain held by one question would fill
+its row with that question repeated — `sample-people.test` asks for the
+rows, and it is green against the sample with the same three partner
+shapes it was written against. Eight role votes is two packs whole, so
+the demo shows the pack's hue changing. Twenty-one group questions is
+more than the sixteen slots the four seeded groups' weeks reach (offsets
+0 · 3 · 6 · 9, seven days each), so no two share a week. The group pool
+skips retired entries because the demo does; the 1v1 pools are taken
+flags and all, because the romantic pool ships dark on live (D40) and
+the demo has always drawn it.
+
+**The one edit that moves the sample is a retirement**, which is the
+operator's, never the lane's: the next served entry of that kind slides
+in, `check:duel-sample` fails on that pull request, and the message
+names the fix (`npm run build:duel-sample`). Pinned in
+`gen-duel-sample.test.mjs` together with stability under append, the
+derived packs, the per-kind and per-domain slices in bank order, and a
+refusal of a group kind that has no count — `check:content` holds the
+kinds to a closed set, so a new kind reaches this file as a thrown error
+rather than as a kind silently absent from every demo.
+
+### Measured
+
+The file the demo compiles in: 22.8 → **9.1 KiB**. `check:content`'s
+`BUNDLED_CONTENT` now lists `duel-sample.json` at 16 KiB — it grows with
+the number of kinds and domains, never with the bank — and the
+`duel-questions.json` entry is gone with the import, so the gate's
+"listed but not imported" arm would have refused the leftover. Shipping
+bundle after: 2244 KB total / 546 KB eager against 2440 / 552, the
+`duels-data` chunk at 17.5 KB (6.9 gzipped); `check:eager-content`
+unchanged at four named debts, none of them this. `check:content`
+(1 175 questions), `check:duel-sample`, `check:learn-sample`,
+`check:figures`, `check:docs`, `check:globals` (30, unmoved),
+`check:seed-fields`, `check:neighbors`, `check:quality`,
+`check:taxonomy`, `check:public-copy`, `check:policy-claims`,
+`check:a11y` (6, unmoved), `check:tap-targets`, `test:scripts` (1 205,
+six new), `test --prefix functions` (817), `tsc -b`, `lint` — green.
+`test:e2e:all` is left to CI, as D434 records: this sandbox answers 403
+to `firebase-public.firebaseio.com`.
+
+### What it does not change
+
+The bank, the seed and the live path: `gen-v2content.mjs` still reads
+`duel-questions.json` whole, the rotation and the card are D434's, and
+every scripts-side reader (the regulator, the scorecard, the neighbors
+gate, the pulse collector) reads the bank, not the sample. The lane's
+contract (QUESTION-FARM § The duel lane) loses its cap bullet and gains
+the sample rule — append freely, never edit the sample, regenerate only
+when the gate says so. `BANK-DELIVERY.md` § Ceiling 1 now reads as the
+record of both moves. Steps 2–4 of `VISION-2026-09-08.md` stand where
+they were; §4.3 is marked built.
+
+## D436 · The 2026-09-09 design arrives — how 1v1s and Groups work now — recorded, planned, and its confusions put to the owner before anything is built
+
+**Date:** 2026-09-09 · **Status:** binding as a record; every ruling it
+touches stands until the owner answers. The owner's `InSight_15` upload
+and its brief — *"the plan laid for group and 1v1 and visual. ask if
+anything confuses you"* — extracted to
+[`design/standalone-2026-09-09/`](../design/standalone-2026-09-09/README.md)
+(ten of 110 modules moved by the bundle's own hashes, the first
+extraction measured that way) and planned in
+[`VISION-2026-09-09.md`](VISION-2026-09-09.md). Nothing is built from
+it in this record's PR, on purpose: the brief asked for the confusions
+first, and six of them change the build's shape.
+
+### What the design says, in the brief's own order
+
+Rounds everywhere, a lead either side may run; nothing in a group
+predicted or called; titles only on result cards; answers carrying the
+question they answered. A 1v1's rounds by number are own · World · own
+· **cast** — the cast a plain sentence, *Most days, Liv is…*, with four
+answers per mode each carrying a dim (trust · spark · judgement ·
+constancy) and a *them* form, the guess at what they said about you.
+A group plays votes and ratings only, every role in a **seat** (engine ·
+hands · heart · wild), the ballot a grid of faces, the run at the foot
+a record rather than a score, the reveal at everyone-played or a
+48-hour deadline. The Groups stop is Overview · Votes · People · Scores
+· Compare. The role instrument is one idea in two settings — the share
+of casts naming you per axis, the share of your votes per seat — and how
+well you read each other moves to the person page's Together tab.
+
+### Where it meets a ruling on the record
+
+Four places, and the rule of this record is that each is an ASK (D334's
+shape), not a silent reversal and not a silent refusal:
+
+- **The World round in a 1v1** — retired 2026-09-08 by the owner at the
+  first reveal (D426's third amendment); the brief lists it as current.
+- **The room's call on a role vote** — D386's, owner-approved, an owner
+  row since D434; the brief's principle removes it.
+- **The instrument** — D204's two, rescored at D386, Standing as an
+  aside at D434, ROLES-PLAN's proposed tables on an owner row; the
+  design replaces all of it with the seats and the axes.
+- **The clock** — the owner's own rule of 2026-09-08 (a 1v1 closes at
+  the deadline for one player too; 24 hours from the first answer);
+  the design says 48 hours and *no clock* for a 1v1.
+
+Plus two departures the plan keeps and asks the owner to confirm: a
+live answer is create-only (D86), so a moved question cannot re-open a
+round the way the demo's `dState`/`gState` do — the stored `qid` and
+`revealQid`'s plurality are the honest equivalent; and two scenario
+roles changed since the 09-08 packs, which under D30/D52 is two
+retirements and two new entries, never an edit.
+
+### What is recorded rather than built, and why
+
+The last upload (D434) was built the same day, step 1 of four, because
+its mechanism was already in the tree and its content was not. This one
+changes what a 1v1 round IS (the cast), what the instrument measures,
+and three things the owner ruled on within the last two days — and the
+brief's last sentence is an instruction. The plan's §7 orders the build
+so that what needs no answer comes first (the group card to the brief,
+the Groups stop, the demo playing rounds) and what needs one names it;
+the questions are §6 there and rows on `OWNER-LIST.md`, each with a
+recommendation so one word answers it.
+
+### One thing the extraction found
+
+The brief opens *"Read `insight/README.md`"*; the bundle carries no
+README (searched by its section title across every decoded resource).
+The brief's paragraphs are the prose, the code is the design, and the
+record says so rather than paraphrasing a document nobody here has read.
+
+## D437 · How 1v1s and Groups work now — built to the owner's 2026-09-09 brief, on the owner's eight answers
+
+**Date:** 2026-09-09 · **Status:** binding. Builds the whole of
+[`VISION-2026-09-09.md`](VISION-2026-09-09.md) §7 (steps 1–6; step 7
+is not taken and step 8 is one constant) on the owner's answers to its
+§6 questions, given the same day, verbatim: *"1. World rounds in the
+1v1. … this is correct"* (no World round — own · own · own · cast),
+*"2, do what you recomend"* (48 hours on both surfaces; a 1v1 still
+closes at the deadline for the one who played), *"3, dont
+understand"*, *"4, dont understand"*, *"5, i bit more then two"*
+(three casts before a 1v1 names you), *"6, yeah they have been
+changed"* (the instrument swap), *"7, sure"* (the plurality rule
+stays), *"8, do what you recomend"* (*Who ends up leading?*). Questions
+3 and 4 were built to the brief itself — the brief is the owner's own
+document, and both are its stated principles — and the plain-words
+explanation is in the session's report to the owner; neither is a
+privacy matter, so neither waited (D334 is about privacy asks).
+
+### What the answers settle, one line each
+
+- **Q1 · no World round.** The 1v1's kinds are own · own · own ·
+  **cast** (`duoKind`, `data/deck.ts`); D426's third amendment stands
+  whole. `OWNER-LIST.md`'s World-round row closes on this word.
+- **Q2 · 48 hours, both surfaces.** `ROUND_DEADLINE_MS` in
+  `functions/src/pure.ts`; the 1v1 keeps closing at the deadline for the
+  one who played (ROUNDS-PLAN §3, the owner's 2026-09-08 rule).
+- **Q3 · the call goes.** *"Nothing in a group is predicted or
+  called."* The second tap on a role vote (D386's *And the room lands
+  on…?*) is gone from the card, `firestore.rules` refuses `guessIdx` on
+  the group surface (a labelled deny at its path, with a rules test),
+  the aggregate's group-guess arm is gone, and the *room* reading and
+  the Bellwether went with it. What this means in plain words: in a
+  group you only ever say who — you never guess what the room will say.
+- **Q4 · both role changes.** Zombie Plan's *the supply hoarder* →
+  *the medic — Who patches everyone up?* (heart); Road Trip's *the snack
+  captain* → *the hourly stop — Who needs to pull over every hour?*
+  (wild). A retirement and a new entry each (answers key on (qid,
+  optionIdx) forever, D30/D52), so each pack is four roles, one a seat.
+  In plain words: two of the twenty roles were swapped so that every
+  pack asks about all four seats.
+- **Q5 · three casts.** `MIN_DUO = 3` (`data/roles.ts`): a 1v1 names
+  you after three cast rounds — the twelfth round — and the roles
+  panel's thin row counts up to it (*2 of 3 cast rounds*). `MIN_GROUP`
+  stays 2 votes.
+- **Q6 · the instrument is the design's.** One idea in two settings —
+  what the people around you make you. A 1v1's dims are the share of
+  cast rounds in which THEY said you are each axis (trust · spark ·
+  judgement · constancy); a group's are the share of the votes you
+  received per seat (engine · hands · heart · wild), off the D224
+  snapshots, never a vote for yourself. Ten and eleven types
+  (`archetype-data.js`: pure seats at 76/8/8/8, blends at 42/42, one
+  neutral), baseline 25 a dim. D204's two instruments, D386's scoring
+  against luck and D434's Standing aside are retired; ROLES-PLAN
+  §3.4–§3.5's tables are answered rather than adopted, its §3.6 name
+  rule stands over the new dims, its §3.3 ledger is still open.
+- **Q7 · the plurality rule stays.** A live answer is create-only
+  (D86); a reveal publishes under the question most of them answered
+  and stamps the rest (D70/D71). The stored `qid` is the receipt the
+  brief asks for.
+- **Q8 · *Who ends up leading?*** — the leader's prompt, since the
+  voice rule bans *in charge*.
+
+### What was built, step by step (`VISION-2026-09-09.md` §7)
+
+1. **The bank and the clock** — `role.seat` on every role vote, the
+   two changes above, one `cast` entry per 1v1 pool (*Most days,
+   {name} is…* with `them` forms and `dims`), transported by the seed
+   and mirrored (`check:seed-fields`), held by `check:content` (a seat
+   from the closed set on every role; one active role per seat per
+   pack; the cast's shape; duplicates keyed by pool), `check:quality`
+   (a cast's four answers are sentences, exempt from the option
+   length), `check:neighbors` (the two casts are one question in two
+   pools). The demo sample regenerated (D435's lane).
+2. **The rotation and the rules** — `duelQFor`: a group's rating on
+   the fourth by a **phase per group** (`groupPhase = hash mod 3`, never
+   round 1), a 1v1's cast every fourth with the own rounds walking the
+   pool past it; `castText` for the name; the rules' group-surface
+   refusal of a guess. **One thing to know at the reseed:** the cast
+   entering the pool re-maps every live pair's OPEN own round once (the
+   skip arithmetic); every revealed round keeps its stored `qid`, so
+   nothing already shown changes — `OWNER-LIST.md`'s reseed row says so.
+3. **The card** (`ui/LiveDuelPanel.tsx`) — no call; the ballot as a
+   2-across grid of faces; the run as a record (a dot in the pack's
+   colour for a vote, a square for a rating, dotted where you were
+   late, a caption on tap); the cast round's ask · guess over the *them*
+   forms · reveal lead line (*You are the one Liv tells first. Liv is
+   the one you ask what to do.*) · sealed sub; the first run's preview a
+   real role vote off the bank; the copy sweep (*until the reveal*,
+   *Answered after the reveal. It shows, and counts for nothing.*).
+4. **The instrument** — `data/roles.ts` rewritten (`castOf`, `duoRole`,
+   `seatTally`, `groupRole`, `seatFor`, `blendRoles`); the tables, the
+   baselines, the hues, the explain sheet; `ui/LiveRolesPanel.tsx`'s two
+   sections with a thin row in the floor's own unit. The read/seen
+   accuracy leaves the instrument for the person page (step 6).
+5. **The Groups stop** (`ui/LiveGroupsMirrorBody.tsx`) — the identity
+   ring is roles cast over all the roles in the packs; the seat line
+   *Here, you are the one who holds the room together · 3 of 5 votes
+   say so*; the role map above the row (`ui/LgRoleMap.tsx` over
+   `data/roleField.ts`, lazy, every node a keyboard control); Votes ·
+   People · Scores · Compare, folded by `data/groupCast.ts`
+   (`roleVotes`, `groupScores`, `namedCount`). **Who holds a role is the
+   card's rule** (every blind vote, a vote for yourself included, so the
+   Votes lens and the reveal agree); the instrument underneath counts no
+   vote for yourself. `groupPortrait`'s *casts the room like you*
+   compares WHOM two votes named (the snapshot), not an index the roster
+   remaps. Gone with the call: the alignment ring, *aligned with you ·
+   N of M days*, the Answers rows of what the group "landed on", and the
+   cross-group *runs most like you* line (D287's groups half) with its
+   fan-out over every room's history — a room's votes are about its
+   people, not about a side. No in-common chips: a live profile carries
+   no interests (request 0b).
+6. **The demo plays rounds** — `spec/duels-data.js` and the family
+   (`group-daily`, `duo-daily`, `group-mirror`, `group-role-map`, the
+   person page's Together section, `map-people`) re-ported from
+   `design/standalone-2026-09-09/`, on the D435 sample, so a demo build
+   plays what live plays; `insight.duels.v2`. The person page keeps its
+   one-scroll shape: the Together TAB shell is the 09-07 record's, not
+   this brief's, and is not ported — Together is a section of the page
+   (the doors as tiles with the named type, *What you are to each
+   other*, *How well you read each other* as two rings and the domain
+   rows).
+
+### The voice, held by a gate
+
+`check:public-copy` grows a third list, `VOICE`, scoped by file to the
+duel surfaces (live and demo): rounds, never days; named, never
+crowned; no majority; no tomorrow; no *in charge*. It exists because
+the days vocabulary had grown back twice on screens written AFTER the
+rounds model landed — *aligned with you · 3 of 4 days*, *Reading the
+days…*, *No 1v1 has 3 days you both guessed* — each green under every
+gate. A relative date (*3 days ago*) is a timestamp and stays legal;
+the card's `crown` identifiers are `held` so the code does not carry
+the word either.
+
+### Measured
+
+`test:unit` 205 files green at the last step; `test:rules` 205 (the
+group-surface deny and its control); `test:scripts` 70 files; the
+shipping build at 548 KB eager of 552 (`check:bundle`), the role map and
+the constellation lazy; `check:globals` at its baseline of 30
+(the family is imports throughout); `check:a11y` 6 known findings, none
+new, 21 deferred suppressions across 8 files after the port; every
+static gate green. `test:e2e:all` is CI's (the emulator cannot boot
+behind this sandbox's proxy, docs/LOCAL-TESTING.md).
+
+### What this record does not decide
+
+The older twenty-one group questions (`OWNER-LIST.md`'s row — the demo
+plays packs and ratings alone now, the live bank still holds them
+inactive); the ledger (ROLES-PLAN §3.3); the person page's tab shell;
+the in-common chips (request 0b); the reseed itself, which is the
+owner's click.
+
+### Merged with `main` (2026-09-09, the evening)
+
+`main` moved forty commits while this was built, and three of them met
+it. **D429–D431 were taken** (the rules ceilings, the night review, the
+owner's three follow-ups), so the four records of this branch moved up
+by three before the merge — D434–D437, every reference with them; the
+hole the index printed for D429–D431 closed on the merge. **The duel
+lane ran once more in the older shapes** (`main`'s #450: eight group
+questions in the us/classic/pick kinds, eight 1v1, nine romantic) and
+took `056`–`072` of the duo surface's shared id series, so the two cast
+entries this branch had written as `056` and `057` are **`073` and
+`074`** — nothing had been seeded under the old ids, so nothing is
+remapped; `check:content`'s bank is 1342, the sample unmoved at 21 · 13
+· 13. The eight older-shape group questions follow the rule the D434
+thirteen already do: the two plain picks deal, as picks with no pack,
+and the six us/classic stay in the bank out of the rotation — the same
+owner row covers them. **`main` still carried the world round** —
+D426's second-amendment arm, its `worldSplit` column and the rules'
+world-content arm — which the owner retired at the first reveal (D426's
+third amendment, this branch's first commit); the merge keeps the
+retirement, so the reveal's World column, its `+1` test and the partner
+answers loader went with the arm, and `bankQ` is `main`'s
+`roundQById` door with the cast's fields on it and the one-day history
+fall-through. And **D429's expression-budget cases** sent what this
+branch's rules refuse by design — a `guessIdx` on the group surface
+(D437: nothing in a group is called) and a feed question as group
+content — and a refusal walks every arm to the budget, so all four read
+as the ceiling; they are rewritten as the heaviest writes that are LEGAL
+now (the group cases with no guess, a 1v1 answer carrying its guess in
+the world arm's place), with D429's table left standing as the record
+of what it measured. The rounds rename of `main`'s #444 (`rounds` /
+`roundsPlayed`, `REVEAL_HIST_CAP` 30, a late answer of mine out of
+`minePlayed`, the stored `qid` on a late write) is in whole; the
+alignment ring it renamed is not drawn, per the brief.
+
+### The second review of #456 (2026-09-09, the evening) — what it found, what moved, what is the owner's
+
+The owner's account reviewed fc10068 line by line against the merge base
+and the merge against a clean automatic merge of its parents, and found
+nothing that stops the merge; the small commit after it takes every
+finding that is code's to take.
+
+- **The group rotation repeated a question when the bank had role votes
+  and no ratings.** `before` — the rating rounds the vote walk skips —
+  was counted whether or not a rating was dealt, so with picks and no
+  `rate` docs rounds 4 and 5 walked to the same index (an 8-pick bank
+  served `p5 p6 p7 p0 p0 …`). That is the live bank's shape until the
+  owner's reseed lands `gs*`, and every device that has not re-read the
+  bank after it — exactly the case the branch's comment claimed to handle.
+  One line — no skip when there is nothing to take — which the reviewing
+  session pushed itself (9f6ef6d) with the rotation test holding
+  consecutive rounds to consecutive picks on a picks-only bank; the
+  commit after it takes the rest of the list.
+- **The card and the Votes lens could name different holders after a
+  leave mid-round.** The card tallied by option index (`revealTally`) and
+  the stop by snapshot (`groupCast.roleVotes`); a leave remaps the
+  indexes, so two indexes could name one member and the card read *D and
+  D share the mastermind* while the Mirror said D held it 2–0. "Who does
+  this option name" lived in three places with three fallbacks. It lives
+  in one now — `namedBy` (the D224 snapshot, else the reveal's OWN roster
+  at that index, never the live one) and `roleTally`, the role vote's
+  tally by who was named — and the reveal card, its bars and the run all
+  read it. The reveal's roster fallback also replaces the live roster the
+  card and the run fell back to for a snapshot-less vote.
+- **Smaller:** a role's key on the Groups stop is its pack's
+  (`pack/role`) and `check:content` holds an id to one role within a
+  pack, so a second *leader* in another pack is a second row and not a
+  merge; the demo's People card has its empty-group guard back (the
+  re-port dropped it, and an emptied room drew NaN); the demo's seat
+  reads votes RECEIVED, never a vote for yourself (the live rule); the
+  roles panel passes no name rather than the row label *1v1* into the
+  cast text; `revealHistory` keeps its array's identity while nothing
+  changed, and the Groups stop folds once per history in a hook of its
+  own, so the role map's memo is real. The three-way tie in the field
+  (a third holder gets no thread) is noted and left.
+- **The owner's:** the rollout. The rules refuse a group guess from the
+  moment `main` deploys them, and every installed build since D386 sends
+  one on every ordinary group round, so those devices are refused on
+  group votes until they update. Two ways through are on
+  `OWNER-LIST.md` — ship the next build promptly, or accept the field
+  for one release — and the choice is the owner's, because it is an
+  ordering of releases and not a defect in either.
+
+### Merged with `main` again (2026-09-09, after the second review)
+
+`main` took **D432 and D433** for the rules budget's Phase 0 and Phases
+1–2 (#457) while the review's follow-up was being built, so this
+branch's four records moved once more — D434–D437 — and
+`RULES-BUDGET-PLAN.md`'s prospective *D434* for its Phase 3 will find
+the number taken when that phase lands; a move then is the ordinary
+D299/D408 step, not a loss. **The restructured answer rule carries this
+branch's two changes where they were:** the group's guess is refused at
+`isDuelAnswer`'s door, before either fetch, and `duelBody`'s surface
+test is the equality alone — D433's world arm, kept on `main` because
+`main` still served world rounds, leaves with D426's third amendment.
+The arm read the question document `duelBody` is handed, so its leaving
+moves no fetch and D433's fourteen sites are fourteen still
+(`scripts/pulse.test.mjs`). **The budget instrument's probes are this
+tree's legal shapes** — no guess on a group write, the 1v1 answer with
+its guess in the world-content probe's place, and one more refusal, a
+guess on a group answer — and `scripts/rules-budget-baseline.json` is
+re-measured on the merged rules, so the record names writes the rules
+allow. D433's invariant held across the merge: every verdict in
+`firestore-tests/rules.test.ts` as before, `rules-coverage` at its
+baseline.
+
+## D438 · Phase 3 of the rules budget: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test
+
+**2026-09-09.** **Status:** binding. The owner: *"go on phase 3, merge
+when green"*. D433 bought the headroom back; nothing held it. A clause
+added to the create path would have spent it one filler at a time, and
+the first symptom would have been what D431 found — a refusal that was
+really an exhausted budget, in a suite that stayed green. This is the
+plan's Phase 3: the number can be read, and it can only move on purpose.
+
+**What holds it.** `node scripts/rules-budget.mjs --gate`, chained into
+`test:rules` after `rules-coverage.mjs`, so it runs inside the same
+emulator boot on the PR path and the deploy path both
+(`backend-checks.yml`'s rules job — the property CLAUDE.md names, kept
+by construction). Twenty-three variants, about fifteen seconds on the
+machine that measured it:
+
+- **Every flippable probe is pinned on both sides.** For each of the
+  eight legal creates the baseline records the N at which it flips
+  (`scripts/rules-budget-baseline.json`, `fillers`), and the gate
+  asserts the write is still *allowed* at exactly N and *refused by
+  budget* at N+1. Two-sided is deliberate: it is `check:globals` rule
+  4's shape. A change that costs expressions moves a pin and must
+  re-pin and say why; a change that GAINS headroom moves it the other
+  way and must re-pin too, so the baseline stays a measurement and not
+  a memory of one. The far side wants *budget* specifically — a variant
+  that failed to load is not a flip, and the classifier seeing the
+  emulator's reason text is itself under test.
+- **The compile-bounded probes are held at the floor.** Every refusal
+  shape reaches the compile ceiling (94 fillers) without flipping, so
+  there is no N+1 to assert; each is asserted *refused for its reason*
+  at the floor instead. That is the sentence D431 could not get: no
+  refusal in the pinned set is a refusal by budget, with 50 fillers of
+  margin.
+- **The floor is policy.** `floorFillers: 50` — ~405 budget units at
+  D432's 8.1, which is the plan's "≥ 400 expressions" target in the
+  measured currency. Every pin must clear it, arithmetically, before a
+  single variant boots. The thinnest legal create sits at 57 (the pick round, since #456's
+  D437 took the guess off group answers), seven fillers (~57 units)
+  above it. A pin that would land under the floor
+  is refused by the gate with the sentence that matters: *the change
+  that put it there is the thing to argue, not the number to edit*.
+- **The file must load at 80 fillers** (`compileFloorFillers`), 14
+  under the measured ceiling, so a deploy that would fail at the compile
+  ceiling is caught here rather than on the deploy path.
+- **Fails closed.** No baseline file, a floor missing, a probe with no
+  row, a row with no probe, a pin that is not a headroom, fillers pinned
+  on the wrong arm — each is a refusal to run, never a pass. The
+  decisions of WHAT to assert are pure (`planGate`, `judge`) and pinned
+  without an emulator in `rules-budget.test.mjs`.
+
+**Why these numbers and not the plan's.** §5 wrote *FLOOR ≈ 130
+fillers* and *FLOOR + 60 must load* in D429's currency of ~3
+expressions a filler. D432's calibration put a filler at 8.1, the
+thinnest legal create at 58 and the compile ceiling at 94: 130 fillers
+is above the ceiling, and 190 could never load. The plan's own hedge —
+*provisional until Phase 0* — is what this record cashes.
+
+**The second assertion — a denial by budget is a red test.** Every
+`assertFails` in `firestore-tests/rules.test.ts` (465 sites) is now
+`refused()`: the same assertion, plus the emulator's reason text must
+not contain *"maximum of 1000 expressions"*. The e2e got the same
+sentence in `firestore-tests/e2e-lib.mjs`'s `expectRefusal`, the one
+door every `expectDenied` in the three drivers passes through — which
+is where D431's thirteen had hidden, and the place a fourteenth would
+appear. Both are mechanical; both are the thing the suite's own header
+said a case could not tell, and now every case can.
+
+**How a PR meets it.** Green: nothing to do. Red with *N pin(s) moved*:
+if the change is meant to cost expressions, `npm run
+test:rules:baseline` re-pins (the coverage baseline and the budget pins
+in one boot, ~2 minutes — the pin re-bisects every probe and refuses to
+record a probe whose VERDICT changed at zero fillers, because that is a
+rule change and not a headroom change) and the PR says why; if it was
+not meant to cost anything, it did, and `node scripts/rules-budget.mjs`
+with no flags says on which line. A full `--write-baseline` (the
+calibration and the cost table, ~10 minutes) is for a record, not a PR.
+
+**What it does not do.** It does not measure the update arm's headroom
+(the pins are on the create arm; `--fillers-on update` exists for the
+day that matters), it does not assert the coverage report's counts
+(D432 found them not to be budget units), and it does not stop anyone
+editing `floorFillers` — a review does, and the number is in a file
+that reads as a measurement. Phase 4 stays priced and untaken.
+
+**Merged over #456 (D434–D437), which is why this record is D438.** That
+PR changed the duel arms under this gate while it was open — a group
+answer carries no guess (D437) — and re-measured the baseline in the
+old schema. The merge kept its measurement, re-applied the `refused()`
+sweep over its new case, and re-pinned on the merged rules: **zero pins
+moved**, the compile ceiling still 94, fifteen probes at their pins, the
+gate green on the first run. Which is the gate meeting the exact event
+it was built for, before it had merged.
+
+## D439 · The bridge's read half: the fit's own scorecard becomes readable from `main`
+
+**2026-09-03.** **Status: Proposed** — drafted by the axiom builder
+(`PROGRAM-RUNBOOK.md` § The axiom builder, step 4's paperwork) on
+`claude/axiom-fit-scorecard`. It binds nothing until the owner's tick on
+`MERGE-LIST.md` merges the PR that carries it; the tick is the decision.
+
+**What D325 left unfinished.** D325 (2026-08-27) carried the bridge's
+first two verdicts into the nightly fit: the prequential log-loss series
+and the publish-to-publish displacement summary, both published on
+`v2_patterns/loadings`. That is the WRITE half. The theory charter
+(`axiom-theory` `CHARTER.md` §4) defines its highest rung, `measured`,
+as *checked against InSight's own published numbers — the committed
+scorecards and aggregates readable from `main`* — and a Firestore
+document a device reads is not readable from `main`. The map lane
+filed exactly that gap on 2026-08-28 and central ruled it
+worth-building as *the highest-leverage item in this queue*: three
+lanes' `measured` paths (map-3's stability thesis, pat-6's engine
+crossover baseline, cen-2's portfolio floor) dead-ended on a document
+no theory run can quote; the pattern lane seconded rather than
+duplicated. The 2026-09-01 digest named it the one item to carry that
+week. The builder's first firing today planned it and ran out of
+usage; this is the second.
+
+**What this builds.** `npm run scorecard -- --fetch` reads
+`v2_patterns/loadings` on the same anonymous token the aggregate fetch
+already mints — one more world-readable document, the same signed-in
+read a device makes, no new grant, no rules change, nothing in
+`functions/` — and writes a `fit` block onto `content/scorecard.json`
+(`scripts/fit-snapshot.mjs`, pure; `scripts/question-scorecard.mjs`
+joins it before the card writes). The block: the document's own
+stamps (`publishedAt`, `lastDay`, `k`, `folded`, the question count);
+the **basis distribution** — how many questions are fitted on the
+believable basis (`PATTERNS_MIN_BASIS`, cross-read from
+`patternsFit.ts` the way the scorecard cross-reads `DECK_EPOCH`, so a
+moved floor cannot leave a stale count here) and the min / `p50` /
+max of per-question `n` (nearest-rank, `displacementSummary`'s own
+`rank`, so the block's two `p50` fields are one operation); the **prequential series** as published, with
+the day's headline, the floor it was floored at, how many questions
+cleared it, and D325's fit-not-Oracle `note` verbatim; the
+**displacement summary** as published (`space: "loading"`, the stats
+over every compared question, the movers per question); and an **item
+profile** per fitted question — `n`, `disc` (the L2 length of the
+published loading, a model-derived discrimination in the fitted K=8
+space) and `mean` (the ±1-encoded marginal; 0 is an even split). The
+item profile is the questions lane's 2026-08-28 verdict (per-core-
+question item-information profiles, worth-building on the same
+zero-cost argument as D325) folded into the same block, with the
+honesty clause that verdict made a condition carried as `items.note`:
+this is not an IRT parameter estimate from a purpose-built calibration.
+`fit` is `null` when the document does not exist yet (a state, printed
+as such, never a failed run) and absent on a card generated from an
+offline dump without `--loadings`, so an older committed artifact and
+an offline one both still summarize.
+
+**What it deliberately does not do.** It does not commit the loading
+vectors: the scorecard carries derived numbers, and the map is drawn
+elsewhere. It does not draw anything — the reader is
+`VISUAL-REQUESTS.md` §3, a design question before it is code (the
+owner's rule, D352), and this record is the data half its row on the
+worklist was split into. It does not add a cadence: the block refreshes
+whenever the scorecard does — a farm run with the key, or an operator —
+and the verdict itself says weekly suffices. It does not touch
+`docs/AXES-RUNBOOK.md`: the retro lane carries verdicts into the lane
+contracts, and a lane contract is not the builder's to edit.
+
+**The arithmetic.** One document GET per fetch (~11 KB, D325's
+measurement), on an operator read path — `COSTS.md`'s per-device and
+per-function rows are unchanged, which is why that page does not move.
+The committed block: at most 90 series rows × 3 fields
+(`PATTERNS_QUALITY_DAYS`), three numbers per fitted question over the
+core corpus (D161's bounded half — 111 questions at D325), and the
+movers list, which is bounded by the same corpus: a few kilobytes on a
+file already committed at every refresh.
+
+**The one block, and where it sits.** The block appears on `main` only
+when someone runs the fetch with `FIREBASE_API_KEY`; no workflow does,
+and the routine environment does not carry the key (run log #31,
+`PERMISSIONS.md`). That is the owner's Clicks row on `OWNER-LIST.md`,
+and this record adds the theory lanes' `measured` rung to what the key
+unblocks. Until then the code is the read half and the committed file
+still lacks the block — honest, and exactly what the row says.
+
+**What it buys, per the verdicts.** map-3 gets the real displacement
+distribution it named as its only path to `measured`; pat-1/pat-6 get
+the crossover baseline any candidate engine is judged against; pat-5's
+per-question drift becomes quotable; cen-2 gets the baseline term its
+crowd-value metric is defined against; que-2 gets its route to
+`measured` — do live item parameters behave as IRT predicts across
+refits — with the honesty clause the verdict required. Every one of
+those rises is the theory lane's to make, from `main`, by the charter's
+own rule.
+
+**Measured before the push:** `test:scripts`, `lint`, `test:unit`,
+`build`, `check:globals`, `check:docs`, `check:figures` — the counts are
+in the PR body.
+
+## D440 · The owner of a directory row may delete it — clearing your display name unlists you
+
+**2026-09-09.** **Status:** binding. The owner, on the `OWNER-LIST.md`
+row night shift B filed 2026-09-07 (*"Clearing your display name does
+not unlist you from the people directory — may the owner of a row delete
+it?"*): allow it. This record is the build and the arithmetic the row
+carried, kept where a decision is found by number.
+
+**What was wrong.** Saving an empty display name wrote `displayName: ""`
+to the profile and then SKIPPED the directory row: `writeDirectoryRow`
+returned early on an empty name. The `v2_people` rule requires
+`name.size() > 0`, so there was no empty row to write instead, and
+`allow delete: if false` closed the only other path. The old name went
+on standing in `v2_people`, which the people search reads by `nameKey`
+prefix — so a person who cleared their name to stop being found stayed
+found, permanently, with nothing in the app able to change it. That was
+measured 2026-09-07 at the store. Measured again today one level up, it
+was worse: NO screen could hand the store a blank name at all. The
+account panel's Save has returned early on a blank since the P1 batch,
+and the setup screen's `newName` requires a non-blank — so a name was a
+one-way door from the day the directory shipped, and the store-level
+fix alone would have been reachable from nowhere.
+
+**Why the refusal no longer held.** The deny was deliberate and had a
+test behind it — *"nobody deletes a row from a client, not even their
+own"* — whose stated reason was that `deleteAccount` owns removal and
+*"a client delete would be the one path able to strip a row the erasure
+counts on"*. Erasure phase 3d is ``db.doc(`v2_people/${uid}`).delete()``
+followed by `counts.peopleRow = 1`: an idempotent delete and a constant,
+not a measurement. A row the owner removed first changes neither the
+erasure's verdict nor its report, and the e2e that holds the erasure
+(`e2e-delete-account.mjs`) asserts the row is GONE afterwards, beside a
+control row that must survive — which a row deleted earlier satisfies
+trivially. So the refusal rested on an argument that was never true of
+the code it named. D334 is why it went to the owner rather than being
+lifted on a shift: a recorded refusal on a rules write surface, with
+another session's deliberate assertion behind it, is the owner's to
+lift.
+
+**What was built.** The row's shape, plus the one step its measurement
+had not reached:
+
+- `firestore.rules`, the people directory: `allow delete: if
+  request.auth != null && request.auth.uid == uid`. Own row only. The
+  comment at the arm carries why the old reason fell and what of phase
+  3d is still true — it still needs its own arm, because this is a
+  top-level document phase 1b's recursive delete walks past, and most
+  erased accounts never cleared their name.
+- `src/v2/data/socialFetch.ts` `writeDirectoryRow`: an empty name
+  DELETES the row instead of returning. No read first — a delete of a
+  row that does not exist is a legal no-op under the arm (it reads no
+  `resource`), and the rules suite holds that with a second delete.
+- `firestore-tests/rules.test.ts`: the case asserting the opposite is
+  replaced by the owner/stranger pair — the owner deletes their own row
+  (twice), a stranger may not, and neither may a signed-out client. The
+  signed-out case is not decoration: the sign-in conjunct is its own
+  predicate on the new arm, and `rules-coverage` (D438's companion
+  ratchet) counts a conjunct the suite never sees refuse, so without it
+  the never-false baseline would have moved up by one.
+- `src/v2/data/socialFetch.test.ts`, new: the empty branch deletes and
+  writes nothing; the named branch writes the fold and deletes nothing.
+- `src/v2/ui/LivePrivacyPanel.tsx`: a blank Save clears a NAME THAT IS
+  SET, and only then — an account with no name has nothing to clear and
+  keeps the no-op, since a write of `""` over `""` would be a profile
+  write plus a delete of nothing for no visible result. Pinned in
+  `LivePrivacyPanel.test.tsx` both ways. Not a visual in D352's sense:
+  the control exists; what changed is what a blank in it does.
+- `docs/data-inventory.md`'s `v2_people` row says who may delete now
+  and that 3d is idempotent; `functions/src/index.ts` says at 3d why
+  the constant is a constant, so nobody improves it into the
+  measurement that would make the retired argument true.
+
+**What it does not do.** It is not erasure: 3d still runs for every
+account, and an erased account that never cleared its name is unlisted
+by the erasure exactly as before. It does not let anyone touch another
+account's row — the arm is the uid equality and nothing else, and the
+grant can only ever reduce what is published. The setup screen still
+saves no blank (`newName` is unchanged); the account panel is the
+editing surface, and the one that needed to open. `web/privacy.html` is
+untouched: the page never described the directory, and its sentence on
+a blank name — *"hides the name, not the answers"* — is exactly as true
+after this as before, so `check:policy-claims` holds an unchanged page.
+And it does not unmake a circle: a directory row is read at search
+time, never held by a searcher, so once it is gone nobody finds the name
+again — but a circle that already holds you holds you by uid, and still
+does.
+
+**The arithmetic.** One delete per blank save, on a document nothing
+else reads by that path; zero new reads. The new arm is two predicates,
+both seen refusing, so `rules-coverage` stays at its baseline; the arm
+is not on the answer create path, so no `rules-budget` pin moves — both
+measured on the branch, and the counts are in the PR body.
+## D444 · The ten plain picks get a sixth pack: Any Given Evening, four of them in place, six retired by the one-role-a-seat rule, the live flip still the owner's
+
+**Date:** 2026-09-09 · **Status:** binding, built in the bank; the live
+documents are the owner's. Builds one half of `OWNER-LIST.md`'s row *The
+group as a cast — what happens to the eighteen older group questions?*,
+on the owner's answer of 2026-09-09 through the session's recommendation,
+accepted: the plain picks get **a sixth pack of their own rather than
+being retired**. The other half — flipping `active` on the documents
+already on `v2_questions` — is a console click and is not taken here.
+
+### What the ten were
+
+The group pool's `pick` kind from D40: a question with no options, the
+members as the ballot, the reveal naming one — `Who gives the best
+advice?`, `Who secretly runs this group?` — eight in the bank at D434
+(`gp0`–`gp7`) and ten after the lane's last run in the older shapes
+(`gp8`, `gp9`, `main`'s #450). Since the cast (D434) they dealt with no
+pack: `duelQFor` walks every `pick` on the surface, so a room drew *Who
+would you call from jail at 3am?* with no kicker, no role and no seat,
+between Bank Heist and Desert Island. The owner's 2026-09-09 design has
+no such round (D436 §3.7: the bank is packs and ratings alone), which
+is why the row put the two shapes side by side: retire them, or give
+them the pack a role vote is missing.
+
+### Why a pack rather than retirement
+
+A plain pick is already a role vote in everything but the kicker. Its
+options are the members (D40), the snapshot of whom an index meant is
+D224's, the rules fall through to the member count, the reveal names one
+person — D434's finding, one step further: the mechanism existed and the
+content lacked two fields. So the pack costs `scen` and `role` on the
+entry and moves nothing in the write path, the rules, the trigger or the
+reveal, while retiring the ten would have thrown away eight questions
+whose answers are already on live keyed to them (D30, D52). The
+recommendation was the cheaper half and the owner took it.
+
+### The pack, and the arithmetic that sized it
+
+**Any Given Evening** (`evening`, hue 335 — the widest gap the five hues
+leave, between Road Trip's 60 and Bank Heist's 25 the long way round):
+the scenario a plain role vote already has, which is no scenario — the
+group on an ordinary night, nobody robbing a bank.
+
+A pack is **four roles, one a seat** (D437; `check:content` refuses two
+active roles in one seat or a seat empty; QUESTION-FARM § The duel lane
+says it in the lane's contract). Ten does not divide into four seats, so
+the contract sizes the pack at four and the other six leave the
+rotation — the row's own alternative, applied to the six the pack cannot
+hold. Which four: the one that fills each seat best, chosen so the four
+read as one evening's cast.
+
+| seat | qid | prompt (unchanged) | role |
+| --- | --- | --- | --- |
+| engine | `gp5` | *Who secretly runs this group?* | **the ringleader** |
+| hands | `gp3` | *Who would you call from jail at 3am?* | **the 3am call** |
+| heart | `gp2` | *Who gives the best advice?* | **the voice of reason** |
+| wild | `gp4` | *Who changes the plan at the last minute?* | **the curveball** |
+
+**The four keep their qids.** Joining the pack changes neither a
+question's options (the members, as before) nor its meaning (the prompt
+is untouched; the role label is a name for the answer the prompt already
+asked for), so it is a field merge and not the D30/D52 retirement-plus-
+new-entry that D437's two role changes were — those changed the prompt.
+`seedOptionConflict` (D58) has nothing to refuse on an empty option set,
+and the seed merges `scen` and `role` onto the four live documents on the
+owner's next *Seed content*; every answer stored against `gp2`–`gp5`
+reads exactly as it did. The four sit where they were in the array, so a
+live room's walk through the `picks` pool does not move on the reseed.
+
+**Six retired** (`active: false`, D52's shape), each with the seat it
+would have taken, so a seventh pack is a declaration and one line each
+if the owner wants one — the prompts stay in the bank, and one re-seat
+would be needed (no wild among them):
+
+- `gp0` *Who'd survive longest in the wild?* — hands
+- `gp1` *Who replies to the group chat within a minute?* — engine
+- `gp6` *Who would win a group argument on a technicality?* — hands
+- `gp7` *Who tells the same story every time, and it still lands?* — heart
+- `gp8` *Who would survive longest without their phone?* — hands
+- `gp9` *Who's secretly keeping the group together?* — heart
+
+Two of the six lost a seat to a near twin: `gp9` is the heart's own line
+asked as a question, and `gp1` is an engine, but `gp5` and `gp9` are the
+same *secretly* frame twice, which in a pack of four reads as one
+question asked again — so the pack keeps `gp5` (the row's own example)
+and the voice of reason. **The six carry no pack and no seat on
+purpose.** A retired entry tagged with a pack would draw the kicker onto
+the reveals of rounds it was played in as a plain pick, and the seed
+would write the pack onto its live document while `active` stayed the
+owner's — so the interval between the reseed and the flip would deal Any
+Given Evening with three hands. Untagged, the six deal on live exactly
+as they do today until the owner's click, and not at all after it.
+
+### What the flip is, precisely
+
+The seed never rewrites `active` after create (D40 part 4's rule, in
+`runSeedV2`), so the bank's six retirements reach a seeded document
+never: `gp0`, `gp1`, `gp6` and `gp7` keep dealing on live until the
+console flip, and `gp8`–`gp9`, which the seed has not yet written (the
+reseed row is open), are created retired. The row says so, dated. This
+record retires nothing in production.
+
+### What moved with it
+
+- **The demo sample** (`content/duel-sample.json`, `build:duel-sample`):
+  the four precede `gr0` in bank order, so the sample's eight role votes
+  are Any Given Evening and Bank Heist (they were Heist and Island), and
+  `PER_KIND.pick` is 0 — no pick without a pack is served, and the demo
+  never played one (D437). Eighteen group entries from twenty-one, two
+  packs still, 10.2 KiB.
+- **`content/README.md`** (twenty-six role votes, six packs, thirty in
+  the older shapes, eleven retired), **QUESTION-FARM**'s pack list, and
+  the row.
+
+### One thing the build found the hard way
+
+`check:figures` went red on a change that added no question, asking for
+the bank to be written up as **1350**. Its bank count was a regex over
+every `"id":` key in `functions/src/v2content.ts` — exact until D434 gave
+a role vote a nested `scen.id` and `role.id`, and 44 over the bank from
+that day, with every sentence the gate holds "corrected" to the
+over-count at D434 (*1 145 → 1 215 docs*). The four new votes moved it by
+eight, which is how it surfaced. The count is `bankArray(…).length`
+now — the parser the rest of the gate already trusts, and
+`V2_QUESTIONS.length`, the number `seedContent()` reports — and the
+eleven sentences (LAUNCH-RUNBOOK, SHIP-CHECKLIST, SCHEMA-V2, COSTS, the
+`engagement.ts` fence comment) read **1298**, which is what
+`check:content` has printed all along. COSTS' wire size moved for real,
+382.4 → 383.0 KiB: four `scen` and `role` maps.
+
+### Measured
+
+`check:content` 1298 (group 66, unmoved — nothing was added);
+`check:duel-sample` 18 group (2 packs) · 13 · 13 of 66 · 41 · 34;
+`check:quality` 1271, all bounds hold; `check:neighbors` duel 128,
+closest 0.400 (`gp2` ~ `047`, as before — no prompt changed);
+`check:taxonomy`, `check:labels` (12 references, 96 files),
+`check:seed-fields` (45 fields), `check:eager-content` (93 modules, 4
+content), `check:public-copy` (273 strings, the 12 duel surfaces in the
+owner's voice) green; `check:figures` 106 figures across 314 files with
+the bank at 1298; `check:docs` 440 decisions indexed; `check:globals`
+28, unmoved; `test:scripts` 74 files, 1286 tests; `test:unit` 207
+files, 3016 tests; `test --prefix functions` 39 files, 837 tests;
+`lint` clean. `test:e2e:all` is CI's, as every record since D426's
+third amendment says of this sandbox.
+
+### What this record does not decide
+
+The flip on the live documents; a seventh pack for the six; the reseed
+itself, which is the same owner click as the cast's.
+## D441 · The email door asks too: the wall's one silent path gets the same second tap as Apple and Google, and the privacy page promises the warning at all three doors again
+
+**Date:** 2026-09-09 · **Status:** Adopted — the owner's answer, 2026-09-09,
+to the `OWNER-LIST.md` § Decisions row *"Should the email door ask too?"*:
+**add it.** Amends
+[D414](#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why)
+§3, whose sentence — *signing in to an account that already exists … is
+a second, named tap with the consequence written on it, never what the
+first tap does* — was true of two doors and not of the third.
+
+### 1 · What was measured (night shift B, 2026-09-07)
+
+`fly("apple" | "google")` catches `auth/credential-already-in-use` and
+shows the in-use screen — *"That account already has an InSight history.
+Signing in to it leaves this phone's answers behind — they are not
+merged"* — with a labelled second tap and a way back. The email door
+never reached it: `emailSignIn` called `signInWithEmailAndPassword`
+directly, the auth observer saw a new uid, and `resetForNewUid` purged
+the session. No screen, no second tap, nothing to go back to. And the
+gate STEERED people there: a create that failed with
+`email-already-in-use` rendered *"Sign in instead"* as the way on, so the
+one door with no warning was the one the app pointed at.
+
+The night shift did the half it could do alone. `web/privacy.html` had
+promised the warning for all three doors, which was false, so the page
+was made to state the difference and four `check:policy-claims` rows
+went under the section (before that night the whole account section
+could be deleted at exit 0). The other half — a confirmation step on the
+primary sign-in path of the wall — is a product change, and it went to
+the owner as the row.
+
+### 2 · What ships
+
+**The condition, not an error.** Apple and Google learn that an account
+exists from Firebase refusing the link. A password sign-in has no link
+to refuse — the call *is* the replacement — so the email door asks on
+the condition instead: in sign-in mode, while the session is anonymous
+and unlinked (`!LIVE.linked` at the gate, where `SignInGate` mounts the
+screen only for an unlinked session and `initLive()` has already signed
+it in), the first tap opens the existing in-use screen and makes no
+call. The second tap — the same *"Sign in and leave this phone's
+answers"* button the other two doors use — runs `emailSignIn`. *"Use a
+different account"* goes back to the form, still filled.
+
+**A failed second tap comes back to the form.** A wrong password or an
+unknown address answers on the door, through the same `FAILURES` table
+as before, because the way out those name — *Forgot password?*, a
+retyped address — is a control the form has and the in-use screen does
+not. The next *Sign in* asks again: a wrong password does not spend the
+acknowledgement, and the cost of that is one tap on a retry.
+
+**The page promises the warning again, and the gate holds it.**
+`web/privacy.html` § The account says the app says so on the screen
+before it happens whichever of the three doors you use, and that it
+takes a second tap. The fourth `check:policy-claims` row of the section
+now pins that sentence, relabelled to this record, and a fifth — an
+absence row — forbids the retired caveat, *"With an email address it
+does not"*, from coming back. Page and gate move in the same commit as
+the code, which is the D183 order.
+
+**Pinned.** `LiveSignInGate.test.tsx`: an anonymous session tapping
+*Sign in* — reached the way the row named, create → *taken* → *Sign in
+instead* — sees the warning with no call made and a way back onto the
+filled form; a linked session is not asked (the one case that renders
+the screen without its wrapper, because the wrapper never mounts it for
+a linked session, so that arm is observable nowhere else); the second
+tap makes the call with the typed credentials; a failed second tap lands
+on the form with *Forgot password?*. Run against the tree before this
+record, four of the suite's twenty-six cases fail — the one that expects
+the ask, the two whose sign-in is the second tap, and the failure case
+that expects the form — and the linked-session case is green on both
+trees, which is what it is for.
+
+### 3 · What it deliberately does not do
+
+- **No acknowledgement memo.** A flag remembering the second tap across
+  a retry would save one tap on a wrong password and be one more piece
+  of state on the wall's worst screen. Asking again is one rule for
+  every attempt.
+- **`firebaseImpl.ts` § emailSignIn is untouched.** The row named it as
+  a possible seam; it is not one. The function is the SDK call and
+  nothing else, and the gate is its only caller — verified, one site. A
+  condition there would need a bypass for the second tap, which is a
+  second way to sign in.
+- **No new store member.** The condition reads `LIVE.linked`, which
+  exists and is pinned by `vote.test.ts`; nothing joins the
+  `window.LIVE` surface.
+- **The copy is the existing screen's, unchanged.** *"That account
+  already has an InSight history"* is what signing in means; at the
+  email door it is read before the password is checked, and a wrong
+  password answers on the form.
+
+### 4 · The arithmetic
+
+One tap more on one path — a password sign-in from an anonymous session
+— and none on create, Apple or Google. Zero reads: nothing is fetched
+before the second tap that was not fetched before. The screen is a lazy
+chunk (`SignInGate`'s header), so the eager graph does not move.
+
+**Measured before the push:** the gates and their counts are in the PR
+body.
+## D442 · The nightly voter samples are seeded on first touch: one bounded query per question, once, at most 25 a night
+
+**2026-09-09.** **Status:** binding. The owner's answer to the
+`OWNER-LIST.md` row *"The nightly voter samples have never held anyone
+who answered before they existed — pay ~23,000 reads once to seed them,
+or keep a floor that is lying?"* — seed on first touch, bounded at 25
+questions a night — which is the row's own recommendation, taken.
+
+### What was wrong
+
+D397 replaced the newest-200 answer query behind Kindred, the People
+lens and the pair card with one published document per question, built
+by the nightly pass from the ledger day it already reads
+(`mergeSample`), and the saving was real: reads/day −16% wherever the
+cap binds. What nothing did was SEED it. A person answers a given
+question once, so a ledger day carries only that night's answerers, and
+the two hundred people who answered a question before its sample
+existed never arrived — a long-standing question published a sample of
+however many had answered it since D397 shipped. Real rows, and the
+reader could not tell them from a complete list. It landed on the
+floors: `say()` and `tell()` both want 12 in both samples, so the pair
+card and the Oracle's working panel went quiet and reported `thin`, and
+"of the N in both samples" named a population the document did not
+hold — **a claim about the crowd whose real subject was the deploy
+date**, D1's honesty failing on a surface nothing measured. What a
+routine could do alone was done first: an EMPTY sample no longer reads
+as a crowd of nobody (`d4bd84a8`); a SHORT one is undetectable from the
+device, which is why the row went to the owner rather than being fixed
+quietly.
+
+### The two ways through
+
+*Seed on first touch* — one bounded collection-group query the first
+night the pass meets a question, then nothing forever. It needed two
+things nobody had chosen: a second copy of the answer-surface list
+inside `functions/` (the client's lives in `data/voters.ts`, and D197 is
+this tree's record of one parser in three copies), and a per-run bound,
+because seeding every question on one busy night is the whole corpus's
+reads inside a single invocation with a timeout. *Fall back when the
+sample is short* — no writes, no new list, but it re-reads two hundred
+documents per question per session for the whole legacy corpus,
+permanently: most of what D397 bought, paid back monthly. The owner
+took the first, at 25 a night.
+
+### What was built
+
+**The seed** (`functions/src/patternsSamples.ts`, pure; the pass in
+`patterns.ts`). The first night the nightly meets a question whose
+sample document does not exist or carries no `seeded` stamp, it runs
+the who-voted sheet's OWN query once — `collectionGroup("answers")`,
+`qid ==`, `surface in` the world list, `answeredAt desc`, limit
+`PATTERNS_SAMPLE_CAP` (200), on the collection-group index
+`firestore.indexes.json` already declares for the client's
+`fetchVoterPicks` — and folds the rows in exactly as a ledger day is
+folded: one row per person, the newest day wins, the cap keeps the
+newest (`seedSample` is `mergeSample` plus the stamp). Each row's day
+is the day the answer last MOVED — `editedAt` when a D86 edit stamped
+it, else `answeredAt` — because that is the day the ledger folded it,
+so a seeded row lands where the ledger would have put it and an edit
+the ledger already moved meets the seed as a tie: one row, the edited
+option, never a rollback and never a second person (pinned in all three
+orders the two can arrive in). The chips are the answer's frozen
+anchors (D8), string values only — `ledgerAnchors`' own filter — so a
+seeded row and a ledgered row of the same answer are byte-identical.
+The seed runs BEFORE the day's additions are merged, so an entry
+ledgered tonight wins its tie with the seed's copy of the same answer.
+Then the document is stamped `seeded: <UTC day>`, and the stamp is the
+whole idempotence: a stamped sample is never read again, `mergeSample`
+carries the stamp across every nightly rewrite (the document is a `set`
+with no merge — a merge that rebuilt it without the stamp would re-seed
+the question nightly), and `store-projection.test.ts` pins the field in
+both directions of the Firestore store, the `d`/`a` lesson one method
+up.
+
+**The bound.** `PATTERNS_SEED_PER_RUN = 25`, per RUN rather than per
+day — a catch-up folds up to seven days in one invocation, and the
+bound exists to cap what one invocation reads. Questions are met in qid
+order, so a night's budget spends the same way twice. When it is spent,
+a sample that EXISTS still takes the day (short as it was, no shorter)
+and a sample that does not exist is **not created short**: with no
+document the device keeps the live query, which is complete, and the
+seed lands the next night the question is met — nothing is lost to it,
+because the seed reads the answers themselves rather than the ledger.
+The fit's heartbeat line (`metric: "patterns_fit"`) carries `seeded`,
+the count paid for tonight, beside `samples`.
+
+**The list.** `functions/src/answerSurfaces.ts` is the server's copy of
+`WORLD_ANSWER_SURFACES`, and `answerSurfaces.test.ts` reads
+`src/v2/data/voters.ts` across the package boundary and pins the two
+arrays equal — the client's `voters.test.ts` pins its list against the
+value test in `firestore.rules`, so the three agree transitively. The
+copy is HELD rather than trusted for a reason the client's copy does
+not have: the admin SDK walks past the rules, so a drifted server list
+would not be refused, it would seed a crowd the sheet does not show.
+
+### The reads arithmetic
+
+At the `europe-west1` read price of $0.03 per 100 k (D200):
+
+- **Per seeded question:** one query, at most `PATTERNS_SAMPLE_CAP` =
+  200 billed reads (fewer where fewer answers exist; one for an empty
+  result). No new write — the stamp rides the `putSamples` write a
+  touched question already gets — and no new index.
+- **Per seeding night:** at most 25 × 200 = **5,000 reads ≈ $0.0015**,
+  on top of the pass's own reads, which are unchanged.
+- **The corpus.** The row priced ~113 core questions × 200 ≈ 23,000
+  reads, which was the two-option pool (`PATTERNS_QIDS`, 115 today).
+  The sample family is written for every item the candidate's corpus
+  names (`PATTERNS_ITEM_QIDS` — 540 today: 138 daily, 86 core feed, 316
+  instrument items), because D397 wrote a sample for every question a
+  day's compaction touches, and Kindred's twelve are chosen from the
+  viewer's own vote map by divisiveness, which does not exclude an
+  instrument item. So the ceiling is 540 × 200 = **108,000 reads ≈
+  $0.03, once**, over at most ceil(540 / 25) = **22 seeding nights** if
+  every night met 25 unstamped questions — and the real figure is the
+  number of answer documents that exist, min(answers, 200) per
+  question, which pre-launch is far under the ceiling. Only questions a
+  day's answers touch are met at all, so the nights that seed anything
+  are the nights people answered questions with a history.
+- **After that:** zero, forever. The stamp is one string on a document
+  the pass already reads for every touched question.
+
+### What it does not do
+
+- It does not seed a sample nobody touches. A document written by the
+  nights since D397 shipped and before this deploy, for a question
+  nobody answers again, stays as it was — short — until someone does;
+  the first answer seeds it. The alternative, a nightly sweep of
+  `v2_patterns` for unstamped documents, is a few hundred reads a night
+  against "then nothing forever", for a residue that is finite, tiny
+  pre-launch, and enumerable in the console (`sample-*` documents
+  without `seeded`). Recorded, not built; the row is the owner's to
+  reopen if the residue ever matters.
+- It does not touch a rule, an index, the client, or any collection
+  shape beyond the `seeded` field: the seed runs on the admin SDK under
+  the sample's existing rule (reads signed-in, writes nobody), the
+  query is the client's own on the index the client already needs, and
+  the reader's fallback and floors are as they were. The one client
+  file touched is `voters.ts`, in a docstring alone — its "nothing
+  seeds it" paragraph stopped being true.
+- It does not seed the who-voted sheet or the City pass — both keep the
+  live query (D397, D278), for the reasons D397 gives.
+- It was not run against production (a session makes no production
+  writes), and the emulator e2e never invokes the nightly, so the
+  first seed is the first nightly after deploy; `seeded` on the
+  heartbeat line is what says it happened, and how many were paid for.
+
+**Measured before the push:** functions 40 files / 851 tests (837 + 14
+— six D442 cases in `patterns.test.ts`, four in
+`patternsSamples.test.ts`, two in `answerSurfaces.test.ts`, two more
+rows in `store-projection.test.ts`), `tsc` clean; the rest of the gates
+are in the PR body.
+## D443 · The data export: deleteAccount's read-only twin, and the terms' download promise gets its mechanism
+
+**2026-09-09.** **Status:** binding. The owner's decision on the
+2026-09-08 owner-list row *"The terms promise a data download the app
+has no way to give — build the export, or soften the sentence?"* — the
+answer was to build it. This record is what was built, the bound it
+carries, what it leaves out and why, and what it deliberately does not
+do.
+
+**The promise.** `web/terms.html` has said since it was written that
+before we terminate or suspend an account *"we'll try to notify you and
+give you a chance to download your data first."* Night shift A measured
+on 2026-09-08 that there was no export path anywhere in the tree — a
+grep for the five obvious spellings returned nothing, and
+`web/delete-account.html` described deletion as the only self-serve data
+operation there is. So the one moment the sentence was about was the one
+moment it could not be honoured. Not a D98 question: nothing here is
+about who can see what; it is about whether a written promise has a
+mechanism.
+
+**The three shapes, and the one taken.** *Soften the sentence* to what
+the app does — a notice, and the delete button — which is accurate and
+strictly less than what was promised, a promise taken away from users
+rather than a night shift's fix. *Leave it* and do it by hand for the
+handful of terminations a small app has — the status quo stated out
+loud. *Build the export* — the erasure callable already walks the whole
+graph of what is about one account, phase by phase, so a read-only twin
+of `deleteAccount` that returns JSON is the smallest honest version, and
+it also answers GDPR Art. 20 portability, which the app had no answer
+to. The owner chose the third, the row's own recommendation.
+
+**What was built.**
+
+- **`functions/src/exportAccount.ts` — `exportAccountV2`**, an owner-only
+  callable (App Check demanded, `check:appcheck`; `LIGHT_UNBOUNDED`, since
+  the walk is unbounded per account the way the erasure's is) that walks
+  EXACTLY the graph `deleteAccount` erases, in its order, reading only:
+  the sign-in record; the journal-era subtree; the agg-events ledger; the
+  voter samples; the v2 subtree by LISTING its subcollections, so a
+  subcollection the tree grows next is covered the day it ships (the
+  property `recursiveDelete` gives the erasure); the logic attempt;
+  takes, flags, the face's document and the presence square as held-until;
+  the photo's bytes out of Storage; the circles and what each document says about
+  this member; every reveal that names the account — its own circles
+  walked, the circles it left and the picks that name it through the two
+  collection-group queries the erasure uses; the v1 discoverable doc;
+  impressions sent; follows of it; the handle; pending joins; the
+  directory row; invitations both ways; relations to it; the five
+  rate-limit ledgers; suggestions; purchases with the ads and sponsor
+  bylines they point at; paid bookings. One JSON object, timestamps as
+  ISO strings, with an `omitted` list naming what is not in it and why.
+- **The twin is held by a test, not a convention.** `TWIN` maps every
+  label `deleteAccount` pushes onto `failed` to the export section that
+  reads what that phase erases; `exportAccount.test.ts` reads `index.ts`
+  and refuses a label with no twin, and refuses a twin naming a section
+  nothing writes. A wipe phase added without an export section is a red
+  test — the failure this pair is most likely to grow, since the two
+  walks live in different files and will be edited by different hands.
+- **The byte bound is 8 MiB**, measured section by section while the
+  walk runs. A callable answers in one HTTPS response, and 10 MB is the
+  smallest ceiling any generation of that transport has documented; 8
+  MiB leaves room for the `{ result: … }` envelope the SDK wraps a payload
+  in, and for the phone that has to hold the whole string to write a
+  file or a share sheet from it. Past the bound the walk STOPS reading
+  and refuses as `resource-exhausted` with a plain sentence naming the
+  number and the way round it (ask by email — the deletion page's own
+  route), rather than reading everything and failing as `internal` with
+  nothing in it to read. Measured: the unit test's whole two-user graph
+  exports at 3.6 KB, and a real account is bounded well below the ceiling
+  by the bank (one answer per question) and by the rate limits on
+  everything free-text; the bound is for the account nobody has designed
+  for, not a number an ordinary export meets.
+- **The panel row.** `LivePrivacyPanel` gains *Download your data*
+  directly above *Delete everything*, in the order the terms put them,
+  with no confirm step — nothing about it is irreversible.
+  `LIVE.exportAccount()` calls the callable; `src/v2/data/exportFile.ts`,
+  fetched on the tap so the panel's chunk carries none of it (the
+  walkthrough's shape, D393), hands the JSON over by whichever route the
+  platform has: a share sheet with the file in it where
+  `navigator.canShare({ files })` says yes (iOS WebKit, the mobile
+  browsers), an anchor download on the web, the clipboard where neither
+  exists. The route is REPORTED — *Saved ✓*, *Shared ✓*, *Copied to the
+  clipboard ✓* — because the three are different next steps. A refusal
+  lands where a refused delete does and reloads nothing.
+- **The page moves with the feature (D183).** `web/privacy.html` gains
+  *Downloading everything* above *Deleting everything*: that the export
+  exists, that it is one file, that it is deletion's list read instead
+  of removed, the four things it leaves out, the bound, and the email
+  route — held by three `check:policy-claims` rows. `web/terms.html`'s
+  sentence stays as it is because it is now true.
+  `web/delete-account.html` points at the row and says the email route
+  serves an export too. `docs/data-inventory.md` carries the callable
+  beside its deletion paragraph; `functions/README.md` and
+  `ORIENTATION.md` name the module; the deploy `--only` list carries the
+  43rd function (`check:deploy-targets`, `check:fn-runtime`).
+- **Tests.** The functions suite seeds a two-user graph and asserts every
+  phase's documents are carried and nothing of the other user's is —
+  asserted on the serialised file, since that is what leaves the server;
+  the erasure e2e exports BEFORE it deletes, on the same emulator boot,
+  and holds the export to the same seeded graph the deletion is then
+  held to, photo bytes and the left circle's reveal included;
+  `LivePrivacyPanel.test.tsx` pins the row's place, the handoff, the
+  three route sentences and the refused case; `exportFile.test.ts` pins
+  the three routes; `live-surface.ts` pins the new member.
+
+**What it leaves out, and says so inside the file.** Four things — the
+three denies CLAUDE.md keeps outside the D334 ask, and the credential
+beside them on the pull-request template's list — so none was a
+preference to put to the owner: the logic attempt's `seed` (the unscored
+answer key: the items are generated from it by public code, so a copy is
+a way to start an attempt, read the answers and submit), who reported
+the account (flag authorship, anti-retaliation — flags cast ON the
+account are counted, never listed), the presence CELL (physical safety:
+refused to every reader, the owner included, and this file is built to
+travel by share sheet, mailbox and clipboard, so the export says a
+square is held and until when and never which — the phase is twinned,
+the location is not copied), and the push token (a credential,
+`allow read: if false` to the owner too). Other people's records that
+merely point at the account — their follows of it, their v1 relations —
+are counted rather than copied, and a reveal row carries this account's
+vote, name and how many picked it, never the other members' votes:
+everything this account WROTE is in the file in full, and a file that
+leaves the app does not carry other people's uids beside things they did
+not write to this account. The presence room caches are rosters of other
+people and the moderation queue is keyed on a take being gone rather
+than on whose it was; neither is per-account data and neither is read.
+
+**What it does not do.** It adds no native dependency: the app carries
+neither `@capacitor/share` nor `@capacitor/filesystem`, and Android's
+WebView implements neither the Web Share API nor the download listener
+the shell would have to add — so on Android the export lands on the
+clipboard and the row says so. The native share sheet is one plugin pair
+and a `cap sync` away, a native config change the store builds have to
+carry, and it is the follow-up rather than this change because a plugin
+the installed shell does not have throws on the call, while a JSON file
+on the clipboard is the same bytes today. It schedules, caches and
+stores no export anywhere — the file is the person's, not the app's. It
+changes nothing about who can read what: the caller reads its own uid's
+graph on the admin SDK, and the four closed things stay closed — the
+owner is handed nothing the rules refuse them, only what they may
+already read plus the three server-only ledgers about their own acts. And
+it does not soften the terms: the sentence is kept because it is now
+true, which was the whole point.
+
+**Arithmetic.** One export reads roughly what one deletion reads: the
+subtree, a dozen uid-equality queries, two collection-group queries over
+reveals, and every voter-sample document (a few hundred reads — the
+scrub's own price for "gone means gone" without a caveat, paid here for
+"everything" without one). At the rate people export their data that is
+nothing on `COSTS.md`'s rows, which do not move.
+
+**Measured before the push:** the counts are in the PR body.
+
+## D445 · The role ledger: the reveal keeps what the room has made each member, and the roles reading outlives the page
+
+**Date:** 2026-09-09 · **Status:** binding, built. The owner's yes, the
+same day, on the last open item of `OWNER-LIST.md`'s 1v1-and-group
+profile row — the LEDGER of [`ROLES-PLAN.md`](ROLES-PLAN.md) §3.3, the
+one thing on that row D437 left standing. Written as D445 with D440–D444
+unclaimed on `main` at the time (the index prints them as holes, which
+since D408 is a note and not a failure); the numbers belong to the
+branches open beside this one.
+
+### Why the ledger stopped being optional
+
+ROLES-PLAN's argument for it was about TIME — a fortnight cannot hold a
+name (§2.1). Rounds changed the argument to VOLUME (ROUNDS-PLAN §7.2): a
+fortnight can hold hundreds of reveals, the device reads the newest
+thirty (`REVEAL_HIST_CAP`, a stopgap since D426's profiles amendment),
+and the device cannot fold what it cannot fetch. So the roles reading
+silently narrowed to whatever the last page held — a pair at eight
+rounds a day was read over four days, and every cast round older than
+that was a fact the instrument could no longer see. Under rounds the
+ledger is the substrate, not an improvement to one: what the reveal
+already knows at the moment it publishes, kept where the fold can read
+it without paging.
+
+### The schema, as built
+
+On the group document — the plan's location — one map, one row per
+current member:
+
+    v2_groups/{gid}.ledger.{uid} = {
+      casts, axes{ trust, spark, judgement, constancy }, saw{ right, total }, castQid,   // a 1v1
+      votes, seats{ engine, hands, heart, wild },                                          // a group
+    }
+
+The counts are D437's instrument, not the plan's sketch (which was
+written for D204's two, since replaced). A 1v1 row: the cast rounds both
+members answered blind on the same cast question; the times the OTHER
+said this member is each axis, keyed by the bank's `dims` id for the
+option they chose (never a vocabulary the server would have to copy
+from the client); this member's guesses at what the other said of them,
+made and landed — the receipt the roles panel prints under the average;
+and `castQid`, the cast question the latest fold read, so the device can
+draw the receipts' them forms off the bank without paging a reveal. A
+group row: the votes received from OTHER members on role votes, off the
+D224 snapshots, per the seat the bank gives the role — never a vote for
+yourself, never by an option index the roster remaps. `castQid` and
+`saw` are the two fields the plan's schema did not name; both are the
+smallest shape that lets the ledger draw the panel's existing card
+whole — a reading with no history in hand still prints *they said you
+are the one Liv tells first in 3 of 5 rounds* and *you guessed what
+they'd say you are 4 of 5 times* — and the record says so rather than
+smuggling them.
+
+### Who writes it, who reads it
+
+**The reveal writes it** — `revealRound`, inside the transaction that
+creates the reveal and advances the round, as more fields on the settle
+update the transaction already makes (`foldRoleLedger`,
+`functions/src/pure.ts`). Written WHOLE from the transaction's own read
+of the group plus the round's blind votes, rather than as per-field
+increments: the write is exactly "what the document held plus this
+round", a member leaving in between contends on the same document and
+retries the reveal, and the fake-Firestore harness can assert the map
+rather than a sentinel. A round that moved nothing — a rating, an own
+round, a plain pick with no seat, a question the operator has since
+deleted — leaves the field untouched, so the common write is the one it
+was. **Idempotent by the create guard**: the reveal is `tx.create`d in
+the same commit, so a re-run that finds it standing writes nothing and
+the ledger can never count a round twice (`reveal-day.test.ts` pins the
+contended shape and the plain re-run). **A late answer moves nothing**
+(ROUNDS-PLAN §4): the trigger appends it to the reveal after the create
+and never opens the ledger (`late-answer.test.ts`).
+
+**The device reads it** — `data/roles.ts`, the same fold, one rule: a
+member's row is the reading once it clears the instrument's floor
+(`MIN_DUO` 3 casts, `MIN_GROUP` 2 votes); below the floor the reveals in
+hand are the reading, as before. The two substrates count by one set of
+rules — the server's fold is the device's fold, and `pure.test.ts`'s
+cases are `roles.test.ts`'s refusals — so a reading never changes on
+the day the ledger takes over; only how far back it reaches does. The
+Roles tab (`LiveRolesPanel`) and the Groups stop's seats
+(`LiveGroupsMirrorBody`, `useGroupFolds` and the People card) pass the
+room's ledger in; the Votes lens stays per round over the reveals,
+because who holds a role is the card's rule. **A room the ledger draws
+pays no history read on the Roles tab** (`ledgerClearsFloor`): the
+document is already in hand, which is ROLES-PLAN §3.3's "zero reads"
+delivered rather than described, and `LiveRolesPanel.test.tsx` holds
+that such a room is never paged.
+
+**The rules** need no clause and get none, on purpose: the group
+document's read rule serves the ledger to exactly the members who read
+the rest of it, and the `affectedKeys().hasOnly(["duoMode"])` pin is
+what refuses a client writing it — alone, riding the legal duoMode flip,
+on a duo or a group, as a stranger, or as a removal. Labelled at its
+path in `firestore.rules`; `rules.test.ts` holds both halves (a member
+reads both rows, a stranger reads none; six write shapes refused, the
+legal flip still landing beside an untouched ledger), through
+`refused()` so a refusal by budget cannot pass as a rule. A fold of
+reveals any signed-in user may already read (D98), stored where fewer
+people can — strictly less exposure than its inputs, which is why this
+is a build and not a D334 ask. The rules-coverage baseline and the
+expression budget are unmoved: no predicate changed.
+
+### The catch-up for a room from before it
+
+The plan's own answer, and no other: **forward-only, from zero, on the
+next reveal**. A group revealed before this deploys has no `ledger`
+field; its first reveal afterwards writes the rows the round moved and
+nothing older; until a row clears the floor the fold reads the reveals
+it has. No backfill — a server pass over every reveal of every group
+would be a second fold with a second chance to disagree, and the plan
+did not name one. The cost of the honest shape, stated: for a room with
+reveals from before the deploy, the reading is the ledger's from its
+floor on, so its count reaches back to the deploy and not before, until
+the ledger outgrows the page. Cheap today: nothing live has a cast
+round yet (the cast reaches the live bank on the owner's reseed click,
+D437), and the seats read `role.seat` off that same reseed — so the
+ledger and the instrument it serves arrive on the live bank together.
+
+### Erasure
+
+`deleteAccount` phase 1c drops `ledger.{uid}` in the same update that
+drops `memberNames`, `memberJoinedAt`, `played` and `pushAt`
+(`ledgerRemoval`, `v2social.ts`); the erasure e2e seeds rows for the
+doomed account and a survivor on the shared group and asserts the one
+is gone and the other exactly as seeded. **Leaving drops the row too** —
+the plan is silent on leaving, and this is the smallest shape consistent
+with the document: every other per-member map on it goes on both paths,
+a departed uid's row would outlive them on a document every remaining
+member reads (D55 §8's shape), and a rejoin starts the record fresh the
+way `memberJoinedAt` starts the roster's clock fresh. The e2e asserts
+that on the group the account leaves, beside the assertion that leaving
+does NOT rewrite a reveal — a ledger row is one member's record, a
+reveal is everybody's. And since the export is the erasure's read-only
+twin (D443, merged the same evening), `exportAccountV2`'s circle row
+carries `ledger` — this member's row, never the map — and the export's
+own leak case greps the file for the survivor's seat.
+
+### What it costs
+
+One extra **read** per reveal, and no extra write. The reveal now reads
+the round's question inside its transaction — whether the round was a
+cast or a seated role vote, and which axis or seat each option names, is
+a fact about the question the answers cannot say — so
+`revealReadsPerMember` is `(3 + 2m)/m`, 3.5 for a duo where it was 3,
+moved in `scripts/cost-arith.mjs`, `COSTS.md`'s row and its prose, and
+held by the tripwire in `scripts/pulse.test.mjs`, which now counts the
+`tx.get(` site as well as the two `getAll(` sites — D275's lesson
+pointed the other way, since a getAll-only count could not have seen
+this read. The ledger itself rides the settle update: ≤32 rows of a
+dozen small ints, on a document every member already reads. And the
+Roles tab's cold cost goes DOWN for every room the ledger draws: from
+≤30 reads per room per session to none.
+
+### What it does not do
+
+It does not change what anyone can see: the same members read the same
+document. It does not replace the reveal history — the runs at the
+card's foot, the Votes lens, `youAre`/`theyAre` (the latest wins a tie,
+which needs the rounds' ORDER a ledger of counts cannot give) and the
+person page's Together section still read the reveals. It does not
+backfill, and it does not touch the demo build, which imports only
+`roles.ts`'s constants and folds nothing live. It does not raise
+`REVEAL_HIST_CAP`, which stays the window for a room under the floor.
+And it does not tick the owner's row: every item on it is built now,
+and the tick is the owner's (D352).
+
+### Measured
+
+On this head, before the push: `test:unit` 3 025 (207 files — the new
+ledger cases in `roles.test.ts`, `LiveRolesPanel.test.tsx` and
+`LiveGroupsMirrorBody.test.tsx`, every smoke suite unmoved, so the demo
+plays with no ledger); `test --prefix functions` 850 (39 files — the
+fold's seven cases in `pure.test.ts`, the reveal's five in
+`reveal-day.test.ts`, the late answer's one); `test:scripts` 1 286 (74
+files, the recounted tripwire among them); `test:rules` 215 with the
+coverage ratchet at its baseline (8 of 375 never-false, unmoved — no
+predicate changed) and the budget gate at 15 probes on their pins;
+`test:e2e:all` on one emulator boot, 193 checks green, the erasure leg
+asserting the row gone on leave and on delete with the survivor's row
+intact; `lint`, `tsc -b`, `build --prefix functions`; `check:globals`
+28 (baseline 28, unmoved); `check:figures` 106 figures, four of them
+moved by the one new rules case (214 → 215, corrected where quoted);
+`check:docs` 440 records, D440–D444 printed as holes; `check:data-
+inventory` 40 collections, 34 rows held; `check:answer-shape`,
+`check:appcheck` (29 callables), `check:deploy-targets` (42),
+`check:fn-runtime` (42), `check:public-copy` (273 strings),
+`check:policy-claims` (55). The emulator suites ran once the sibling
+session sharing this machine's ports had finished its own: a
+`pgrep -f` on the runner's own command line self-matches, which cost
+this session twenty minutes of waiting on a process that was its own
+poll — the ports, not the process list, are the signal.
+
+## D446 · The data structure is rebuilt for users ahead of demand: every change that keeps the picture is approved
+
+**Date:** 2026-09-08 · **Status:** Adopted, with one word still the
+owner's (§2). The owner's ruling on
+[`DATA-EFFICIENCY.md`](DATA-EFFICIENCY.md), given the same day the page
+was written:
+
+> *"i approve all that dosent reduce any functonality."* — and, on the
+> shape of the largest change: *"as long as the cost diffrence isent huge
+> it think live is best but i want a bit more details on the spesifics
+> before i make a decision."*
+
+### 1 · What is approved
+
+Every step of [`DATA-EFFICIENCY-RUNBOOK.md`](DATA-EFFICIENCY-RUNBOOK.md)
+that keeps what a user sees identical: the index exemptions and field
+masks; names and scores riding the nightly voter samples, the who-voted
+sheet drawn from the sample with a live tail so today's voters still
+show today, per-city samples for the city pass; the answer map one
+document per person that Circle reads instead of up to 300 answer
+documents per member; the four nightly folds repaired before they fail
+silently at scale (the rollup fold's paging, the sample merge's bound,
+the attention channel's sampling, the candidate scan's streaming); the
+increment fold, the sharded daily with the breakdown-cap correction, and
+the trigger's instance ceiling raised with it; the model's missing terms
+and the named database's missing free allowance.
+
+**The arithmetic the approval rests on** (`npm run costs:structure`,
+2026-09-08, regional sheet, no free allowance): reads per user per day
+381 → 57; reads and writes together **$20 → $5.57 a month at 5,000 DAU,
+$199 → $56 at 50,000, $1,987 → $557 at 500,000**. The model understates
+the social reads it replaces (the city pass and the reveal history have
+no term), so the saving is larger than those figures.
+
+**The one cadence item, named so the owner can strike it:** runbook 1.4
+makes a return to the foreground re-read today's card only, the six
+back days refreshing at boot — a three-day-old card's count is as of
+the last cold start rather than the last app switch. Nothing else in
+the runbook changes a number a user sees, except that old accounts
+compare on everything they have answered once the 300-answer cap
+retires (3.5), which is more, not less.
+
+### 2 · Live, recommended — the word is the owner's
+
+The answer map can be written once a night by the pass (a friend's
+answers from today reach your Circle tomorrow) or live by the trigger,
+one merged write per answer on a document only that person's answers
+touch, with the nightly pass healing any entry a crashed function
+missed. Priced: nightly +$0.14 / $1.35 / $13.50 a month at 5,000 /
+50,000 / 500,000 DAU; live +$0.54 / $5.40 / $54 — about 6 % of the
+$6.60 / $66 / $659 the map saves at the same sizes. **Recommended:
+live with the heal**, because it is the only version where nothing a
+user sees changes, which is this record's own rule. The runbook assumes
+it; the owner's confirming word lands here as an amendment before
+Phase 3 ships.
+
+### 3 · What this does not license
+
+Showing less — fewer people in the who-voted list, fewer questions in
+Kindred, fewer answers in a Circle — which `COST-REDUCTION.md` §5
+refused and this record keeps refused. A publish cadence or a floor on
+the aggregate (D98). A loosened rule, or a touch on the three labelled
+denies. The reveal-history document (`DATA-EFFICIENCY.md` §2.8), which
+would show a late joiner a group's days before they joined and is a
+privacy-shaped ask under D334, on `OWNER-LIST.md` until ruled; the
+per-member variant needs no ruling.
+
+### 4 · Held by
+
+`scripts/cost-structure.mjs` for the figures; each runbook step names
+the gate that proves it, and the model's terms move with the code they
+price (`scripts/pulse.test.mjs`) rather than in prose.
+
+### 5 · Built the same day: Phases 1 and 2 (2026-09-08)
+
+Phase 1 as planned (the runbook has the two refusals). Phase 2 as
+planned with three things that moved, each under this record's own
+rule that nothing a user sees may shrink. **A trigger the plan did not
+have** — `onV2ProfileUpdated` — because a name stamped as of the answer
+would have left a renamed account under its old name on every question
+it did not answer again, which is a visible regression against the
+seven-day cache; it reads nothing unless the stamp changed and is
+bounded by the account's own answers. **The who-voted sheet in three
+shapes** rather than two: a question whose live tail fills its cap
+reads the full live list, so "the newest 200" stays exactly true; the
+saving lands on the cold question and the hot one costs what it did.
+The cheaper sentence — *as of last night, plus the newest 50* — is a
+copy decision and is on `OWNER-LIST.md`; the model charges the hot
+share at `B.sheetOpensHot` until it is made. **The city samples bounded
+per night, not per city**: a size floor cannot accumulate, so every
+touched pair merges up to `CITY_SAMPLE_PAIRS_PER_NIGHT`, hottest first,
+and the erasure arm reaches the city family through the account's own
+answers rather than by listing a collection the size of two catalogues.
+`npm run costs` after: 357 → 277 reads per user-day at maturity, the
+D98 column 282 → 197.
+
+## D446 amendment (2026-09-08) · Live, on the owner's word — and Phase 3 built with it
+
+**Date:** 2026-09-08 · **Status:** Adopted. The word §2 of D446 held open
+came the same afternoon, verbatim: *"start phase 3 and use live for the
+answer map."* The answer map is written by the world-answer trigger —
+inside the aggregate's own transaction, so it is atomic with the count
+and the ledger mark and a redelivery cannot double-write — with the
+nightly heal filling only what a missed live write left absent, never a
+value the map already holds (the map is the newer truth: an edit made
+after the healed day is in it and not in that day's ledger).
+
+**Two things moved against the runbook as written**, each within
+D446's own rule that nothing a user sees may shrink. The device keeps
+the answer query as a FALLBACK for a member with no map, because the
+client ships with the trigger and the backfill is a click the owner
+makes afterwards — without it every Circle would show nobody between
+the deploy and the click; `CIRCLE_ANSWER_CAP` stays for the fallback
+until the runbook's 3.8 retires it after the backfill has applied. And
+there is no cap guard on the map: one answer per question means the
+document is bounded by the bank, not by time.
+
+**What the owner still holds:** the backfill's dispatch (dry, then
+`apply` — `OWNER-LIST.md`), the group history document (§3), and the
+hot sheet's sentence (runbook 2.4). `npm run costs` after: 357 → 129
+reads per user-day at maturity, the D98 column 282 → 48.
+
+**Phase 4 built 2026-09-09 (*"start phase 4"*) — the four folds
+`DATA-EFFICIENCY.md` §3 named as failing before they cost.** The
+rollup fold drains in pages under a 300 s budget and counts what a
+budget stop leaves (runbook 4.1); the attention channel publishes its
+own sampling rate on `v2_meta/app` — the rate that lands 80 % of the
+fold's cap — and the device draws at it off the read it already makes
+(4.2); the candidate scan streams the people through per-item
+sufficient statistics and holds none of them (4.3); and the velocity
+scan runs inside the nightly pass, its whole days off the read the
+pass already makes and only the partial-day tail its own (4.4) — so
+`ledgerVelocityScan` is retired and joins `fitPatternsV2` and
+`fitTasteV2` on `OWNER-LIST.md`'s delete row, because `--only` names
+what to update and leaves the rest standing. **One trade recorded
+rather than hidden:** the streamed solve reads the fitted people once
+per sweep — 1 + `ALS_SWEEPS` = 4 state reads a night per person where
+the buffered solve read them once and ran out of memory near 150,000 —
+$0.18 a night at 50 k DAU; the runbook's 4.3b (subtract a changed
+person's old contribution, add the new, read only who changed) is the
+step that takes it back to one read per active person, open and priced
+at 11 reads per user-day. `npm run costs` after: server reads 40 → 44
+per user-day at maturity, the whole 129 → 134 (132 at the merged head,
+D426's rounds having taken two reads elsewhere). Nothing a user sees
+moved, and nothing a device reads changed size.
+
+## D447 · The log-first structure: hundreds of answers a day and millions of users are the design target, and the per-answer path leaves Firestore
+
+**Date:** 2026-09-09 · **Status:** ADOPTED the same evening — see the
+amendment below. The owner, that afternoon, after `npm run costs` had been
+run at a hundred and three hundred answers a day: *"i think we should
+from the start look on how we can design a system that scales to
+hundreds of answers a day and millions of users remember we can use
+other systems like bigquerry."*
+
+**The finding that prompted it.** The model prices four world answers a
+day (`B.worldAnswers`, `scripts/cost-arith.mjs`); everything Phases 1–4
+of the efficiency runbook built is flat per user, and the per-answer
+path was left at its floor because at four a day it was one. At a
+hundred a day the shipped structure costs about $23,000 a month at a
+million users and has already failed twice below that: the nightly pass
+holds the day's ledger entries in memory (470 bytes each, measured on
+node 22) and dies near 16,000 users; the always-increasing timestamp
+indexes hit Firestore's ~500 writes a second near 144,000. Neither is in
+`COSTS.md`, which moves users and never answers.
+
+**The design** is `SCALE-ARCHITECTURE.md`: answers written in batches
+to one document per user-day; one trigger per batch that appends a row
+per answer to BigQuery, increments live counters in Redis and merges the
+person's answer map, reading nothing; a compactor that writes the same
+documents clients read today, once a minute for the questions that
+changed; the night as SQL over the log, with a writer job putting the
+results back into the documents the app already reads; Firestore
+keeping every per-user, social and published document. Priced by `npm
+run costs:target` (`scripts/cost-target.mjs`, with its own test): a
+million users at a hundred a day ≈ $2,200 a month against $23,200; ten
+million at three hundred ≈ $32,000 against $667,000 — and it runs.
+
+**What a user sees is the same, with two cadences stated** (§4 there):
+a card's count exact and at most a minute behind — the interval the card
+already re-reads at (D129) — and a friend's answers in your Circle
+within the batch window rather than within seconds. Nothing shows fewer
+people, questions or answers; D98's substance, the three denies, D1 and
+App Check are untouched.
+
+**What the owner decides** (`OWNER-LIST.md` § Decisions): the direction
+itself (the efficiency runbook's Phase 5 becomes phase B of §6 there);
+one sentence of D98 — *no publish cadence* was written against the
+privacy cadence it retired, and the compactor's sixty seconds is the
+card's own poll, so the sentence becomes *exact, and never more than a
+poll behind* on the owner's word and not before; and the batch window
+(five minutes recommended; one minute doubles the batch lines). Not the
+owner's to decide and done page-first: the privacy page's and the
+inventory's rows for the log (D183).
+
+**Recorded as proposed at first** because D7's rule stands — nothing
+here is built before the owner's word — and adopted three hours later on
+it (the amendment below). Phase A, the log to BigQuery, costs bytes and
+precedes everything, and it is `LAUNCH-RUNBOOK.md` 5.11 done as one code
+path rather than as an extension streaming every document change through
+a trigger of its own.
+
+## D447 amendment (2026-09-09, the same evening) · Adopted on the owner's word, and phase A built
+
+**Date:** 2026-09-09 · **Status:** Adopted. The three asks were put in
+plain words — the direction; *"allow counts to be published once a
+minute instead of on every answer. One old decision says 'no publish
+cadence', and only you can change its wording"*; and the batch window,
+five minutes recommended — and the owner answered all three at once:
+*"that sound like a good direction lets do that."* So: the log-first
+structure is the direction past the efficiency runbook's Phase 4 (that
+runbook's Phase 5 is superseded by phase B here); D98's sentence moves
+(its amendment of the same date); the batch window is five minutes
+while answering plus a flush when the app leaves the foreground.
+
+**Phase A was built the same night** — `LOG-FIRST-RUNBOOK.md` has the
+steps. The ledger's mirror in BigQuery: `functions/src/log.ts` appends a
+row per ledger entry after the aggregate transaction commits, at every
+ledger site of the answer trigger, best-effort and off wherever there is
+no BigQuery (the emulator, the unit suites); the nightly pass's eighth
+runner reconciles yesterday off the read it already shares and retries
+the erasures the day deferred; `backfillLogV2` loads the existing
+answers before a cutoff day; `deleteAccount` runs the DELETE at once and
+leaves a server-only marker where BigQuery's streaming buffer refuses.
+Nothing a user sees changed, and nothing the night computes moved — the
+Firestore ledger stays what the folds read until phase D. **Two clicks
+are the owner's** (`OWNER-LIST.md`): the dataset and the two IAM roles,
+and the backfill with the deploy's day as its cutoff. The privacy page
+and the inventory moved first (D183).
+
+## D448 · The exposure page's re-read: what the day's own work could have billed, bounded the same evening — the budget acts, and the model prices the database it is on
+
+**Date:** 2026-09-09 · **Status:** Adopted for what is built; three asks
+to the owner, each with its arithmetic on `OWNER-LIST.md`. The owner's
+ask stands unchanged (*"do a in depth analyses of cost and what could be
+improved i dont want a unexpected firebase bill that i cant pay"*), and
+`docs/COST-EXPOSURE.md` §8 is the record; this is the decision under it.
+
+**What was found.** The page had measured production on the morning of
+2026-09-08 and then the same branch built DATA-EFFICIENCY-RUNBOOK phases
+1–4 and phase A of the log-first structure (D447) — code the page had
+not read. Read the way §3 read the old code, four of its surfaces could
+bill in the shape the owner asked to prevent:
+
+1. **The answer log's erasure** ran one `DELETE` per deleted account, and
+   BigQuery bills a DELETE for every column of every partition it
+   touches — an account's answers span the year, so a statement is a pass
+   over the whole table at $6.25 a TiB whatever it names: the 10 MB
+   minimum today, $27 a statement at a million people answering a hundred
+   times a day, the largest line on the bill at ten million. `npm run
+   costs:target` carries it now ($37 a month at 50,000 × 100/day, $747 at
+   a million).
+2. **The append** ships on the streaming API, which bills a 120-byte row
+   as a kilobyte with no free allowance — $143 a month at a million users
+   against $0 on the Storage Write API. The morning's `COSTS.md` note had
+   priced the bytes and not the minimum.
+3. **The profile fan-out** (runbook 2.1) turned one client write into a
+   few thousand operations, and a profile document takes a write a second:
+   on the order of $300–500 a day from one attested account, ~$1,400 a day
+   across accounts at the trigger's instance cap — a device driving the
+   app's own write, which App Check enforcement does not bound.
+4. **Phase B's Redis** is billed by the instance from the hour it exists —
+   $196 a month at the size the model picks, ~$36 at the smallest — and
+   the runbook ordered it "before the wall" with nothing under it.
+
+And one premise, already on the page's §2: the model netted the Firestore
+free quota, which belongs to `(default)`; production is the named
+database `insight` (D165). The launch row printed $0.00 against an
+invoiced dollar.
+
+**What is decided and built.**
+
+- The night erases every pending account in ONE statement (pages of 500),
+  and `deleteAccount` runs the immediate statement only while the table
+  is under a gibibyte (`LOG_ERASE_NOW_MAX_BYTES`, off the table's
+  metadata). The table is clustered by person then question, chosen
+  while it is still free to choose. The privacy page's "within a day" is
+  unchanged.
+- The fan-out is budgeted at three an hour per account
+  (`v2_ratelimits/fanout_{uid}`, the sliding window every other budget
+  here uses, erased with the account); past that a `pending` marker the
+  nightly pass heals from the profile as it stands — a ninth runner.
+- The target model prices the ingest line as built, with the Storage
+  Write API beside it (runbook A.8), and the erasure line (A.9).
+- The model reads the database id off `db.ts` and nets nothing on a named
+  database; the scheduler floor is counted off the tree ($0.40). The
+  launch row is $0.54, and the sentences "genuinely $0 below ~177 DAU"
+  and `COST-COMPARISON.md`'s A+ row are retired (§6 C1).
+- **The budget acts** (§6 C4, D332's recorded next joint):
+  `functions/src/budget.ts` sets the read breaker at 100 % from the
+  budget's Pub/Sub notification, in the fields `budget-mode.mjs` reads,
+  and releases only what it set when the next month arrives under the
+  line. Two clicks after the deploy are the owner's. It does not detach
+  billing.
+- **The review's ceiling** (§6 C3): fifty model calls a day project-wide,
+  a refused slot holding the booking without an attempt; `max_tokens`
+  1,024, the verdict's size, where it was the model's maximum.
+
+**What waits on the owner, each a way through and not a stop (D334,
+D352).** *When phase B starts* — a condition (the contention alert, or
+~5,000 measured actives, on the smallest instance) written into
+`LOG-FIRST-RUNBOOK.md` for the owner to move either way. *A.9* — whether
+an erased account's rows may outlive it in the log by up to a month,
+joined out of every fold meanwhile, for a thirtieth of the erasure line;
+the privacy page moves first (D183). *The hard stop* — whether the
+budget's function may detach billing at a threshold the owner names;
+built as one more branch when they do.
+
+**Not verified from the sandbox, said so on the page:** Google's DML
+pricing wording and whether a DELETE prunes by cluster (the docs host is
+blocked; the batch bounds the cost either way); that the deploy creates
+the Pub/Sub topic (the applier prints the create command if the API
+refuses one); the budget service agent's address (the console's own
+*Connect a Pub/Sub topic* makes the grant if it is wrong).
+
+**Amendment 2026-09-10 — the clicks, made, and what each turned out to
+be.** On the owner's *"you have my permission to do these for me … as long
+as there is no risk of triggering high cost"*, this session dispatched the
+four click sets, each dry first, and read every log; the day's production
+writes were 14 map documents and 32 log rows, cents at most (42 answers
+exist). *Apply BigQuery* (run 34477865089): dataset `insight` in
+`europe-west1` and the table `answers`, partitioned by day and clustered
+by `uid, qid`, created; the two IAM bindings its summary prints were not
+needed — the answer-log backfill appended through the functions' own
+runtime account, which is the append permission proven live. *Backfill
+answer maps* (run 34477871112): 42 scanned, 40 folded, 14 written, one
+call. *Backfill answer log* (run 34478455058): 32 rows before 2026-09-10
+appended, one call — the cutoff is the day AFTER the deploy's, not the
+deploy's day the script's header names, because the nightly reconciles
+yesterday only (02:23 UTC) and the table did not exist until 12:38 UTC on
+the 10th: the night after the deploy found no table, so the 9th's answers
+had no row and no future night to get one from, while the 10th's are that
+night's reconcile's own. Nothing was answered on the 9th, so both cutoffs
+count the same 32 today; the reasoning is what the next backfill inherits.
+*Arm budget* (run 34477868495): the dry run would retune (attach the
+topic; 500/month and the thresholds unchanged), and the apply was refused
+with a bare 403 — not for the billing-account role, which the 2026-08-27
+grant above made and this script created the budget with. The Budgets API
+demands `pubsub.topics.setIamPolicy` on the topic of whoever attaches one,
+so that it can grant its own service agent Publisher, and project Editor
+does not carry it; the script's canned costsManager line named the wrong
+grant for the second time (the disabled API, above, was the first), and a
+refused write now says both readings with the tell that decides them
+(`apply-budget.test.mjs`). So "two clicks after the deploy" is one, and it
+is the owner's: the console's *Connect a Pub/Sub topic to this budget*,
+which attaches and grants in the same action; `OWNER-LIST.md`,
+`DEPLOYMENT.md` and LAUNCH-RUNBOOK 5.17 say so now. (The deploy did create
+the topic — `onBudgetAlert` stands on it in the listing below — which
+closes one of the three "not verified" items above.) *Delete retired
+functions* (#475, merged on the same permission because the click has no
+other way to be made from a session): the first dry dispatch (run
+34478645668) listed nine functions of the project's earlier life and none
+of this tree's 46 — the Functions v2 list drops a region it could not
+reach and says so only in a field the CLI never prints — and would have
+read all three as already gone; the second (run 34479117495) listed every
+one, the three among them, and the workflow now fails a listing that
+cannot see the nightly pass and prints the Cloud Scheduler jobs, which are
+what the three cost, beside it before and after. The apply (run 34479295825) deleted all three — `fitPatternsV2`, `fitTasteV2`, `ledgerVelocityScan`, each a Node.js 22 second-generation function in `europe-west1` — in ten seconds, each taking its Cloud Scheduler job with it: three of the billed jobs `COST-EXPOSURE.md` §1 counts are gone, and the data all three wrote stands where the nightly pass has been writing it since each retired.
+
+**Measured before the push:** `test:scripts` (the model's new pins),
+`test --prefix functions` (the batch, the ceiling, the budget's decision
+table, the fan-out's window and heal, the hold without an attempt),
+`check:fn-runtime` (45 functions; a Pub/Sub trigger read by its event
+type), `check:deploy-targets`, `check:appcheck`, `check:docs`,
+`check:figures`, `check:policy-claims`, `check:data-inventory`; the
+counts are in the pull request.
+
+## D449 · The 2026-09-10 night review: two shifts merged as one tree — 60 commits kept, nine files touched by both, and three prose defects where the merge had nothing to stop it on
+
+**2026-09-10.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty commits are kept as written; nothing was reverted. What this review
+adds is the composition and three fixes for things no shift could see
+alone. The owner's instruction was *"cheak tonights night shifts and merge
+what you approve"*: every part is approved, and this record says which
+parts the composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260910` | 31 | 21 behind | shift A, Claude 2's, 21:11–05:32 UTC |
+| `nightb-20260910` | 29 | 22 behind | shift B, Claude 1's, 22:07–04:12 UTC |
+
+`main` took twenty-one commits during the night: sixteen console and pulse
+rows, and five content-lane merges (#468–#472, the lanes that self-merge on
+green under D212). No decision number moved. Neither shift claimed one; the
+tree sat at D448. This record is D449.
+
+**NINE FILES WERE TOUCHED BY BOTH** — `docs/SCHEMA-V2.md`,
+`firestore-tests/rules.test.ts`, `firestore.rules`,
+`functions/src/exportAccount.ts` and its test, `functions/src/nightly.ts`,
+`scripts/check-spec-globals.mjs`, `scripts/source-pins.test.mjs`,
+`src/v2/README.md` — against zero the night before (D430) and seven the
+night before that (D420). **Both merges still applied clean.** Every pair
+of hunks landed in a different region of its file, so git had nothing to
+stop on, and the review was spent exactly where D430 said it would have to
+be: on prose that one shift wrote and the other made false.
+
+All three defects are that shape. None of them fails a gate — the tree was
+green before they were fixed and green after — because each is a sentence
+about a number, and no gate reads a sentence.
+
+### The three, and the one that is load-bearing
+
+**1 · `src/v2/README.md` — the coupling count, written twice from opposite
+directions.** Rule 4's total is the ratchet's own number and both shifts
+moved it. A taught the scanner the BARE shape (a plain `MapStats.dist(a,
+k)` in a module that neither defines nor imports the name was invisible to
+it, so a converted module could be silently re-coupled), which found four
+sites and raised the count 28 → 32 before A took all four off, back to 28.
+B converted `daily-split.jsx`'s reader in the course of a bug fix, 28 → 27.
+The two edits are two lines apart. B's says **27 across 7 files**, which is
+what `check:globals` prints; A's paragraph beneath it said the number "is
+28 again", which was true of A's night alone and of no tree that ever
+existed. A's sentence now carries B's conversion, and the point A was
+making — that four references sat outside the ratchet for as long as it
+ran — is unchanged, because it is about the middle figure.
+
+**2 · `scripts/cost-arith.mjs` — the trigger's read counts, stale in both
+halves.** This is the one that matters, because `scripts/pulse.test.mjs`
+quotes it as the justification for a tripwire. The comment above
+`TRIGGER_READS` opened *"the world trigger's aggregate transaction does
+exactly two … so a pick or rank answer costs 3 where a vote costs 2"*, and
+by this morning neither number was the tree's: D410 had put the author's
+profile on the vote path (3), and B's catalog fix put it on the catalog arm
+too (4). Measured in the composed `functions/src/v2.ts` rather than
+inferred — vote `tx.getAll(eventRef, pubRef, profRef)` is three, rank
+`(eventRef, qRef, pubRef)` is three, catalog `(eventRef, qRef, privRef,
+profRef)` is four. The paragraph is rewritten to today's counts and keeps
+the old one as the warning, in the shape B used for the same class in
+`spec-index.js`. **The constant does not move, and B's reasoning for that
+is right**: the model absorbs the extra read into the vote rate, and the
+error is now one read per CATALOG answer alone — rank matches the charge
+exactly, where before the fix catalog matched it by coincidence while
+missing the guard.
+
+**3 · `scripts/pulse.test.mjs` — an assertion message that contradicted
+itself.** B appended a correct paragraph to the tripwire's failure text
+(*"the model charges `world: 3` … event + published aggregate + profile"*)
+directly under the sentence that still said it charges *"the VOTE path (2:
+…)"*. Same failure as 2, one file over, and inside a single string: the
+next person to read this message on a red gate would have had two numbers
+for one constant and no way to tell which. The message now states three
+paths — vote 3, rank 3, catalog 4 — and the assertion's value is untouched
+at 13, which is what the composed trigger reads.
+
+### 4 · `scripts/cost-fanout.test.mjs` — the trap CLAUDE.md names, wearing an environment
+
+Found by CI, not by the composition, and it is A's own — but it belongs
+in this record because it is the fifth-runner trap in its fourth
+recorded form, and the first where the stale thing is the *environment*
+rather than an assertion. A's new test imported `sampleIdsFor` from
+`functions/src/profileFanout.ts` — the better pin when it works, because
+it runs the real builder rather than re-asserting a number. That module's
+first line is `import … from "firebase-functions/v2/firestore"`, and
+`test:scripts` runs in **CI's lint job, which installs the root package
+and never `functions/`**. So it passes on any machine where something has
+run `npm ci --prefix functions` — every local session that ran the
+functions suite first, this review included — and is `ERR_MODULE_NOT_FOUND`
+on a clean runner. Nine jobs green, lint red, and nothing else could see
+it: the only thing that imports across this boundary is a test about a
+cost model.
+
+Converted to the source pin its own sibling already uses
+(`cost-whovoted.test.mjs`, comments blanked through `stripComments`,
+pinning the fact rather than its spelling): the world add, the city add,
+and that the city one is CONDITIONED on the answer carrying a city, which
+is what makes the constant a ceiling rather than a flat count. The three
+arithmetic cases are untouched and still execute. Verified the way the
+failure asked to be — `functions/node_modules` moved aside, `test:scripts`
+1339 green, then the builder rewritten to add the city id unconditionally
+and the pin red with its own message.
+
+### What was checked and left alone
+
+Four things looked like the same class and are not, each verified rather
+than assumed:
+
+- **`docs/LOCAL-TESTING.md`'s "221 security-rules tests"** is A's edit and
+  is exactly right in the composed tree. A added one case; B added
+  assertions *inside* existing cases rather than new ones. The composed run
+  reports 221.
+- **`CLAUDE.md`'s "56 modules off the bridge"** is A's, and it holds — the
+  figure is `check:figures`'s, computed off the tree, and B's conversion
+  moved a reader without retiring a name (`duo-daily.jsx` still publishes
+  `DuoBody` for `duels-rounds.test.jsx`).
+- **B's `testResults` rules fix does not break the app's own writes.** The
+  clause now refuses a write that omits a stored `testResults`, and both
+  client profile paths (`live.ts` 5124 and 6337) are merge writes, where
+  `request.resource.data` is the merged *result* and still carries the map.
+  What it refuses is the non-merge `setDoc` that deleted it.
+- **A's owner row on the handle repair prices a block the budget gate does
+  not probe.** B spent expression budget in the profile block the same
+  night, so the row's caution ("adds expressions to a block D432/D433 has
+  only just brought under the ceiling") was worth re-measuring. Every probe
+  in `rules-budget.mjs` is an answer-path probe; the thinnest is the D429
+  pick round at 57 fillers against a floor of 50. The row stands as A wrote
+  it, and it stays the owner's.
+
+**B's Play data-safety correction needs no click.** B moved the *Email
+address* row from Optional to Required in both copies — an
+under-declaration, and §2 of `STORE-FORMS.md` calls that "the direction
+that gets an app pulled". It is one of the four things CLAUDE.md puts
+outside the D334 ask, so it is filed as written, not asked about. The form
+itself is PARKED under D42 and has never been submitted, so the repo copy
+*is* the draft and there is nothing to re-file with Google.
+
+### Measured on the composed tree
+
+`test:unit` 3089 · `test --prefix functions` 969 · `test:scripts` 1339 ·
+`test:rules` 221 plus the coverage ratchet (8 of 378 never-false, at
+baseline) and the D438 budget gate · `test:e2e:all` on one emulator boot,
+199 assertions, all three suites green · `tsc -b` · `lint` · every
+`check:*` gate. `test:scripts` was re-run a second time with
+`functions/node_modules` moved aside, which is the lint job's actual
+environment and the only way defect 4 is visible.
+
+Two gates cannot pass from here and neither is the composition's:
+`check:web-firebase` needs the release secrets and runs only on the
+release workflows; `check:store-copy` fails identically on `origin/main`,
+on the Play signing SHA-256 placeholder that is the owner's to fill.
+
+## D450 · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on
+
+**2026-09-11.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-three commits are kept as written; nothing was reverted. What this
+review adds is the composition, five conflict resolutions, and six prose
+fixes for things no shift could see alone. The owner's instruction was
+*"review tonights nightshifts and merge what you approve"*: every part is
+approved, and this record says which parts the composition had to change
+to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260911` | 32 | 26 behind | shift A, Claude 2's, 21:20–05:33 UTC |
+| `nightb-20260911` | 31 | 27 behind | shift B, Claude 1's, 20:14–04:12 UTC |
+
+`main` took twenty-seven commits during the night: twenty-one console and
+pulse rows, and six content-lane merges (#479–#484, the lanes that
+self-merge on green under D212). No decision number moved. Neither shift
+claimed one; the tree sat at D449. This record is D450.
+
+**THIRTEEN FILES WERE TOUCHED BY BOTH** — `CLAUDE.md`, `README.md`,
+`docs/DATA-EFFICIENCY-RUNBOOK.md`, `docs/LOCAL-TESTING.md`,
+`docs/MIRROR.md`, `docs/SCHEMA-V2.md`, `firestore-tests/rules.test.ts`,
+`firestore-tests/storage.rules.test.ts`, `functions/src/answerMaps.ts`,
+`functions/src/patternsSamples.test.ts`, `functions/src/v2social.ts`,
+`src/v2/data/live.ts`, `web/privacy.html` — against nine the night before
+(D449) and zero the night before that (D430). **Five of them conflicted**,
+where the last two nights conflicted on nothing. That is the difference
+worth recording: D430 and D449 both observed that two shifts write in
+different regions of a shared file and git applies both, so the review has
+to be spent on prose one shift made false. Tonight the two shifts landed
+on the *same* regions, because both had independently picked up the same
+two sweeps — the retired calendar-day duel model, and the profile photo's
+signed-in floor.
+
+A conflict is the cheap case. Four of the five are one defect each, and
+git stopped on all four.
+
+### The five conflicts
+
+**1 · `CLAUDE.md`'s duel-seal paragraph — both shifts rewrote the same
+stale sentence.** It said "sealed until the next-day reveal"; D426
+replaced the calendar day with a round and D437 gave the round a 48-hour
+deadline. A's rewrite carries the `late` flag (a member who missed a
+revealed round may still answer, flagged, because their answer is no
+longer blind); B's carries the deadline's two ends and the observation
+that the sentence named a cadence the copy rule four sections down
+forbids — in the file that states the rule. Both are true and neither
+contains the other. Composed into one paragraph carrying both.
+
+**2 · `README.md`'s reveal bullet — and this one is a defect in B, which
+only A's parallel rewrite makes visible.** B's version ended *"rules deny
+answering a round that is already revealed so nobody peeks then plays"*.
+They do not. `firestore.rules` 1100–1117 splits the arm in two: the blind
+arm requires `late == false` AND no reveal, and the late arm requires
+`late == true` — so answering a revealed round is **permitted** and the
+flag is **required**, which is what keeps a straggler's answer out of the
+scoring (ROUNDS-PLAN §4). A's version says exactly that. A's is kept and
+B's deadline detail — that a 1v1 reveals at the deadline too, so a
+partner who stops answering cannot seal your pick for good — folded in.
+
+**3 · The `test:rules` count, at three sites — neither shift's number was
+the tree's.** A measured 222 (it added one case), B measured 224 (it added
+three). Both were right about their own branch and the composed tree is
+**225**, which is 221 plus four. `check:figures` counts `it(` off the two
+files and holds four sites equal to it, so this was going to be caught;
+it is recorded because it is the same shape as D449's coupling-count
+defect one night earlier, and because the fix is to MEASURE rather than to
+pick a side. Confirmed twice: statically at 216 + 9, and by the suite
+reporting 225 passed.
+
+**4 · `firestore-tests/storage.rules.test.ts` — both shifts found the same
+defect and wrote the same comment.** The case is named "but not by the
+signed-out world", and the comment above it claimed the bucket is not a
+public CDN and that signed-in is the floor. It is not: `avatarUrl`
+(`src/v2/data/avatar.ts`) builds the Storage download-token endpoint and
+every face is a plain `<img>` on it, and a download token is consulted
+INSTEAD of the rules. B's comment carries the emulator measurement (the
+tokenless address 403, the tokenised one 200 with no Firebase app, no
+Authorization header and no account) and where the token sits
+(`v2_avatars/{uid}`, readable by any signed-in — so any free anonymous —
+account, which is what makes the link obtainable and then shareable). A's
+carries the pointer to `storage.rules`, which is where A put the whole
+argument and the price of each of the two fixes. Kept B's with A's
+pointer folded in.
+
+**5 · Three figure sites in `README.md`, `docs/LOCAL-TESTING.md` and
+`docs/SCHEMA-V2.md`** are the same defect as 3, in the three other files
+that quote the count.
+
+### The sentence the merge had nothing to stop on — in two files
+
+**`storage.rules` and `docs/data-inventory.md` — A's note said the privacy
+page needed no change, and it was true when A wrote it.** A's new argument ends: *"`web/privacy.html`
+promises no signed-in floor for photos … so the page is not falsified by
+this — the two comments and the inventory row were."* B spent the same
+night giving the photo its own **who can see what** row on that page —
+*"anyone signed in to the app, and anyone they pass the link to … no
+account, no sign-in"* — and pinning it with a new `check:policy-claims`
+token. So by morning the file that explains the token said the page leaves
+the point implied, and the page stated it outright under a gate. A's
+sentence now carries B's row — in **both** files, because A wrote the same
+clause twice, once in `storage.rules` and once in the inventory's photo
+cell, and only the first was found on the first pass of this review.
+Nothing about either fails a gate, and no gate reads them: `check:docs`
+and `check:data-inventory` are both green with the stale clause in place,
+and the inventory's own cell says why one aisle over — "no gate can see
+it … `check:data-inventory` reads collection names and the reader column,
+never this cell". This is D449's class exactly, and it is the one thing
+tonight that git could not stop on, because the two shifts wrote in
+different files.
+
+### The sweep both shifts ran, and neither finished
+
+B's commit is titled *"the retired calendar-day duel model is still stated
+as fact in five places"*; A's is *"three files said the Groups row has
+three tabs and no Scores"* and *"the duel seal is a round's, not a day's"*.
+Re-running the sweep on the COMPOSED tree — which is the first tree where
+both shifts' fixes exist — finds **six more sites** neither reached. They
+are kept in this record rather than filed away because the lesson is that
+two independent sweeps of one corpus do not add up to one complete sweep,
+and the composed tree is the only place that is measurable.
+
+- **`SECURITY.md` is the one that matters**, and it is not only stale but
+  wrong in the direction that costs a researcher's time. It scoped the
+  finding as *"reading a groupmate's pick early, or answering a day
+  already revealed, breaks the mechanic"*. Answering a revealed round does
+  not break the mechanic — the rules **permit** it and **require**
+  `late: true` on it (see conflict 2). A report of it would be triaged as
+  a valid finding against behaviour the app deliberately ships. Now
+  scoped to the round, and the finding restated as the unflagged write.
+- **`src/v2/spec/daily-split.jsx`**'s header described Group as "one
+  question a day … yesterday revealed with names" and 1v1 as "next-day
+  reveal", in the file that draws all three modes.
+- **`docs/AXIOM-THEORY.md`** said "The next day's reveal" immediately
+  before the round-keyed path `reveals/r{n}` it was naming — the sentence
+  contradicted its own next clause.
+- **`docs/LAUNCH-RUNBOOK.md`** told a tester to expect "the sealed duel
+  and its next-day reveal" from two phones, when on a 1v1 the reveal lands
+  the moment the second phone answers. That is a test script that would
+  have had someone wait overnight for something that already happened.
+- **`src/v2/ui/LiveWalkthrough.tsx`** cited *"sealed until tomorrow"* as
+  `web/privacy.html`'s D5 row. That page no longer says it — B rewrote the
+  row this night — and the walkthrough's own copy had already moved to
+  "until the reveal" nine lines further down, with a comment explaining
+  why. The file argued against itself.
+- **`src/v2/README.md`** described `LiveWalkthrough.test` as pinning the
+  phrase *"sealed until tomorrow"*. The test pins `/\bsealed\b/` and
+  `/with names/` and says in its own comment that it stopped pinning the
+  phrase, for exactly the reason the copy rule gives.
+
+### What was checked and left alone
+
+Five things looked like the same class and are not, each verified rather
+than assumed:
+
+- **The rules-coverage ratchet survived the composition untouched, and it
+  was the likeliest casualty.** B lowered `neverFalse` 8 → 7 in
+  `rules-coverage-baseline.json` on its own branch, in a night whose three
+  new rules cases were each about an arm that was TRUE zero times — a
+  different metric from the one the ratchet counts, which is why the
+  interaction is not readable from B's commits. A added three new
+  sub-expressions to the profile rule the same night. A baseline
+  computed on one branch and a rule grown on the other is how a shrink-only
+  ratchet goes red on a tree neither shift ever built. Measured on the
+  composed tree: **7 of 381** atomic predicates never evaluate false,
+  baseline 7 — the predicate total moved 378 → 381 and A's own new case
+  exercises all three. Nothing to change.
+- **A's `answerMaps` time bound and B's `answerMaps` header do not
+  contradict.** Both shifts landed in that file on the subject of bounds
+  and they are different bounds: A put a 60-second slice on the heal's
+  RUNTIME, B corrected the header's claim about the map document's SIZE —
+  "the bound is the bank, not time" is false for `pulse`, whose qid is the
+  composite `{qid}_{day}`. B's "NO GUARD YET" is about the entry guard and
+  stays true with A's clock in place.
+- **A's `pushRoster` fallback is unreachable rather than wrong.** A's fix
+  addresses the reveal push being fanned out from the page's stale roster
+  instead of the transaction's; it ends
+  `(pushRoster.length ? pushRoster : members)`, and since `if (!didReveal)
+  return false` guards the push, the fallback can only fire when the fresh
+  roster is genuinely empty — where it would notify the departed members
+  the fix exists to exclude. Traced both producers: `leaveGroupV2` does its
+  read-and-shrink inside a transaction precisely so `memberUids: []` cannot
+  happen (its own comment says so), and `deleteAccount` phase 1c, which is
+  NOT transactional and could race two final members, is reaching accounts
+  whose token documents are already gone — which A's comment names as the
+  inert arm. Left as written.
+- **`check:bundle` passes with 1 KB of headroom, and that is a measurement
+  rather than a finding.** B's SignInGate fix reported 550 KB eager against
+  the 552 ceiling on its own branch; the composed tree is **551**. Still
+  green, and the next eager addition is the one that trips it.
+- **`test:scripts` did not repeat D449's defect 4.** A found the same trap
+  in its own work this night, one layer out — `check:fn-types`, added to
+  CI's lint job, typechecks files importing `firebase-admin`, and that job
+  installs the root package only — and fixed it by adding
+  `npm ci --prefix functions` to the job. The fix is placed AFTER
+  `test:scripts` and before the gate, which preserves the property D449
+  bought: `test:scripts` still runs in a lint job with no
+  `functions/node_modules`. Verified here both ways rather than assumed —
+  with `functions/node_modules` moved aside, `test:scripts` is 1355 green
+  and `check:fn-types` fails on missing modules; restored, the gate passes.
+
+### Measured on the composed tree
+
+`test:unit` 3148 over 215 files · `test --prefix functions` 990 passed, 1
+skipped over 47 files · `test:scripts` 1355 over 80 files, run twice — once
+ordinarily and once with `functions/node_modules` moved aside, which is the
+lint job's actual environment · `test:rules` **225**, plus the coverage
+ratchet (7 of 381 never-false, at baseline) and the D438 budget gate (15
+probes at their pins, floor 50, loads at 80) · `test:e2e:all` on one
+emulator boot, all three suites green · `tsc -b` · `lint` · and every
+`check:*` gate, `check:bundle` and `check:eager-content` measured on a real
+shipping build (2324 KB total / 551 KB eager against 2440 / 552; 93 modules
+in the first-paint graph, 4 of them content, all 4 named as debt).
+
+Two gates cannot pass from here and neither is the composition's:
+`check:web-firebase` needs the release secrets and runs only on the release
+workflows; `check:store-copy` fails identically on `origin/main`, on the
+Play signing SHA-256 placeholder that is the owner's to fill — verified
+against a clean worktree of `origin/main` rather than assumed from D449.
+
+### The owner's row this night added
+
+B filed one on `OWNER-LIST.md` and it is a consent question, so it is
+D334's ask rather than a deferral a routine may take: the nightly patterns
+pass republishes a political coordinate whose consent was withdrawn,
+because it stamps sample rows from the day's LEDGER — the profile as of
+when the person answered — over what `profileFanout.restampSamples` wrote
+from the profile as it stands now. The broad half is fixed in this tree
+(the loop no longer touches rows the day's additions did not write). The
+remainder needs one of two decisions that spend different things — an
+extra profile read per active person per night, or a stamp timestamp on a
+world-readable document every reader downloads — which is why it is the
+owner's. A independently closed the adjacent hole in the same night at the
+rules layer: a profile write that simply omitted `consent` deleted the
+consent record, which would have left the published coordinate standing
+while its consent read back as "never asked".
 
 ## D451 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
 

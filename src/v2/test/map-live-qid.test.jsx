@@ -230,3 +230,50 @@ describe("a D86 edit of the daily reaches the Map", () => {
     expect(DAILYQ.myAnswer(q)).toBe(1);
   });
 });
+
+describe("the Map's permanent record takes CONFIRMED votes only", () => {
+  // `liveSync` reads `confirmedVotes()`, and the accessor exists for one
+  // reason (live.ts): the Map's per-device record must never keep a vote
+  // whose `setDoc` may still be refused — nothing else ever rewrites
+  // `saved`, so an unacked write filed here is permanent on the device
+  // even when the server said no. Offline, that is every vote.
+  //
+  // NOTHING COULD SEE THE DIFFERENCE. Every fake in the tree — the shared
+  // live fixture and five mount stubs, this file's two included — answers
+  // `myVotes` and `confirmedVotes` from the same map, so swapping one for
+  // the other in `daily-questions.js` leaves all 3,112 unit tests green.
+  // This is the pair that separates them.
+  function installUnacked(prompt, idx) {
+    const agg = { total: 900, counts: { 0: 700, 1: 200 }, by: { ageBand: { "25-34": { 0: 400, 1: 60 } } } };
+    STUB.live = {
+      enabled: true,
+      ready: true,
+      dailyBank: () => [{ id: BANK_ID, prompt }],
+      // The optimistic state a vote lives in until the server acks it:
+      // the deck shows it, the permanent record may not have it.
+      confirmedVotes: () => ({}),
+      myVotes: () => ({ [BANK_ID]: idx }),
+      aggFor: (qid) => (qid === BANK_ID ? agg : null),
+      anchors: () => ({ ageBand: "25-34" }),
+    };
+    window.LIVE = STUB.live;
+    window.dispatchEvent(new Event("insight-live-update"));
+  }
+
+  it("files nothing while the write is still in flight", () => {
+    const q = DAILYQ.answered()[9];
+    installUnacked(q.prompt, 1);
+    expect(
+      DAILYQ.myAnswer(q),
+      "an unacked vote was written into the Map's permanent per-device record",
+    ).toBeNull();
+  });
+
+  it("…and files it the moment the server confirms it — the control", () => {
+    const q = DAILYQ.answered()[10];
+    installUnacked(q.prompt, 1);
+    expect(DAILYQ.myAnswer(q)).toBeNull();
+    installVote(q.prompt, 1);
+    expect(DAILYQ.myAnswer(q), "a confirmed vote never reached the Map").toBe(1);
+  });
+});

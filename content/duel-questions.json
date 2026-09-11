@@ -1,4 +1,51 @@
 {
+  "scenarios": [
+    {
+      "id": "heist",
+      "label": "Bank Heist",
+      "hue": 25
+    },
+    {
+      "id": "island",
+      "label": "Desert Island",
+      "hue": 150
+    },
+    {
+      "id": "sitcom",
+      "label": "The Sitcom",
+      "hue": 285
+    },
+    {
+      "id": "zombie",
+      "label": "Zombie Plan",
+      "hue": 220
+    },
+    {
+      "id": "roadtrip",
+      "label": "Road Trip",
+      "hue": 60
+    },
+    {
+      "id": "evening",
+      "label": "Any Given Evening",
+      "hue": 335
+    },
+    {
+      "id": "band",
+      "label": "The Band",
+      "hue": 190
+    },
+    {
+      "id": "wedding",
+      "label": "The Wedding",
+      "hue": 105
+    },
+    {
+      "id": "crew",
+      "label": "The Space Crew",
+      "hue": 255
+    }
+  ],
   "group": [
     {
       "id": "gu0",
@@ -14,7 +61,8 @@
     {
       "id": "gp0",
       "kind": "pick",
-      "prompt": "Who'd survive longest in the wild?"
+      "prompt": "Who'd survive longest in the wild?",
+      "active": false
     },
     {
       "id": "gu1",
@@ -44,12 +92,14 @@
         "Vote",
         "Let it slide",
         "Loudest wins"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gp1",
       "kind": "pick",
-      "prompt": "Who replies to the group chat within a minute?"
+      "prompt": "Who replies to the group chat within a minute?",
+      "active": false
     },
     {
       "id": "gu4",
@@ -86,6 +136,12 @@
     {
       "id": "gp2",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "reason",
+        "label": "the voice of reason",
+        "seat": "heart"
+      },
       "prompt": "Who gives the best advice?"
     },
     {
@@ -121,6 +177,12 @@
     {
       "id": "gp3",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "call",
+        "label": "the 3am call",
+        "seat": "hands"
+      },
       "prompt": "Who would you call from jail at 3am?"
     },
     {
@@ -132,7 +194,8 @@
         "Scattered, still close",
         "Neighbours",
         "A yearly reunion"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gd6",
@@ -153,11 +216,18 @@
         "Memes",
         "Life updates",
         "Silence"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gp4",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "curveball",
+        "label": "the curveball",
+        "seat": "wild"
+      },
       "prompt": "Who changes the plan at the last minute?"
     },
     {
@@ -177,11 +247,18 @@
       "options": [
         "One house",
         "Rooms apart"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gp5",
       "kind": "pick",
+      "scen": "evening",
+      "role": {
+        "id": "ringleader",
+        "label": "the ringleader",
+        "seat": "engine"
+      },
       "prompt": "Who secretly runs this group?"
     },
     {
@@ -198,7 +275,8 @@
     {
       "id": "gp6",
       "kind": "pick",
-      "prompt": "Who would win a group argument on a technicality?"
+      "prompt": "Who would win a group argument on a technicality?",
+      "active": false
     },
     {
       "id": "gu11",
@@ -209,7 +287,8 @@
         "Slow to warm",
         "Full — sorry",
         "Depends who"
-      ]
+      ],
+      "active": false
     },
     {
       "id": "gd8",
@@ -222,7 +301,352 @@
     {
       "id": "gp7",
       "kind": "pick",
-      "prompt": "Who tells the same story every time, and it still lands?"
+      "prompt": "Who tells the same story every time, and it still lands?",
+      "active": false
+    },
+    {
+      "id": "gr0",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "mastermind",
+        "label": "the mastermind",
+        "seat": "engine"
+      },
+      "prompt": "Who plans the whole thing?"
+    },
+    {
+      "id": "gr1",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "driver",
+        "label": "the getaway driver",
+        "seat": "hands"
+      },
+      "prompt": "Who drives the getaway car?"
+    },
+    {
+      "id": "gr2",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "inside",
+        "label": "the inside man",
+        "seat": "heart"
+      },
+      "prompt": "Who charms their way inside?"
+    },
+    {
+      "id": "gs0",
+      "kind": "rate",
+      "dim": "pace",
+      "prompt": "This group’s energy?",
+      "poles": [
+        "Calm",
+        "Chaos"
+      ]
+    },
+    {
+      "id": "gr3",
+      "kind": "pick",
+      "scen": "heist",
+      "role": {
+        "id": "crack",
+        "label": "first to crack",
+        "seat": "wild"
+      },
+      "prompt": "Who confesses after one question?"
+    },
+    {
+      "id": "gr4",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "fire",
+        "label": "the fire-keeper",
+        "seat": "engine"
+      },
+      "prompt": "Who keeps the fire going?"
+    },
+    {
+      "id": "gr5",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "food",
+        "label": "the food-finder",
+        "seat": "hands"
+      },
+      "prompt": "Who finds something to eat?"
+    },
+    {
+      "id": "gs1",
+      "kind": "rate",
+      "dim": "disagree",
+      "prompt": "When we disagree, we…",
+      "poles": [
+        "Talk it out",
+        "Loudest wins"
+      ]
+    },
+    {
+      "id": "gr6",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "morale",
+        "label": "the morale officer",
+        "seat": "heart"
+      },
+      "prompt": "Who keeps spirits up?"
+    },
+    {
+      "id": "gr7",
+      "kind": "pick",
+      "scen": "island",
+      "role": {
+        "id": "loseit",
+        "label": "first to lose it",
+        "seat": "wild"
+      },
+      "prompt": "Who talks to a coconut first?"
+    },
+    {
+      "id": "gr8",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "main",
+        "label": "the main character",
+        "seat": "engine"
+      },
+      "prompt": "Who is the main character?"
+    },
+    {
+      "id": "gs2",
+      "kind": "rate",
+      "dim": "late",
+      "prompt": "Our timekeeping?",
+      "poles": [
+        "Punctual",
+        "Always late"
+      ]
+    },
+    {
+      "id": "gr9",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "comic",
+        "label": "the comic relief",
+        "seat": "heart"
+      },
+      "prompt": "Who gets the laugh track?"
+    },
+    {
+      "id": "gr10",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "deadpan",
+        "label": "the deadpan one",
+        "seat": "hands"
+      },
+      "prompt": "Who delivers the dry one-liners?"
+    },
+    {
+      "id": "gr11",
+      "kind": "pick",
+      "scen": "sitcom",
+      "role": {
+        "id": "twist",
+        "label": "the plot twist",
+        "seat": "wild"
+      },
+      "prompt": "Whose life is the plot twist?"
+    },
+    {
+      "id": "gs3",
+      "kind": "rate",
+      "dim": "plan",
+      "prompt": "A free evening with us is…",
+      "poles": [
+        "Planned",
+        "Spontaneous"
+      ]
+    },
+    {
+      "id": "gr12",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "leader",
+        "label": "the reluctant leader",
+        "seat": "engine"
+      },
+      "prompt": "Who ends up leading?"
+    },
+    {
+      "id": "gr13",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "hoarder",
+        "label": "the supply hoarder",
+        "seat": "hands"
+      },
+      "prompt": "Who already has a stockpile?",
+      "active": false
+    },
+    {
+      "id": "gr14",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "scout",
+        "label": "the scout",
+        "seat": "hands"
+      },
+      "prompt": "Who goes out for the supply run?"
+    },
+    {
+      "id": "gs4",
+      "kind": "rate",
+      "dim": "door",
+      "prompt": "New person wants in. We are…",
+      "poles": [
+        "Open door",
+        "Full — sorry"
+      ]
+    },
+    {
+      "id": "gr15",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "bitten",
+        "label": "first one bitten",
+        "seat": "wild"
+      },
+      "prompt": "Who pets the zombie dog?"
+    },
+    {
+      "id": "gr16",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "wheel",
+        "label": "the driver",
+        "seat": "engine"
+      },
+      "prompt": "Who takes the wheel?"
+    },
+    {
+      "id": "gr17",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "dj",
+        "label": "the DJ",
+        "seat": "heart"
+      },
+      "prompt": "Who controls the music?"
+    },
+    {
+      "id": "gs5",
+      "kind": "rate",
+      "dim": "say",
+      "prompt": "How much goes unsaid between us?",
+      "poles": [
+        "We say everything",
+        "Plenty unsaid"
+      ]
+    },
+    {
+      "id": "gr18",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "nav",
+        "label": "the navigator",
+        "seat": "hands"
+      },
+      "prompt": "Who knows the way — or says so?"
+    },
+    {
+      "id": "gr19",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "snacks",
+        "label": "the snack captain",
+        "seat": "heart"
+      },
+      "prompt": "Who packed the snacks?",
+      "active": false
+    },
+    {
+      "id": "gs6",
+      "kind": "rate",
+      "dim": "candour",
+      "prompt": "How honest are we with each other?",
+      "poles": [
+        "Gentle",
+        "Brutal"
+      ]
+    },
+    {
+      "id": "gs7",
+      "kind": "rate",
+      "dim": "chat",
+      "prompt": "Our group chat runs on…",
+      "poles": [
+        "Plans",
+        "Nonsense"
+      ]
+    },
+    {
+      "id": "gs8",
+      "kind": "rate",
+      "dim": "space",
+      "prompt": "A group holiday: one house, or rooms apart?",
+      "poles": [
+        "One house",
+        "Rooms apart"
+      ]
+    },
+    {
+      "id": "gs9",
+      "kind": "rate",
+      "dim": "future",
+      "prompt": "In ten years, this group is…",
+      "poles": [
+        "Same, but older",
+        "A yearly reunion"
+      ]
+    },
+    {
+      "id": "gr20",
+      "kind": "pick",
+      "scen": "zombie",
+      "role": {
+        "id": "medic",
+        "label": "the medic",
+        "seat": "heart"
+      },
+      "prompt": "Who patches everyone up?"
+    },
+    {
+      "id": "gr21",
+      "kind": "pick",
+      "scen": "roadtrip",
+      "role": {
+        "id": "stops",
+        "label": "the hourly stop",
+        "seat": "wild"
+      },
+      "prompt": "Who needs to pull over every hour?"
     },
     {
       "id": "gu12",
@@ -246,7 +670,8 @@
     {
       "id": "gp8",
       "kind": "pick",
-      "prompt": "Who would survive longest without their phone?"
+      "prompt": "Who would survive longest without their phone?",
+      "active": false
     },
     {
       "id": "gu13",
@@ -270,7 +695,8 @@
     {
       "id": "gp9",
       "kind": "pick",
-      "prompt": "Who’s secretly keeping the group together?"
+      "prompt": "Who’s secretly keeping the group together?",
+      "active": false
     },
     {
       "id": "gu14",
@@ -289,6 +715,198 @@
       "options": [
         "Fine",
         "Never"
+      ]
+    },
+    {
+      "id": "gr22",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "frontman",
+        "label": "the frontman",
+        "seat": "engine"
+      },
+      "prompt": "Who takes the mic without asking?"
+    },
+    {
+      "id": "gr23",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "songwriter",
+        "label": "the songwriter",
+        "seat": "hands"
+      },
+      "prompt": "Whose ideas does everyone end up using?"
+    },
+    {
+      "id": "gr24",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "glue",
+        "label": "the glue",
+        "seat": "heart"
+      },
+      "prompt": "Who keeps this band from breaking up?"
+    },
+    {
+      "id": "gr25",
+      "kind": "pick",
+      "scen": "band",
+      "role": {
+        "id": "solo",
+        "label": "the solo career",
+        "seat": "wild"
+      },
+      "prompt": "Who goes solo first?"
+    },
+    {
+      "id": "gs10",
+      "kind": "rate",
+      "dim": "volume",
+      "prompt": "A dinner with this group is…",
+      "poles": [
+        "Murmur",
+        "Roar"
+      ]
+    },
+    {
+      "id": "gs11",
+      "kind": "rate",
+      "dim": "launch",
+      "prompt": "Getting this group out the door takes…",
+      "poles": [
+        "Quick",
+        "Endless"
+      ]
+    },
+    {
+      "id": "gs12",
+      "kind": "rate",
+      "dim": "range",
+      "prompt": "This group’s comfort zone is…",
+      "poles": [
+        "Home",
+        "Anywhere"
+      ]
+    },
+    {
+      "id": "gs13",
+      "kind": "rate",
+      "dim": "stories",
+      "prompt": "The stories at this table are…",
+      "poles": [
+        "The same five",
+        "Always new"
+      ]
+    },
+    {
+      "id": "gr26",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "planner",
+        "label": "the planner",
+        "seat": "engine"
+      },
+      "prompt": "Who has the day planned to the minute?"
+    },
+    {
+      "id": "gr27",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "fixer",
+        "label": "the crisis fixer",
+        "seat": "hands"
+      },
+      "prompt": "Who handles the cake disaster?"
+    },
+    {
+      "id": "gr28",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "speech",
+        "label": "the tearful speech",
+        "seat": "heart"
+      },
+      "prompt": "Whose speech has everyone in tears?"
+    },
+    {
+      "id": "gr29",
+      "kind": "pick",
+      "scen": "wedding",
+      "role": {
+        "id": "dancefloor",
+        "label": "first on the dancefloor",
+        "seat": "wild"
+      },
+      "prompt": "Who is first on the dancefloor?"
+    },
+    {
+      "id": "gr30",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "captain",
+        "label": "the captain",
+        "seat": "engine"
+      },
+      "prompt": "Whose orders would you actually follow?"
+    },
+    {
+      "id": "gr31",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "engineer",
+        "label": "the engineer",
+        "seat": "hands"
+      },
+      "prompt": "Who fixes it with tape and nerve?"
+    },
+    {
+      "id": "gr32",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "steady",
+        "label": "the steady voice",
+        "seat": "heart"
+      },
+      "prompt": "Who stays calm when the alarms go off?"
+    },
+    {
+      "id": "gr33",
+      "kind": "pick",
+      "scen": "crew",
+      "role": {
+        "id": "button",
+        "label": "the big red button",
+        "seat": "wild"
+      },
+      "prompt": "Who presses the big red button?"
+    },
+    {
+      "id": "gs14",
+      "kind": "rate",
+      "dim": "luck",
+      "prompt": "The luck we carry is…",
+      "poles": [
+        "Cursed",
+        "Charmed"
+      ]
+    },
+    {
+      "id": "gs15",
+      "kind": "rate",
+      "dim": "photos",
+      "prompt": "The photos of this group are…",
+      "poles": [
+        "Posed",
+        "Blurry"
       ]
     }
   ],
@@ -692,6 +1310,219 @@
         "Sometimes deserved",
         "Always childish"
       ]
+    },
+    {
+      "id": "073",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you tell first",
+        "the one who gets you out the door",
+        "the one you ask what to do",
+        "the one who is just always there"
+      ],
+      "them": [
+        "the one {name} tells first",
+        "the one who gets {name} out the door",
+        "the one {name} asks what to do",
+        "the one who is just always there"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
+      ]
+    },
+    {
+      "id": "075",
+      "d": "day",
+      "prompt": "Texting back: instantly, or when the stars align?",
+      "options": [
+        "Instantly",
+        "Same day",
+        "The stars decide"
+      ]
+    },
+    {
+      "id": "076",
+      "d": "day",
+      "prompt": "Your camera roll is mostly:",
+      "options": [
+        "People",
+        "Screenshots",
+        "Food and skies",
+        "Memes to forward"
+      ]
+    },
+    {
+      "id": "077",
+      "d": "mirror",
+      "prompt": "Their phone dies for a day. They feel:",
+      "options": [
+        "Free",
+        "Twitchy",
+        "Smug and unreachable",
+        "They’d notice by noon"
+      ]
+    },
+    {
+      "id": "078",
+      "d": "mirror",
+      "prompt": "Their guilty pleasure they’d deny:",
+      "options": [
+        "Trash TV",
+        "Gossip",
+        "Cheesy pop",
+        "Noon naps"
+      ]
+    },
+    {
+      "id": "079",
+      "d": "mirror",
+      "prompt": "In a horror film, they’re:",
+      "options": [
+        "First to go",
+        "The survivor",
+        "The one who says split up",
+        "Left before it started"
+      ]
+    },
+    {
+      "id": "080",
+      "d": "mirror",
+      "prompt": "Their unread messages right now:",
+      "options": [
+        "Zero, always",
+        "A handful",
+        "Hundreds",
+        "Thousands, proudly"
+      ]
+    },
+    {
+      "id": "081",
+      "d": "heat",
+      "prompt": "Asking for directions: fine, or defeat?",
+      "options": [
+        "Fine",
+        "Defeat",
+        "The map app is the referee"
+      ]
+    },
+    {
+      "id": "082",
+      "d": "heat",
+      "prompt": "Ordering for someone else without asking: sweet, or controlling?",
+      "options": [
+        "Sweet",
+        "Controlling",
+        "Only if they know you"
+      ]
+    },
+    {
+      "id": "092",
+      "d": "day",
+      "prompt": "Umbrella, or hood up and run?",
+      "options": [
+        "Umbrella",
+        "Hood up and run",
+        "Neither — wait it out"
+      ]
+    },
+    {
+      "id": "093",
+      "d": "day",
+      "prompt": "Hotel, or tent?",
+      "options": [
+        "Hotel",
+        "Tent",
+        "Cabin — split the difference"
+      ]
+    },
+    {
+      "id": "094",
+      "d": "day",
+      "prompt": "New phone: day one, or when the old one dies?",
+      "options": [
+        "Day one",
+        "When it dies",
+        "When it embarrasses me"
+      ]
+    },
+    {
+      "id": "095",
+      "d": "mirror",
+      "prompt": "A spider appears. They…",
+      "options": [
+        "Rescue it, cup and paper",
+        "No survivors",
+        "Call for backup",
+        "Name it"
+      ]
+    },
+    {
+      "id": "096",
+      "d": "mirror",
+      "prompt": "Their driving is…",
+      "options": [
+        "Serene",
+        "Spirited",
+        "A running commentary",
+        "Backseat only"
+      ]
+    },
+    {
+      "id": "097",
+      "d": "mirror",
+      "prompt": "Their signature dish:",
+      "options": [
+        "One perfect thing",
+        "Fridge roulette",
+        "A rotation of three",
+        "Toast"
+      ]
+    },
+    {
+      "id": "098",
+      "d": "mirror",
+      "prompt": "Their pub-quiz round:",
+      "options": [
+        "Sport",
+        "Music",
+        "Maps and flags",
+        "The picture round"
+      ]
+    },
+    {
+      "id": "099",
+      "d": "heat",
+      "prompt": "Reclining your plane seat: your right, or just rude?",
+      "options": [
+        "My right",
+        "Just rude",
+        "Night flights only"
+      ]
+    },
+    {
+      "id": "100",
+      "d": "heat",
+      "prompt": "Re-gifting: fair game, or never?",
+      "options": [
+        "Fair game",
+        "Never",
+        "Only across friend groups"
+      ]
+    },
+    {
+      "id": "101",
+      "d": "heat",
+      "prompt": "Being a regular somewhere: the dream, or a rut?",
+      "options": [
+        "The dream",
+        "A rut",
+        "Both, happily"
+      ]
     }
   ],
   "romantic": [
@@ -1061,6 +1892,190 @@
         "Traditions",
         "The photo albums",
         "Saying sorry fast"
+      ],
+      "active": false
+    },
+    {
+      "id": "074",
+      "kind": "cast",
+      "d": "cast",
+      "prompt": "Most days, {name} is…",
+      "options": [
+        "the one you go home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "them": [
+        "the one {name} goes home to",
+        "the one who starts things",
+        "the one who thinks ahead for you both",
+        "the one who stays when it is hard"
+      ],
+      "dims": [
+        "trust",
+        "spark",
+        "judgement",
+        "constancy"
+      ],
+      "active": false
+    },
+    {
+      "id": "083",
+      "d": "day",
+      "prompt": "The last five minutes before sleep are for:",
+      "options": [
+        "Talking nonsense",
+        "Phones, side by side",
+        "Silence, tangled",
+        "Alarm negotiations"
+      ],
+      "active": false
+    },
+    {
+      "id": "084",
+      "d": "day",
+      "prompt": "Grocery runs together: a date, or a chore with company?",
+      "options": [
+        "Secretly a date",
+        "A chore with company",
+        "Divide and conquer"
+      ],
+      "active": false
+    },
+    {
+      "id": "085",
+      "d": "day",
+      "prompt": "Who controls the thermostat, really?",
+      "options": [
+        "Me",
+        "Them",
+        "The war is eternal"
+      ],
+      "active": false
+    },
+    {
+      "id": "086",
+      "d": "heat",
+      "prompt": "Flirting: does harmless exist?",
+      "options": [
+        "Never harmless",
+        "Harmless is fine",
+        "Define flirting"
+      ],
+      "active": false
+    },
+    {
+      "id": "087",
+      "d": "heat",
+      "prompt": "Exes as friends: mature, or embers?",
+      "options": [
+        "Mature",
+        "Embers",
+        "Depends which ex"
+      ],
+      "active": false
+    },
+    {
+      "id": "088",
+      "d": "heat",
+      "prompt": "Separate holidays sometimes: healthy, or a warning?",
+      "options": [
+        "Healthy",
+        "A warning",
+        "We’ve earned both"
+      ],
+      "active": false
+    },
+    {
+      "id": "089",
+      "d": "ahead",
+      "prompt": "The house we end up in:",
+      "options": [
+        "A city flat",
+        "A village and a dog",
+        "By the sea",
+        "Wherever, together"
+      ],
+      "active": false
+    },
+    {
+      "id": "090",
+      "d": "ahead",
+      "prompt": "The tradition we’ll invent:",
+      "options": [
+        "A yearly trip",
+        "Sunday something",
+        "A terrible joke",
+        "Our own holiday"
+      ],
+      "active": false
+    },
+    {
+      "id": "091",
+      "d": "ahead",
+      "prompt": "At eighty, we’re the couple that:",
+      "options": [
+        "Still bickers happily",
+        "Holds hands in queues",
+        "Runs the garden",
+        "Knows everyone’s news"
+      ],
+      "active": false
+    },
+    {
+      "id": "102",
+      "d": "day",
+      "prompt": "Pet names: constantly, or never?",
+      "options": [
+        "Constantly",
+        "Only in private",
+        "Real names only"
+      ],
+      "active": false
+    },
+    {
+      "id": "103",
+      "d": "day",
+      "prompt": "Their side of the bed: sacred, or negotiable?",
+      "options": [
+        "Sacred",
+        "Negotiable",
+        "There are no sides"
+      ],
+      "active": false
+    },
+    {
+      "id": "104",
+      "d": "heat",
+      "prompt": "Phones unlocked for each other: obviously, or a boundary?",
+      "options": [
+        "Obviously",
+        "A boundary",
+        "It’s never come up"
+      ],
+      "active": false
+    },
+    {
+      "id": "105",
+      "d": "heat",
+      "prompt": "Keeping score: poison, or how it stays fair?",
+      "options": [
+        "Poison",
+        "How it stays fair",
+        "We both know who’s ahead"
+      ],
+      "active": false
+    },
+    {
+      "id": "106",
+      "d": "ahead",
+      "prompt": "The other life we joke about:",
+      "options": [
+        "The farm",
+        "The beach bar",
+        "The band",
+        "We’re living it"
       ],
       "active": false
     }

@@ -76,6 +76,9 @@ const TELEMETRY_KEY = "insight.telemetry.v1";
 
 let sdk: SentryCapacitor | null = null;
 let loading = false;
+/** The chunk was asked for and did not arrive. Distinct from `loading`,
+ *  which only says the attempt is over — see the catch and `reportError`. */
+let failed = false;
 let pendingUid: string | null | undefined; // undefined = never set
 const queued: Array<[unknown, Record<string, unknown> | undefined]> = [];
 const QUEUE_CAP = 20;
@@ -144,6 +147,18 @@ export function sentryInit(): void {
       }
     } catch (err) {
       console.warn("[sentry] SDK load failed:", err);
+      // AND EVERYTHING WAITING GOES TO THE CONSOLE, because this is the
+      // one path where nothing else will ever take it. `loading` goes
+      // false below and `sdk` stays null, so from here `reportError`
+      // neither captures nor queues — and its console mirror is gated on
+      // the DSN being ABSENT, which on a real build it is not. The result
+      // was two errors in and zero out: no Sentry, no queue, no console,
+      // for the rest of the session, after an offline blip or a deploy
+      // swapping the chunk mid-load. The up-to-20 already queued —
+      // everything reported during boot, which is when this fails —
+      // vanished with them.
+      failed = true;
+      for (const [e, ctx] of queued.splice(0)) console.error("[reportError]", e, ctx);
     } finally {
       loading = false;
     }
@@ -175,11 +190,14 @@ export function reportError(
   if (loading && queued.length < QUEUE_CAP) {
     queued.push([err, context]);
   }
-  // Mirror to console where it is the ONLY record: dev, or a build with
-  // no DSN configured. Once a DSN is set the error is already captured
-  // (or queued above), and logging every handled error again is noise in
-  // a production console — the reconnect retries make it a stream.
-  if (import.meta.env.DEV || !import.meta.env.VITE_SENTRY_DSN) {
+  // Mirror to console where it is the ONLY record: dev, a build with no
+  // DSN configured, or a build whose SDK chunk never arrived. Otherwise
+  // the error is already captured (or queued above), and logging every
+  // handled error again is noise in a production console — the reconnect
+  // retries make it a stream. The third case is the one that was missing:
+  // "once a DSN is set the error is already captured" is exactly false
+  // after `sentryInit` throws, and that is when the record matters most.
+  if (import.meta.env.DEV || !import.meta.env.VITE_SENTRY_DSN || failed) {
     console.error("[reportError]", err, context);
   }
 }

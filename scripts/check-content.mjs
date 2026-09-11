@@ -469,7 +469,10 @@ for (const q of entries) {
 const promptsBySurface = new Map();
 for (const q of entries) {
   if (q.active === false) continue;
-  const key = `${q.surface}\u0000${q.prompt}`;
+  // A cast round exists once per 1v1 POOL with the same prompt by design
+  // (D437): the friends and romantic pools are disjoint (`mode`), and a
+  // pair only ever draws from one of them — so the key carries the mode.
+  const key = `${q.surface}\u0000${q.topic === "cast" ? `${q.mode ?? ""}\u0000` : ""}${q.prompt}`;
   if (promptsBySurface.has(key)) {
     errors.push(`${q.id}: duplicate prompt within ${q.surface} (also ${promptsBySurface.get(key)})`);
   }
@@ -499,10 +502,80 @@ for (const q of entries) {
   }
 }
 
+// The seats a role is cast in and the axes a cast round names (D437) — the
+// two instruments' dims, closed here so a bank entry cannot invent one the
+// fold does not know (data/roles.ts reads both literally).
+const SEATS = ["engine", "hands", "heart", "wild"];
+const AXES = ["trust", "spark", "judgement", "constancy"];
+
 // ---- group kinds are a closed set (the reveal renders each differently).
+// `rate` joined at D434 (the owner's 2026-09-08 design): a five-step scale
+// between two poles, asked of the group about itself every fourth round.
+// Its shape is held here because the card and the fold both read it
+// literally — five options, two poles, or the ballot has no ends to draw.
+// A `pick` may carry the scenario pack and the role it casts, and a pack
+// without a role (or the reverse) is a half-tagged question nothing can
+// draw a kicker or a verdict for.
 for (const q of entries) {
-  if (q.surface === "group" && !["us", "pick", "classic"].includes(q.topic)) {
-    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic`);
+  if (q.surface !== "group") continue;
+  if (!["us", "pick", "classic", "rate"].includes(q.topic)) {
+    errors.push(`${q.id}: group kind ${JSON.stringify(q.topic)} not us/pick/classic/rate`);
+  }
+  if (q.topic === "rate") {
+    if (!Array.isArray(q.poles) || q.poles.length !== 2 || q.poles.some((p) => typeof p !== "string" || !p.trim())) {
+      errors.push(`${q.id}: a rate question needs exactly two poles`);
+    }
+    if (!Array.isArray(q.options) || q.options.length !== 5) {
+      errors.push(`${q.id}: a rate question has five step labels, not ${Array.isArray(q.options) ? q.options.length : "none"}`);
+    }
+  } else if (q.poles !== undefined) {
+    errors.push(`${q.id}: poles on a ${q.topic} question — only a rate question has ends`);
+  }
+  if ((q.scen && !q.role) || (q.role && !q.scen)) {
+    errors.push(`${q.id}: a role vote carries both its pack (scen) and its role, or neither`);
+  }
+  if (q.scen && q.topic !== "pick") {
+    errors.push(`${q.id}: a scenario pack on a ${q.topic} question — only a pick casts a role`);
+  }
+  if (q.scen && (typeof q.scen.id !== "string" || typeof q.scen.label !== "string" || typeof q.scen.hue !== "number")) {
+    errors.push(`${q.id}: scen needs id, label and a numeric hue`);
+  }
+  if (q.role && (typeof q.role.id !== "string" || typeof q.role.label !== "string")) {
+    errors.push(`${q.id}: role needs id and label`);
+  }
+  // The SEAT (D437): what a member's received votes cluster into, so a
+  // role without one is a vote the instrument cannot count.
+  if (q.role && !SEATS.includes(q.role.seat)) {
+    errors.push(`${q.id}: role seat ${JSON.stringify(q.role.seat)} not ${SEATS.join("/")}`);
+  }
+}
+
+// ---- every pack is ONE role per seat (D437): the seats are what the group
+// instrument measures, and a pack with two hands and no heart would cast
+// its members into a seat nobody can earn there — which is exactly the
+// dead-axis shape D204 spent a release refusing. Over ACTIVE role votes:
+// a retired role is not dealt and its replacement carries the seat.
+{
+  const byPack = new Map();
+  for (const q of entries) {
+    if (q.surface !== "group" || !q.scen || !q.role || q.active === false) continue;
+    if (!byPack.has(q.scen.id)) byPack.set(q.scen.id, []);
+    byPack.get(q.scen.id).push(q);
+  }
+  for (const [pack, roles] of byPack) {
+    for (const seat of SEATS) {
+      const n = roles.filter((q) => q.role.seat === seat).length;
+      if (n !== 1) errors.push(`pack ${pack}: ${n} active roles in the ${seat} seat, want exactly one`);
+    }
+    // …and an id names ONE role within its pack: the Groups stop keys a
+    // role by (pack, id) — `groupCast.ts` — so a repeated id would fold two
+    // roles into one row and one satellite. Across packs an id may repeat.
+    const seen = new Map();
+    for (const q of roles) {
+      const prev = seen.get(q.role.id);
+      if (prev) errors.push(`pack ${pack}: role id ${JSON.stringify(q.role.id)} on ${prev} and ${q.id} — one role per id within a pack`);
+      else seen.set(q.role.id, q.id);
+    }
   }
 }
 
@@ -511,10 +584,29 @@ for (const q of entries) {
 // and is held apart from likeness and insight — so a 1v1 question with no
 // domain, or a new word nobody taught the fold, would be scored as
 // something it is not. Both pools, since they share the surface.
-const DUO_DOMAINS = ["day", "heat", "mirror", "ahead"];
+// `cast` joined at D437 (the owner's 2026-09-09 design): the round that asks
+// what the other person is to you, one entry per pool, dealt every fourth
+// round. Its shape is held here because the card, the fold and the roles
+// instrument all read it literally — four answers, four *them* forms, four
+// axes from the instrument's closed set, and a prompt that carries the
+// `{name}` the card substitutes.
+const DUO_DOMAINS = ["day", "heat", "mirror", "ahead", "cast"];
 for (const q of entries) {
-  if (q.surface === "duo" && !DUO_DOMAINS.includes(q.topic)) {
-    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead`);
+  if (q.surface !== "duo") continue;
+  if (!DUO_DOMAINS.includes(q.topic)) {
+    errors.push(`${q.id}: 1v1 domain ${JSON.stringify(q.topic)} not day/heat/mirror/ahead/cast`);
+  }
+  if (q.topic === "cast") {
+    if (!Array.isArray(q.options) || q.options.length !== 4) errors.push(`${q.id}: a cast round has four answers`);
+    if (!Array.isArray(q.them) || q.them.length !== 4 || q.them.some((t) => typeof t !== "string" || !t.trim())) {
+      errors.push(`${q.id}: a cast round needs four them forms`);
+    }
+    if (!Array.isArray(q.dims) || q.dims.length !== 4 || q.dims.some((d, i) => d !== AXES[i])) {
+      errors.push(`${q.id}: a cast round's dims are ${AXES.join(" · ")}, in that order`);
+    }
+    if (!/\{name\}/.test(q.prompt)) errors.push(`${q.id}: a cast prompt carries {name}`);
+  } else if (q.them !== undefined || q.dims !== undefined) {
+    errors.push(`${q.id}: them/dims on a ${q.topic} question — only a cast round has them`);
   }
 }
 
@@ -636,6 +728,14 @@ const NOT_SEEDED = {
     + "scripts/gen-learn-sample.mjs, imported by src/v2/spec/learn-data.js so "
     + "the demo build has cards, and held equal to its source by "
     + "check:learn-sample. It is emphatically not a second bank to edit",
+  "duel-sample.json":
+    "generated OUTPUT, not an input — the fixed slice of duel-questions.json "
+    + "the JS bundle carries (D435: the whole bank used to be compiled in "
+    + "under the 24 KiB cap below, and the daily burst was one run from "
+    + "crossing it). Written by scripts/gen-duel-sample.mjs, imported by "
+    + "src/v2/spec/duels-data.js so the demo build has duel questions, and "
+    + "held equal to its source by check:duel-sample. It is emphatically "
+    + "not a second bank to edit",
 };
 
 // ---- content COMPILED INTO THE CLIENT, and how much of it there may be.
@@ -656,8 +756,9 @@ const NOT_SEEDED = {
 // its subjects.
 //
 // What is NOT here is the whole point: daily, feed, test, pick, pulse,
-// call and lens content reach the client only through Firestore, and must
-// keep doing so. Adding a line here is the decision, not the paperwork.
+// call, lens and — since D435 — duel content reach the client only through
+// Firestore, and must keep doing so. Adding a line here is the decision,
+// not the paperwork.
 const BUNDLED_CONTENT = {
   "learn-sample.json": {
     maxKiB: 32,
@@ -679,14 +780,17 @@ const BUNDLED_CONTENT = {
       + "cohort. Crossing this means the card grew a per-day series or a "
       + "fourth cohort — reshape it, don't raise the cap",
   },
-  "duel-questions.json": {
-    maxKiB: 24,
+  "duel-sample.json": {
+    maxKiB: 16,
     why:
-      "the duel pools, read by spec/duels-data.js — the last bank still "
-      + "compiled in whole (D284 moved learn and left this one: a weekly "
-      + "lane at 14.6 KiB has years of slack). Crossing this is the signal "
-      + "to give it learn's treatment, a generated sample plus a live read, "
-      + "rather than to raise the number",
+      "the fixed slice of the duel bank the demo build needs (D435) — "
+      + "generated at PER_KIND questions a group kind and PER_DOMAIN a 1v1 "
+      + "domain plus the packs those votes name, so it grows with the number "
+      + "of KINDS and DOMAINS and never with the bank. Crossing this means a "
+      + "count crept or a kind arrived: re-derive the counts against the "
+      + "demo's needs rather than raising the cap. (This entry replaced "
+      + "duel-questions.json at 24 KiB, the last bank compiled in whole — "
+      + "which the daily burst was one run from crossing)",
   },
 };
 

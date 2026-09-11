@@ -1058,7 +1058,8 @@
           "count": 1700
         }
       ],
-      "bg": "Astronomers have confirmed nearly 6,000 planets around other stars, several of them potentially temperate. No evidence of life beyond Earth has been found, and no candidate signal has survived follow-up checks."
+      "bg": "Astronomers have confirmed nearly 6,000 planets around other stars, several of them potentially temperate. No evidence of life beyond Earth has been found, and no candidate signal has survived follow-up checks.",
+      "sub": "sub_aliens"
     },
     {
       "id": "f54",
@@ -4388,7 +4389,8 @@
           "count": 2500
         }
       ],
-      "id": "f173"
+      "id": "f173",
+      "sub": "sub_gigs"
     },
     {
       "core": false,
@@ -4720,7 +4722,8 @@
       "ay": [
         "by the book",
         "improvised"
-      ]
+      ],
+      "sub": "sub_cooking"
     },
     {
       "id": "fd9",
@@ -4735,7 +4738,8 @@
       "ay": [
         "silly",
         "art"
-      ]
+      ],
+      "sub": "sub_horror"
     },
     {
       "id": "n11",
@@ -5647,7 +5651,8 @@
           "count": 2500
         }
       ],
-      "id": "f220"
+      "id": "f220",
+      "sub": "sub_gigs"
     },
     {
       "core": false,
@@ -6735,7 +6740,8 @@
           "label": "Cereal night",
           "count": 3300
         }
-      ]
+      ],
+      "sub": "sub_cooking"
     },
     {
       "id": "f267",
@@ -6773,7 +6779,8 @@
           "label": "At the back",
           "count": 2900
         }
-      ]
+      ],
+      "sub": "sub_gigs"
     },
     {
       "id": "f269",
@@ -8590,6 +8597,2727 @@
         },
         {
           "label": "Whatever I make myself"
+        }
+      ]
+    },
+    {
+      "id": "f317",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "Would you take a creator’s life — the camera always on?",
+      "options": [
+        {
+          "label": "In a heartbeat",
+          "count": 1400
+        },
+        {
+          "label": "The money, not the lens",
+          "count": 3100
+        },
+        {
+          "label": "Never",
+          "count": 2600
+        },
+        {
+          "label": "Only faceless",
+          "count": 900
+        }
+      ]
+    },
+    {
+      "id": "f318",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "A creator you’ve followed for years quits. What is that?",
+      "options": [
+        {
+          "label": "A real loss",
+          "count": 2100
+        },
+        {
+          "label": "A shrug",
+          "count": 2500
+        },
+        {
+          "label": "Depends who",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f319",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "A creator’s recommendation against a polished ad: which moves you?",
+      "options": [
+        {
+          "label": "The creator, easily",
+          "count": 3300
+        },
+        {
+          "label": "Neither — I research",
+          "count": 2200
+        },
+        {
+          "label": "The ad, honestly",
+          "count": 600
+        },
+        {
+          "label": "It IS an ad now",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f320",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "You know their coffee order; they don’t know you exist. Sweet, or strange?",
+      "options": [
+        {
+          "label": "Sweet",
+          "count": 1800
+        },
+        {
+          "label": "Strange",
+          "count": 2700
+        },
+        {
+          "label": "Both, and that’s fine",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "dl73",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "dial",
+      "prompt": "Creators you’d notice going quiet for a week?",
+      "lo": 0,
+      "hi": 24,
+      "unit": "creators"
+    },
+    {
+      "id": "fd26",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "field",
+      "prompt": "Your feed — place it",
+      "ax": [
+        "curated",
+        "chaos"
+      ],
+      "ay": [
+        "inspires",
+        "drains"
+      ]
+    },
+    {
+      "id": "f321",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "Double your salary, but the work means nothing to you. Take it?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2900
+        },
+        {
+          "label": "Keep the meaning",
+          "count": 3100
+        },
+        {
+          "label": "Take it for five years",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f322",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "A clone works your weekdays — but it gets your Fridays too. Deal?",
+      "options": [
+        {
+          "label": "Deal",
+          "count": 2400
+        },
+        {
+          "label": "No deal",
+          "count": 3000
+        },
+        {
+          "label": "Negotiating for Thursdays",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f323",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "vote",
+      "prompt": "Never queue again, anywhere — but everything costs a tenth more. Deal?",
+      "options": [
+        {
+          "label": "Deal, instantly",
+          "count": 2800
+        },
+        {
+          "label": "No — I’ll wait",
+          "count": 2500
+        },
+        {
+          "label": "Only for airports",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f324",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "One question about your own future, answered truly. Do you ask?",
+      "options": [
+        {
+          "label": "Ask, no hesitation",
+          "count": 2600
+        },
+        {
+          "label": "Refuse — not-knowing is the life",
+          "count": 2900
+        },
+        {
+          "label": "Ask something trivial",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "f325",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Your pet could speak for one day. Do you want that?",
+      "options": [
+        {
+          "label": "More than anything",
+          "count": 3400
+        },
+        {
+          "label": "Absolutely not",
+          "count": 1500
+        },
+        {
+          "label": "I already know what they’d say",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "dl74",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_deals",
+      "type": "dial",
+      "prompt": "Share of your decisions you’d hand to a flawless advisor?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "%"
+    },
+    {
+      "id": "f326",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "Where does your best work actually happen?",
+      "options": [
+        {
+          "label": "The office hum",
+          "count": 1600
+        },
+        {
+          "label": "Home, door shut",
+          "count": 3200
+        },
+        {
+          "label": "A café or third place",
+          "count": 1500
+        },
+        {
+          "label": "Wherever the deadline is",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f327",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "Does your job title describe what you actually do?",
+      "options": [
+        {
+          "label": "Exactly",
+          "count": 1400
+        },
+        {
+          "label": "Loosely",
+          "count": 3300
+        },
+        {
+          "label": "Not even close",
+          "count": 2100
+        },
+        {
+          "label": "I don’t have one",
+          "count": 1100
+        }
+      ]
+    },
+    {
+      "id": "f328",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "The commute: dead time, or the day’s only buffer?",
+      "options": [
+        {
+          "label": "Dead time",
+          "count": 2300
+        },
+        {
+          "label": "The buffer I’d miss",
+          "count": 2900
+        },
+        {
+          "label": "I traded it away",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f329",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Olympics or World Cup: which stops your life?",
+      "options": [
+        {
+          "label": "Olympics",
+          "count": 2100
+        },
+        {
+          "label": "World Cup",
+          "count": 2800
+        },
+        {
+          "label": "Both, fully",
+          "count": 1400
+        },
+        {
+          "label": "Neither",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f330",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A new public holiday for the modern age. What earns it?",
+      "options": [
+        {
+          "label": "An internet-free day",
+          "count": 2200
+        },
+        {
+          "label": "A national sleep day",
+          "count": 2600
+        },
+        {
+          "label": "Meet-your-neighbours day",
+          "count": 1300
+        },
+        {
+          "label": "We have enough",
+          "count": 1500
+        }
+      ]
+    },
+    {
+      "id": "dl75",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "dial",
+      "prompt": "Days of annual leave that would feel right?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "days"
+    },
+    {
+      "id": "f331",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_horror",
+      "type": "vote",
+      "prompt": "Horror: why do you watch?",
+      "options": [
+        {
+          "label": "The adrenaline",
+          "count": 2500
+        },
+        {
+          "label": "The craft",
+          "count": 1600
+        },
+        {
+          "label": "The company watching",
+          "count": 1200
+        },
+        {
+          "label": "I don’t",
+          "count": 3000
+        }
+      ]
+    },
+    {
+      "id": "f332",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_horror",
+      "type": "vote",
+      "prompt": "Jump scares: cheap trick, or the whole point?",
+      "options": [
+        {
+          "label": "Cheap trick",
+          "count": 2900
+        },
+        {
+          "label": "The whole point",
+          "count": 1800
+        },
+        {
+          "label": "Fine, in moderation",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f333",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_horror",
+      "type": "vote",
+      "prompt": "The scariest thing a film can do:",
+      "options": [
+        {
+          "label": "Never show the monster",
+          "count": 3400
+        },
+        {
+          "label": "Show it in daylight",
+          "count": 1500
+        },
+        {
+          "label": "Claim it’s a true story",
+          "count": 2100
+        },
+        {
+          "label": "Go completely silent",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f334",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Seeing a film twice in the cinema: devotion, or a waste of a ticket?",
+      "options": [
+        {
+          "label": "Devotion",
+          "count": 2400
+        },
+        {
+          "label": "A waste",
+          "count": 2000
+        },
+        {
+          "label": "Only for the big screen ones",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f335",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Intermissions in three-hour films: bring them back?",
+      "options": [
+        {
+          "label": "Bring them back",
+          "count": 3200
+        },
+        {
+          "label": "Never break the spell",
+          "count": 1900
+        },
+        {
+          "label": "Just make shorter films",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "dl76",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_horror",
+      "type": "dial",
+      "prompt": "The right age for a first horror film?",
+      "lo": 6,
+      "hi": 18,
+      "unit": "years"
+    },
+    {
+      "id": "f336",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "vote",
+      "prompt": "AI in your day, honestly:",
+      "options": [
+        {
+          "label": "Constant companion",
+          "count": 2200
+        },
+        {
+          "label": "Occasional tool",
+          "count": 3100
+        },
+        {
+          "label": "Actively avoiding it",
+          "count": 1400
+        },
+        {
+          "label": "What AI?",
+          "count": 900
+        }
+      ]
+    },
+    {
+      "id": "f337",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "vote",
+      "prompt": "Would you let an AI draft a message to someone you love?",
+      "options": [
+        {
+          "label": "Already have",
+          "count": 1800
+        },
+        {
+          "label": "Never — the fumbling is me",
+          "count": 3300
+        },
+        {
+          "label": "For the hard openings only",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "f338",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "vote",
+      "prompt": "AI-made images: art, or output?",
+      "options": [
+        {
+          "label": "Art",
+          "count": 1300
+        },
+        {
+          "label": "Output",
+          "count": 2900
+        },
+        {
+          "label": "Depends on the hand behind it",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f339",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "vote",
+      "prompt": "An unhurried AI diagnosis, or a rushed human one?",
+      "options": [
+        {
+          "label": "The AI, unhurried",
+          "count": 2100
+        },
+        {
+          "label": "The human, rushed",
+          "count": 2500
+        },
+        {
+          "label": "The AI first, then the human",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "dl77",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "dial",
+      "prompt": "Share of your work an AI could do today, honestly?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "%"
+    },
+    {
+      "id": "fd27",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "field",
+      "prompt": "AI — place it",
+      "ax": [
+        "tool",
+        "colleague"
+      ],
+      "ay": [
+        "thrilling",
+        "worrying"
+      ]
+    },
+    {
+      "id": "f340",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Museums: audio guide, or wander free?",
+      "options": [
+        {
+          "label": "Guide, every room",
+          "count": 1700
+        },
+        {
+          "label": "Wander",
+          "count": 3400
+        },
+        {
+          "label": "Gift shop first",
+          "count": 1200
+        }
+      ]
+    },
+    {
+      "id": "f341",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Standing ovations: rare and earned, or the polite default now?",
+      "options": [
+        {
+          "label": "Rare and earned",
+          "count": 3100
+        },
+        {
+          "label": "The default — and that’s fine",
+          "count": 1400
+        },
+        {
+          "label": "The default — and it cheapens it",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f342",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "vote",
+      "prompt": "A gift with the receipt tucked in: considerate, or deflating?",
+      "options": [
+        {
+          "label": "Considerate",
+          "count": 2800
+        },
+        {
+          "label": "Deflating",
+          "count": 2000
+        },
+        {
+          "label": "Depends on the gift",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f343",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "vote",
+      "prompt": "Abroad: attempt the language badly, or spare everyone?",
+      "options": [
+        {
+          "label": "Attempt it, always",
+          "count": 3500
+        },
+        {
+          "label": "Learn hello, then English",
+          "count": 2500
+        },
+        {
+          "label": "Spare everyone",
+          "count": 800
+        }
+      ]
+    },
+    {
+      "id": "f344",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Birthday attention: soak it up, or survive it?",
+      "options": [
+        {
+          "label": "Soak it up",
+          "count": 2200
+        },
+        {
+          "label": "Survive it",
+          "count": 2700
+        },
+        {
+          "label": "I hide the date",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "dl78",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_etiquette",
+      "type": "dial",
+      "prompt": "Days to reply to a non-urgent message before it’s rude?",
+      "lo": 0,
+      "hi": 14,
+      "unit": "days"
+    },
+    {
+      "id": "f345",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_football",
+      "type": "vote",
+      "prompt": "Football: club over country, or country over club?",
+      "options": [
+        {
+          "label": "Club, every week of the year",
+          "count": 2900
+        },
+        {
+          "label": "Country — it’s deeper",
+          "count": 2200
+        },
+        {
+          "label": "Whichever is winning",
+          "count": 1300
+        }
+      ]
+    },
+    {
+      "id": "f346",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_football",
+      "type": "vote",
+      "prompt": "Ninety minutes live, or the ten-minute highlights?",
+      "options": [
+        {
+          "label": "The whole ninety",
+          "count": 2600
+        },
+        {
+          "label": "Highlights — life is short",
+          "count": 2800
+        },
+        {
+          "label": "Live only for my club",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f347",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_tennis",
+      "type": "vote",
+      "prompt": "Tennis is best watched…",
+      "options": [
+        {
+          "label": "Courtside, hearing it",
+          "count": 2500
+        },
+        {
+          "label": "On TV, every replay",
+          "count": 2200
+        },
+        {
+          "label": "Tie-breaks only",
+          "count": 1400
+        },
+        {
+          "label": "Grand Slam finals only",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f348",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_running",
+      "type": "vote",
+      "prompt": "Running: with music, or with your thoughts?",
+      "options": [
+        {
+          "label": "Music, always",
+          "count": 2900
+        },
+        {
+          "label": "My thoughts",
+          "count": 2100
+        },
+        {
+          "label": "Podcasts — company",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "dl79",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_running",
+      "type": "dial",
+      "prompt": "Minimum minutes for it to count as a run?",
+      "lo": 5,
+      "hi": 60,
+      "unit": "min"
+    },
+    {
+      "id": "fd28",
+      "core": false,
+      "cat": "sport",
+      "type": "field",
+      "prompt": "Competition — place it",
+      "ax": [
+        "seek it",
+        "avoid it"
+      ],
+      "ay": [
+        "my best",
+        "my worst"
+      ]
+    },
+    {
+      "id": "f349",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_aliens",
+      "type": "vote",
+      "prompt": "First contact confirmed tomorrow. Your honest first feeling?",
+      "options": [
+        {
+          "label": "Wonder",
+          "count": 3200
+        },
+        {
+          "label": "Fear",
+          "count": 1900
+        },
+        {
+          "label": "Vindication",
+          "count": 1100
+        },
+        {
+          "label": "Doubt — show me twice",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f350",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_aliens",
+      "type": "vote",
+      "prompt": "If contact had already happened, could governments keep it quiet?",
+      "options": [
+        {
+          "label": "Not for a week",
+          "count": 2700
+        },
+        {
+          "label": "For a while",
+          "count": 2300
+        },
+        {
+          "label": "Forever",
+          "count": 1000
+        },
+        {
+          "label": "They’re failing right now",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "f351",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Do you think in words, or in pictures?",
+      "options": [
+        {
+          "label": "Words — a running voice",
+          "count": 2700
+        },
+        {
+          "label": "Pictures and shapes",
+          "count": 2200
+        },
+        {
+          "label": "Both, switching",
+          "count": 2600
+        },
+        {
+          "label": "Neither — it just happens",
+          "count": 1300
+        }
+      ]
+    },
+    {
+      "id": "f352",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Would you want to know how the universe ends?",
+      "options": [
+        {
+          "label": "Tell me everything",
+          "count": 2900
+        },
+        {
+          "label": "Some doors stay shut",
+          "count": 1800
+        },
+        {
+          "label": "I already suspect",
+          "count": 1500
+        }
+      ]
+    },
+    {
+      "id": "f353",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "If this were a simulation, would it change how you live?",
+      "options": [
+        {
+          "label": "Everything changes",
+          "count": 1300
+        },
+        {
+          "label": "Nothing changes",
+          "count": 3300
+        },
+        {
+          "label": "I’d test the edges",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "dl80",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_aliens",
+      "type": "dial",
+      "prompt": "Alien civilisations in our galaxy right now — your guess?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "worlds"
+    },
+    {
+      "id": "f354",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "The menu: one decisive pass, or agonise to the wire?",
+      "options": [
+        {
+          "label": "One pass, decided",
+          "count": 2600
+        },
+        {
+          "label": "Agonise, then panic-order",
+          "count": 2900
+        },
+        {
+          "label": "I chose online yesterday",
+          "count": 1500
+        }
+      ]
+    },
+    {
+      "id": "f355",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "Ordering the same dish every time: loyalty, or fear?",
+      "options": [
+        {
+          "label": "Loyalty — it earned this",
+          "count": 3000
+        },
+        {
+          "label": "Fear of a worse night",
+          "count": 1900
+        },
+        {
+          "label": "I never repeat",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "f356",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Washing up as you cook, or the great pile at the end?",
+      "options": [
+        {
+          "label": "As I cook",
+          "count": 2800
+        },
+        {
+          "label": "The pile — future me’s problem",
+          "count": 2500
+        },
+        {
+          "label": "I cook, someone else washes",
+          "count": 1700
+        }
+      ],
+      "sub": "sub_cooking"
+    },
+    {
+      "id": "f357",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "Dining out alone: counter with a view, or table with a book?",
+      "options": [
+        {
+          "label": "Counter, watching the room",
+          "count": 2300
+        },
+        {
+          "label": "Table, book open",
+          "count": 2600
+        },
+        {
+          "label": "I don’t eat out alone",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "dl81",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "The right number of guests at a dinner table?",
+      "lo": 2,
+      "hi": 16,
+      "unit": "guests"
+    },
+    {
+      "id": "fd29",
+      "core": false,
+      "cat": "food",
+      "type": "field",
+      "prompt": "Groceries — place it",
+      "ax": [
+        "list, always",
+        "vibes"
+      ],
+      "ay": [
+        "daily trips",
+        "one big shop"
+      ]
+    },
+    {
+      "id": "f358",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "vote",
+      "prompt": "Live music: is it the sound, or the room?",
+      "options": [
+        {
+          "label": "The sound",
+          "count": 1700
+        },
+        {
+          "label": "The room, together",
+          "count": 3100
+        },
+        {
+          "label": "The story after",
+          "count": 1600
+        },
+        {
+          "label": "Not worth the ticket",
+          "count": 1000
+        }
+      ]
+    },
+    {
+      "id": "f359",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "vote",
+      "prompt": "Phones up at concerts:",
+      "options": [
+        {
+          "label": "Ruin it for everyone",
+          "count": 2800
+        },
+        {
+          "label": "One song, then live it",
+          "count": 2900
+        },
+        {
+          "label": "Film away — memories",
+          "count": 1200
+        }
+      ]
+    },
+    {
+      "id": "f360",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "vote",
+      "prompt": "Gig merch: badge of the night, or overpriced laundry?",
+      "options": [
+        {
+          "label": "Badge of the night",
+          "count": 2500
+        },
+        {
+          "label": "Overpriced laundry",
+          "count": 2100
+        },
+        {
+          "label": "Only if the band’s small",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f361",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "vote",
+      "prompt": "The encore ritual: earned magic, or pantomime we allow?",
+      "options": [
+        {
+          "label": "Earned magic",
+          "count": 2200
+        },
+        {
+          "label": "Pantomime — skip to it",
+          "count": 2600
+        },
+        {
+          "label": "Depends on the night",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "dl82",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "Share of your listening older than you are?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "%"
+    },
+    {
+      "id": "fd30",
+      "core": false,
+      "cat": "music",
+      "type": "field",
+      "prompt": "Listening — place it",
+      "ax": [
+        "albums whole",
+        "shuffle"
+      ],
+      "ay": [
+        "old friends",
+        "new finds"
+      ]
+    },
+    {
+      "id": "n20",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "The gate greeting returns: passes to meet a landing, or wave someone off. Would you use one?",
+      "bg": "Gateside by TSA PreCheck, launched this week: PreCheck members at 13 US airports can apply for a free pass through security without a ticket — the first general gate access for non-flyers since 2001, with more airports to follow.",
+      "from": "2026-09-10",
+      "until": "2026-09-17",
+      "options": [
+        {
+          "label": "For every landing I love"
+        },
+        {
+          "label": "To wave someone off"
+        },
+        {
+          "label": "For the airport food, honestly"
+        },
+        {
+          "label": "The kerb was fine"
+        }
+      ]
+    },
+    {
+      "id": "n21",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A new study says the universe may not be accelerating after all. A textbook fact in review: thrilling, or unsettling?",
+      "bg": "An analysis of over 1,700 supernovae, from the Tata Institute and Oxford, suggests cosmic expansion may be slowing — challenging the dark-energy consensus. Most cosmologists are unconvinced; the Rubin Observatory’s coming survey of hundreds of thousands of supernovae is expected to settle it.",
+      "from": "2026-09-10",
+      "until": "2026-09-18",
+      "options": [
+        {
+          "label": "Thrilling — that IS science"
+        },
+        {
+          "label": "Unsettling — I liked the map"
+        },
+        {
+          "label": "Wake me when it’s settled"
+        }
+      ]
+    },
+    {
+      "id": "f362",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "If you were famous, would you read the comments?",
+      "options": [
+        {
+          "label": "Every single one",
+          "count": 1900
+        },
+        {
+          "label": "Never — assistants exist",
+          "count": 2600
+        },
+        {
+          "label": "Only the nice ones, curated",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f363",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Fan mail: have you ever actually sent any?",
+      "options": [
+        {
+          "label": "Yes, and got a reply",
+          "count": 900
+        },
+        {
+          "label": "Yes, into the void",
+          "count": 1600
+        },
+        {
+          "label": "Written, never sent",
+          "count": 1400
+        },
+        {
+          "label": "Never",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f364",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "Your favourite creator goes full ads. Forgiven?",
+      "options": [
+        {
+          "label": "Instantly — get the bag",
+          "count": 2500
+        },
+        {
+          "label": "Depends on the product",
+          "count": 2800
+        },
+        {
+          "label": "Never quite the same",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "f365",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Meeting a celebrity you admire: play it cool, or say the thing?",
+      "options": [
+        {
+          "label": "Cool, then regret",
+          "count": 2700
+        },
+        {
+          "label": "Say the thing",
+          "count": 2400
+        },
+        {
+          "label": "Pretend not to notice them",
+          "count": 1500
+        }
+      ]
+    },
+    {
+      "id": "f366",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "vote",
+      "prompt": "Podcasts by the already-famous: insight, or two friends laughing?",
+      "options": [
+        {
+          "label": "Real insight",
+          "count": 1300
+        },
+        {
+          "label": "Two friends laughing",
+          "count": 2900
+        },
+        {
+          "label": "Both — that’s the charm",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "dl83",
+      "core": false,
+      "cat": "people",
+      "sub": "sub_creators",
+      "type": "dial",
+      "prompt": "How many years behind is your celebrity knowledge?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "years"
+    },
+    {
+      "id": "f367",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_honesty",
+      "type": "vote",
+      "prompt": "A friend’s terrible haircut, and they love it. Truth?",
+      "options": [
+        {
+          "label": "Truth, gently",
+          "count": 1800
+        },
+        {
+          "label": "Lie happily",
+          "count": 3000
+        },
+        {
+          "label": "Change the subject",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f368",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_honesty",
+      "type": "vote",
+      "prompt": "An open diary, alone in the room. Do your eyes obey?",
+      "options": [
+        {
+          "label": "They obey",
+          "count": 2600
+        },
+        {
+          "label": "One line wouldn’t hurt",
+          "count": 2100
+        },
+        {
+          "label": "I’d read it all, ashamed",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "f369",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_honesty",
+      "type": "vote",
+      "prompt": "The cashier undercharges you, badly. Say something?",
+      "options": [
+        {
+          "label": "Always",
+          "count": 2400
+        },
+        {
+          "label": "Depends how much",
+          "count": 2500
+        },
+        {
+          "label": "Their mistake, my luck",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "f370",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_honesty",
+      "type": "vote",
+      "prompt": "Compliments you don’t quite mean: social glue, or tiny lies?",
+      "options": [
+        {
+          "label": "Glue — keep them coming",
+          "count": 2500
+        },
+        {
+          "label": "Tiny lies that add up",
+          "count": 1900
+        },
+        {
+          "label": "Both, and that’s fine",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "dl84",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_honesty",
+      "type": "dial",
+      "prompt": "White lies this week, at an honest count?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "lies"
+    },
+    {
+      "id": "pt8",
+      "core": false,
+      "cat": "dilemma",
+      "sub": "sub_honesty",
+      "type": "path",
+      "hue": 30,
+      "title": "The Reference",
+      "prompt": "The Reference — a friend, a job, and your name on the line",
+      "intro": "A close friend is one call away from a job they badly need. They ask you to be the reference — and to say they ran projects you know they only watched.",
+      "nodes": {
+        "_": {
+          "axis": "disclosure",
+          "q": "The recruiter’s email arrives that evening: fifteen minutes, tomorrow at ten.",
+          "a": [
+            {
+              "t": "Agree — and plan to embellish"
+            },
+            {
+              "t": "Agree — but only to the truth"
+            }
+          ]
+        },
+        "A": {
+          "axis": "loyalty",
+          "q": "On the call, the recruiter asks point-blank: “Did they lead the rollout?”",
+          "a": [
+            {
+              "t": "“Yes.” Say it steady"
+            },
+            {
+              "t": "Swerve — “they were central to it”"
+            }
+          ]
+        },
+        "B": {
+          "axis": "loyalty",
+          "q": "You tell your friend the plan: truth, warmly framed. They go quiet, then say “so you won’t help.”",
+          "a": [
+            {
+              "t": "Hold the line — “this IS help”"
+            },
+            {
+              "t": "Offer to coach them instead"
+            }
+          ]
+        },
+        "AA": {
+          "axis": "company",
+          "q": "They get the job. Three weeks in, they call you at midnight, drowning in exactly what you said they could do.",
+          "a": [
+            {
+              "t": "Help them learn it, quietly"
+            },
+            {
+              "t": "Tell them to come clean at work"
+            }
+          ]
+        },
+        "AB": {
+          "axis": "certainty",
+          "q": "The recruiter pauses. “Central how, exactly?” The silence has edges.",
+          "a": [
+            {
+              "t": "Come clean, mid-call"
+            },
+            {
+              "t": "Talk fast, stay vague"
+            }
+          ]
+        },
+        "BA": {
+          "axis": "company",
+          "q": "They interview on the honest reference. A week later: they got it — the junior version of the role.",
+          "a": [
+            {
+              "t": "Celebrate it loudly"
+            },
+            {
+              "t": "Privately think they lost out"
+            }
+          ]
+        },
+        "BB": {
+          "axis": "certainty",
+          "q": "Three evenings of coaching in, they’re actually good at this. The interview is Friday.",
+          "a": [
+            {
+              "t": "Tell them they’re ready"
+            },
+            {
+              "t": "One more evening, to be sure"
+            }
+          ]
+        }
+      },
+      "endings": {
+        "AAA": {
+          "name": "The Accomplice Tutor",
+          "line": "You lied them in, then taught them true. Nobody ever knew — except both of you."
+        },
+        "AAB": {
+          "name": "The Reckoning’s Friend",
+          "line": "You pushed them to confess. It cost a job and saved a friendship — you still think in that order."
+        },
+        "ABA": {
+          "name": "The Mid-Call Convert",
+          "line": "The truth arrived late but it arrived. The recruiter thanked you; your friend, eventually, did too."
+        },
+        "ABB": {
+          "name": "The Fog Machine",
+          "line": "Vague enough to pass, clear enough to sleep — you tell yourself. Mostly it works."
+        },
+        "BAA": {
+          "name": "The Loud Celebrant",
+          "line": "Junior role, honest start. You cheered like it was the senior one, and meant it."
+        },
+        "BAB": {
+          "name": "The Quiet Auditor",
+          "line": "You did the right thing and kept a small ledger of what it cost. You check it sometimes."
+        },
+        "BBA": {
+          "name": "The Corner Coach",
+          "line": "You wouldn’t lie for them, so you made the lie unnecessary. The best reference is a ready friend."
+        },
+        "BBB": {
+          "name": "The Perfectionist’s Shadow",
+          "line": "One more evening, then another. They were ready before you were."
+        }
+      }
+    },
+    {
+      "id": "f371",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_seasons",
+      "type": "vote",
+      "prompt": "Festive shelves in October: cosy, or an ambush?",
+      "options": [
+        {
+          "label": "Cosy — start the season",
+          "count": 2100
+        },
+        {
+          "label": "An ambush",
+          "count": 2900
+        },
+        {
+          "label": "Invisible until December",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f372",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_seasons",
+      "type": "vote",
+      "prompt": "The first day that smells like spring: does it change you?",
+      "options": [
+        {
+          "label": "Completely",
+          "count": 2800
+        },
+        {
+          "label": "A little lighter",
+          "count": 2900
+        },
+        {
+          "label": "Weather is weather",
+          "count": 1100
+        }
+      ]
+    },
+    {
+      "id": "f373",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_seasons",
+      "type": "vote",
+      "prompt": "Decorations down: January 2nd, or when they fall?",
+      "options": [
+        {
+          "label": "The 2nd, sharp",
+          "count": 2200
+        },
+        {
+          "label": "Twelfth Night, properly",
+          "count": 1700
+        },
+        {
+          "label": "When they fall",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f374",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_work",
+      "type": "vote",
+      "prompt": "The out-of-office reply: honest dates, or a little padding?",
+      "options": [
+        {
+          "label": "Honest to the hour",
+          "count": 2300
+        },
+        {
+          "label": "A day of padding",
+          "count": 2800
+        },
+        {
+          "label": "I answer anyway, sadly",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "dl85",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_seasons",
+      "type": "dial",
+      "prompt": "Weeks ahead you start looking forward to your favourite season?",
+      "lo": 0,
+      "hi": 26,
+      "unit": "weeks"
+    },
+    {
+      "id": "fd31",
+      "core": false,
+      "cat": "event",
+      "sub": "sub_seasons",
+      "type": "field",
+      "prompt": "Your year — place it",
+      "ax": [
+        "planned",
+        "improvised"
+      ],
+      "ay": [
+        "flew by",
+        "crawled"
+      ]
+    },
+    {
+      "id": "f375",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_series",
+      "type": "vote",
+      "prompt": "Weekly episodes, or the full-season drop?",
+      "options": [
+        {
+          "label": "Weekly — let it breathe",
+          "count": 2400
+        },
+        {
+          "label": "Full drop — my pace",
+          "count": 3000
+        },
+        {
+          "label": "Wait, then binge weekly shows",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f376",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_series",
+      "type": "vote",
+      "prompt": "A beloved series past its best: ride it down, or leave early?",
+      "options": [
+        {
+          "label": "Ride it to the end",
+          "count": 2600
+        },
+        {
+          "label": "Leave while it’s good",
+          "count": 2200
+        },
+        {
+          "label": "Skim the finale only",
+          "count": 1500
+        }
+      ]
+    },
+    {
+      "id": "f377",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_series",
+      "type": "vote",
+      "prompt": "Watching ahead of your watch-partner: betrayal?",
+      "options": [
+        {
+          "label": "High treason",
+          "count": 2700
+        },
+        {
+          "label": "One episode is fine",
+          "count": 2300
+        },
+        {
+          "label": "We watch apart, we live",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f378",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_series",
+      "type": "vote",
+      "prompt": "The “previously on” recap: skip, or savour?",
+      "options": [
+        {
+          "label": "Skip — I remember",
+          "count": 2500
+        },
+        {
+          "label": "Savour — I do not",
+          "count": 2600
+        },
+        {
+          "label": "Depends how long it’s been",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "dl86",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_series",
+      "type": "dial",
+      "prompt": "Series you’re “currently watching”, honestly?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "shows"
+    },
+    {
+      "id": "fd32",
+      "core": false,
+      "cat": "movies",
+      "sub": "sub_series",
+      "type": "field",
+      "prompt": "Your watching — place it",
+      "ax": [
+        "films",
+        "series"
+      ],
+      "ay": [
+        "together",
+        "alone"
+      ]
+    },
+    {
+      "id": "f379",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "vote",
+      "prompt": "Saying please to an assistant: habit, or wasted breath?",
+      "options": [
+        {
+          "label": "Always — costs nothing",
+          "count": 3100
+        },
+        {
+          "label": "It’s a toaster",
+          "count": 1900
+        },
+        {
+          "label": "Polite, just in case",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f380",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "A gadget breaks out of warranty. First instinct?",
+      "options": [
+        {
+          "label": "Repair it, on principle",
+          "count": 2200
+        },
+        {
+          "label": "Replace — time is money",
+          "count": 2000
+        },
+        {
+          "label": "YouTube surgery first",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f381",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Muting a group chat: self-care, or a silent exit?",
+      "options": [
+        {
+          "label": "Self-care",
+          "count": 3200
+        },
+        {
+          "label": "A silent exit",
+          "count": 1500
+        },
+        {
+          "label": "I mute nothing, I suffer",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f382",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "vote",
+      "prompt": "An AI wrote this question. Does that change your answer?",
+      "options": [
+        {
+          "label": "Yes — I answer differently now",
+          "count": 1400
+        },
+        {
+          "label": "No — a question’s a question",
+          "count": 3300
+        },
+        {
+          "label": "I suspected anyway",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f383",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Wired headphones are back:",
+      "options": [
+        {
+          "label": "They never left",
+          "count": 1800
+        },
+        {
+          "label": "Style — the cable is the point",
+          "count": 1400
+        },
+        {
+          "label": "Bluetooth won, move on",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "dl87",
+      "core": false,
+      "cat": "tech",
+      "sub": "sub_ai",
+      "type": "dial",
+      "prompt": "Times you used an AI yesterday, roughly?",
+      "lo": 0,
+      "hi": 50,
+      "unit": "times"
+    },
+    {
+      "id": "f384",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_books",
+      "type": "vote",
+      "prompt": "Dog-earing pages: barbarism, or a book well loved?",
+      "options": [
+        {
+          "label": "Barbarism",
+          "count": 2600
+        },
+        {
+          "label": "A book well loved",
+          "count": 2400
+        },
+        {
+          "label": "Bookmarks exist, people",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "f385",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_books",
+      "type": "vote",
+      "prompt": "Abandoning a book halfway: freedom, or failure?",
+      "options": [
+        {
+          "label": "Freedom — life is short",
+          "count": 3000
+        },
+        {
+          "label": "Failure — finish what you start",
+          "count": 1800
+        },
+        {
+          "label": "It goes back on the pile",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f386",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_books",
+      "type": "vote",
+      "prompt": "Judging a book by its cover: we all do. What actually sells you?",
+      "options": [
+        {
+          "label": "The cover, fine",
+          "count": 1700
+        },
+        {
+          "label": "The first page",
+          "count": 2400
+        },
+        {
+          "label": "The back blurb",
+          "count": 2100
+        },
+        {
+          "label": "A friend’s face saying it",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f387",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Museums gift shops: the real exhibition?",
+      "options": [
+        {
+          "label": "Straight there",
+          "count": 1600
+        },
+        {
+          "label": "A polite loop at the end",
+          "count": 3000
+        },
+        {
+          "label": "I leave with postcards, always",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "fd33",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_books",
+      "type": "field",
+      "prompt": "Your bookshelf — place it",
+      "ax": [
+        "all read",
+        "aspirational"
+      ],
+      "ay": [
+        "on display",
+        "boxed away"
+      ]
+    },
+    {
+      "id": "pt9",
+      "core": false,
+      "cat": "culture",
+      "sub": "sub_books",
+      "type": "path",
+      "hue": 200,
+      "title": "The Borrowed Book",
+      "prompt": "The Borrowed Book — a favourite, lent a year ago",
+      "intro": "Your favourite book — the one with your notes in the margins — went to a friend a year ago. Tonight you spot it at their place: spine cracked, coffee ring on the cover, doing duty as a coaster.",
+      "nodes": {
+        "_": {
+          "axis": "ownership",
+          "q": "They catch you looking at it. “Oh — I still have that, don’t I.”",
+          "a": [
+            {
+              "t": "“I’d love it back, actually.”"
+            },
+            {
+              "t": "“Keep it — clearly it lives here.”"
+            }
+          ]
+        },
+        "A": {
+          "axis": "company",
+          "q": "They hand it over with a wince at the coffee ring. “I’m so sorry — I’ll replace it.”",
+          "a": [
+            {
+              "t": "“It’s fine. Books get lived in.”"
+            },
+            {
+              "t": "Accept the new copy"
+            }
+          ]
+        },
+        "B": {
+          "axis": "disclosure",
+          "q": "A month later they mention they finally read it — and loved it enough to buy their own.",
+          "a": [
+            {
+              "t": "Ask for the old one back now"
+            },
+            {
+              "t": "Let the old copy go for good"
+            }
+          ]
+        },
+        "AA": {
+          "axis": "time",
+          "q": "Home again, you flip through. Their pencil notes sit next to yours — arguing with you in the margins.",
+          "a": [
+            {
+              "t": "Read the whole thing again, replying"
+            },
+            {
+              "t": "Rub nothing out, lend it onward"
+            }
+          ]
+        },
+        "AB": {
+          "axis": "certainty",
+          "q": "The new copy arrives, pristine. Your margins are still in their house.",
+          "a": [
+            {
+              "t": "Ask for the old one too"
+            },
+            {
+              "t": "Start new margins from scratch"
+            }
+          ]
+        },
+        "BA": {
+          "axis": "company",
+          "q": "It comes home a wreck and a veteran. They kept a page of your notes photographed “for reference.”",
+          "a": [
+            {
+              "t": "Be quietly delighted"
+            },
+            {
+              "t": "Feel oddly exposed"
+            }
+          ]
+        },
+        "BB": {
+          "axis": "time",
+          "q": "At their place months on, your old copy sits shelved beside their new one — a matching pair.",
+          "a": [
+            {
+              "t": "Point it out, touched"
+            },
+            {
+              "t": "Say nothing, smile at it"
+            }
+          ]
+        }
+      },
+      "endings": {
+        "AAA": {
+          "name": "The Margin Correspondent",
+          "line": "Two sets of notes, one long conversation. The coffee ring marks where it got good."
+        },
+        "AAB": {
+          "name": "The Open Library",
+          "line": "You rubbed nothing out and lent it onward. Somewhere it’s three sets of margins now."
+        },
+        "ABA": {
+          "name": "The Complete Collector",
+          "line": "Both copies home: the pristine one for the shelf, the wrecked one for reading."
+        },
+        "ABB": {
+          "name": "The Fresh Start",
+          "line": "New copy, new margins. The old notes live at their house, like a letter you don’t need back."
+        },
+        "BAA": {
+          "name": "The Delighted Lender",
+          "line": "They photographed your notes. A book can be returned; apparently a margin cannot."
+        },
+        "BAB": {
+          "name": "The Gentle Exposé",
+          "line": "Your pencil thoughts, photographed. Lovely, and a little like being read yourself."
+        },
+        "BBA": {
+          "name": "The Matchmaker",
+          "line": "You pointed at the pair on their shelf and both of you grinned. Best loan you ever made."
+        },
+        "BBB": {
+          "name": "The Quiet Smiler",
+          "line": "Some things you don’t say out loud. The two spines say it fine."
+        }
+      }
+    },
+    {
+      "id": "f388",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_football",
+      "type": "vote",
+      "prompt": "Penalty shootouts: the fairest end, or a coin flip in boots?",
+      "options": [
+        {
+          "label": "Fair — nerve is skill",
+          "count": 2500
+        },
+        {
+          "label": "A coin flip in boots",
+          "count": 2300
+        },
+        {
+          "label": "Cruel and perfect TV",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f389",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_tennis",
+      "type": "vote",
+      "prompt": "The tennis grunt: part of the game, or mute-button material?",
+      "options": [
+        {
+          "label": "Part of the game",
+          "count": 2100
+        },
+        {
+          "label": "Mute-button material",
+          "count": 2400
+        },
+        {
+          "label": "I stopped hearing it years ago",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f390",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_running",
+      "type": "vote",
+      "prompt": "Finisher medals: earned, or participation trophies?",
+      "options": [
+        {
+          "label": "Earned — the distance is real",
+          "count": 3100
+        },
+        {
+          "label": "A bit soft",
+          "count": 1400
+        },
+        {
+          "label": "Who cares — shiny",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f391",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Sports documentaries: better than the season itself?",
+      "options": [
+        {
+          "label": "Often better",
+          "count": 2200
+        },
+        {
+          "label": "Never — live or nothing",
+          "count": 1900
+        },
+        {
+          "label": "They make me care, then I stay",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f392",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Your kit: performance gear, or whatever’s clean?",
+      "options": [
+        {
+          "label": "Proper kit — it helps",
+          "count": 2000
+        },
+        {
+          "label": "Whatever’s clean",
+          "count": 2900
+        },
+        {
+          "label": "The gear IS the motivation",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "dl88",
+      "core": false,
+      "cat": "sport",
+      "sub": "sub_running",
+      "type": "dial",
+      "prompt": "The longest you’ve ever run, ever?",
+      "lo": 0,
+      "hi": 50,
+      "unit": "km"
+    },
+    {
+      "id": "f393",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Your inner clock: do you know the time without looking?",
+      "options": [
+        {
+          "label": "Within minutes",
+          "count": 2300
+        },
+        {
+          "label": "Within an hour",
+          "count": 2700
+        },
+        {
+          "label": "No idea, ever",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f394",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Thinking about infinity: a thrill, or a headache?",
+      "options": [
+        {
+          "label": "A thrill",
+          "count": 2400
+        },
+        {
+          "label": "A headache",
+          "count": 2000
+        },
+        {
+          "label": "Both, at 2am",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f395",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_aliens",
+      "type": "vote",
+      "prompt": "Microbes found on Mars tomorrow. Does your day change?",
+      "options": [
+        {
+          "label": "Everything changes",
+          "count": 1900
+        },
+        {
+          "label": "A toast, then Tuesday",
+          "count": 2900
+        },
+        {
+          "label": "Not really",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "f396",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "vote",
+      "prompt": "Déjà vu: a glitch, a memory hiccup, or something more?",
+      "options": [
+        {
+          "label": "A glitch",
+          "count": 1500
+        },
+        {
+          "label": "A memory hiccup",
+          "count": 2800
+        },
+        {
+          "label": "Something more",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "dl89",
+      "core": false,
+      "cat": "bigq",
+      "sub": "sub_mind",
+      "type": "dial",
+      "prompt": "Minutes you can sit doing absolutely nothing?",
+      "lo": 0,
+      "hi": 60,
+      "unit": "min"
+    },
+    {
+      "id": "fd34",
+      "core": false,
+      "cat": "bigq",
+      "type": "field",
+      "prompt": "Time — place it",
+      "ax": [
+        "friend",
+        "enemy"
+      ],
+      "ay": [
+        "too much",
+        "never enough"
+      ]
+    },
+    {
+      "id": "f397",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_cooking",
+      "type": "vote",
+      "prompt": "Cooking for guests: crowd-pleasers, or the experiment?",
+      "options": [
+        {
+          "label": "Crowd-pleasers",
+          "count": 2900
+        },
+        {
+          "label": "The experiment",
+          "count": 1700
+        },
+        {
+          "label": "Order in, plate nicely",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f398",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_cooking",
+      "type": "vote",
+      "prompt": "Sharpening your own knives: yes, or “they’re fine”?",
+      "options": [
+        {
+          "label": "Yes — it changes everything",
+          "count": 2200
+        },
+        {
+          "label": "They’re fine",
+          "count": 2800
+        },
+        {
+          "label": "I own a sharpener, unused",
+          "count": 2000
+        }
+      ]
+    },
+    {
+      "id": "f399",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_cooking",
+      "type": "vote",
+      "prompt": "The one pan you’d save from a fire:",
+      "options": [
+        {
+          "label": "The cast iron",
+          "count": 2400
+        },
+        {
+          "label": "The nonstick",
+          "count": 2100
+        },
+        {
+          "label": "Grandma’s pot",
+          "count": 2600
+        },
+        {
+          "label": "The air fryer",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f400",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_eatingout",
+      "type": "vote",
+      "prompt": "The weirdest thing on the menu: always, sometimes, never?",
+      "options": [
+        {
+          "label": "Always — that’s the point",
+          "count": 2000
+        },
+        {
+          "label": "Sometimes, feeling brave",
+          "count": 2900
+        },
+        {
+          "label": "Never — I know what I like",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f401",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Salt: taste first, or shake on sight?",
+      "options": [
+        {
+          "label": "Taste first, always",
+          "count": 2700
+        },
+        {
+          "label": "Shake on sight",
+          "count": 1900
+        },
+        {
+          "label": "The cook already salted it",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "dl90",
+      "core": false,
+      "cat": "food",
+      "sub": "sub_cooking",
+      "type": "dial",
+      "prompt": "Weeknight dinner, hob to table — minutes?",
+      "lo": 5,
+      "hi": 90,
+      "unit": "min"
+    },
+    {
+      "id": "f402",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "vote",
+      "prompt": "Festival camping: the point, or the price?",
+      "options": [
+        {
+          "label": "The whole point",
+          "count": 2100
+        },
+        {
+          "label": "The price you pay",
+          "count": 2400
+        },
+        {
+          "label": "Day tickets exist",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f403",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The song you always skip on a beloved album:",
+      "options": [
+        {
+          "label": "Every album has one",
+          "count": 2800
+        },
+        {
+          "label": "Skipping is sacrilege",
+          "count": 1500
+        },
+        {
+          "label": "I shuffle anyway",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f404",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Music while reading: enhances, or impossible?",
+      "options": [
+        {
+          "label": "Enhances — the right album",
+          "count": 2200
+        },
+        {
+          "label": "Impossible — words fight words",
+          "count": 2500
+        },
+        {
+          "label": "Instrumental only",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f405",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "vote",
+      "prompt": "Seated gigs: civilised, or a contradiction?",
+      "options": [
+        {
+          "label": "Civilised — my knees agree",
+          "count": 2400
+        },
+        {
+          "label": "A contradiction",
+          "count": 2300
+        },
+        {
+          "label": "Depends on the band",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f406",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "New music: still hunting, or is the archive enough?",
+      "options": [
+        {
+          "label": "Hunting weekly",
+          "count": 2100
+        },
+        {
+          "label": "Friends feed me",
+          "count": 2300
+        },
+        {
+          "label": "The archive is enough",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "dl91",
+      "core": false,
+      "cat": "music",
+      "sub": "sub_gigs",
+      "type": "dial",
+      "prompt": "The perfect gig crowd, roughly?",
+      "lo": 20,
+      "hi": 2000,
+      "unit": "people"
+    },
+    {
+      "id": "n22",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "The new No. 1 meets the rival she just displaced in the US Open final. The real crown: the ranking, or the trophy?",
+      "bg": "Elena Rybakina took the WTA No. 1 ranking from Aryna Sabalenka after her US Open quarterfinal, then reached Saturday’s final — her first there, Sabalenka’s fourth in a row. It is the pair’s 18th meeting; Sabalenka leads 10–7.",
+      "from": "2026-09-11",
+      "until": "2026-09-19",
+      "options": [
+        {
+          "label": "The ranking — the whole year"
+        },
+        {
+          "label": "The trophy — the one day"
+        },
+        {
+          "label": "The rivalry itself"
+        }
+      ]
+    },
+    {
+      "id": "n23",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "For the first time, a rocket reached orbit from Western European soil. Does it matter where a launch leaves from?",
+      "bg": "Isar Aerospace’s Spectrum reached orbit from Andøya in Arctic Norway on 5 September, deploying five small satellites — the first orbital launch from Western European soil and the first by a privately built European rocket, on the vehicle’s second flight after a 2025 failure.",
+      "from": "2026-09-11",
+      "until": "2026-09-20",
+      "options": [
+        {
+          "label": "Yes — home soil hits different"
+        },
+        {
+          "label": "Orbit is orbit"
+        },
+        {
+          "label": "I just want to see one go up"
         }
       ]
     }

@@ -32,6 +32,9 @@ import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { profileStamp, type ProfileStamp } from "./profileStamp";
+import { answerMapMerge, answerMapRef } from "./answerMaps";
+import { appendLog, logRow, type LogRow } from "./log";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
@@ -311,7 +314,18 @@ function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
-function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, entity?: string) {
+// `stamp` joined at DATA-EFFICIENCY-RUNBOOK 2.1: the author's display
+// name, parsed core scores and logic percentile, off the profile the
+// world branch already holds in its transaction (D410) — the sample row
+// built from this entry carries them so the device reads the sample
+// INSTEAD of the profile. Only the create path stamps: the edit path reads
+// no profile, and an edit's row keeps what its create wrote
+// (patternsSamples.ts). `n` present is what marks a stamped entry; `s` and
+// `l` are written as null when the profile holds nothing usable, so a
+// stamped-with-nothing entry is distinguishable from an unstamped one.
+// `entity` is D453's, and the two never travel together: a catalogue pick
+// has no option and the catalog arm reads no profile.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, entity?: string, stamp?: ProfileStamp) {
   const a = ledgerAnchors(anchors);
   return {
     qid,
@@ -323,6 +337,7 @@ function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: num
     // against the committed catalogue before this entry is written, so
     // an unknown key never reaches the ledger. Public like the answer.
     ...(entity === undefined ? {} : { entity }),
+    ...(stamp ? { n: stamp.n, s: stamp.s, l: stamp.l } : {}),
     // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
     // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
     // byte-identical in shape to the create it supersedes — which is
@@ -597,6 +612,15 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The group as a cast (D434): a role vote's scenario pack and the
+      // role it casts, and a rating's two poles. Emit-when-set — the older
+      // group kinds and every other surface carry none of the three.
+      ...(q.scen ? { scen: q.scen } : {}),
+      ...(q.role ? { role: q.role } : {}),
+      ...(Array.isArray(q.poles) ? { poles: q.poles } : {}),
+      // The cast round (D437): the four *them* forms and the four axes.
+      ...(Array.isArray(q.them) ? { them: q.them } : {}),
+      ...(Array.isArray(q.dims) ? { dims: q.dims } : {}),
       // The instruments' deep items (D416): which sub-scale an item scores
       // and how it is keyed, on the document — the device joins these by
       // id rather than by prompt text, which is what keeps the 156 new
@@ -974,11 +998,22 @@ export const onV2AnswerCreated = onDocumentCreated(
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      // The author's profile, for the same reason the vote arm reads it
+      // (D410): rules can check an anchor is plausible, never that it is
+      // this account's. See the fold below.
+      const profRef = db.collection("v2_users").doc(event.params.uid);
       // The cap's discards from the attempt that commits — reset per
       // attempt, logged once the transaction returns (logBucketCaps).
       const capped: BucketCapEvent[] = [];
+      // THE ANSWER LOG (log.ts, D447 phase A): the row this commit will
+      // have earned, built where the ledger entry is and appended after
+      // the transaction returns — never inside it, and never on the
+      // redelivery that returns above without writing the ledger. Same
+      // shape at every ledger site below.
+      let logged: LogRow | null = null;
       await runAggTransaction(db, qid, async (tx) => {
         capped.length = 0;
+        logged = null;
         // Batched for the same reason as the vote path below: three
         // sequential round trips inside the transaction is three times the
         // lock window on the contended per-qid document.
@@ -988,7 +1023,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // only. A missing or unknown domain never aggregates: with three
         // key spaces (a contiguous range and two sparse QID sets, D15)
         // there is no honest global fallback bound.
-        const [seen, qDoc, priv] = await tx.getAll(eventRef, qRef, privRef);
+        const [seen, qDoc, priv, prof] = await tx.getAll(eventRef, qRef, privRef, profRef);
         if (seen.exists) return;
         const spec = CATALOG_DOMAINS[qDoc.get("domain") as string];
         if (!spec) {
@@ -1011,9 +1046,33 @@ export const onV2AnswerCreated = onDocumentCreated(
         // Every catalog question slices too (D98 — see the vote path).
         const entBy: BreakdownCounts =
           (priv.exists && (priv.get("entBy") as BreakdownCounts)) || {};
-        foldCanonAnchors(entBy, snap.get("anchors"), key, (kind, dim, bucket, total) => {
+        // THE HONEST SET, NOT THE CLAIM (D410) — the guard the vote arm has
+        // carried since it was written, missing here until 2026-09-10.
+        // `firestore.rules` can check an anchor is a plausible VALUE and
+        // can never check it is this account's, so a client was free to
+        // file a catalog pick under a cohort it invented. It published:
+        // `entBy` is projected into `v2_question_aggs/{qid}.by`, the
+        // signed-in-readable cut the Mirror draws, and `rebuildAggregateV2`
+        // re-folds the same uncorrected document, so a repair reproduced
+        // the lie. Measured before this change: a profile reading NO/25-34
+        // filed a pick as JP/55-64 and that is what the public board said.
+        const claimed = snap.get("anchors");
+        const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
+        foldCanonAnchors(entBy, anchors, key, (kind, dim, bucket, total) => {
           capped.push({ kind, dim, bucket, total });
         });
+        // And the DOCUMENT is corrected, for the reason the vote arm gives
+        // at its own correction: the People lens reads other users' anchors
+        // off their answer rows, so a fold that quietly ignored an invented
+        // cohort would leave the invention on the screen. Written only when
+        // it differs — the write is the liar's cost, not the honest
+        // client's.
+        if (JSON.stringify(anchors) !== JSON.stringify(claimed ?? {})) {
+          logger.warn(
+            `[v2] catalog answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+          );
+          tx.set(snap.ref, { anchors }, { merge: true });
+        }
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
         // into `rest`; it used to also drop every entity under the
@@ -1025,6 +1084,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // With the pick and the chips since D453 — the fit compacts the one
         // and the samples carry the other, exactly as on the vote arm.
         tx.set(eventRef, ledgerEntry(event.params.uid, qid, undefined, undefined, snap.get("anchors"), key));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
@@ -1046,6 +1106,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         );
       });
       logBucketCaps(qid, capped);
+      if (logged) await appendLog([logged]);
       return;
     }
     // Rank answers carry `order`, never `optionIdx` (D233) — the item
@@ -1062,7 +1123,9 @@ export const onV2AnswerCreated = onDocumentCreated(
       const eventRef = db.collection("v2_agg_events").doc(event.id);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      let logged: LogRow | null = null;
       await runAggTransaction(db, qid, async (tx) => {
+        logged = null;
         // One aggregate document, the published one — same as the vote path
         // below, and for the same reason: `{ pos, total }` and
         // `{ total, pos }` were the same two fields written twice.
@@ -1092,10 +1155,12 @@ export const onV2AnswerCreated = onDocumentCreated(
         foldRankOrder(pos, order);
         const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Published whole, every answer (D98): the sums and the total ARE
         // the reveal — the client derives the crowd order by mean position.
         tx.set(pubRef, { total, pos }, { merge: false });
       });
+      if (logged) await appendLog([logged]);
       return;
     }
     const optionIdx = snap.get("optionIdx");
@@ -1110,8 +1175,10 @@ export const onV2AnswerCreated = onDocumentCreated(
     // The cap's discards from the attempt that commits — reset per attempt,
     // logged once the transaction returns (logBucketCaps).
     const capped: BucketCapEvent[] = [];
+    let logged: LogRow | null = null;
     await runAggTransaction(db, qid, async (tx) => {
       capped.length = 0;
+      logged = null;
       // ONE aggregate document, and it is the published one. See "the
       // private mirror is gone" in the header: since D98 the private doc
       // held byte-identical bytes to this one on this path, so the write
@@ -1201,8 +1268,22 @@ export const onV2AnswerCreated = onDocumentCreated(
         tx.set(snap.ref, { anchors }, { merge: true });
       }
       // The ledger entry carries the anchors too, and the nightly passes
-      // read them — so it takes the honest set, not the claim.
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx, undefined, anchors));
+      // read them — so it takes the honest set, not the claim. And the
+      // profile's stamp (runbook 2.1): `prof` is already in hand, so the
+      // name and scores the sample row will show cost no read here.
+      tx.set(eventRef, ledgerEntry(
+        event.params.uid, qid, optionIdx, undefined, anchors, undefined,
+        profileStamp(prof.exists ? { displayName: prof.get("displayName"), testResults: prof.get("testResults") } : undefined),
+      ));
+      // The log's row takes the honest anchors, as the ledger does.
+      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface"), optionIdx, anchors });
+      // THE ANSWER MAP (DATA-EFFICIENCY-RUNBOOK 3.2, live on the owner's
+      // word): the entry Circle folds, merged onto the person's own map in
+      // THIS transaction — atomic with the ledger mark, so a redelivered
+      // event that returns above writes nothing here either, and a crash
+      // cannot leave the map behind the count. A document only this
+      // person's answers touch: no contention on the hot aggregate.
+      tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: optionIdx }), { merge: true });
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -1232,6 +1313,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       }
     });
     logBucketCaps(qid, capped);
+    if (logged) await appendLog([logged]);
   },
 );
 
@@ -1268,7 +1350,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    let logged: LogRow | null = null;
     await runAggTransaction(db, qid, async (tx) => {
+      logged = null;
       // One document, batched — same as the create path above.
       const [seen, agg] = await tx.getAll(eventRef, pubRef);
       if (seen.exists) return;
@@ -1312,6 +1396,11 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
       tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
+      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors: after.get("anchors") });
+      // …and the map moves with the edit (runbook 3.2), after the retry
+      // guard above, so a deferred edit moves it once, on the delivery
+      // that actually moves the count.
+      tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: toIdx }), { merge: true });
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone
@@ -1323,5 +1412,6 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
       }
     });
+    if (logged) await appendLog([logged]);
   },
 );

@@ -39,7 +39,13 @@ rewrite is D223.*
   `v2_patterns/loadings` (the Patterns tab's only source) with whichever
   engine has won the last fortnight in `q` and the other under
   `candidates` (D395). Beside it, the drawable-pool count on `v2_meta/app`
-  that decides whether the tab is in the bar at all (D265).
+  that decides whether the tab is in the bar at all (D265), and the voter
+  samples (`src/patternsSamples.ts`, pure; D397) — the who-voted sheet's
+  newest two hundred per question, published so the device reads one
+  document instead of two hundred, each seeded once from the answers
+  themselves the first night the pass meets it, at most 25 a night
+  (D442; `src/answerSurfaces.ts` is the server's copy of the world-answer
+  surface list the seed filters on, held equal to the client's by test).
   Deliberately off the hot write path.
 - `src/moderation.ts` — the flag tally, the server-picked queue, and the
   moderator's three instruments. `docs/MODERATION.md` is the design.
@@ -51,6 +57,10 @@ rewrite is D223.*
   every aggregate a disposable projection instead of a thing that must
   never break.
 - `src/index.ts` — account deletion, and the re-exports the deploy reads.
+- `src/exportAccount.ts` — the data export (D443): deletion's read-only
+  twin, the same graph phase by phase as one JSON object for the owner,
+  under a byte bound. Its test reads `index.ts`'s wipe phases and refuses
+  one with no export section, so the two walks cannot drift.
 - `src/pure.ts` — the fold arithmetic, with no Firebase in it, so every
   number this codebase publishes can be tested without an emulator. Most
   of what is worth reading twice is here.
@@ -87,7 +97,7 @@ npm --prefix functions run build     # the emulator loads functions/lib
 
 ## Deployed functions
 
-42 functions ship from this codebase (the deploy's `--only` list also
+46 functions ship from this codebase (the deploy's `--only` list also
 names `firestore:rules` and `firestore:indexes`, which are not functions).
 `scripts/check-deploy-targets.mjs` fails CI if an exported function is
 missing from that list — otherwise it would be built, tested, green and

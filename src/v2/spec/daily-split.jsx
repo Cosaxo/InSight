@@ -58,10 +58,13 @@ function dq(onReady) {
     .catch((e) => { console.error('[InSight] daily-questions chunk failed to load:', e); });
   return null;
 }
-// duels-data.js is loaded on demand, not imported — it pulls
+// duels-data.js is loaded on demand, not imported — it pulled
 // content/duel-questions.json, the DUEL LANE's bank, and a static import
 // here put that file in first paint so writing a duel question cost every
 // phone start-up bytes. Same shape as `dq()` above, and the same reason.
+// (Since D435 it carries the bank's fixed sample instead — the weight no
+// longer tracks the lane — but it is the DEMO store, and a live build
+// never needs it, so on demand is still right.)
 //
 // The three uses below tolerate a null store by construction: the two
 // pending counts are already gated off on a live build (`liveDuels ? 0 :
@@ -103,12 +106,16 @@ import LIVE from '../data/live';
 // is (LiveDuelPanel, below): it is the DEMO Circle body, and the note at its
 // render site says live mode never mounts it. Statically it pulled
 // duels-data.js and with it content/duel-questions.json — the DUEL LANE's
-// bank — into first paint, so a scheduled Routine writing a duel question
-// was adding start-up bytes to every phone, including the live builds that
+// bank (its fixed sample since D435) — into first paint, so a scheduled
+// Routine writing a duel question was adding start-up bytes to every phone,
+// including the live builds that
 // can never render this body at all. The `duo` body beside it was already
 // resolved at render time and cost nothing; this makes the pair consistent.
 const GroupDailyBody = React.lazy(() =>
   import('./group-daily.jsx').then((m) => ({ default: m.GroupDailyBody })));
+// The duo body, the same way — see the render site.
+const DuoDailyBody = React.lazy(() =>
+  import('./duo-daily.jsx').then((m) => ({ default: m.DuoBody })));
 import { PassiveTag } from './passive-meter.jsx';
 import { WORLD_TOPICS } from './world-feed-topics.js';
 import { WF_REPORT } from './world-feed-report.js';
@@ -158,9 +165,11 @@ import ReactDOM from 'react-dom';
 import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
-// see how the crowd & every kind of person split), Group (one question a day
-// for your circle; yesterday revealed with names — see group-daily.jsx) and
-// 1v1 (answer + guess what they answered; next-day reveal — see duo-daily.jsx).
+// see how the crowd & every kind of person split), Group (a question a round
+// for your circle; revealed with names when the room has played or the round's
+// deadline lands — see group-daily.jsx) and 1v1 (answer + guess what they
+// answered; revealed when your partner answers — see duo-daily.jsx). Rounds,
+// not days, since D426/D437.
 // Keeps the chunky card language but speaks the app's tokens (Hanken Grotesk,
 // surface/ink, oklch accents) so it sits with the other tabs and follows dark mode.
 
@@ -263,7 +272,8 @@ export class DailySplit extends React.Component {
     // (`liveDuels ? null : duels(…)`, and `liveDuels` is `LIVE.enabled`).
     // This call was unconditional, so the gate held on one of the two
     // call sites and a LIVE build fetched `duels-data.js` — and with it
-    // content/duel-questions.json, the duel lane's whole bank — on every
+    // content/duel-questions.json, then the duel lane's whole bank (its
+    // fixed sample since D435) — on every
     // daily mount, for a store the block's own comment says "on live this
     // module is never needed at all". Measured with a live fixture and a
     // full mount: DUELS.subscribe was reached once, which happens only if
@@ -1395,7 +1405,21 @@ export class DailySplit extends React.Component {
     const groupBody = liveDuels
       ? lazyDuel('live-group', 'group')
       : h(React.Suspense, { key: 'group-daily', fallback: null }, h(GroupDailyBody, null));
-    const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
+    // THE DEMO ARM IS NOT DEAD ON A SHIPPED BUILD, which is what this line
+    // used to assume. It read `window.DuoBody` at render time with an
+    // `|| 'div'` fallback, and `spec-index.js` justified moving the module
+    // into `loadOverlays()` by calling this arm "dead code the installed
+    // app cannot execute". `liveDuels` is `LIVE.enabled`, and `enabled` is
+    // FALSE on a live build whose boot has not attached — live.ts's own
+    // `demoInProd` says so and says what it means: "the UI is showing demo
+    // content to a real user". An offline cold start on a shipped app
+    // therefore takes this arm, and `main.jsx` schedules no re-render after
+    // `loadOverlays()`, so the empty div stood for the rest of the session
+    // even once the chunk landed — and silently, where the group arm one
+    // line up degrades into the ErrorBoundary a person can report.
+    const duoBody = liveDuels
+      ? lazyDuel('live-duo', 'duo')
+      : h(React.Suspense, { key: 'duo-daily', fallback: null }, h(DuoDailyBody, null));
 
     // ===== chrome =====
     // DEMO ONLY, and the gate is the same one three lines up. DUELS is the

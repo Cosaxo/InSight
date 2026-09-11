@@ -62,6 +62,7 @@ import {
   revealQid,
   revealVotes,
   votesMatchingQid,
+  foldRoleLedger,
   ROOM_MIN_TYPED,
   ROOM_SAMPLE_CAP,
   ROOM_SCAN_CAP,
@@ -162,9 +163,10 @@ describe("rounds (ROUNDS-PLAN, D426)", () => {
   it("the lead and the deadline are the plan's numbers", () => {
     // ONE constant each. firestore.rules carries the lead as a literal and
     // rules.test.ts pins the two equal; the deadline is the day's
-    // replacement and is a day long.
+    // replacement and is two days long — the owner's 2026-09-09 design
+    // (D437), over the day it had been.
     expect(ROUND_LEAD).toBe(5);
-    expect(ROUND_DEADLINE_MS).toBe(24 * 60 * 60 * 1000);
+    expect(ROUND_DEADLINE_MS).toBe(48 * 60 * 60 * 1000);
   });
 
   it("roundKey is r{n}, unpadded — nothing orders by id", () => {
@@ -1242,7 +1244,7 @@ describe("seedDocMatches — the seed's write skip", () => {
     });
 
     it("catches an edit anywhere in the tree", () => {
-      const changed = (nodes) => seedDocMatches({ ...withStory, nodes }, withStory);
+      const changed = (nodes: Record<string, unknown>) => seedDocMatches({ ...withStory, nodes }, withStory);
       // a reworded fork…
       expect(changed({ "": { q: "A DIFFERENT fork", a: [{ t: "left" }, { t: "right" }] } })).toBe(false);
       // …a reworded choice…
@@ -1412,53 +1414,16 @@ describe("the duel question-level signal (D40 part 3)", () => {
     }
   });
 
-  it("scores a group's guesses against the option the room landed on (D386)", () => {
-    // Four votes, three on option 0. The room each member reads is the
-    // other three: two call it and land, one calls 1 and does not, one
-    // did not guess at all.
+  it("scores nothing for a group — nothing in a group is called (D437)", () => {
+    // Four votes, three on option 0, three of them carrying a guess the
+    // rules no longer admit (an older client's). D386 scored these against
+    // the room; the owner's 2026-09-09 brief removed the call, and a stray
+    // field must not revive it — guessTotal stays zero by construction, so
+    // the scorecard's guess-rate retirement never fires on a group.
     const d = duelAggDelta([v(0, 0), v(0, 0), v(0, 1), v(1)], "group", 4);
-    expect(d).toMatchObject({ total: 4, guessTotal: 3, guessMatches: 2 });
-  });
-
-  // ── THE ROOM IS EVERYONE BUT THE GUESSER ──────────────────────────
-  //
-  // This arm scored every guess against the whole tally, the guesser's own
-  // vote included, so calling your own answer was partly self-fulfilling —
-  // in a circle of two, entirely so. Measured over 40k trials with every
-  // member guessing their own answer and reading nothing: n=2 k=2 scored
-  // 1.000 and n=4 k=2 scored 0.875, against 0.500 for both once the
-  // guesser comes out. `question-scorecard.mjs` proposes retiring a duel
-  // at a 0.9 guess rate as "no tension — a dead question", and ten
-  // group-days from a circle of two is the twenty guesses it needs.
-  it("does not score a guess against a tally holding the guesser's own vote", () => {
-    // A 1–1 room where both members call their OWN answer. Under the old
-    // rule both options tied for the top of a tally that included them,
-    // so both "landed" — a perfect score for reading nobody.
-    expect(
-      duelAggDelta([v(0, 0), v(1, 1)], "group", 2),
-      "calling your own answer scored as a read of the room",
-    ).toMatchObject({ guessTotal: 2, guessMatches: 0 });
-  });
-
-  it("…and still scores a real read of the same room", () => {
-    // THE CONTROL. The same 1–1 room, each calling the OTHER's answer:
-    // both are genuine reads and both land. Without this, "matches 0"
-    // above passes just as well when group guesses stopped scoring.
-    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2))
-      .toMatchObject({ guessTotal: 2, guessMatches: 2 });
-  });
-
-  it("a tie for the top counts as a hit, and a room of one is no room", () => {
-    // The tie rule is D386's own and is untouched: with the guesser out,
-    // three others splitting 1–1–1 leave every call tied for the top.
-    expect(duelAggDelta([v(0, 3), v(1, 0), v(2, 0), v(3, 0)], "group", 4))
-      .toMatchObject({ guessTotal: 4, guessMatches: 4 });
-    // Nobody else's vote counted, so there was no room to read. The old
-    // floor's case, reached from the other side.
-    expect(duelAggDelta([v(0, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
-    // An out-of-range vote does not count toward the room, and its own
-    // guess is noise — the pool-flip race, read the way the duo arm reads it.
-    expect(duelAggDelta([v(0, 0), v(9, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
+    expect(d).toMatchObject({ total: 4, counts: { "0": 3, "1": 1 }, guessTotal: 0, guessMatches: 0 });
+    // …including the 1–1 room that used to score a perfect read of nobody
+    expect(duelAggDelta([v(0, 1), v(1, 0)], "group", 2)).toMatchObject({ guessTotal: 0, guessMatches: 0 });
   });
 
   it("scores duo guesses against the partner's actual pick", () => {
@@ -1730,6 +1695,104 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(describeSeedOptionConflicts([
       { qid: "f-42", field: "type", stored: ["vote"], desired: ["catalog"] },
     ])).toContain("f-42 (type): [vote] -> [catalog]");
+  });
+});
+
+// ── the role ledger (D445, ROLES-PLAN §3.3) ────────────────────────
+//
+// The counts the device's fold (src/v2/data/roles.ts) takes over a page of
+// reveals, kept by the server as each round reveals. The rules here are
+// the device's rules, and every case is a REFUSAL as much as a count: a
+// vote the device would not count is one the ledger must not either, or
+// the reading changes the day the ledger takes over.
+describe("the role ledger (foldRoleLedger)", () => {
+  const CAST = { topic: "cast", dims: ["trust", "spark", "judgement", "constancy"] };
+  const ROLE = { topic: "pick", role: { id: "mind", label: "the mastermind", seat: "engine" } };
+  const duo = ["ada", "bo"];
+
+  it("a cast round counts, for each member, what the OTHER said they are — and their own guess", () => {
+    // Ada says Bo is spark (1) and guesses Bo will say trust (0); Bo says
+    // Ada is trust (0) and guesses judgement (2).
+    const L = foldRoleLedger(undefined, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 1, guessIdx: 0 }, bo: { optionIdx: 0, guessIdx: 2 },
+    }, duo)!;
+    expect(L.ada).toEqual({ casts: 1, axes: { trust: 1 }, saw: { right: 1, total: 1 }, castQid: "duo-073" });
+    expect(L.bo).toEqual({ casts: 1, axes: { spark: 1 }, saw: { right: 0, total: 1 }, castQid: "duo-073" });
+  });
+
+  it("accumulates onto the rows it was handed and carries untouched rows over", () => {
+    const prev = {
+      ada: { casts: 4, axes: { trust: 3, spark: 1 }, saw: { right: 2, total: 3 }, castQid: "duo-073" },
+      gone: { casts: 9 },
+    };
+    const L = foldRoleLedger(prev, "duo", CAST, "duo-074", {
+      ada: { optionIdx: 3 }, bo: { optionIdx: 0, guessIdx: 3 },
+    }, duo)!;
+    expect(L.ada).toEqual({ casts: 5, axes: { trust: 4, spark: 1 }, saw: { right: 2, total: 3 }, castQid: "duo-074" });
+    expect(L.bo).toEqual({ casts: 1, axes: { constancy: 1 }, saw: { right: 1, total: 1 }, castQid: "duo-074" });
+    expect(L.gone, "a row the round did not touch was dropped").toEqual({ casts: 9 });
+    // …and the input was not mutated: the transaction may retry.
+    expect(prev.ada.casts).toBe(4);
+  });
+
+  it("counts a cast only when BOTH answered blind on the cast question", () => {
+    // Bo's vote is stamped with another qid (D71): not an answer to this cast.
+    expect(foldRoleLedger(undefined, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 1 }, bo: { optionIdx: 0, qid: "duo-001" },
+    }, duo)).toBeNull();
+    // A late vote can never reach a create, but the rule is stated anyway.
+    expect(foldRoleLedger(undefined, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 1 }, bo: { optionIdx: 0, late: true },
+    }, duo)).toBeNull();
+    // One answer alone — a deadline reveal for the one who played.
+    expect(foldRoleLedger(undefined, "duo", CAST, "duo-073", { ada: { optionIdx: 1 } }, duo)).toBeNull();
+  });
+
+  it("an own round, a rating, a plain pick and a missing question move nothing", () => {
+    const votes = { ada: { optionIdx: 1, guessIdx: 0 }, bo: { optionIdx: 0, guessIdx: 1 } };
+    expect(foldRoleLedger(undefined, "duo", { topic: "day" }, "duo-001", votes, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "group", { topic: "rate" }, "gs0", votes, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "group", { topic: "pick" }, "gp0", { ada: { optionIdx: 0, pickUid: "bo" } }, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "group", { topic: "pick", role: { id: "x", label: "x" } }, "gr9", { ada: { optionIdx: 0, pickUid: "bo" } }, duo)).toBeNull();
+    expect(foldRoleLedger(undefined, "duo", null, "duo-073", votes, duo)).toBeNull();
+    // …and a cast in a GROUP is not a cast round: the surface is the 1v1's.
+    expect(foldRoleLedger(undefined, "group", CAST, "duo-073", votes, duo)).toBeNull();
+  });
+
+  it("a role vote counts for whom the snapshot names, under the role's seat — never for the voter's own name", () => {
+    const room = ["ada", "bo", "cy", "di"];
+    const L = foldRoleLedger(undefined, "group", ROLE, "gr0", {
+      ada: { optionIdx: 1, pickUid: "bo" },
+      bo: { optionIdx: 1, pickUid: "bo" },    // a vote for yourself is not the room naming you
+      cy: { optionIdx: 1, pickUid: "bo" },
+      di: { optionIdx: 0, pickUid: "ada" },
+    }, room)!;
+    expect(L).toEqual({
+      bo: { votes: 2, seats: { engine: 2 } },
+      ada: { votes: 1, seats: { engine: 1 } },
+    });
+  });
+
+  it("skips a vote with no snapshot, on another question, or naming someone off the roster", () => {
+    const room = ["ada", "bo"];
+    expect(foldRoleLedger(undefined, "group", ROLE, "gr0", {
+      ada: { optionIdx: 1 },                                   // pre-D224 client: an index, no name
+      bo: { optionIdx: 0, pickUid: "ada", qid: "gr1" },        // their bank disagreed (D71)
+      cy: { optionIdx: 0, pickUid: "left" },                   // names someone who has left
+    }, room)).toBeNull();
+    // …and accumulates onto a row by seat, the other seats untouched.
+    const L = foldRoleLedger({ ada: { votes: 2, seats: { engine: 2 } } }, "group",
+      { topic: "pick", role: { id: "wheel", label: "the getaway driver", seat: "hands" } }, "gr1",
+      { bo: { optionIdx: 0, pickUid: "ada" } }, room)!;
+    expect(L.ada).toEqual({ votes: 3, seats: { engine: 2, hands: 1 } });
+  });
+
+  it("reads a corrupt row as empty rather than adding to a string", () => {
+    const L = foldRoleLedger({ ada: { casts: "9", axes: null }, bo: "nonsense" }, "duo", CAST, "duo-073", {
+      ada: { optionIdx: 0 }, bo: { optionIdx: 2 },
+    }, duo)!;
+    expect(L.ada).toEqual({ casts: 1, axes: { judgement: 1 }, saw: { right: 0, total: 0 }, castQid: "duo-073" });
+    expect(L.bo).toEqual({ casts: 1, axes: { trust: 1 }, saw: { right: 0, total: 0 }, castQid: "duo-073" });
   });
 });
 

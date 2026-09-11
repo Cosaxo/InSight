@@ -31,6 +31,10 @@ vi.mock("../data/live", () => ({
     // A getter for the same reason `budgetPaused` is one — the loading
     // case flips it after the factory has run.
     kindredLoading: () => LOADING,
+    // DERIVED from the flag above, not stubbed apart from it: in the
+    // store the two are one fact, and a fixture that lets them disagree
+    // lets a case drive one while the card reads the other.
+    kindredState: () => (LOADING ? "loading" : FAILED ? "failed" : "ready"),
     // A getter so the D332 case can flip it after the factory has run —
     // the closure reads the module-level flag at render time, the PEOPLE
     // pattern one line up.
@@ -53,10 +57,15 @@ const POL = { econ: 30, auth: 40, foreign: 60, env: 70, tech: 55, estab: 45 };
 let PEOPLE: ReturnType<typeof person>[] = [];
 let PAUSED = false;
 let LOADING = false;
+/** A read that RETURNED having failed — the fourth state this card had
+ *  three of. `kindredLoading` is false again the moment the run returns,
+ *  including when every query inside it threw. */
+let FAILED = false;
 
 beforeEach(() => {
   PAUSED = false;
   LOADING = false;
+  FAILED = false;
   PEOPLE = [
     ...Array.from({ length: 6 }, (_, i) => person(`b${i}`, { big5: BIG5 })),
     person("p0", { big5: BIG5, political: POL }),
@@ -165,6 +174,23 @@ describe("what each instrument is allowed to say", () => {
     render(<TypeMixCard scope="city" />);
     expect(screen.getByText(/Reading who answered/)).toBeTruthy();
     expect(screen.queryByText(/who-voted sheet and this fills in/i)).toBeNull();
+  });
+
+  it("…and says a read that FAILED, rather than sending you to the sheet that failed", () => {
+    // The fourth state. `kindredLoading` is false again the moment the
+    // run returns, including when every one of the twelve lists threw —
+    // so the card told the reader to open a who-voted sheet, which is
+    // exactly the read that had just failed, under a Kindred block that
+    // (until tonight) said the same thing in different words.
+    PEOPLE = [];
+    LOADING = false;
+    FAILED = true;
+    render(<TypeMixCard scope="city" />);
+    expect(screen.getByText(/Couldn’t read who answered/)).toBeTruthy();
+    expect(screen.queryByText(/who-voted sheet and this fills in/i),
+      "a failed read still sent the reader to the sheet that failed").toBeNull();
+    expect(screen.queryByText(/Reading who answered/),
+      "a finished read still said it was working").toBeNull();
   });
 
   it("does not state a partial sample as a finished one", () => {

@@ -26,6 +26,10 @@
 import type { Firestore } from "firebase-admin/firestore";
 
 export interface LedgerDayEntry {
+  /** The entry's document id — the trigger's event id, and the answer
+   *  log's row id (log.ts): what the nightly reconcile diffs on. Not a
+   *  field of the document, so not in the projection below. */
+  id: string;
   uid: string;
   qid: string;
   optionIdx?: number;
@@ -40,6 +44,19 @@ export interface LedgerDayEntry {
    *  reading of a `pick` answer, the way `optionIdx` is of a vote. Absent
    *  on every other arm, and on catalog entries written before it. */
   entity?: string;
+  /** The author's display name as the create trigger read it off the
+   *  profile (DATA-EFFICIENCY-RUNBOOK 2.1) — present only on a stamped
+   *  entry, "" for an account with no name. The sample row copies it. */
+  n?: string;
+  /** The parsed core scores beside it (profileStamp.ts), null when the
+   *  profile holds nothing usable; absent with `n`. */
+  s?: Record<string, Record<string, number>> | null;
+  /** The verified logic percentile (D57), null when untested; absent with `n`. */
+  l?: number | null;
+  /** When the entry was ledgered, in ms — the velocity scan's cadence
+   *  and burst signals read it (DATA-EFFICIENCY-RUNBOOK 4.4); 0 on a
+   *  snapshot that carries none. Selected for the ordering all along. */
+  at: number;
 }
 
 const PAGE = 5000;
@@ -127,18 +144,32 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     // undefined at every reader — no error, no log, just a fold that
     // quietly stops distinguishing an edit from a first answer. Pinned in
     // ledger.test.ts against the interface itself.
-    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "entity", "at")
+    .select("uid", "qid", "optionIdx", "fromIdx", "anchors", "entity", "n", "s", "l", "at")
     .limit(PAGE);
   for (;;) {
     const snap = await query.get();
     for (const d of snap.docs) {
+      const rawAt = d.get("at") as { toMillis?: () => number } | Date | undefined;
       out.push({
+        id: d.id,
         uid: String(d.get("uid") ?? ""),
         qid: String(d.get("qid") ?? ""),
         optionIdx: d.get("optionIdx") as number | undefined,
+        at: rawAt && typeof (rawAt as { toMillis?: unknown }).toMillis === "function"
+          ? (rawAt as { toMillis: () => number }).toMillis()
+          : rawAt instanceof Date ? rawAt.getTime() : 0,
         ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
         ...(d.get("anchors") ? { anchors: d.get("anchors") as Record<string, string> } : {}),
         ...(typeof d.get("entity") === "string" ? { entity: d.get("entity") as string } : {}),
+        // The stamp travels as a unit: `n` present means the entry was
+        // stamped, and then `s` and `l` are what was read (null included).
+        ...(typeof d.get("n") === "string"
+          ? {
+            n: d.get("n") as string,
+            s: (d.get("s") as Record<string, Record<string, number>> | null | undefined) ?? null,
+            l: typeof d.get("l") === "number" ? (d.get("l") as number) : null,
+          }
+          : {}),
       });
     }
     if (snap.size < PAGE) break;

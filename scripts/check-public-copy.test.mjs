@@ -14,7 +14,7 @@
 // punished them would push the next author into deleting the record
 // instead of dating it, which is the opposite of what this repo wants.
 import { describe, it, expect } from "vitest";
-import { scan, scanText, RETIRED } from "./check-public-copy.mjs";
+import { scan, scanText, scanVoice, RETIRED, VOICE, DUEL_SURFACES } from "./check-public-copy.mjs";
 import { readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -119,6 +119,47 @@ describe("history stays legal — the false positives that would matter", () => 
     expect(scanText("Your answers are public. Anyone using InSight can see what you answered.")).toEqual([]);
     expect(scanText("counts are exact from the very first answer, so in a small cohort a count of 1 is visibly one person's answer")).toEqual([]);
     expect(scanText("Takes are posted under your name — on world questions as well as inside a circle.")).toEqual([]);
+  });
+});
+
+describe("the duel surfaces' voice (D437)", () => {
+  // Verbatim from the tree on 2026-09-09, before step E of
+  // VISION-2026-09-09 — every one shipped green under every gate.
+  const WAS_LIVE = [
+    ["LiveGroupsMirrorBody, the head", "aligned with you · 3 of 4 days"],
+    ["LiveGroupsMirrorBody, the Answers tab", "Reading the days…"],
+    ["LiveGroupsMirrorBody, the cross-group line", "runs most like you — with it on 2 of the 3 days you played."],
+    ["LiveRolesPanel, the floor", "No 1v1 has 3 days you both guessed yet"],
+    ["LiveRolesPanel, the floor", "No group has 2 revealed days you played yet"],
+    ["the design's own removed list", "crowned by the majority"],
+    ["the design's own removed list", "the one in charge"],
+    ["LiveDuelPanel, pre-D437", "sealed until tomorrow"],
+    ["a template literal", "${n} days revealed"],
+  ];
+  for (const [where, text] of WAS_LIVE) {
+    it(`catches: ${text.slice(0, 52)} (${where})`, () => {
+      expect(scanVoice(text).length).toBeGreaterThan(0);
+    });
+  }
+
+  it("leaves a date, a round, an hour and an identifier alone", () => {
+    expect(scanVoice("3 days ago")).toEqual([]);
+    expect(scanVoice("Yesterday")).toEqual([]);
+    expect(scanVoice("round 4 · reveals in 47 hours")).toEqual([]);
+    expect(scanVoice("const majorityIdx = counts.indexOf(maxN); r.withMajority")).toEqual([]);
+    expect(scanVoice("The room named you 3 of 9 votes")).toEqual([]);
+    expect(scanVoice("Every fourth round asks what the other is to you")).toEqual([]);
+  });
+
+  it("names a decision for every finding", () => {
+    for (const { why } of VOICE) expect(why).toMatch(/\bD\d+\b/);
+  });
+
+  it("guards the files it names, and only those", () => {
+    const { surfaces } = scan();
+    for (const f of DUEL_SURFACES) expect(surfaces.some((s) => s.label === f), `${f} not collected`).toBe(true);
+    // the privacy page may say "days" — the voice is the duel surfaces'
+    expect(DUEL_SURFACES.some((f) => f.startsWith("web/"))).toBe(false);
   });
 });
 

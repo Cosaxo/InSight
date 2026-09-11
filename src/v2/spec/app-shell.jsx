@@ -6,10 +6,12 @@
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
 // duels-data.js is NOT imported here, and the reason is the same one
-// daily-questions.js left first paint for. It pulls
+// daily-questions.js left first paint for. It pulled
 // content/duel-questions.json — the DUEL LANE's bank, a file a scheduled
 // Routine appends to — so a static import here made writing a duel question
-// a start-up cost for every phone. Its one use below is a DevTweaks
+// a start-up cost for every phone. (It carries the bank's fixed sample
+// since D435, but it is the DEMO store, and a live build has no use for
+// it at any size.) Its one use below is a DevTweaks
 // callback: a developer resetting today's duel, already behind a Suspense
 // boundary and a build-time guard, and about as far from first paint as a
 // code path gets.
@@ -868,7 +870,21 @@ export function App() {
               overlay and opening a city sheet that nothing could ask for.
               If city hits are ever added, this is the line they need
               back. */}
-          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} />}
+          {/* `!liveOn && !LIVE.demoInProd`, NOT `!liveOn`. `LIVE.enabled` is
+              false for two different reasons and only one of them is a demo
+              build: `demoInProd` is a LIVE build whose boot has not attached
+              — an offline cold start, a lost 2500ms race, a misconfigured
+              key. `search-overlay.jsx` states the contract this broke in as
+              many words: "In a live build the section renders empty instead
+              (samplePeople is false there), and a real user reading an
+              invented sister into their search is the D1 fabrication this
+              store predates." Measured 2026-09-11 with `demoInProd` true:
+              the overlay drew "91% match", "86% match", "sister" and
+              "since birth" to a real account. The header Search button is on
+              screen from first paint, so it is one tap from a cold start.
+              This is the third site in this family; the daily's demo sheets
+              and the Mirror's preview tag already ask both halves. */}
+          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn && !LIVE.demoInProd} onPerson={(p) => { setOv(null); setPerson(p); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {/* The one overlay here NOT read off window, though its module is
               deferred like the rest (D200). Reachable only from the embedded

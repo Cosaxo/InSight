@@ -1,0 +1,44 @@
+{
+  // THE TYPE GATE THE TEST FILES NEVER HAD.
+  //
+  // tsconfig.json excludes `src/**/*.test.ts`, and that exclusion is
+  // correct for what it is: the BUILD emits into lib/ and ships to Cloud
+  // Functions, where a compiled test file is dead weight at best. What it
+  // also did was leave every test file unchecked by any gate in the repo
+  // — `tsc -b` at the root does not reach functions/src at all — so a
+  // fake that stops matching the interface it stands in for is invisible.
+  //
+  // Measured, repeatedly: the nightly pass's runner fakes drifted from
+  // `NightlyRunners` four times before tonight and three more times
+  // during it (the answer-map heal, the rollup drain and the velocity
+  // scan each gained a parameter and a summary field while their fakes
+  // did not), and in every case the suite stayed green because a fake
+  // that returns too little is only wrong where something reads the
+  // missing part.
+  //
+  // Same options as the build, so a test cannot rely on a looser rule
+  // than the code it exercises; `noEmit` because nothing here is shipped.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // THE MODULE FORMAT IS VITEST'S, NOT THE DEPLOY'S, and that is the
+    // one option that may not be inherited. The build emits CommonJS
+    // (node16 + no `"type"` in package.json), but these files are only
+    // ever loaded by vitest, as ESM: they use `import.meta`, top-level
+    // `await import()` and extensionless relative specifiers, all three
+    // of which the build's settings reject on sight. Checking them as
+    // CommonJS produced 60-odd errors about the format and hid the
+    // handful that are about the code.
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // NO rootDir, and it has to go: `profileStamp.test.ts` deliberately
+    // imports the DEVICE's copy of the same parsers to hold the two
+    // halves to one behaviour, which a `rootDir` of `src` rejects
+    // outright. Nothing is emitted here, so the option has nothing left
+    // to constrain.
+    "rootDir": "..",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "exclude": []
+}

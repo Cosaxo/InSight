@@ -32,6 +32,10 @@ vi.mock("../../lib/firebase", () => ({
 
 import LIVE from "../data/live";
 import SignInGate from "./SignInGate";
+// The screen itself, for ONE case below: the wrapper never mounts it for a
+// linked session, so the negative arm of D441's condition can only be
+// observed on the screen. Every other case goes through the wrapper.
+import LiveSignInGate from "./LiveSignInGate";
 import { signInRequired } from "./signInRequired";
 
 const store = LIVE as unknown as Record<string, unknown>;
@@ -294,27 +298,116 @@ describe("the email door", () => {
     await openEmail();
     fill();
     fireEvent.click(screen.getByText("Sign in"));
+    // Sign-in from an anonymous session is the destructive call, so the
+    // SECOND tap is the one that makes it (D441). The asking itself is the
+    // case below; this one is about which call each tap ends in.
+    fireEvent.click(await screen.findByText(/Sign in and leave this phone\u2019s answers/));
     expect(emailSignIn).toHaveBeenCalledWith("a@b.co", "secret1");
     expect(emailCreate).not.toHaveBeenCalled();
 
-    // findBy, not getBy: the toggle is hidden while a door is in flight
-    // (the design's rule), so it only comes back once the sign-in above
-    // has settled. A getBy here fails for a reason that looks like a
-    // missing control rather than a pending promise.
+    // findBy, not getBy: the button reads "…" while the door is in flight
+    // (the design's rule), so its label — and the enabled way back under
+    // it — only come back once the sign-in above has settled. A getBy here
+    // fails for a reason that looks like a missing control rather than a
+    // pending promise. The in-use screen stays up after the call settles,
+    // since only the store's observer lifts the wall.
+    await screen.findByText(/Sign in and leave this phone\u2019s answers/);
+    fireEvent.click(screen.getByText("Use a different account"));
     fireEvent.click(await screen.findByText("Create an account"));
     fireEvent.click(screen.getByText("Create account"));
     expect(emailCreate).toHaveBeenCalledWith("a@b.co", "secret1");
   });
 
+  it("asks before it leaves this phone\u2019s answers — at the door the create path steers to", async () => {
+    // Apple and Google get the in-use screen from Firebase refusing the
+    // link. A password sign-in has no link to refuse: the call IS the
+    // replacement, and the observer purges the session when it lands. So
+    // from the day the wall went up this was the one door with no warning
+    // — and the door "Sign in instead" points at. D441 is the owner's
+    // "add it", and this case fails without it.
+    await openEmail();
+    fireEvent.click(screen.getByText("Create an account"));
+    fill();
+    emailCreate.mockRejectedValueOnce(Object.assign(new Error("nope"), { failure: "taken" }));
+    fireEvent.click(screen.getByText("Create account"));
+    fireEvent.click(await screen.findByText("Sign in instead"));
+    fireEvent.click(await screen.findByText("Sign in"));
+    // The consequence, in the words the other two doors use, and BEFORE
+    // the call: nothing has been signed in yet.
+    expect(await screen.findByText(/they are not merged/i)).toBeTruthy();
+    expect(emailSignIn, "the first tap signed in").not.toHaveBeenCalled();
+    expect(screen.getByText(/Sign in and leave this phone\u2019s answers/)).toBeTruthy();
+    // …and a way back that does not take it, onto the form still filled.
+    fireEvent.click(screen.getByText("Use a different account"));
+    expect(emailSignIn).not.toHaveBeenCalled();
+    expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("a@b.co");
+  });
+
+  it("does not claim a history it has not been told about", async () => {
+    // The in-use screen is shared by three doors and reached two ways.
+    // Apple and Google land on it because Firebase REFUSED the link — the
+    // other account is established. The email door lands on it from the
+    // condition alone, BEFORE emailSignIn is called, so at that moment the
+    // typed address may have no account, or the wrong password; both come
+    // back as failures on the second tap. Stating "That account already
+    // has an InSight history" there is the app telling the user a fact it
+    // has not got (D146: say what was measured). The cost is certain
+    // either way, and the cost is what the screen is for.
+    await openEmail();
+    fill();
+    fireEvent.click(screen.getByText("Sign in"));
+    expect(await screen.findByText(/they are not merged/i)).toBeTruthy();
+    expect(emailSignIn, "the claim was made after a call, not before").not.toHaveBeenCalled();
+    expect(
+      screen.queryByText(/already has an InSight history/i),
+      "the email door asserted an account it had not asked about",
+    ).toBeNull();
+
+    // The control: the refused-link doors still name it, so this is not a
+    // sweep that took the sentence off every screen.
+    cleanup();
+    linkGoogle.mockRejectedValueOnce(new Error("auth/credential-already-in-use"));
+    await gateReady();
+    fireEvent.click(screen.getByText("Continue with Google"));
+    expect(
+      await screen.findByText(/already has an InSight history/i),
+      "the door that was refused stopped naming what it was refused for",
+    ).toBeTruthy();
+  });
+
+  it("does not ask a linked session — the condition is the session, not the door", async () => {
+    // Rendered WITHOUT the wrapper, deliberately and only here: SignInGate
+    // never mounts the screen for a linked session, so this arm of the
+    // condition is observable nowhere else. What it pins is that the
+    // warning is keyed on having an anonymous history to leave, not on
+    // which door was tapped — a screen that asked everyone would be a
+    // second rule for one thing.
+    stub("linked", true);
+    render(<LiveSignInGate />);
+    fireEvent.click(await screen.findByText("Use email instead"));
+    fill();
+    fireEvent.click(screen.getByText("Sign in"));
+    expect(emailSignIn).toHaveBeenCalledWith("a@b.co", "secret1");
+    expect(screen.queryByText(/they are not merged/i), "a linked session was asked").toBeNull();
+  });
+
   it("every failure names a way out, not just a description", async () => {
     // The design's addition to the request, and the one worth a test: a
     // dead end on the one screen a person cannot get past is the failure.
+    //
+    // Since D441 a sign-in failure arrives on the SECOND tap, and the way
+    // out it names is a control the form has — so it lands back on the
+    // form, still filled, rather than on the in-use screen with nowhere to
+    // retype the password.
     await openEmail();
     fill();
-    emailSignIn.mockRejectedValueOnce(Object.assign(new Error("nope"), { failure: "taken" }));
+    emailSignIn.mockRejectedValueOnce(Object.assign(new Error("nope"), { failure: "wrong-password" }));
     fireEvent.click(screen.getByText("Sign in"));
-    expect(await screen.findByText(/already has an account/)).toBeTruthy();
-    expect(screen.getByText("Sign in instead")).toBeTruthy();
+    fireEvent.click(await screen.findByText(/Sign in and leave this phone\u2019s answers/));
+    expect(await screen.findByText(/doesn\u2019t match this address/)).toBeTruthy();
+    expect(screen.getByText("Forgot password?")).toBeTruthy();
+    expect(screen.queryByText(/they are not merged/i), "the failure stayed on the in-use screen").toBeNull();
+    expect((screen.getByLabelText("Password") as HTMLInputElement).value).toBe("secret1");
   });
 
   it("offline turns the primary into Try again rather than blaming the password", async () => {
@@ -322,6 +415,8 @@ describe("the email door", () => {
     fill();
     emailSignIn.mockRejectedValueOnce(Object.assign(new Error("net"), { failure: "offline" }));
     fireEvent.click(screen.getByText("Sign in"));
+    // The second tap is the call (D441); the first one asks.
+    fireEvent.click(await screen.findByText(/Sign in and leave this phone\u2019s answers/));
     expect(await screen.findByText(/You\u2019re offline/)).toBeTruthy();
     expect(screen.getByText("Try again")).toBeTruthy();
   });

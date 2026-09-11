@@ -59,13 +59,18 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     // the current group appears twice: once as a rail chip, once as the
     // card's own heading.
     expect(screen.getAllByText("The Crew").length, "the group rail drew no groups").toBeGreaterThan(0);
-    // …and the card body past it. The verdict line is what a revealed
-    // group duel resolves to, so it only exists if the card rendered its
-    // reveal arm rather than a shell.
+    // …and the card body past it. The last reveal is what a played round
+    // resolves to (D437: who the room named, or where it lands between
+    // two poles), so it only exists if the card rendered its reveal arm
+    // rather than a shell.
     expect(
       document.body.textContent,
       "Circle drew its rail but no revealed card underneath",
-    ).toMatch(/Group verdict/);
+    ).toMatch(/· revealed|closed at the deadline/);
+    expect(
+      document.body.textContent,
+      "the revealed round has no verdict line",
+    ).toMatch(/ is the | are the | share |The group lands on/);
     expectNoBoundary("daily · circle");
   });
 
@@ -74,14 +79,43 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     await switchTo("1v1");
     expect(screen.getAllByText("Henrik").length, "the partner rail drew no partners").toBeGreaterThan(0);
     // The 1v1 card's whole point is the pair of readings, and they are
-    // drawn by two different arms of the same card — asserting on one
-    // would pass on a card that lost the other.
-    const body = document.body.textContent;
-    expect(body, "the 1v1 card is missing your reading of them").toMatch(/you read Henrik/);
-    expect(body, "the 1v1 card is missing their reading of you").toMatch(/Henrik read you/);
-    // The streak, which comes from the duel store rather than from the
-    // card — a partner with no run would draw a card with no line here.
-    expect(body, "no run length on the 1v1 card").toMatch(/\d+-day run/);
+    // drawn as two runs on one axis (D437) — asserting on one would pass
+    // on a card that lost the other.
+    expect(screen.getAllByLabelText(/How well you read Henrik, one mark per round/).length,
+      "the 1v1 card is missing your reading of them").toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/How well Henrik reads you, one mark per round/).length,
+      "the 1v1 card is missing their reading of you").toBeGreaterThan(0);
+    // The record comes from the duel store rather than from the card — a
+    // partner with no run would draw a card with no reveal above the ask.
+    expect(document.body.textContent, "no revealed round on the 1v1 card").toMatch(/Round \d+\s*·\s*revealed/);
     expectNoBoundary("daily · 1v1");
+  });
+
+  // …AND IT DOES NOT DEPEND ON A GLOBAL BEING THERE FIRST. This arm used
+  // to be `h(window.DuoBody || 'div')` — resolved at render time, from a
+  // name `loadOverlays()` publishes and `main.jsx` deliberately schedules
+  // no re-render after. `spec-index.js` called it "dead code the installed
+  // app cannot execute", and it is not: `liveDuels` is `LIVE.enabled`,
+  // which live.ts's own `demoInProd` defines as FALSE on a live build
+  // whose boot has not attached — "the UI is showing demo content to a
+  // real user". So an offline cold start on a shipped app took this arm,
+  // drew an empty div, and stayed empty for the session even once the
+  // chunk landed. The group arm one line up has always degraded into the
+  // ErrorBoundary instead, which is at least visible.
+  it("1v1 draws without the overlay group's global ever being published", async () => {
+    // The state a cold start is in before `loadOverlays()` resolves — and
+    // the state it never leaves if that fetch fails.
+    const published = window.DuoBody;
+    delete window.DuoBody;
+    try {
+      const expectNoBoundary = mountApp();
+      await switchTo("1v1");
+      expect(screen.getAllByText("Henrik").length,
+        "the 1v1 body drew nothing without window.DuoBody — the empty-div frame").toBeGreaterThan(0);
+      expect(document.body.textContent).toMatch(/Round \d+\s*·\s*revealed/);
+      expectNoBoundary("daily · 1v1 without the global");
+    } finally {
+      if (published) window.DuoBody = published;
+    }
   });
 });

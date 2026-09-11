@@ -121,6 +121,9 @@ export const BENCH = PEERS[1].perUserMo;
  * streaming video to half a billion people, and a grade that did not say so
  * would be hiding its own most useful finding.
  */
+// A+ is reachable only on the `(default)` database: a named database has
+// no free quota (cost-arith's NAMED_DB, COST-EXPOSURE.md §2), so on
+// `insight` the first read bills and the launch row grades on its floor.
 export const rate = (pd) =>
   pd === 0 ? ["A+", "free — inside the free tier"]
     : pd < BENCH ? ["A", "cheaper than a typical app on the same stack"]

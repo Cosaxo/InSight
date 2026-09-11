@@ -379,8 +379,228 @@
       "indexes": []
     },
     {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "qid",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "optionIdx",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "fromIdx",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.city",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.country",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.ageBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.age",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.gender",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.profession",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.jobField",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.education",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.relationship",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "anchors.heightBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "total",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "counts",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "by",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "edits",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "top",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "rest",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "pos",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "plays",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "guessTotal",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_question_aggs",
+      "fieldPath": "guessMatches",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_aggs_private",
+      "fieldPath": "ent",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_aggs_private",
+      "fieldPath": "entBy",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_aggs_private",
+      "fieldPath": "total",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "ageBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "gender",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "city",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "country",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "education",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "relationship",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "heightBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_overflow",
+      "fieldPath": "jobField",
+      "indexes": []
+    },
+    {
       "collectionGroup": "v2_patterns",
       "fieldPath": "*",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "topics",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "rates",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "n",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "maxSeq",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "day",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "basis",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_rank",
+      "fieldPath": "at",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "n",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "s",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_events",
+      "fieldPath": "l",
       "indexes": []
     }
   ]

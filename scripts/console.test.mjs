@@ -340,20 +340,27 @@ describe("the lists on this tree", () => {
     // a clock, and a 1v1 that reveals when the other person plays has
     // none — and the owner's canvas came back the same day, so it sits
     // under Built as item 12 (its number moved off the pictures' 11 at
-    // the merge): requested 10 again, built 4.
-    // 11 for one day, 2026-09-09: PATTERNS-PLAN filed a node with more
-    // than two answers on the Map ring (item 13) — half the core corpus
-    // and every catalogue pick is invisible on the Map until a dot with
-    // three, ten or a thousand answers has a design. Planned 2026-09-10
-    // on the owner's brief (one rule: a dot is an answer-axis) and
-    // drafted the same day — the canvas published, its link on the row
-    // — so it is the first row § Drafted has ever held, and § Planned
-    // is empty again: requested 10 again.
-    expect(v.requested.length).toBe(10);
+    // the merge): requested 10 again, built 4. Requested 9 and Designed 1
+    // since 2026-09-08 (D434): the owner's InSight_12 upload drew the
+    // group's cast — item 6 — so it moved under Designed, the section
+    // being the status; its build is step 3 of VISION-2026-09-08.md.
+    // Requested 8 and Designed 2 since 2026-09-09 (D436): the owner's
+    // InSight_15 upload drew the roles panel, the person page's pair card
+    // and the instrument in two settings — item 5's three surfaces — so
+    // it moved under Designed beside 6, which the same upload redrew.
+    // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D437): both
+    // were built the same day, on the owner's answers to that plan's
+    // questions, and moved under Built with their status lines saying so.
+    // Drafted 1 since 2026-09-10 (D451–D456's branch): a node with more
+    // than two answers on the Map ring (item 13) was filed 2026-09-09,
+    // planned on the owner's brief — one rule: a dot is an answer-axis —
+    // and drafted the same day, its canvas link on the row. It is the
+    // first row § Drafted has ever held, and § Planned is empty again.
+    expect(v.requested.length).toBe(8);
     expect(v.planned).toEqual([]);
     expect(v.drafted).toEqual(["A node with more than two answers on the Map ring"]);
-    expect(v.designed).toEqual([]);
-    expect(v.built.length).toBe(4);
+    expect(v.designed.length).toBe(0);
+    expect(v.built.length).toBe(6);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

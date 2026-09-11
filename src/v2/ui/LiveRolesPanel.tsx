@@ -1,16 +1,16 @@
-// The profile's Roles tab (D204) — the role you play in a 1v1 and the
-// role you play in a group, each read as an instrument rather than as a
-// scoreboard.
+// The profile's Roles tab (D204) — what the people around you make you,
+// read as an instrument in two settings (D437, the owner's 2026-09-09
+// design): what you are to each person in a 1v1, and your seat in each
+// room.
 //
 // Two instruments, one per setting, opening with the AVERAGE across your
 // settings and then listing every setting one row deep — because a role
 // is only interesting next to the other roles you play. The same rose,
 // the same archetype matcher and the same nearby-type language every
 // other result card uses; nothing new is invented for it. A setting
-// still under its floor is listed too, as a thin row with its count
-// ("1 of 3 rounds both guessed") — the prototype's shape, restored after
-// this panel first shipped without it and a below-floor duel was simply
-// invisible while the average silently excluded it.
+// still under its floor is listed too, as a thin row with its count in
+// the floor's own unit ("1 of 3 cast rounds", "1 of 2 votes") — never
+// silently missing from the average.
 //
 // LAZY ON PURPOSE. `profile-overlay.jsx` is in the EAGER graph and
 // `check:bundle`'s MAX_EAGER_KB had ~8 KB of headroom when this shipped,
@@ -19,15 +19,21 @@
 // the roses, the matcher call and this file's own weight onto first paint
 // for a tab most opens never reach.
 //
-// THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM. Each room's reveal
-// history is ONE ordered query of at most `REVEAL_HIST_CAP` reveal
-// documents (ROUNDS-PLAN §7.1 — it was a getDoc per day key, and round ids
-// are not guessable), cached by the store, and the duel panel already pays
-// it for whichever room you open. This tab is the first surface that wants ALL of them, so it loads
-// them on mount and only on mount — see docs/COSTS.md.
+// THE READS ARE PAID ON THE TAP THAT ASKS FOR THEM — AND ONLY FOR A ROOM
+// THE LEDGER CANNOT DRAW. Since D445 the server keeps each member's
+// counts on the group document as every round reveals (`ledger`, ROLES-PLAN
+// §3.3), and a room whose row clears the instrument's floor is read off
+// that document, which this device already holds: no history read at all,
+// and a reading that reaches past the thirty reveals a page can hold.
+// Below the floor — and on a room from before the ledger — the fold reads
+// the room's reveal history: ONE ordered query of at most
+// `REVEAL_HIST_CAP` documents (ROUNDS-PLAN §7.1), cached by the store,
+// which the duel panel already pays for whichever room you open. This tab
+// wants EVERY such room's history, so it loads them on mount and only on
+// mount — see docs/COSTS.md.
 import React from "react";
 import LIVE from "../data/live";
-import { blendRoles, duoRole, duoRoleRounds, groupRole, groupRoleRounds, MIN_DUO, MIN_GROUP, type BankLookup, type RoleResult } from "../data/roles";
+import { AXES, SEATS, blendRoles, duoRole, duoCastCount, groupRole, groupVoteCount, ledgerClearsFloor, MIN_DUO, MIN_GROUP, type BankLookup, type DuoRoleResult, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { matchArchetype } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
@@ -37,10 +43,12 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { ExplainBtn, ExplainSheet } from "../spec/explain-sheet.jsx";
 
-interface Room { id: string; mode?: string; name?: string; memberUids?: string[]; memberNames?: Record<string, string> }
+/** A room as the store holds it — the whole group document, so the
+ * server's role ledger (`ledger.{uid}`, D445) rides along with the roster. */
+interface Room { id: string; mode?: string; name?: string; memberUids?: string[]; memberNames?: Record<string, string>; duoMode?: string; ledger?: unknown }
 interface Setting { key: string; label: string; res: RoleResult }
 /** A setting still under its floor — listed with how far it has got
- * (the prototype's ThinRow), never silently missing from the panel. */
+ * (the design's ThinRow), never silently missing from the panel. */
 interface ThinSetting { key: string; label: string; note: string }
 
 /** The matcher, imported since the archetype module left the bridge
@@ -59,18 +67,12 @@ const firstName = (n: string): string => String(n || "").split(" ")[0];
 // mirroring the instrument in data/roles.ts (a live section hands the sheet
 // its real blended dims instead, so these are never the preferred source).
 const FALLBACK_DIMS: Record<"duo" | "group", { id: string; label: string }[]> = {
-  duo: [
-    { id: "read", label: "Insight" },
-    { id: "seen", label: "Legibility" },
-    { id: "like", label: "Likeness" },
-    { id: "steady", label: "Steadiness" },
-  ],
-  group: [
-    { id: "own", label: "Independence" },
-    { id: "pull", label: "Centrality" },
-    { id: "settle", label: "Steadiness" },
-  ],
+  duo: AXES.map((a) => ({ id: a.id, label: a.label })),
+  group: SEATS.map((s) => ({ id: s.id, label: s.label.replace(/^the /, "") })),
 };
+
+const roundsWord = (n: number): string => `${n} ${n === 1 ? "round" : "rounds"}`;
+const votesWord = (n: number): string => `${n} ${n === 1 ? "vote" : "votes"}`;
 
 export default function LiveRolesPanel(): React.ReactElement {
   const [, bump] = React.useState(0);
@@ -82,85 +84,83 @@ export default function LiveRolesPanel(): React.ReactElement {
   const S = LIVE.social as unknown as {
     groups: (mode?: string) => Room[];
     revealHistory: (gid: string) => Record<string, unknown>[];
-    loadRevealHistory?: (gid: string) => Promise<void>;
+    loadRevealHistory?: (gid: string) => Promise<"ok" | "failed" | "busy">;
     revealHistoryLoading?: (gid: string) => boolean;
-    bankQ?: (qid: string) => { options?: string[]; kind?: string } | null;
+    bankQ?: (qid: string) => { options?: string[]; kind?: string; role?: { id: string; label: string; seat?: string }; them?: string[]; dims?: string[] } | null;
   };
   const uid = (LIVE.uid as string) || "";
-  // The day's option count and kind, from the bank the store already
-  // holds (D386): the fold scores every rate against luck, and holds a
-  // 1v1's mirror days apart from likeness. No bank — a fixture, or a
-  // bank not yet fetched — and every day reads as an ordinary one with
-  // the option count its own votes reach.
+  // What each round WAS, from the bank the store already holds: a cast
+  // round and its them forms, a role vote and its seat. No bank — a
+  // fixture, or a bank not yet fetched — and no round can be read, which
+  // is the honest reading rather than a guessed one.
   const lookup: BankLookup | undefined = S.bankQ ? (qid) => S.bankQ!(qid) : undefined;
 
   // Read fresh every render, and the EFFECT keyed on the room ids rather
-  // than on the array.
-  //
-  // This was `React.useMemo(() => (LIVE.enabled ? S.groups() : []), [S])`,
-  // and `S` is `LIVE.social` — a plain property on live.ts's module-level
-  // `const LIVE` object literal, so it is the same reference forever and
-  // the memo ran exactly once per mount. `rooms` froze to whatever the
-  // store held at that instant, even though the panel subscribes and
-  // re-renders on every notify and re-reads `revealHistory` fresh each
-  // time. A circle that finished hydrating a moment after this screen
-  // opened, or one joined while it was open, simply never appeared.
-  //
-  // The memo was there for a real reason and it is why the naive fix is
-  // wrong: `S.groups()` builds a new array on every call, so an effect
-  // keyed on the array itself re-runs the reveal-history loader every
-  // render. The ids are the stable thing to depend on.
+  // than on the array — `S.groups()` builds a new array on every call, so
+  // an effect keyed on it would re-run the loader every render, and a
+  // memo on `S` (the same reference forever) froze the list to whatever
+  // the store held at mount.
   const rooms = LIVE.enabled ? S.groups() : [];
   const roomIds = rooms.map((r) => r.id).join(",");
 
   // Rooms whose history read THREW. `revealHistory` answers [] for a
   // refusal exactly as it does for a room that has revealed nothing, so
-  // without this the panel states the second about the first — and keeps
-  // stating it for the life of the session, since a failed read is not
-  // retried. STATE, not a ref: the notes below are drawn from it, and a
-  // ref read during render is the thing react-hooks/refs refuses (it
-  // refused this file's first draft).
+  // without this the panel states the second about the first. STATE, not
+  // a ref: the notes below are drawn from it.
   const [failed, setFailed] = React.useState<ReadonlySet<string>>(() => new Set());
 
   React.useEffect(() => {
     if (!LIVE.enabled || !S.loadRevealHistory) return;
     let live = true;
     // Sequential rather than parallel: the store caches per room and a
-    // profile tab is not a race. Firing every room at once would spike the
-    // read rate on a screen the reader is still arriving at.
+    // profile tab is not a race.
     void (async () => {
-      // Re-read rather than closing over `rooms`, so the loop walks the
-      // list this run was scheduled for.
       for (const r of (LIVE.enabled ? S.groups() : [])) {
         if (!live) return;
-        // A room that refuses is NOT absent below — it is listed, with a
-        // note — so the refusal is recorded and the note says so. This
-        // comment claimed the opposite for as long as the catch existed.
-        try {
-          await S.loadRevealHistory!(r.id);
-        } catch {
-          // A new Set each time: the notes read this during render, so it
-          // has to be a value React can see change.
-          if (live) setFailed((prev) => new Set(prev).add(r.id));
+        // A room the ledger already draws pays no history read here (the
+        // header): its reading is on the group document in hand.
+        if (ledgerClearsFloor(r.ledger, uid, r.mode)) continue;
+        // THE ANSWER, not a throw. This was a try/catch, and the store
+        // never throws — its header says so in as many words — so the
+        // catch could not fire and `failed` was always empty: a room
+        // whose read was refused or timed out fell through to "nothing
+        // revealed yet", the definite claim the comment above says this
+        // exists to stop. The suite passed because its fixture REJECTED
+        // where the real store resolves.
+        // The catch stays as the BACKSTOP it should always have been —
+        // this loop is inside a `void (async …)()`, so a throw would be
+        // an unhandled rejection — but the answer is the mechanism.
+        let read: "ok" | "failed" | "busy" = "failed";
+        try { read = await S.loadRevealHistory!(r.id); } catch { read = "failed"; }
+        if (live) {
+          setFailed((prev) => {
+            // Set on a failure, cleared on a later "ok" — the note is
+            // about this read, not about the room forever. "busy" moves
+            // nothing: another caller owns that read and `roomNote` says
+            // "reading…" for it anyway.
+            const want = read === "failed";
+            if (read === "busy" || want === prev.has(r.id)) return prev;
+            const next = new Set(prev);
+            if (want) next.add(r.id); else next.delete(r.id);
+            return next;
+          });
         }
         if (live) bump((x) => x + 1);
       }
     })();
     const un = LIVE.subscribe?.(() => bump((x) => x + 1));
     return () => { live = false; if (un) un(); };
-  }, [roomIds, S]);
+  }, [roomIds, S, uid]);
 
-  /**
-   * The note for a room whose history is not a fact yet — reading, or
-   * refused — or null when the room's own numbers may be stated.
-   */
+  /** The note for a room whose history is not a fact yet — reading, or
+   * refused — or null when the room's own numbers may be stated. */
   const roomNote = (gid: string): string | null => {
-    if (S.revealHistoryLoading?.(gid)) return "reading\u2026";
-    if (failed.has(gid)) return "couldn\u2019t read this one";
+    if (S.revealHistoryLoading?.(gid)) return "reading…";
+    if (failed.has(gid)) return "couldn’t read this one";
     return null;
   };
 
-  const duos: Setting[] = [];
+  const duos: Array<Setting & { res: DuoRoleResult }> = [];
   const duosThin: ThinSetting[] = [];
   const groups: Setting[] = [];
   const groupsThin: ThinSetting[] = [];
@@ -168,50 +168,57 @@ export default function LiveRolesPanel(): React.ReactElement {
     const hist = S.revealHistory(r.id) || [];
     if ((r.mode || "group") === "duo") {
       const them = (r.memberUids || []).find((m) => m !== uid) || "";
-      const res = them ? duoRole(hist as never[], uid, them, lookup) : null;
       // The name the duel panel itself uses: the room's own snapshot,
-      // topped up by whatever the newest reveal carried.
+      // topped up by whatever the newest reveal carried — and NULL for the
+      // cast text when neither knows one, so `castText` falls back to *your
+      // friend* rather than to the row's label (the second review of #456
+      // read "the one 1v1 tells first").
       const revealNames = (hist[0]?.names as Record<string, string> | undefined) || {};
-      const label = firstName(revealNames[them] || (r.memberNames || {})[them] || r.name || "1v1");
+      const known = firstName(revealNames[them] || (r.memberNames || {})[them] || "") || null;
+      const label = known || firstName(r.name || "") || "1v1";
+      const res = them ? duoRole(hist as never[], uid, them, lookup, known, r.duoMode === "romantic", r.ledger) : null;
       if (res) duos.push({ key: r.id, label, res });
-      else duosThin.push({
-        key: r.id, label,
-        // The floor's own unit, which is not "revealed days" (see
-        // duoRoleRounds): a pair can reveal five rounds and guess on two.
-        // Four states, and two of them are not claims about the room.
-        // The loader walks rooms one at a time, so a later room sits on
-        // its note for a while — and it said "nothing revealed yet" the
-        // whole time. The Groups stop one screen over keeps the same
-        // distinction, in the same words ("Reading the rounds…").
-        note: roomNote(r.id) || (!them || !hist.length
-          ? "nothing revealed yet"
-          : `${duoRoleRounds(hist as never[], uid, them, lookup)} of ${MIN_DUO} rounds both guessed`),
-      });
+      else {
+        const casts = them ? duoCastCount(hist as never[], uid, them, lookup, r.ledger) : 0;
+        duosThin.push({
+          key: r.id, label,
+          // The floor's own unit — cast rounds, which a pair reaches every
+          // fourth round. Four states, and two of them are not claims
+          // about the room: the loader walks rooms one at a time.
+          note: roomNote(r.id) || (!them || !hist.length
+            ? "nothing revealed yet"
+            : casts === 0 ? "asked at round 4" : `${casts} of ${MIN_DUO} cast rounds`),
+        });
+      }
     } else {
-      const res = groupRole(hist as never[], uid, lookup);
+      const res = groupRole(hist as never[], uid, lookup, r.ledger);
       if (res) groups.push({ key: r.id, label: r.name || "Group", res });
-      else groupsThin.push({
-        key: r.id, label: r.name || "Group",
-        note: roomNote(r.id) || (!hist.length
-          ? "nothing revealed yet"
-          : `${groupRoleRounds(hist as never[], uid)} of ${MIN_GROUP} rounds played`),
-      });
+      else {
+        const votes = groupVoteCount(hist as never[], uid, lookup, r.ledger);
+        groupsThin.push({
+          key: r.id, label: r.name || "Group",
+          note: roomNote(r.id) || (!hist.length
+            ? "nothing revealed yet"
+            : votes === 0 ? "not named yet" : `${votes} of ${MIN_GROUP} votes`),
+        });
+      }
     }
   }
+  // The receipt under the 1v1 average (the design's roles panel): of the
+  // cast rounds you guessed at, how many you guessed right — a fact about
+  // reading them that the instrument itself no longer carries.
+  const saw = duos.reduce((a, d) => ({ right: a.right + d.res.sawIt.right, total: a.total + d.res.sawIt.total }), { right: 0, total: 0 });
 
   const section = (
     kind: "duo" | "group",
     title: string,
     settings: Setting[],
     thin: ThinSetting[],
-    floor: number,
     empty: string,
   ) => {
     const avg = blendRoles(settings.map((s) => s.res));
     const t = avg ? typeOf(kind, avg.dims) : null;
-    // The unit `RoleResult.n` is actually counted in, in the panel's own
-    // words — the same two phrases the empty state and the thin rows use.
-    const unit = kind === "duo" ? "you both guessed" : "you played";
+    const unit = (n: number) => (kind === "duo" ? `${roundsWord(n)} asked` : votesWord(n));
     // The list draws whenever there is more than one thing to put in it —
     // a second reading, or a setting still on its way. With one reading
     // and nothing else, a row would only repeat the card above it.
@@ -224,44 +231,41 @@ export default function LiveRolesPanel(): React.ReactElement {
         </div>
         {!avg && !thin.length ? (
           // The honest refusal, not an empty rose — for a section with no
-          // settings at all. A setting that merely has too few days is a
+          // settings at all. A setting that merely has too few rounds is a
           // thin row below instead: "1 of 3" says the same thing without a
           // sentence (visual > word > sentence, D182).
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
-            {empty.replace("{n}", String(floor))}
+            {empty}
           </div>
         ) : (
           <>
             {avg && (
-            <div style={{ display: "flex", alignItems: "center", gap: 13, marginBottom: showRows ? 14 : 0 }}>
-              <TestRose testKey={kind} dims={avg.dims} animate={false} compact={true} />
-              <div style={{ minWidth: 0 }}>
-                {t && (
-                  <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <TypeMark testKey={kind} name={t.name} size={20} />
-                      <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>{t.name}</span>
-                    </div>
-                    <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 3, lineHeight: 1.4, textWrap: "pretty" }}>{t.line}</div>
-                  </>
-                )}
-                {/* NOT "revealed rounds" — that is the one thing this number
-                    is not. `RoleResult.n` is the same unit the floor checks:
-                    rounds BOTH of you guessed for a 1v1 (duoRuns drops the
-                    rest), rounds YOU played for a group. A pair can reveal
-                    eight rounds and guess on three, so "3 revealed rounds"
-                    would be false about a pair that revealed eight — the
-                    exact copy bug roles.ts says it exists to keep out of
-                    this panel. The empty state and the thin rows say "rounds
-                    you both guessed" and "revealed rounds you played"; this
-                    says the same thing in the same words. (Rounds, not
-                    days, since D426: the count was always of reveals.) */}
-                <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)", marginTop: 4 }}>
-                  {settings.length === 1
-                    ? `${avg.n} ${avg.n === 1 ? "round" : "rounds"} ${unit}`
-                    : `across ${settings.length} · ${avg.n} rounds ${unit}`}
+            <div style={{ marginBottom: showRows ? 14 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+                <TestRose testKey={kind} dims={avg.dims} animate={false} compact={true} />
+                <div style={{ minWidth: 0 }}>
+                  {t && (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                        <TypeMark testKey={kind} name={t.name} size={20} />
+                        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>{t.name}</span>
+                      </div>
+                      <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 3, lineHeight: 1.4, textWrap: "pretty" }}>{t.line}</div>
+                    </>
+                  )}
+                  {/* The unit `RoleResult.n` is counted in — cast rounds for a
+                      1v1, votes received for a group — in the same words the
+                      thin rows use. */}
+                  <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)", marginTop: 4 }}>
+                    {settings.length === 1 ? unit(avg.n) : `across ${settings.length} · ${unit(avg.n)}`}
+                  </div>
                 </div>
               </div>
+              {kind === "duo" && saw.total > 0 && (
+                <div style={{ marginTop: 10, fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
+                  You guessed what they’d say you are {saw.right} of {saw.total} {saw.total === 1 ? "time" : "times"}.
+                </div>
+              )}
             </div>
             )}
             {/* One row per setting — a role is only interesting beside the
@@ -277,19 +281,15 @@ export default function LiveRolesPanel(): React.ReactElement {
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: "block", fontFamily: "var(--sans)", fontWeight: 750, fontSize: 13.5, letterSpacing: "-0.015em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
                       <span style={{ display: "block", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
-                        {st ? st.name : "—"} · {s.res.n} {s.res.n === 1 ? "round" : "rounds"}
+                        {st ? st.name : "—"} · {kind === "duo" ? roundsWord(s.res.n) : votesWord(s.res.n)}
                       </span>
                     </span>
                     <span aria-hidden="true" style={{ color: "var(--ink-3)", fontSize: 13, fontWeight: 800 }}>{isOpen ? "↑" : "↓"}</span>
                   </button>
                   {isOpen && (
-                    // The receipts: the plain count each score is made of.
+                    // The receipts: the plain count each share is made of.
                     <div style={{ padding: "0 0 12px", display: "flex", flexDirection: "column", gap: 5 }}>
-                      {/* The dims, then the asides — readings the tables do
-                          not carry yet (projection, the mirror rounds, reading
-                          the room — D386), drawn as receipts in the same
-                          shape so the row says everything the record does. */}
-                      {[...s.res.dims, ...(s.res.asides || [])].map((d) => (
+                      {s.res.dims.map((d) => (
                         <div key={d.id} style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                           <span style={{ width: 86, flexShrink: 0, fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{d.label}</span>
                           <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.4 }}>{d.note}</span>
@@ -301,10 +301,7 @@ export default function LiveRolesPanel(): React.ReactElement {
               );
             })}
             {/* The settings still under the floor — a dashed ring where the
-                rose will be, and how far along the count is. Omitting them
-                (as this panel first shipped) made the average silently
-                partial: a 4-round duel drew a card while a 2-round one simply
-                did not exist on screen. */}
+                rose will be, and how far along the count is. */}
             {showRows && thin.map((s) => (
               <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: "0.5px solid color-mix(in oklch, var(--rule), transparent 35%)" }}>
                 <span aria-hidden="true" style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box", border: "1px dashed color-mix(in oklch, var(--ink-3) 40%, transparent)" }} />
@@ -320,19 +317,16 @@ export default function LiveRolesPanel(): React.ReactElement {
 
   return (
     <div data-screen-label="Roles">
-      {/* The sentences name the floor's real unit. "Revealed rounds" would
-          be false for a 1v1: the gate counts rounds BOTH of you guessed, and
-          a pair can reveal five rounds and guess on two. */}
-      {section("duo", "In 1v1s", duos, duosThin, MIN_DUO,
-        "No 1v1 has {n} rounds you both guessed yet — the role appears once one has.")}
-      {section("group", "In groups", groups, groupsThin, MIN_GROUP,
-        "No group has {n} revealed rounds you played yet — the role appears once one has.")}
+      {section("duo", "In 1v1s", duos, duosThin,
+        "Every fourth round of a 1v1 asks what the other is to you — none has got there yet.")}
+      {section("group", "In groups", groups, groupsThin,
+        "No room has voted you into a role yet — the seat appears once one has.")}
       {explain && (() => {
         const src = explain === "duo" ? duos : groups;
         const avg = blendRoles(src.map((s) => s.res));
         return (
           <ExplainSheet
-            title={explain === "duo" ? "Your role in a 1v1" : "Your role in a group"}
+            title={explain === "duo" ? "What you are to them" : "Your seat in the room"}
             kicker="role" dimKey={explain}
             dims={avg ? avg.dims : FALLBACK_DIMS[explain]}
             keyRows={null}

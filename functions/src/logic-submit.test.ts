@@ -38,8 +38,42 @@ const fakeDb = {
         data: () => store.get(r.path),
         get: (f: string) => store.get(r.path)?.[f],
       }),
-      set: (r: { path: string }, data: Doc, opts?: { merge?: boolean }) => {
-        store.set(r.path, opts?.merge ? { ...(store.get(r.path) || {}), ...data } : data);
+      // FIRESTORE'S MERGE, not a spread. `{merge:true}` merges nested
+      // maps LEAF BY LEAF — a key omitted from a nested object is left
+      // standing, which is the whole defect this fake could not show: a
+      // shallow spread replaces `testResults` wholesale and makes an
+      // omitted `n` vanish for free. `mergeFields` is the other half:
+      // it writes exactly the named paths, replacing each subtree.
+      set: (r: { path: string }, data: Doc, opts?: { merge?: boolean; mergeFields?: string[] }) => {
+        const deep = (into: Doc, from: Doc): Doc => {
+          const out: Doc = { ...into };
+          for (const [k, v] of Object.entries(from)) {
+            const prev = out[k];
+            out[k] = v && typeof v === "object" && !Array.isArray(v)
+              && prev && typeof prev === "object" && !Array.isArray(prev)
+              ? deep(prev as Doc, v as Doc)
+              : v;
+          }
+          return out;
+        };
+        const at = (obj: Doc, path: string): unknown =>
+          path.split(".").reduce<unknown>((o, k) => (o as Doc | undefined)?.[k], obj);
+        const put = (into: Doc, path: string, v: unknown): Doc => {
+          const [head, ...rest] = path.split(".");
+          const out: Doc = { ...into };
+          out[head] = rest.length
+            ? put((out[head] as Doc) || {}, rest.join("."), v)
+            : v;
+          return out;
+        };
+        const cur = (store.get(r.path) || {}) as Doc;
+        if (opts?.mergeFields) {
+          let next = cur;
+          for (const f of opts.mergeFields) next = put(next, f, at(data, f));
+          store.set(r.path, next);
+        } else {
+          store.set(r.path, opts?.merge ? deep(cur, data) : data);
+        }
       },
     };
     return cb(tx);
@@ -103,6 +137,30 @@ describe("submitting a logic test", () => {
     const result = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
     expect(result?.verified, "a valid submit wrote no verified result").toBe(true);
     expect(typeof result?.pctile).toBe("number");
+  });
+
+  it("does not leave a population size beside a percentile that was not measured", async () => {
+    // `n` is written only when the percentile is MEASURED — the code's
+    // own comment says it is "the size of the population the claim is
+    // about, meaningless for the model". But the write merged leaf by
+    // leaf, so omitting the key left the PREVIOUS one standing: an
+    // account that verified under an earlier generator era, then
+    // re-verified after a bump (which resets the norms, so the percentile
+    // falls back to the model until a hundred fresh attempts fold), kept
+    // an `n` counted from a population that no longer exists, beside
+    // `source: "model"`. World-readable, and in the data export.
+    store.set(`v2_users/${UID}`, {
+      displayName: "Ada",
+      testResults: { logic: { v: 2, verified: true, source: "measured", pctile: 61, n: 400 } },
+    });
+    openAttempt();
+    await submit();
+    const result = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
+    expect(result?.source, "the fixture no longer produces a modelled percentile").toBe("model");
+    expect(result?.n, "a modelled percentile kept the measured era's population size").toBeUndefined();
+    // …and the rest of the profile is untouched: this writes one subtree,
+    // not the document.
+    expect(store.get(`v2_users/${UID}`)?.displayName).toBe("Ada");
   });
 
   it("counts a sitting that took real time, and never a click-through (D402)", async () => {

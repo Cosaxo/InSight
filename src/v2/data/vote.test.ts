@@ -647,6 +647,48 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
     data: { qid: id, surface, optionIdx: 0, answeredAt: { toMillis: () => 5 } },
   });
 
+  it("the feed mirror follows an edit made on ANOTHER device", async () => {
+    // The feed renders prior votes from `insight.feedVotes.v1`, not from
+    // the store — and the mirror wrote an id only once, so an edit that
+    // arrived through hydrate's delta (the only way another device's edit
+    // reaches this one) left the entry at the pre-edit option. The card
+    // highlighted the option the reader had moved AWAY from, and tapping
+    // the one they had actually chosen was refused with "your vote
+    // stands". Permanent on that device: nothing else rewrote the entry.
+    h.bankDocs.push(bank("q_moved", {}));
+    h.answerDocs.push({
+      id: "q_moved",
+      data: { qid: "q_moved", surface: "feed", optionIdx: 1, answeredAt: { toMillis: () => 5 } },
+    });
+    storage.setItem(WF_LS, JSON.stringify({ q_moved: 0 }));
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ q_moved: "1" });
+    expect(
+      JSON.parse(storage.getItem(WF_LS) || "{}"),
+      "the feed mirror kept the pre-edit option, so the card highlights the wrong one",
+    ).toMatchObject({ q_moved: 1 });
+  });
+
+  it("…and leaves a dial's own position alone — the control", async () => {
+    // A dial mirrors as its BUCKET'S MIDPOINT, while the local entry is
+    // the reader's exact position on the range. Replacing it would round
+    // their dial on every boot, and nothing here can tell "the answer
+    // changed" from "the same answer, stored more precisely" — the
+    // inverse of the midpoint map lives in the spec layer. So the old
+    // behaviour stands for the two continuum types, deliberately.
+    h.bankDocs.push(bank("q_dial", { type: "dial", lo: 0, hi: 10, options: ["0", "10"] }));
+    h.answerDocs.push({
+      id: "q_dial",
+      data: { qid: "q_dial", surface: "feed", optionIdx: 6, answeredAt: { toMillis: () => 5 } },
+    });
+    storage.setItem(WF_LS, JSON.stringify({ q_dial: 5.42 }));
+    await bootLive();
+    expect(
+      JSON.parse(storage.getItem(WF_LS) || "{}").q_dial,
+      "the reader's own dial position was rounded to a bucket midpoint",
+    ).toBe(5.42);
+  });
+
   it("reads the fit's published count off v2_meta/app", async () => {
     h.getDocImpl = (path) => (path === "v2_meta/app"
       ? { patternsPool: 30, patternsBasis: 8 }
@@ -851,78 +893,6 @@ describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
   });
 });
 
-// ── the reveal's World column ───────────────────────────────────────
-//
-// `worldSplit` is the third column of a world-question reveal
-// (ROUNDS-PLAN §6.2): you, them, and the crowd. It folds `countsFor`,
-// which SUBTRACTS the viewer's own vote by convention — "the UI layer
-// adds its own +1", and every surface that prints a crowd percentage
-// does (`wfPcts`, `dialDist`, the feed's meta sheet). The reveal divided
-// them raw, so the one person guaranteed to have answered the question
-// was the one person missing from the crowd.
-describe("LIVE.social.worldSplit — the crowd, with the viewer in it", () => {
-  const feedDoc = (id: string, options: string[]) => ({
-    id,
-    data: {
-      surface: "feed", seq: 1, type: "vote", prompt: id,
-      options, topic: null, test: null, active: true, core: true,
-    },
-  });
-
-  /** Boot with the question in the feed bank and the viewer's vote in,
-   *  then land the published counts through the store's own refresh —
-   *  the only path that fills `state.aggs`. */
-  const withCrowd = async (qid: string, options: string[], counts: Record<string, number>, mine: string) => {
-    h.bankDocs.push(feedDoc(qid, options));
-    const mod = await import("./live");
-    const LIVE = await bootLive();
-    LIVE.vote(qid, mine);
-    await vi.waitFor(() => {
-      expect(mod._aggRefreshForTest().pending).toContain(qid);
-    });
-    h.aggDocs = [{ id: qid, data: { total: Object.values(counts).reduce((a, b) => a + b, 0), counts } }];
-    await mod._aggRefreshForTest().drain({ __db: true } as never);
-    return LIVE;
-  };
-
-  it("counts the viewer, whether or not the trigger has folded them yet", async () => {
-    // The aggregate says 1–1 and the viewer is on option 0. Whether the
-    // fold has landed decides what `countsFor` hands over — [1,1] while
-    // the vote is still unaggregated, [0,1] once it is in — and exactly
-    // one vote is owed back in both directions. Raw, this printed
-    // 0% / 100% for a crowd that is not one-sided at all.
-    const LIVE = await withCrowd("q_ws", ["A", "B"], { "0": 1, "1": 1 }, "0");
-    const split = LIVE.social.worldSplit("q_ws")!;
-    expect(split, "no split at all — the aggregate did not land").toBeTruthy();
-    expect(split.total).toBe(split.counts.reduce((a, b) => a + b, 0));
-    // The viewer is in it: option 0 carries at least one more than the
-    // crowd's own 1, and the two options are not 0/100.
-    const pct = split.counts.map((c) => Math.round((c / split.total) * 100));
-    expect(pct[0], "the viewer's own option read 0%").toBeGreaterThan(0);
-    expect(pct[1], "the other option read 100% of a split crowd").toBeLessThan(100);
-    expect(split.counts[0]).toBeGreaterThanOrEqual(1);
-    expect(split.counts[1]).toBe(1);
-  });
-
-  it("does not make the column vanish when the viewer is the only voter", async () => {
-    // `worldSplit` returns null on a total of zero, and with the viewer
-    // subtracted a lone voter's question totalled zero — so the column
-    // disappeared from the one reveal where it is certainly true.
-    const LIVE = await withCrowd("q_solo", ["A", "B"], { "0": 1 }, "0");
-    const split = LIVE.social.worldSplit("q_solo");
-    expect(split, "the World column vanished on a question the viewer answered").toBeTruthy();
-    expect(split!.total).toBeGreaterThan(0);
-  });
-
-  it("says nothing about a question with no published aggregate", async () => {
-    // The control: the +1 must not conjure a crowd out of nothing.
-    h.bankDocs.push(feedDoc("q_none", ["A", "B"]));
-    const LIVE = await bootLive();
-    expect(LIVE.social.worldSplit("q_none")).toBeNull();
-    expect(LIVE.social.worldSplit("q_not_in_any_bank")).toBeNull();
-  });
-});
-
 describe("divisivenessOf reads the whole question, not its leading run", () => {
   const bankDoc = (id: string, options: string[]) => ({
     id,
@@ -949,6 +919,71 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     await mod._aggRefreshForTest().drain({ __db: true } as never);
     return mod;
   };
+
+  it("an edit in flight does not add a vote to the crowd it is already in", async () => {
+    // D86's edit sets the same `unaggregated` flag a create does, and
+    // `countsFor` reads that flag as "the published aggregate does not
+    // hold this answer yet" — true of a create, false of an edit. The
+    // trigger folded the original, so the crowd already counts this
+    // device at the OLD option: skipping the subtraction left that option
+    // carrying the viewer's vote while the card's own +1 landed on the
+    // new one. One vote too many in the total, every share diluted by a
+    // vote that does not exist, and on a near-tie the winner's weight on
+    // the wrong side — until the delayed refresh landed.
+    h.bankDocs.push({
+      id: "q_ed",
+      data: {
+        surface: "test", seq: 1, type: "vote", prompt: "q_ed",
+        options: ["A", "B", "C"], topic: null, test: "big5", active: true, core: true,
+      },
+    });
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_ed", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_ed");
+    });
+    // The trigger has folded it: the crowd holds seven answers, five of
+    // them on option B, one of which is this device's.
+    h.aggDocs = [{ id: "q_ed", data: { total: 7, counts: { "0": 2, "1": 5 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(LIVE.lensAgg("q_ed")!.counts, "the settled reading was wrong before the edit").toEqual([2, 4, 0]);
+
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_ed", "0")).toBe(true);
+    expect(
+      LIVE.lensAgg("q_ed")!.counts,
+      "the edit left its old vote in the crowd, so the card totals one more than exists",
+    ).toEqual([2, 4, 0]);
+    // The reader's arithmetic: 2 + 4 = 6, plus the viewer's own +1 = 7,
+    // which is exactly what the crowd holds.
+    expect(LIVE.lensAgg("q_ed")!.counts.reduce((a, b) => a + b, 0) + 1).toBe(7);
+    d.resolve();
+    await flush();
+  });
+
+  it("…and a first answer still adds to the crowd — the control", async () => {
+    // Without this, "always subtract" would satisfy the case above and
+    // show the crowd one short on every optimistic first vote.
+    h.bankDocs.push({
+      id: "q_new",
+      data: {
+        surface: "test", seq: 1, type: "vote", prompt: "q_new",
+        options: ["A", "B", "C"], topic: null, test: "big5", active: true, core: true,
+      },
+    });
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_new", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_new");
+    });
+    h.aggDocs = [{ id: "q_new", data: { total: 7, counts: { "0": 2, "1": 5 } } }];
+    // NOT drained: the refresh has not landed, so this is the optimistic
+    // window a create actually lives in.
+    expect(LIVE.lensAgg("q_new")!.counts).toEqual([0, 0, 0]);
+  });
 
   it("fills an unpicked option with zero instead of stopping there", async () => {
     const mod = await withCounts("q_gap", ["A", "B", "C", "D", "E"],
@@ -1382,6 +1417,47 @@ describe("votePulse() rolls back everything it set", () => {
       "a refused pulse write left its unfolded mark set, so the reveal counts an answer that does not exist",
     ).toBeNull();
     expect(LIVE.myVotes()).not.toHaveProperty("pulse-pace");
+  });
+
+  it("drops the mark once a LATER read of that day lands", async () => {
+    // The half the paragraph above described and no case covered. The
+    // mark exists because the forced refetch after an answer "reliably
+    // loses the race with the fold" — so it stands until a read that
+    // does not. Nothing cleared it: both of the store's drains iterate
+    // aggregates live.ts fetched for the DECK, and a pulse id is never
+    // one of those, so opening the chart added the overlay on top of a
+    // fold that already held the vote — the card's own crowd moving by
+    // one because the reader looked at it.
+    const LIVE = await bootLive();
+    await LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    expect(LIVE.pulsePending("pulse-pace"), "the mark was not set at all").toBe(3);
+
+    // What `data/pulse` says when its trend read lands: this day's
+    // aggregate has been read again, after the ack.
+    LIVE.noteFolded(`pulse-pace_${new Date().toISOString().slice(0, 10)}`);
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "the mark survived a later read, so the card counts the vote twice",
+    ).toBeNull();
+  });
+
+  it("…and NOT while the write is still in flight — the clear's control", async () => {
+    // An answer the server has not acknowledged cannot be in any
+    // aggregate, so a later read is no evidence about it. The store's
+    // two drains carry the same guard for the same reason.
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+    void LIVE.votePulse("pulse-pace", 3);
+    await flush();
+    LIVE.noteFolded(`pulse-pace_${new Date().toISOString().slice(0, 10)}`);
+    expect(
+      LIVE.pulsePending("pulse-pace"),
+      "an unacknowledged answer was cleared by a read that cannot hold it",
+    ).toBe(3);
+    d.resolve();
+    await flush();
   });
 
   it("keeps the mark while the write is in flight — the control", async () => {
@@ -3838,6 +3914,29 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
     expect(LIVE.kindredPeople().map((p) => p.uid)).toEqual(["u_far"]);
     await LIVE.loadCityKindred();
     expect(LIVE.kindredPeople().map((p) => p.uid).sort()).toEqual(["u_far", "u_near"]);
+  });
+
+  it("reads the city's nightly sample first, and asks Firestore for the city only where none exists (runbook 2.5)", async () => {
+    // The document the server writes for (q_1, Oslo): one read where the
+    // scoped query was two hundred. The live query stays the fallback, so
+    // a second question without a sample still sends the anchor.
+    h.voterDocs[OSLO] = [answerDoc("u_live", "q_2", 1, OSLO)];
+    h.bankDocs.push({ id: "q_2", data: { active: true, surface: "daily", kind: "choice", text: "Q2", options: ["a", "b"], core: true } });
+    h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+      ? { anchors: { city: OSLO } }
+      : path === "v2_patterns/city-q_1~Oslo%2C%20NO"
+        ? { qid: "q_1", city: OSLO, n: 1, rows: { u_sampled: { o: 1, a: { city: OSLO }, d: "2026-09-05", n: "Sam", s: null, l: null } } }
+        : null);
+    h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });
+    h.answerDocs.push({ id: "q_2", data: { qid: "q_2", surface: "daily", optionIdx: 1 } });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+    await LIVE.loadCityKindred();
+    const scoped = h.voterQueries.filter((w) => w["anchors.city"] === OSLO);
+    expect(scoped.map((w) => w.qid), "the sampled pair was still queried live").toEqual(["q_2"]);
+    const people = LIVE.kindredPeople().map((p) => p.uid).sort();
+    expect(people).toEqual(["u_live", "u_sampled"]);
+    expect(LIVE.nameFor("u_sampled"), "the row's stamp did not name the person").toBe("Sam");
   });
 
   it("does nothing at all for a viewer with no city", async () => {

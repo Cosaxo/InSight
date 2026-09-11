@@ -151,6 +151,11 @@ function MTGroupBars({ node, anchor }) {
   const asked = MS.mode(node.qid, anchor.id, n, node.aidx);
   const gmode = asked == null ? d.indexOf(max) : asked;
   const isMode = gmode === node.aidx;
+  // A CROWD OF ONE IS NOT A SPREAD — hoisted, because `f88dca4a` computed
+  // it INSIDE the rating branch and the branch below it therefore never
+  // got the fix. Rating is the smaller half of the bank; an ordinary
+  // vote is most of it.
+  const alone = cohortN != null && cohortN < 2;
   // rating → too many rows; show the group's full spread as a small ridge
   if (node.qtype === 'rating') {
     const you = node.aidx;
@@ -169,7 +174,6 @@ function MTGroupBars({ node, anchor }) {
     // ridge that vanishes reads as a card that failed to load, and the
     // row is the reader's own answer on a scale they can still see
     // themselves on.
-    const alone = cohortN != null && cohortN < 2;
     return (
       <div>
         <MTVerdict pct={d[you]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
@@ -202,10 +206,23 @@ function MTGroupBars({ node, anchor }) {
       <MTVerdict pct={d[node.aidx]} who={who} self={self} isMode={isMode} n={cohortN}></MTVerdict>
       <div className="mmt-dbar-wrap">
         <span className="mmt-dbar-mark is-you" style={{ left: center(node.aidx) + '%' }}>you</span>
-        {!isMode ? <span className="mmt-dbar-mark is-most" style={{ left: center(gmode) + '%' }}>most</span> : null}
+        {/* `most` names a majority, which one answer does not have. It is
+            already unreachable when the single answer is yours (`isMode`),
+            but the refusal belongs on the crowd rather than on a
+            coincidence of which option it fell on. */}
+        {!isMode && !alone ? <span className="mmt-dbar-mark is-most" style={{ left: center(gmode) + '%' }}>most</span> : null}
+        {/* FLAT WHEN THERE IS NOBODY TO SPLIT. `d` for a single answer is
+            [100, 0, …], so the segments came out at flexGrow 100 against
+            1.2 — a full-width fill, directly under the verdict line
+            saying "nobody else has answered this in your cell". The
+            option labels and the `you` marker already say what the reader
+            chose; the width said something about a crowd instead.
+
+            Flat rather than absent, the same trade the ridge above makes:
+            a bar that vanishes reads as a card that failed to load. */}
         <div className="mmt-dbar">
           {d.map((p, i) => (
-            <span key={i} className={'mmt-dbar-seg' + (i === node.aidx ? ' is-you' : '') + (i === gmode && !isMode ? ' is-mode' : '')} style={{ flexGrow: Math.max(p, 1.2) }}></span>
+            <span key={i} className={'mmt-dbar-seg' + (i === node.aidx ? ' is-you' : '') + (i === gmode && !isMode ? ' is-mode' : '')} style={{ flexGrow: alone ? 1 : Math.max(p, 1.2) }}></span>
           ))}
         </div>
       </div>
@@ -213,7 +230,11 @@ function MTGroupBars({ node, anchor }) {
         {labIdx.map((i) => (
           <span key={i} className={'mmt-dbar-lab' + (i === node.aidx ? ' is-you' : i === gmode ? ' is-most' : '')}>
             <b>{mtOptLabel(node, i)}</b>
-            <em>{Math.round(d[i])}%</em>
+            {/* …and the numeral is the same claim in the other alphabet.
+                `world-feed.jsx` states the rule where it draws its own
+                bars: gating one and not the other "would publish the
+                split geometrically instead of numerically". Both go. */}
+            {alone ? null : <em>{Math.round(d[i])}%</em>}
           </span>
         ))}
       </div>

@@ -121,7 +121,9 @@ describe("the fetch cap (D102)", () => {
     const src = readFileSync(resolve(__dirname, "./voters.ts"), "utf8");
     const q = src.match(/collectionGroup\(db, "answers"\)[\s\S]*?\)\);/);
     expect(q, "fetchVoters' collection-group query was not found").not.toBeNull();
-    expect(q![0]).toMatch(/fsLimit\(VOTER_FETCH_CAP\)/);
+    // Since DATA-EFFICIENCY-RUNBOOK 2.4 the same query serves the sheet's
+    // live tail at its own cap; either way the bound is IN the query.
+    expect(q![0]).toMatch(/fsLimit\((?:tail \? tail\.cap : )?VOTER_FETCH_CAP\)/);
     // Newest-first is what makes a capped page mean "the latest N" rather
     // than an arbitrary N — the ordering and the cap only work as a pair.
     expect(q![0]).toMatch(/orderBy\("answeredAt", "desc"\)/);

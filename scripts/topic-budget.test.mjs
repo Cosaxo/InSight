@@ -7,8 +7,11 @@
 // is invisible — the regulator would simply start saying yes, which looks
 // exactly like evidence arriving.
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
-  leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing,
+  leafVerdict, topVerdict, topicVerdict, levelOf, runDays, hueFor, hueRing, HUE_MIN_GAP,
   loadTops, loadLeaves, loadLedger, loadRing, isPlaced, feedPageCost, parentDeficitOf,
   retireVerdict, demandReading, coverageAllocation, settlingStock,
   EVIDENCE_MIN, RUNS_MIN, LEAF_FLOOR, LEAF_BIRTH, FIELD_BIRTH, LEAF_TARGET, FIELD_TARGET, BREADTH_SHARE,
@@ -213,6 +216,47 @@ describe("hueFor — a top's colour; a leaf wears its family's", () => {
     expect(hueFor([90])).toBe(270);
     expect(hueFor([])).toBe(0);
   });
+
+  // THE HALF THAT WAS MISSING. `HUE_MIN_GAP` lived in check-taxonomy.mjs
+  // and this function never read it, so the rule and the generator agreed
+  // only while the ring was sparse enough for luck to hold.
+  it("returns null rather than a hue check:taxonomy would refuse", () => {
+    // A ring whose widest arc is 28: splitting it leaves 14, under the
+    // floor of 15, and no other arc could do better — the midpoint of the
+    // widest arc is the furthest point on the ring by definition.
+    const tight = [0, 28, 56, 84, 112, 140, 168, 196, 224, 252, 280, 308, 336];
+    expect(hueFor(tight)).toBeNull();
+    // …and the old behaviour is still reachable, for a caller that wants
+    // the pick without the rule.
+    expect(hueFor(tight, 0)).toBe(14);
+    // Two points wider and it answers: an even ring of twelve leaves every
+    // arc at 30, and half of 30 is exactly the floor rather than under it.
+    expect(hueFor([0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330])).toBe(15);
+  });
+
+  it("refuses at the twentieth feed topic, on the ring that actually ships", async () => {
+    // Measured rather than reasoned: today's eleven, then `hueFor` fed its
+    // own output. The ninth hue it hands out is the one the gate refuses —
+    // and the lane would have written it at every site first.
+    const { loadSources } = await import("./check-taxonomy.mjs");
+    let ring = hueRing("feed", loadSources().wire);
+    expect(ring.length).toBeGreaterThan(8);
+    let added = 0;
+    for (; added < 30; added++) {
+      const h = hueFor(ring);
+      if (h === null) break;
+      ring = [...ring, h];
+    }
+    // Whatever the ring grows to, every hue it DID hand out clears the
+    // floor against every neighbour — which is the property, stated
+    // without a magic number in it.
+    for (const h of ring) {
+      const others = ring.filter((x) => x !== h);
+      const lo = Math.min(...others.map((x) => Math.abs(((h - x + 540) % 360) - 180)));
+      expect(lo).toBeGreaterThanOrEqual(HUE_MIN_GAP);
+    }
+    expect(hueFor(ring, 0)).not.toBeNull();
+  });
 });
 
 describe("the tree it actually runs on", () => {
@@ -365,5 +409,85 @@ describe("retireVerdict — fold, never delete (D427)", () => {
 
   it("the daily's FALLBACK table is a site a creating run must write", () => {
     expect(TOPS.daily.sites.some((x) => /map-anchors\.js/.test(x))).toBe(true);
+  });
+});
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * Every place `docs/QUESTION-FARM.md` orders a question that fits no
+ * category to be DROPPED — the rule D424 replaced with parking.
+ *
+ * Paragraph at a time, whitespace flattened, because the manual wraps at
+ * seventy columns and every one of these sentences breaks across two or
+ * three lines: a line-based scan reads "a question that fits none is" and
+ * "dropped and the topic proposed" as unrelated. Reported by the
+ * paragraph's first line, which is what a reader needs to find it.
+ *
+ * Exported shape rather than an inline loop so the control case below can
+ * drive it with a string, which is the half that keeps a detector honest:
+ * a scan that has quietly stopped matching reports clean.
+ */
+export function dropOrders(md) {
+  const out = [];
+  let line = 1;
+  for (const para of md.split(/\n\s*\n/)) {
+    const flat = para.replace(/\s+/g, " ");
+    for (const m of flat.matchAll(/\bdropped\b/gi)) {
+      const pre = flat.slice(Math.max(0, m.index - 160), m.index);
+      // Only the sentences about a question that FITS NOTHING. The manual
+      // says "dropped" about other things — a door onto a retired topic,
+      // a card whose fact cannot be sourced — and those are not this rule.
+      if (!/fits n|fitting nothing/i.test(pre)) continue;
+      // …and the correct form is a negation: "not dropped", "never
+      // dropped", which is how hard rule 3 and the learn lane say it.
+      if (/\b(never|not)\s+$/i.test(pre)) continue;
+      out.push({ line, text: flat.slice(Math.max(0, m.index - 90), m.index + 9) });
+    }
+    line += para.split("\n").length + 1;
+  }
+  return out;
+}
+
+describe("the manual the lanes obey", () => {
+  // WHY THIS IS HERE. `docs/QUESTION-FARM.md` is live instruction — a
+  // scheduled lane obeys its prompt verbatim, every day — and three of the
+  // four lane prompts went on ordering "a question that fits none is
+  // DROPPED" for a month after D424 replaced that rule with parking, which
+  // is the evidence THIS regulator runs on. Hard rule 3 in the same file
+  // already said "PARKED … not dropped" and the learn lane's prompt
+  // already said "never dropped"; nothing could see the other three.
+  //
+  // `check:figures` holds the manual's FIGURES against the regulators for
+  // exactly this reason ("a drifted budget figure there is not a stale
+  // doc, it is a mis-instructed run"). A retired RULE in the same prompts
+  // is that failure with no number in it.
+  it("orders no lane to drop a question that fits no category", () => {
+    const md = readFileSync(join(ROOT, "docs", "QUESTION-FARM.md"), "utf8");
+    const found = dropOrders(md);
+    expect(
+      found,
+      "QUESTION-FARM.md orders a lane to DROP a question that fits no category. "
+      + "D424 replaced that with parking it in content/topic-proposals.json for this "
+      + "regulator to rule on (§ When no category fits; hard rule 3). At: "
+      + found.map((f) => `line ~${f.line}: …${f.text}`).join(" | "),
+    ).toEqual([]);
+  });
+
+  it("still recognises the order it is looking for", () => {
+    // The exact sentence three prompts carried, wrapped the way the file
+    // wraps it — without this the case above passes against a detector
+    // that has stopped matching.
+    const retired = [
+      "Never propose a new topic silently: a question that fits none is",
+      "dropped and the topic proposed in the PR body and the issue #31 comment",
+      "(§ When no category fits).",
+    ].join("\n");
+    expect(dropOrders(retired)).toHaveLength(1);
+    // …and the corrected form is not reported.
+    expect(dropOrders(retired.replace("is\ndropped and", "is PARKED, never\ndropped, and"))).toEqual([]);
+    // …nor the sentence about a retired topic's doors, which is a
+    // different use of the same word.
+    expect(dropOrders("questions' cat -> into; doors onto it dropped or replaced")).toEqual([]);
   });
 });

@@ -198,8 +198,12 @@ export function prevDayKey(dayKey: string): string {
 export const ROUND_LEAD = 5;
 
 /** How long an open round with at least one answer stays open before it
- *  reveals for whoever played. The day's replacement (see above). */
-export const ROUND_DEADLINE_MS = 24 * 60 * 60 * 1000;
+ *  reveals for whoever played. The day's replacement (see above) — and
+ *  two days rather than one since D437: the owner's 2026-09-09 design says
+ *  48 hours, and a 1v1 keeps closing at it for the one who played (the
+ *  owner's rule of the 8th; the design's "no clock" was the shape that
+ *  let a partner who stopped hold the other's answer forever). */
+export const ROUND_DEADLINE_MS = 48 * 60 * 60 * 1000;
 
 export function roundKey(n: number): string {
   return `r${n}`;
@@ -485,6 +489,154 @@ export function revealVotes<T extends object>(
   return out;
 }
 
+// ── the role ledger (ROLES-PLAN §3.3, ROUNDS-PLAN §7.2 — D445) ───────
+//
+// What the people around you make you, kept by the SERVER as each round
+// reveals, so the reading outlives the thirty reveals a device can page
+// (REVEAL_HIST_CAP, src/v2/data/live.ts). Under rounds a fortnight can
+// hold hundreds of reveals, and the device cannot fold what it cannot
+// fetch — so the ledger is the instrument's substrate, not an improvement
+// to one. One map on the group document, `ledger.{uid}`, written WHOLE in
+// the reveal's own settle update from the transaction's read of the group
+// and the round's blind votes; the device-side fold (src/v2/data/roles.ts)
+// reads it once it clears the instrument's floor and pages reveals until
+// then — which is also how a group revealed before the ledger existed
+// catches up: forward-only, from zero, on its next reveal (the plan's own
+// answer; no backfill).
+//
+// THE SAME RULES AS THE DEVICE'S FOLD, deliberately: a number the ledger
+// says and a number the reveals say must agree on any window they share,
+// or the tab would change its reading the day the ledger took over.
+//   · a 1v1: a CAST round (the bank's `topic: "cast"`) both members
+//     answered blind on that same question. `casts` counts the round;
+//     `axes[dims[i]]` counts what the OTHER said this member is — keyed
+//     by the bank's own `dims` entry for the option, never by a
+//     vocabulary this file would have to copy from the client; `saw`
+//     counts this member's guesses at what the other said of them (made,
+//     and landed); `castQid` names the cast question, so the device can
+//     draw the receipts' them forms without paging a reveal.
+//   · a group: a ROLE VOTE (`topic: "pick"` carrying `role.seat`). A vote
+//     counts for the member its D224 snapshot names, under the seat the
+//     bank gives the role — never for the voter's own name, and never by
+//     an option index the roster remaps.
+// A vote stamped with another qid (D71 — that member's bank disagreed) is
+// not an answer to this question; a late vote never reaches this fold,
+// because the reveal is created from blind votes and a late one is
+// appended by the trigger afterwards (ROUNDS-PLAN §4). A rating, an own
+// round, a plain pick with no seat: nothing moves, and the caller writes
+// nothing. Rows are written for CURRENT members only, and a departed
+// member's row leaves with them (leaveGroupV2, deleteAccount phase 1c) —
+// the shape D55 §8 gives every per-member map on this document.
+
+export interface RoleLedgerRow {
+  /** 1v1: cast rounds both answered blind on the same cast question */
+  casts?: number;
+  /** 1v1: times the OTHER said this member is each axis, by the bank's axis id */
+  axes?: Record<string, number>;
+  /** 1v1: this member's guesses at what the other said of them — landed / made */
+  saw?: { right: number; total: number };
+  /** 1v1: the cast question the latest fold read — the receipts' them forms */
+  castQid?: string;
+  /** group: votes received on role votes from OTHER members, off snapshots */
+  votes?: number;
+  /** group: …per seat of the role they were cast in, by the bank's seat id */
+  seats?: Record<string, number>;
+}
+export type RoleLedger = Record<string, RoleLedgerRow>;
+
+/** What the fold reads off the round's question document. */
+export interface LedgerQuestion {
+  topic?: unknown;
+  role?: unknown;
+  dims?: unknown;
+}
+/** A vote as the reveal's `votes` map holds it (RevealVote's shape). */
+export interface LedgerVote {
+  optionIdx: number;
+  guessIdx?: number;
+  pickUid?: string;
+  qid?: string;
+  late?: true;
+}
+
+const isMap = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const count = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+
+/**
+ * The ledger after this round, or null when the round moved nothing in it
+ * — so the caller leaves the field alone and the common write is the one
+ * it was. `prev` is the group document's current `ledger` (any shape:
+ * absent on every group from before D445); the result is a fresh map with
+ * every untouched row carried over.
+ */
+export function foldRoleLedger(
+  prev: unknown,
+  mode: string,
+  q: LedgerQuestion | null | undefined,
+  qid: string | null,
+  votes: Readonly<Record<string, LedgerVote>>,
+  members: readonly string[],
+): RoleLedger | null {
+  if (!q) return null;
+  const next: RoleLedger = {};
+  if (isMap(prev)) {
+    for (const [uid, row] of Object.entries(prev)) if (isMap(row)) next[uid] = { ...(row as RoleLedgerRow) };
+  }
+  const rowOf = (uid: string): RoleLedgerRow => (next[uid] ??= {});
+  // A blind vote cast on THIS question: no D71 stamp, no late flag.
+  const blind = (uid: string): LedgerVote | null => {
+    const v = votes[uid];
+    return v && typeof v.optionIdx === "number" && !v.qid && !v.late ? v : null;
+  };
+  let moved = false;
+
+  if (mode === "duo") {
+    if (q.topic !== "cast") return null;
+    const dims = Array.isArray(q.dims) ? q.dims : [];
+    // Every ordered pair of members — a duo has two, so this is the two
+    // views the device's castOf takes (me → them, them → me).
+    for (const me of members) {
+      for (const them of members) {
+        if (me === them) continue;
+        const mine = blind(me), theirs = blind(them);
+        if (!mine || !theirs) continue;
+        const row = rowOf(me);
+        row.casts = count(row.casts) + 1;
+        const axis = dims[theirs.optionIdx];
+        if (typeof axis === "string" && axis) {
+          row.axes = { ...(row.axes || {}), [axis]: count(row.axes?.[axis]) + 1 };
+        }
+        const saw = { right: count(row.saw?.right), total: count(row.saw?.total) };
+        if (typeof mine.guessIdx === "number") {
+          saw.total += 1;
+          if (mine.guessIdx === theirs.optionIdx) saw.right += 1;
+        }
+        row.saw = saw;
+        if (qid) row.castQid = qid;
+        moved = true;
+      }
+    }
+    return moved ? next : null;
+  }
+
+  const seat = isMap(q.role) ? q.role.seat : undefined;
+  if (q.topic !== "pick" || typeof seat !== "string" || !seat) return null;
+  const roster = new Set(members);
+  for (const voter of Object.keys(votes)) {
+    const v = blind(voter);
+    if (!v) continue;
+    const who = v.pickUid;
+    // No snapshot, a vote for yourself, or a name no longer on the roster:
+    // the room did not name a member here.
+    if (typeof who !== "string" || !who || who === voter || !roster.has(who)) continue;
+    const row = rowOf(who);
+    row.votes = count(row.votes) + 1;
+    row.seats = { ...(row.seats || {}), [seat]: count(row.seats?.[seat]) + 1 };
+    moved = true;
+  }
+  return moved ? next : null;
+}
+
 /**
  * One reveal's contribution. `optionCount` is the question's bank-option
  * count — 0 for `pick` questions, whose optionIdx values index each
@@ -525,61 +677,14 @@ export function duelAggDelta(
       guessTotal++;
       if (guess === votes[1 - i].optionIdx) guessMatches++;
     }
-  } else if (mode === "group") {
-    // A group's guess is a call on where the room lands (D386): a hit
-    // when it names an option tied for the top. THE ROOM IS EVERYONE BUT
-    // THE GUESSER, which is the same thing the duo arm does one branch up
-    // — there each guess is checked against `votes[1 - i]`, the OTHER
-    // person, never against a tally holding the guesser's own pick.
-    //
-    // This arm scored every guess against the whole tally, the guesser's
-    // own vote included, so calling your own answer was partly
-    // self-fulfilling. The old guard (`counted >= 2`) states the
-    // invariant it exists for — "with one counted vote the room is the
-    // guesser, and calling your own answer is not a read" — and that is
-    // just as true at two, and at every scattered room where no option
-    // reaches two votes.
-    //
-    // MEASURED, 40k trials per cell, every member guessing their OWN
-    // answer and reading nothing at all:
-    //
-    //     n=2 k=2   1.000 -> 0.500        n=2 k=3   1.000 -> 0.335
-    //     n=4 k=2   0.875 -> 0.500        n=3 k=3   0.778 -> 0.554
-    //     n=6 k=2   0.812 -> 0.500        n=4 k=3   0.703 -> 0.482
-    //
-    // The left column is a published guess rate that says the room is
-    // almost perfectly predictable; the right column is chance, which is
-    // what zero room-reading should score. It matters because
-    // `scripts/question-scorecard.mjs` proposes RETIRING any duel at
-    // `guessTotal >= 20 && guessMatchRate >= 0.9` as "no tension — a dead
-    // question", and ten group-days from a circle of two is 20 guesses.
-    //
-    // n=3 k=2 is 0.750 both ways and is NOT this defect: with two others
-    // and two options a tie is half the outcomes, and a tie counts as a
-    // hit by D386's own choice. Below the retire threshold either way,
-    // and changing the tie rule is a decision, not a fix.
-    for (const v of votes) {
-      const guess = v.guessIdx;
-      if (!inRange(guess)) continue;
-      // A member whose own vote is out of range did not coherently play
-      // this question — the pool-flip race — so their guess is noise, the
-      // same reading the duo arm gives it. Also what keeps their guess
-      // from being scored against a room they were never in.
-      if (!inRange(v.optionIdx)) continue;
-      // The room this member was reading: the tally with their own vote
-      // taken out.
-      const others = { ...counts };
-      const key = String(v.optionIdx);
-      others[key] = (others[key] || 0) - 1;
-      if (others[key] <= 0) delete others[key];
-      const values = Object.values(others);
-      // Nobody else's vote counted, so there is no room to have read.
-      // The old floor's case, arrived at from the other side.
-      if (!values.length) continue;
-      guessTotal++;
-      if ((others[String(guess)] || 0) === Math.max(...values)) guessMatches++;
-    }
   }
+  // A GROUP'S VOTES CARRY NO GUESS (D437 — the owner's 2026-09-09 brief:
+  // "Nothing in a group is predicted or called"). For one week (D386) an
+  // arm here scored a member's call on where the room landed, against the
+  // tally with their own vote taken out; the rules refuse the field on the
+  // group surface now, so the arm is gone rather than left to score a
+  // stray field from an older client, and a group's guessTotal is zero by
+  // construction. The scorecard's guess-rate retirement reads duos alone.
   return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
 }
 
@@ -1902,6 +2007,14 @@ export const SEEDED_FIELDS = [
   // would ever have got one. Held here now by `check:seed-fields`, which
   // compares this list against what gen-v2content actually emits.
   "bg", "c", "t", "p", "k", "w",
+  // The group as a cast (D434, the owner's 2026-09-08 design): a pick's
+  // scenario pack and the role it casts, and a rate question's two poles.
+  // `scen` and `role` are objects and ride the structural arm; `poles` is
+  // an array and rides the element-wise compare. Compared, because the
+  // card draws all three: a repacked role has to reach the standing doc.
+  "scen", "role", "poles",
+  // The cast round (D437): the four them forms and the four axes.
+  "them", "dims",
   // The instruments' deep items (D416): the facet or position an item
   // scores and its keying, on the document so the device joins by id.
   // Compared so a re-filed or re-keyed item reaches the standing doc.

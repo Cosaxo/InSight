@@ -70,6 +70,29 @@ jobs:
       # scorecard path renders. The console's own operator gate (`pulse
       # --check`) is a different thing and is on a schedule, not here (D47).
       - run: npm run test:scripts
+      # THE SERVER HALF'S DEPENDENCIES, and this job is the only one that
+      # needs them named. `npm ci` above installs the root package only,
+      # and `cache: npm` restores `~/.npm` rather than `node_modules`, so
+      # `functions/node_modules` does not exist here — the gate below
+      # typechecks files that import `firebase-admin` and
+      # `firebase-functions`, which without this step is a hundred
+      # `TS2307`s and a red lint job on every PR. It passed locally
+      # because the e2e runs had already put them there; the job the gate
+      # was deliberately placed in is the one job without them.
+      - run: npm ci --prefix functions
+      # THE TYPE GATE THE SERVER'S TEST FILES NEVER HAD.
+      # functions/tsconfig.json excludes `src/**/*.test.ts` — correctly, it
+      # is the build that ships to Cloud Functions — and the root `tsc -b`
+      # does not reach functions/src at all, so every fake in that half was
+      # unchecked by anything. What drifts is the stand-in: a runner fake
+      # that stops matching the interface it stands for is only wrong where
+      # something reads the missing part, so the suite stays green. Seven
+      # such drifts were found the day this landed.
+      # Here and not on backend-checks.yml, by the same rule as check:figures
+      # above: a test file is never deployed, so a drifted fake cannot say
+      # whether a rules fix is safe to ship, and nothing that cannot answer
+      # that question gets to block one.
+      - run: npm run check:fn-types
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,
@@ -241,6 +264,11 @@ jobs:
       # …and for the elements catalogue, the other contiguous-key domain:
       # stored answers are atomic numbers into public/elements.txt.
       - run: npm run check:elements
+      # The pick-card crowd contract: every live pick question has CROWD
+      # and BY data in pick-data.js, well-formed. The harness that caught
+      # pk28 lived only in a scratchpad and was wiped, which is why this
+      # is a gate rather than a habit.
+      - run: npm run check:pick-crowds
       # …and for the QID-keyed catalogues (films/artists): the committed
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
@@ -421,7 +449,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: "21"

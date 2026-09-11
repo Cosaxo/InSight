@@ -32,7 +32,9 @@ describe("readLedgerDay's projection", () => {
   const declared = (() => {
     const block = /export interface LedgerDayEntry \{([\s\S]*?)\n\}/.exec(code);
     expect(block, "LedgerDayEntry is no longer declared where this test looks").toBeTruthy();
-    return [...block![1].matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]);
+    // `id` is the document's id, not a field of it — the answer log's row
+    // key (log.ts, D447) — so the projection cannot and need not name it.
+    return [...block![1].matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]).filter((f) => f !== "id");
   })();
 
   const selected = (() => {
@@ -51,11 +53,13 @@ describe("readLedgerDay's projection", () => {
   });
 
   it("still orders and pages by the field it selects for it", () => {
-    // `at` is in the projection for the ordering rather than for a reader,
-    // so it is not in the entry type — and the two facts have to stay
-    // consistent or the query stops paging.
+    // `at` was in the projection for the ordering alone and deliberately
+    // not in the entry type; since DATA-EFFICIENCY-RUNBOOK 4.4 the
+    // velocity scan reads it off the shared day (its cadence and burst
+    // signals are timestamps), so the type carries it as milliseconds —
+    // and the query still orders and pages on it.
     expect(selected).toContain("at");
-    expect(declared).not.toContain("at");
+    expect(declared).toContain("at");
     expect(code).toMatch(/\.orderBy\("at"\)/);
   });
 
@@ -128,6 +132,7 @@ describe("readLedgerDay, run", () => {
     expect(out.length, "the fake returned nothing — every assertion below is vacuous").toBe(2);
     expect("fromIdx" in out[0], "a first answer was read as an edit").toBe(false);
     expect(out[1].fromIdx, "an edit lost the index it moved away from").toBe(1);
+    expect(out[0].at, "the timestamp did not come off the snapshot in milliseconds (runbook 4.4)").toBe(at.getTime());
   });
 
   it("keeps reading past a full page", async () => {
@@ -195,7 +200,7 @@ describe("memoLedgerReader (D399)", () => {
     expect(gets()).toBe(1);
     expect(a).toBe(b);
     expect(b).toBe(c);
-    expect(a).toEqual([{ uid: "u1", qid: "daily-000", optionIdx: undefined }]);
+    expect(a).toEqual([{ uid: "u1", qid: "daily-000", optionIdx: undefined, at: 0 }]);
     await ledgerDay("2026-09-04");
     expect(gets()).toBe(2);
   });

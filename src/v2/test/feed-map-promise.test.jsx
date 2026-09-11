@@ -101,7 +101,14 @@ describe("the feed's map promises name the Map", () => {
     // The control. An absence passes just as well when the buttons were
     // deleted, and one of them is the only route from a mastered fact to
     // the constellation it was saved into.
-    expect(src.split("NAV.goTab('you')").length - 1, "the map links are gone entirely").toBe(3);
-    expect(src).toMatch(/MAP_OPEN_GROUP = 'g-know'; NAV\.goTab\('you'\)/);
+    expect(src.split("NAV.goTab('you')").length - 1, "the map links are gone entirely").toBe(2);
+    // The third is the Learn card's "See it", and since #388 it is not a
+    // goTab at all: it hands the typed Map cue (data/mapCue.ts) to the
+    // shell, whose onMapCue does the whole walk — closeAll, the You stop,
+    // the tab switch — where the window mailbox only ever reached a Map
+    // mounting fresh after the write. Held here in its new shape, and the
+    // mailbox held absent, so neither can quietly come back.
+    expect(src).toMatch(/cueMap\(\{ group: 'g-know' \}\)/);
+    expect(src, "the MAP_OPEN_GROUP mailbox is back").not.toMatch(/MAP_OPEN_GROUP =/);
   });
 });

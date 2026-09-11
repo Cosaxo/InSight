@@ -202,11 +202,21 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
    * (VISION-2026-09-06 §2.4). */
   guide?: boolean;
 }): React.ReactElement {
-  const [sel, setSel] = React.useState<number | null>(null);
+  // THE SELECTION IS A QUESTION, NOT A POSITION. `items` is re-derived from
+  // the store on every notify — an aggregate page landing adds questions,
+  // a retirement removes one — so a stored INDEX names a different question
+  // the moment the pool moves and no question at all once it shrinks past
+  // the index. Both were reachable from the tab: the open card, its option
+  // buttons and the `LIVE.vote` under them all followed the swap, and
+  // `nearOf` reached an undefined row and threw the whole tab into the
+  // ErrorBoundary. Derived per render rather than memoised — a `findIndex`
+  // over the pool is nothing, and a memo here would need `items` in its
+  // deps, which is the stale-by-one-notify shape this replaces.
+  const [selQ, setSelQ] = React.useState<string | null>(null);
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
-  // a chosen topic re-rings the field (D455), so a selection's index
-  // belongs to the ring it was made on
-  React.useEffect(() => { setSel(null); }, [topic]);
+  // a chosen topic re-rings the field (D455), so a selection made on one
+  // ring does not carry to the next
+  React.useEffect(() => { setSelQ(null); }, [topic]);
 
   // THE RING IS THE TOPIC'S OWN (D455). The chip used to dim the other
   // topics and leave every dot on the rim, which at a few hundred core
@@ -247,9 +257,18 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   }, [version, topic]);
   const RG = geo.ring;
   const D = geo.drawn; // every index below is an index into the ring's own items
+  // …which is what the selected question resolves against: the ring is the
+  // topic's since D455, so a question off the ring is no selection at all.
+  const selIdx = selQ == null ? -1 : D.findIndex((p) => p.q.id === selQ);
+  const sel = selIdx >= 0 ? selIdx : null;
 
   const catHue = (i: number) => catHueOf(D[i]?.q.cat);
-  const nb = sel == null ? null : nearOf(geo.U, sel, 3);
+  // `geo` is memoised on `version` while `sel` is derived from `D`, so the
+  // row guard is the belt for the invariant that memo's eslint-disable
+  // asserts: if the two ever disagree, this draws nothing instead of
+  // throwing. (`inTopic` went with D455: the ring holds the topic's own
+  // questions now, so there is nothing on it to dim.)
+  const nb = sel == null || !geo.U[sel] ? null : nearOf(geo.U, sel, 3);
   const near = nb ? new Set(nb.map((x) => x.j)) : null;
   const rest = geo.edges;
   // The denominator the idle card prints — the questions on this ring —
@@ -297,6 +316,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
   React.useEffect(() => {
     if (!top) { setTopSay(null); return; }
     const key = `${D[top.i].q.id}>${D[top.j].q.id}`;
+    setTopSay(null);
     let on = true;
     void PATTERNS.say(D[top.i].q.id, D[top.j].q.id)
       .then((s) => { if (on) setTopSay({ key, s }); })
@@ -305,10 +325,23 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the pair's ids name the fetch; D follows `version` and `topic`
   }, [top ? `${D[top.i].q.id}:${D[top.j].q.id}` : null, version]);
 
-  const pick = (i: number) => { setSel((s) => (s === i ? null : i)); };
+  const pick = (i: number) => { const id = D[i]?.q.id ?? null; setSelQ((s) => (s === id ? null : id)); };
   const q = sel != null ? D[sel] : null;
   const nAns = items.filter((x) => x.mine != null).length;
-  const chain = top && topSay && topSay.s ? topSay.s : null;
+  // KEYED, LIKE ITS SIBLING. `topSay` has always carried the pair it was
+  // fetched for and nothing compared it, and the effect above does not
+  // clear it before refetching — so while `say()` is in flight for a new
+  // pair (a real read; the session cache misses on a pair not yet opened)
+  // the card drew the PREVIOUS pair's pick, percentage and basis sentence
+  // under the new pair's question text. Reachable by changing the topic
+  // filter while the Map is idle, and it states an exact count — "counted
+  // over the N people in both samples" — for a pair the device has read
+  // nothing about, which is the one thing D146 exists to stop.
+  //
+  // The `says` effect ten lines up already does both halves: it clears on
+  // entry and gates its render on `says.id === q.q.id`. This is that.
+  const chain = top && topSay && topSay.key === `${D[top.i].q.id}>${D[top.j].q.id}`
+    ? topSay.s : null;
   // the kicker's word and the sentence's: "Strongest link among your
   // answers" / "…the 12 questions you answered"
   const answeredRing = topic === MAP_TOPIC_ANSWERED;
@@ -342,7 +375,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
         <div className="ln-field">
           <svg className="ln-svg" viewBox={`0 0 ${S} ${S}`} role="img"
             aria-label="Every question on a ring, grouped by topic; lines join questions whose answers predict each other"
-            onClick={() => { if (sel != null) setSel(null); }}>
+            onClick={() => { if (sel != null) setSelQ(null); }}>
             <g>
               {shown.map((l, k) => {
                 const a = RG.pts[l.i], b = RG.pts[l.j];

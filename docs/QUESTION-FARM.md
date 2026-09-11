@@ -310,6 +310,22 @@ seventeen cards at go-live), so the old refusal to score it — "any
 qid scored today would be an invented key" — no longer holds;
 scoring it is now unblocked work, not a rule.
 
+It carries a **fit section** too (2026-09-03, D439 — Status: Proposed
+until merged): the nightly Patterns fit's own scorecard, read from the
+one world-readable loadings document on the same anonymous token the
+aggregate fetch mints — the prequential log-loss series with its
+per-question floor, the publish-to-publish displacement summary with
+its movers, how many questions are fitted on a believable basis, and a
+per-question item profile (discrimination as the loading's length in
+the fitted space, and the marginal). None of it steers a farm run — it
+is the read half of the axiom-theory bridge's first crossing (D325),
+there so a theory run can quote the fit's numbers from `main` rather
+than from a Firestore document nobody off a device can read. The raw
+loading vectors are deliberately not committed: the scorecard carries
+derived numbers, and the map is drawn elsewhere. `fit` is `null` when
+the fit has not published yet, and absent on a card generated from an
+offline dump without `--loadings`.
+
 Every run starts by reading it (`npm run scorecard` prints the
 summary). Then:
 
@@ -933,12 +949,47 @@ for a duel run:
   `duel-budget.test.mjs` pins the properties — including that the dark
   romantic pool counts at full weight, because its entries light up in
   one operator step.
-- **Append only, at the end of the right array.** Group order is
-  rotation order — interleaved us/pick/classic, never sorted. Both 1v1
-  pools are ordered light → deep; append deep. Ids continue each series
-  (group: the gu/gp/gd prefixes; 1v1: the next `NNN` suffix, shared
-  across `oneVsOne` and `romantic` — they are one `duo-NNN` id
-  namespace).
+- **Append only, at the end of the right array.** Group order is the
+  demo's rotation order, never sorted. Both 1v1 pools are ordered light
+  → deep; append deep. Ids continue each series (group: `gr` for a role
+  vote, `gs` for a rating — the older gu/gp/gd series are closed; 1v1:
+  the next `NNN` suffix, shared across `oneVsOne` and `romantic` — they
+  are one `duo-NNN` id namespace). **The cast round is not the lane's**:
+  each 1v1 pool holds exactly one `"kind": "cast"` entry (`073`, `074` —
+  *Most days, {name} is…*, D437), dealt every fourth round; never write
+  another, and never give an ordinary 1v1 entry `them` or `dims`.
+- **The group is a CAST (D434, the owner's 2026-09-08 design —
+  `docs/VISION-2026-09-08.md`).** A group question is one of two kinds
+  now. A **role vote** is a `pick` (no options — the members are the
+  options) tagged with the scenario pack it belongs to (`"scen":
+  "<pack id>"`, one of the packs in the file's top-level `scenarios`:
+  Bank Heist · Desert Island · The Sitcom · Zombie Plan · Road Trip · Any
+  Given Evening — the sixth is the plain, everyday kind, four of the old
+  pick-a-member questions given a role and a seat in place, D444) and
+  the role it casts (`"role": { "id", "label", "seat" }` — *the
+  mastermind*, said of a person in front of their group, so `COPY.md`
+  §3 applies word by word; the **seat** is `engine` · `hands` · `heart`
+  · `wild`, what a member's received votes cluster into — D437). A new
+  pack is **four roles, one a seat**, and a hue, added to `scenarios`
+  first; `check:content` refuses a pack with two roles in one seat or a
+  seat empty. A **rating** is `"kind": "rate"` with two
+  `"poles"` and no options — the seed derives the five step labels
+  (*Calm · mostly Calm · in between · mostly Chaos · Chaos*), so a pole
+  has to read as a step's end word. The live rotation deals three role
+  votes and then a rating (`isRatingRound`, data/deck.ts); the older
+  us/classic questions are in the bank and out of the rotation, so
+  **do not write more of them**. `check:content` holds the kinds and
+  their shapes.
+- **The bank is not compiled into the app (D435).** The demo build
+  carries `content/duel-sample.json` — a generated slice (the first few
+  served questions of each group kind and each 1v1 domain, in bank
+  order, plus the packs those votes name), written by
+  `scripts/gen-duel-sample.mjs` and held to its source by
+  `check:duel-sample`. An **append never moves it**, so a run has no cap
+  to stop at and nothing to regenerate beyond `build:content`. The one
+  edit that does move it is a retirement (the next entry of that kind
+  slides in), which is the operator's, and the gate names the fix:
+  `npm run build:duel-sample`. Never edit the sample by hand.
 - **Match the pool's `active` posture.** While the romantic pool is dark
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,
@@ -2120,9 +2171,13 @@ scorecard script, and the promotion files
 (content/daily-questions.json, content/provenance.json,
 functions/src/v2content.ts) via npm run promote and build:content only,
 never by hand (D212). Never touch firestore.rules or anything else
-under functions/; never create categories — a question that fits no
-existing cat/alts top is DROPPED, and the category proposed in the PR
-body AND the issue #31 comment (§ When no category fits); never
+under functions/; never create a category in place — a question that
+fits no existing cat/alts top is PARKED in
+content/topic-proposals.json (`level: "top"`, `nearest`, and the
+`group` hub it lands in), never dropped, and `npm run topic:budget`
+rules CREATE or HOLD on it; say which in the PR body AND the issue #31
+comment (§ When no category fits). The second level is the path
+`cat: [Top, Sub]` and is written, never created; never
 generate answers, votes, or activity; never write questions scoped to
 a specific city, country, or region's citizens (manual hard rule 6);
 never merge with a failing or pending check, never re-run a job to
@@ -2206,10 +2261,12 @@ this lane's standing self-merge direction, now the rule for every
 lane); never merge with a failing or pending check, never re-run a job
 to outwait a real failure, never push an empty commit to kick CI — a PR
 you cannot get green is left open and reported. Never introduce a new
-topic id silently — a card that fits none is dropped and the topic
-proposed in the PR body and the issue #31 comment (§ When no category
-fits). While a CARD PR is open (a gate refused it), each day's card is
-one more commit on its branch — dedup against the cards already on it,
+topic id silently — a card that fits none is PARKED in
+content/topic-proposals.json with the topic proposed there, never
+dropped, and `npm run topic:budget` rules CREATE or HOLD on it; the PR
+body and the issue #31 comment say which (§ When no category fits).
+While a CARD PR is open (a gate refused it), each day's card is one
+more commit on its branch — dedup against the cards already on it,
 retitle to cover the span, add a dated body section — never a new PR
 stacked on top; a fresh claude/catalog-question-<YYYY-MM-DD> branch
 only when no card PR is open or the open one conflicts with main.
@@ -2344,10 +2401,14 @@ false means tail; only a human moves a question INTO the Mirror's
 corpus). Ship active; never flip an active flag (the retire path is the
 operator's) and never edit or reorder a shipped question's options or a
 continuum question's range (answers key on (qid, optionIdx) forever).
-Never propose a new topic silently: a question that fits none is
-dropped and the topic proposed in the PR body and the issue #31 comment
-(§ When no category fits). Never write a question scoped to a specific
-city, country, or region's citizens (hard rule 6 — that is the paid
+Never introduce a new topic id silently: a question that fits none is
+PARKED in content/topic-proposals.json — a leaf under its parent
+(`level: "leaf"`) is the usual shape, a topic of its own is
+`level: "top"` with its `group` — never dropped, and `npm run
+topic:budget` rules CREATE or HOLD on it; the PR body and the issue #31
+comment say which (§ When no category fits). Never write a question
+scoped to a specific city, country, or region's citizens (hard rule 6 —
+that is the paid
 research path). This is a SINGLE-GATE lane: a merged question is a
 served question. Never touch firestore.rules, functions/, or another
 surface's bank. Roll up onto the open feed PR if one exists — a gate

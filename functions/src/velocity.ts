@@ -1,16 +1,22 @@
 // velocity.ts — D54: the ledger gets eyes.
 //
-//   ledgerVelocityScan   a daily scheduled pass over `v2_agg_events`
-//                        (D28's attribution ledger) that logs, and only
-//                        logs, the ring-shaped patterns an operator
-//                        would otherwise have to notice by luck. Its
-//                        output is the INPUT to the correction runbook
+//   runVelocityScan      a nightly pass over `v2_agg_events` (D28's
+//                        attribution ledger) that logs, and only logs,
+//                        the ring-shaped patterns an operator would
+//                        otherwise have to notice by luck. Its output is
+//                        the INPUT to the correction runbook
 //                        (docs/DEPLOYMENT.md, "Correcting aggregates"),
 //                        never a verdict: D29 records the shape of this
 //                        lever as "feeding manual review rather than
 //                        automatic denial", and this file keeps to it —
 //                        nothing here denies, delays or down-weights a
-//                        vote.
+//                        vote. It was its own scheduled function
+//                        (`ledgerVelocityScan`, 03:47 UTC) until
+//                        DATA-EFFICIENCY-RUNBOOK 4.4 folded it into the
+//                        02:23 pass (nightly.ts): the whole days of its
+//                        window come off the reader the other folds
+//                        already share, and only the partial day since
+//                        midnight is its own read.
 //
 // Purpose limitation, stated because D47 makes it a live question: this
 // reads the ledger for exactly the purpose D28 collected it — attributing
@@ -35,19 +41,16 @@
 
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
-import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { utcDayKeyOf } from "./pure";
+import type { LedgerDayReader } from "./ledger";
 // ops.ts sets the global runtime options as an import side effect and
 // must be evaluated before any function here is defined — same reason
 // every other function module imports it (check:fn-runtime guards the
 // outcome).
-import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
 import { REQUIRED_LEVEL, levelDef } from "./accountLevel";
-import { db as firestore } from "./db";
 
-const REGION = FUNCTIONS_REGION;
 
 // ── pure signal logic (unit-tested, velocity.test.ts) ───────────
 //
@@ -306,6 +309,14 @@ export interface BindCoverage {
  * cannot be shown to have come from a qualifying account has not been
  * shown to have come from one. The other direction overstates coverage on
  * precisely the day it is trusted.
+ *
+ * THAT ARGUMENT HOLDS FOR AN ACCOUNT THAT WAS ASKED ABOUT AND NOT FOUND,
+ * and for no other kind — so `perUid` must arrive already narrowed to the
+ * accounts the Auth read actually reached. An account nobody asked about
+ * is not evidence in either direction, and counting it at L0 makes the
+ * ladder say "unbound" about a question that was never put. The caller
+ * narrows it; this note is here because the two are far apart in the
+ * file and the bound that made them differ arrived later than both.
  */
 export function bindCoverage(
   perUid: Map<string, number[]>,
@@ -396,8 +407,10 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
  *
  * EXPORTED and pure, for the reason `heldPageFrom` in paid.ts is: the
  * decision lived inline in the scheduled handler, which no test reaches —
- * the whole `ledgerVelocityScan` body is uncovered — so both halves of the
- * D86 edit fix could be reverted with all 550 tests green. The fold's two
+ * the whole `ledgerVelocityScan` body was uncovered (`runVelocityScan`, its
+ * shape since DATA-EFFICIENCY-RUNBOOK 4.4, is driven over a fake store, but
+ * the extraction stands) — so both halves of the D86 edit fix could be
+ * reverted with all 550 tests green. The fold's two
  * cases proved the COUNTING and nothing proved what the count was used
  * for.
  *
@@ -455,8 +468,10 @@ const LOG_UID_CAP = 40;
  * Read one window of the ledger and fold it, page by page.
  *
  * EXTRACTED so it can be executed, for the reason `volumeFlagged` above
- * was: the whole `ledgerVelocityScan` body is unreachable from any test,
- * so the paging loop could be broken with every suite green.
+ * was: the whole `ledgerVelocityScan` body was unreachable from any test,
+ * so the paging loop could be broken with every suite green (the run is
+ * `runVelocityScan` since DATA-EFFICIENCY-RUNBOOK 4.4 and IS driven by a
+ * test; this tail read still is not, which is why the fake below stays).
  * Measured before this existed — widening `page.size < PAGE` to `<=`
  * makes a full first page end the read, and all 607 functions tests
  * stayed green. That turns every one of D28's four signals into a
@@ -473,8 +488,8 @@ const LOG_UID_CAP = 40;
 export async function scanLedgerWindow(
   db: Firestore,
   windowStart: number,
+  fold: WindowFold = emptyFold(),
 ): Promise<{ fold: WindowFold; maxAt: number }> {
-  const fold = emptyFold();
   // Tracked here rather than reduced over `rows` at the end, for the same
   // reason: there is no `rows` to reduce over any more.
   let maxAt = windowStart;
@@ -552,151 +567,289 @@ export function foldAuthPage(
   }
 }
 
-export const ledgerVelocityScan = onSchedule(
-  // Daily, off the top-of-hour herd. Cost at D7's own write ceiling
-  // (~14k answers/day): one page-scan of the day's ledger entries plus
-  // ~140 batched Auth lookups — pennies; at launch volumes, nothing.
-  { schedule: "47 3 * * *", region: REGION, ...LIGHT_UNBOUNDED },
-  async () => {
-    const db = firestore();
-    const stateRef = db.doc(STATE_PATH);
-    const stateSnap = await stateRef.get();
-    const lastScanAt = (stateSnap.exists && (stateSnap.get("lastScanAt") as number)) || 0;
-    const windowStart = Math.max(lastScanAt, Date.now() - WINDOW_CAP_MS);
+/** What the runner reads and writes — the pass's Firestore in
+ * production (`firestoreVelocityStore`), a fixture in velocity.test.ts. */
+export interface VelocityStore {
+  getState(): Promise<{ lastScanAt: number; days: DayCounts }>;
+  putState(state: { lastScanAt: number; days: DayCounts }): Promise<void>;
+  /** A whole UTC day's rows, off the reader the pass shares (D399) — free
+   *  for a day another fold already read, one paged read otherwise. */
+  ledgerDay(day: string): Promise<LedgerRow[]>;
+  /** The rows after `sinceMs`, folded page by page into `into` — the
+   *  partial day since midnight, the one read this scan makes itself.
+   *  Returns the newest timestamp it saw. */
+  ledgerTail(sinceMs: number, into: WindowFold): Promise<number>;
+  /** Auth records for up to 100 uids. */
+  users(uids: string[]): Promise<readonly { uid: string; metadata: { creationTime: string }; customClaims?: Record<string, unknown> | null }[]>;
+}
 
-    // Pull the window, paginated. `at` is the entries' commit-time
-    // serverTimestamp, so an entry this query cannot see yet commits
-    // after our snapshot and lands beyond the cursor we store — the
-    // next run picks it up. (An entry sharing the exact max timestamp
-    // across docs could be skipped once; one entry of undercount in a
-    // day's statistics, harmless for this purpose.)
-    // Folded PER PAGE rather than accumulated. The window is bounded by
-    // WINDOW_CAP_MS, not by DAU, so at ~9 x DAU entries a 50 k-DAU catch-up
-    // is ~450 k rows — which buffered as LedgerRow objects exceeds
-    // LIGHT_UNBOUNDED's 256 MiB (ops.ts) and kills the instance. The
-    // failure is worse than a lost run: `lastScanAt` is written at the END
-    // of this function, so an OOM leaves the cursor unmoved and the next
-    // run re-reads the same capped window and dies identically, forever,
-    // with D28's only detector silently dead. Folding per page keeps peak
-    // live memory at one PAGE of rows plus the fold itself.
-    const { fold, maxAt } = await scanLedgerWindow(db, windowStart);
+export interface VelocitySummary {
+  entries: number;
+  uids: number;
+  volumeFlags: number;
+  cadenceFlags: number;
+  clusterFlags: number;
+  burstFlags: number;
+  /** Whole days served off the shared reader, and rows the tail read itself. */
+  sharedDays: number;
+  tailRows: number;
+  /** How many of the window's active accounts the Auth fan-out actually
+   *  read, and how many there were. Equal on an ordinary night.
+   *
+   *  THE CLUSTER SIGNAL IS A CLAIM ABOUT A POPULATION, which is what
+   *  makes a stop here different from a heal's: a heal that stops leaves
+   *  work undone and says so, while a cluster scan that stops reports
+   *  "no clusters" about a subset it chose by uid order. So the pair is
+   *  in the summary and the pass warns on it — an absence of flags is
+   *  only evidence if the scan saw everyone. */
+  authScanned: number;
+  authTotal: number;
+}
 
-    // Signals 1 + 2: per-uid volume and cadence.
-    let volumeFlags = 0;
-    let cadenceFlags = 0;
-    for (const [uid, times] of fold.perUid) {
-      const creates = fold.createsPerUid.get(uid) || 0;
-      if (volumeFlagged(fold, uid)) {
-        volumeFlags++;
-        logger.warn(
-          `[velocity] impossible volume: uid=${uid} creates=${creates} of n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
-          { metric: "velocity_flag", kind: "volume", uid, n: creates, entries: times.length },
-        );
-      }
-      const cad = cadenceSignal(times);
-      if (cad && cad.flagged) {
-        cadenceFlags++;
-        logger.warn(
-          `[velocity] scripted cadence: uid=${uid} n=${cad.n} mean=${cad.meanMs}ms cv=${cad.cv.toFixed(2)}`,
-          { metric: "velocity_flag", kind: "cadence", uid, n: cad.n, meanMs: cad.meanMs, cv: cad.cv },
-        );
-      }
-    }
+/** How long the scan may spend asking Admin Auth about the window's
+ *  active accounts before it stops — a SLICE, which `runNightlyPass`
+ *  turns into an instant (FANOUT_HEAL_SLICE_MS has the argument for the
+ *  shape). Forty seconds is hundreds of round trips at a hundred
+ *  accounts each; a window that wants more than that is one where the
+ *  cluster signal has stopped being a per-night check and wants a
+ *  cursor, which is a design change rather than a longer fold. */
+export const VELOCITY_AUTH_SLICE_MS = 40_000;
 
-    // Signal 3: birth clusters among the window's active accounts.
-    // getUsers takes at most 100 identifiers per call. Accounts already
-    // deleted (vote-then-erase — D28 records that residual) simply do
-    // not appear; their votes still count toward the other signals.
-    const uids = [...fold.perUid.keys()];
-    const created: { uid: string; createdMs: number }[] = [];
-    // Riding the same fetch: the `db` claim lives on the UserRecord this
-    // loop already pulls, so coverage below costs no extra call.
-    const levels = new Map<string, number>();
-    for (let i = 0; i < uids.length; i += 100) {
-      const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
-      foldAuthPage(res.users, created, levels);
-    }
-    const clusters = birthClusters(created);
-    for (const c of clusters) {
-      logger.warn(
-        `[velocity] birth cluster: ${c.uids.length} accounts created within ${Math.round(c.spanMs / 60_000)}m all voted this window`,
-        {
-          metric: "velocity_flag",
-          kind: "cluster",
-          size: c.uids.length,
-          spanMs: c.spanMs,
-          uids: c.uids.slice(0, LOG_UID_CAP),
-          truncated: c.uids.length > LOG_UID_CAP,
-        },
+/** The three log levels the scan speaks — `logger`'s, injectable. */
+export type VelocityLog = Pick<typeof logger, "info" | "warn">;
+
+const DAY_MS = 86_400_000;
+const utcDayStart = (ms: number): number => {
+  const d = new Date(ms);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+};
+
+/**
+ * One night's scan: the window since the last run (72-hour catch-up cap),
+ * folded from the whole days the pass has already read plus the partial
+ * day since midnight; then D54's four signals, the coverage line and the
+ * heartbeat, exactly as the scheduled function emitted them.
+ *
+ * THE CURSOR SEMANTICS STAY. `lastScanAt` is the newest entry timestamp
+ * seen and is written at the END, so a run that dies re-reads the same
+ * window next time; the window is capped at WINDOW_CAP_MS whatever the
+ * gap. Rows from a whole day are filtered to those after `windowStart`,
+ * so a day read whole for the other folds is never counted twice across
+ * two nights.
+ */
+export async function runVelocityScan(
+  store: VelocityStore,
+  nowMs: number,
+  log: VelocityLog = logger,
+  // An absolute instant on the pass's clock (`runNightlyPass`), not a
+  // duration — see FANOUT_HEAL_SLICE_MS for why the distinction is the
+  // whole shape. `clock` is separate from `nowMs`, which names the window
+  // and is one fixed reading for the night.
+  opts: { deadlineAt?: number; clock?: () => number } = {},
+): Promise<VelocitySummary> {
+  const state = await store.getState();
+  const lastScanAt = state.lastScanAt || 0;
+  const windowStart = Math.max(lastScanAt, nowMs - WINDOW_CAP_MS);
+
+  const fold = emptyFold();
+  let maxAt = windowStart;
+  let sharedDays = 0;
+  // The whole days in the window — every UTC day from the window's first
+  // to yesterday — off the shared reader, cut to the rows after the
+  // window's start.
+  const todayStart = utcDayStart(nowMs);
+  for (let dayStart = utcDayStart(windowStart); dayStart < todayStart; dayStart += DAY_MS) {
+    const rows = (await store.ledgerDay(utcDayKeyOf(dayStart))).filter((r) => r.uid && r.atMs > windowStart);
+    foldInto(fold, rows);
+    for (const r of rows) if (r.atMs > maxAt) maxAt = r.atMs;
+    sharedDays += 1;
+  }
+  // The partial day: everything since midnight (or since the window's
+  // start, when that is later), read here and folded per page.
+  const before = fold.entries;
+  const tailSince = Math.max(windowStart, todayStart - 1);
+  const tailMax = await store.ledgerTail(tailSince, fold);
+  // The cursor is the newest ENTRY seen, never the bound the tail was
+  // asked from: an empty tail leaves it where the whole days put it, so
+  // a night with nothing since midnight cannot move it past a row that
+  // was never read. (A cursor inside yesterday costs the next night one
+  // extra day read off the shared reader, filtered to the rows after it —
+  // small, and only ever at a size where nobody answers before 02:23.)
+  if (tailMax > tailSince && tailMax > maxAt) maxAt = tailMax;
+  const tailRows = fold.entries - before;
+
+  // Signals 1 + 2: per-uid volume and cadence.
+  let volumeFlags = 0;
+  let cadenceFlags = 0;
+  for (const [uid, times] of fold.perUid) {
+    const creates = fold.createsPerUid.get(uid) || 0;
+    if (volumeFlagged(fold, uid)) {
+      volumeFlags++;
+      log.warn(
+        `[velocity] impossible volume: uid=${uid} creates=${creates} of n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
+        { metric: "velocity_flag", kind: "volume", uid, n: creates, entries: times.length },
       );
     }
+    const cad = cadenceSignal(times);
+    if (cad && cad.flagged) {
+      cadenceFlags++;
+      log.warn(
+        `[velocity] scripted cadence: uid=${uid} n=${cad.n} mean=${cad.meanMs}ms cv=${cad.cv.toFixed(2)}`,
+        { metric: "velocity_flag", kind: "cadence", uid, n: cad.n, meanMs: cad.meanMs, cv: cad.cv },
+      );
+    }
+  }
 
-    // Signal 4: per-question bursts. Merge the window into the trailing
-    // state FIRST so a window spanning midnight gives day two a baseline
-    // that includes day one, then judge each (day, qid) the window
-    // touched against the days before it.
-    const stateDays = (stateSnap.exists && (stateSnap.get("days") as DayCounts)) || {};
-    const merged = mergeDays(stateDays, fold.perDayQid);
-    let burstFlags = 0;
-    for (const [day, qids] of Object.entries(fold.perDayQid)) {
-      for (const qid of Object.keys(qids)) {
-        const b = burstSignal(qid, day, merged[day][qid], merged);
-        if (b.flagged) {
-          burstFlags++;
-          logger.warn(
-            `[velocity] burst: qid=${qid} day=${day} n=${b.count} baseline=${b.baselineMean.toFixed(1)}/day over ${b.baselineDays}d`,
-            { metric: "velocity_flag", kind: "burst", qid, day, n: b.count, baselineMean: b.baselineMean },
-          );
-        }
+  // Signal 3: birth clusters among the window's active accounts.
+  // getUsers takes at most 100 identifiers per call. Accounts already
+  // deleted (vote-then-erase — D28 records that residual) simply do
+  // not appear; their votes still count toward the other signals.
+  const uids = [...fold.perUid.keys()];
+  const created: { uid: string; createdMs: number }[] = [];
+  // Riding the same fetch: the `db` claim lives on the UserRecord this
+  // loop already pulls, so coverage below costs no extra call.
+  const levels = new Map<string, number>();
+  // ONE ADMIN-AUTH ROUND TRIP PER HUNDRED ACTIVE ACCOUNTS, and until now
+  // no bound of any kind on how many — a window with fifty thousand
+  // active uids is five hundred sequential calls to a service this pass
+  // does not control, inside a 480-second invocation, with five folds
+  // still behind it. Checked BEFORE each page, because the question is
+  // whether to start another round trip.
+  const clock = opts.clock ?? Date.now;
+  let scanned = 0;
+  for (let i = 0; i < uids.length; i += 100) {
+    if (opts.deadlineAt != null && clock() >= opts.deadlineAt) break;
+    const page = uids.slice(i, i + 100);
+    foldAuthPage(await store.users(page), created, levels);
+    scanned += page.length;
+  }
+  const clusters = birthClusters(created);
+  for (const c of clusters) {
+    log.warn(
+      `[velocity] birth cluster: ${c.uids.length} accounts created within ${Math.round(c.spanMs / 60_000)}m all voted this window`,
+      {
+        metric: "velocity_flag",
+        kind: "cluster",
+        size: c.uids.length,
+        spanMs: c.spanMs,
+        uids: c.uids.slice(0, LOG_UID_CAP),
+        truncated: c.uids.length > LOG_UID_CAP,
+      },
+    );
+  }
+
+  // Signal 4: per-question bursts. Merge the window into the trailing
+  // state FIRST so a window spanning midnight gives day two a baseline
+  // that includes day one, then judge each (day, qid) the window
+  // touched against the days before it.
+  const merged = mergeDays(state.days || {}, fold.perDayQid);
+  let burstFlags = 0;
+  for (const [day, qids] of Object.entries(fold.perDayQid)) {
+    for (const qid of Object.keys(qids)) {
+      const b = burstSignal(qid, day, merged[day][qid], merged);
+      if (b.flagged) {
+        burstFlags++;
+        log.warn(
+          `[velocity] burst: qid=${qid} day=${day} n=${b.count} baseline=${b.baselineMean.toFixed(1)}/day over ${b.baselineDays}d`,
+          { metric: "velocity_flag", kind: "burst", qid, day, n: b.count, baselineMean: b.baselineMean },
+        );
       }
     }
+  }
 
-    await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
+  await store.putState({ lastScanAt: maxAt, days: pruneDays(merged) });
 
-    // Bind coverage (D342, per-level since D343). INFO, and stated as the
-    // decision it informs rather than as bare ratios — the question an
-    // operator has on flip day, and again on every later tightening, is
-    // "what share of real votes would this refuse", and they should not
-    // have to do the subtraction while deciding.
-    const cov = bindCoverage(fold.perUid, levels);
-    const atBar = refusedAt(cov, REQUIRED_LEVEL);
-    const ladder = [...cov.byLevel.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([lvl, t]) => `L${lvl}(${levelDef(lvl).key})=${t.voters}v/${t.answers}a`)
-      .join(" ");
-    logger.info(
-      `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
-        + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
-        + `from ${atBar.voters}/${cov.voters} voters`,
-      {
-        metric: "bind_coverage",
-        voters: cov.voters,
-        answers: cov.answers,
-        bar: REQUIRED_LEVEL,
-        refusedVoters: atBar.voters,
-        refusedAnswers: atBar.answers,
-        refusedPct: pct(atBar.answers, cov.answers),
-        // Per level, so raising the bar can be priced from the same line
-        // rather than from a second query written during an incident.
-        levels: Object.fromEntries([...cov.byLevel].map(([l, t]) => [l, t])),
-      },
-    );
+  // Bind coverage (D342, per-level since D343). INFO, and stated as the
+  // decision it informs rather than as bare ratios — the question an
+  // operator has on flip day, and again on every later tightening, is
+  // "what share of real votes would this refuse", and they should not
+  // have to do the subtraction while deciding.
+  // NARROWED TO WHAT WAS ASKED. The Auth loop above stops on the pass's
+  // clock, and the uids it reached are its first `scanned` in THIS
+  // list's order — the ledger fold's insertion order, not a sort; which
+  // accounts a short night reaches is therefore stable only within one
+  // run — so everything after that point is an account nobody
+  // asked about, which `bindCoverage` would otherwise tally at L0 and
+  // report as unbound. On a night that stopped early, that is the number
+  // an operator reads before flipping enforcement, overstating what it
+  // would refuse without bound: at the limit, "would refuse 100% of
+  // answers" about a population the scan never saw.
+  const askedAbout = new Set(uids.slice(0, scanned));
+  const covPool = scanned >= uids.length
+    ? fold.perUid
+    : new Map([...fold.perUid].filter(([uid]) => askedAbout.has(uid)));
+  const cov = bindCoverage(covPool, levels);
+  const atBar = refusedAt(cov, REQUIRED_LEVEL);
+  const ladder = [...cov.byLevel.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([lvl, t]) => `L${lvl}(${levelDef(lvl).key})=${t.voters}v/${t.answers}a`)
+    .join(" ");
+  log.info(
+    `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
+      + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
+      + `from ${atBar.voters}/${cov.voters} voters`
+      // The basis, and only when it is not the obvious one: a partial
+      // night's ratio is still a real ratio, over a smaller room.
+      + (scanned >= uids.length ? "" : ` — over the ${scanned} of ${uids.length} active accounts this pass reached`),
+    {
+      metric: "bind_coverage",
+      voters: cov.voters,
+      answers: cov.answers,
+      // The population the ratio is OVER, so the metric can be read
+      // without the message: equal on an ordinary night.
+      scanned,
+      active: uids.length,
+      bar: REQUIRED_LEVEL,
+      refusedVoters: atBar.voters,
+      refusedAnswers: atBar.answers,
+      refusedPct: pct(atBar.answers, cov.answers),
+      // Per level, so raising the bar can be priced from the same line
+      // rather than from a second query written during an incident.
+      levels: Object.fromEntries([...cov.byLevel].map(([l, t]) => [l, t])),
+    },
+  );
 
-    // The heartbeat — the scheduledDuelReveals pattern: the message is
-    // what a human greps, the fields are what a log-based metric would
-    // select on if the owner ever attaches one (deliberately none ships
-    // — docs/DEPLOYMENT.md, "Alerting").
-    logger.info(
-      `[velocity] scan: ${fold.entries} entries, ${fold.perUid.size} uids — flags: volume=${volumeFlags} cadence=${cadenceFlags} cluster=${clusters.length} burst=${burstFlags}`,
-      {
-        metric: "velocity_scan",
-        entries: fold.entries,
-        uids: fold.perUid.size,
-        volumeFlags,
-        cadenceFlags,
-        clusterFlags: clusters.length,
-        burstFlags,
-      },
-    );
-  },
-);
+  // The heartbeat — the scheduledDuelReveals pattern: the message is
+  // what a human greps, the fields are what the log-based metric
+  // `velocity_scan` selects on (monitoring/ledgerVelocityScan-silent.json
+  // keeps its name; the metric is the same line from inside the pass).
+  const summary: VelocitySummary = {
+    entries: fold.entries, uids: fold.perUid.size, volumeFlags, cadenceFlags, clusterFlags: clusters.length, burstFlags, sharedDays, tailRows,
+    authScanned: scanned, authTotal: uids.length,
+  };
+  log.info(
+    `[velocity] scan: ${fold.entries} entries, ${fold.perUid.size} uids — flags: volume=${volumeFlags} cadence=${cadenceFlags} cluster=${clusters.length} burst=${burstFlags} (${sharedDays} whole day(s) off the shared read, ${tailRows} rows read for the partial day)`,
+    { metric: "velocity_scan", ...summary },
+  );
+  return summary;
+}
+
+export function firestoreVelocityStore(db: Firestore, ledgerDay: LedgerDayReader): VelocityStore {
+  const stateRef = db.doc(STATE_PATH);
+  return {
+    async getState() {
+      const snap = await stateRef.get();
+      return {
+        lastScanAt: (snap.exists && (snap.get("lastScanAt") as number)) || 0,
+        days: (snap.exists && (snap.get("days") as DayCounts)) || {},
+      };
+    },
+    async putState(state) {
+      await stateRef.set(state);
+    },
+    async ledgerDay(day) {
+      // Entries without a uid predate D28's attribution field; the
+      // runner drops them, as the tail's own reader always has.
+      return (await ledgerDay(day)).map((e) => ({
+        uid: e.uid, qid: e.qid, atMs: e.at,
+        ...(e.fromIdx === undefined ? {} : { isEdit: true }),
+      }));
+    },
+    async ledgerTail(sinceMs, into) {
+      return (await scanLedgerWindow(db, sinceMs, into)).maxAt;
+    },
+    async users(uids) {
+      return (await getAuth().getUsers(uids.map((uid) => ({ uid })))).users;
+    },
+  };
+}

@@ -41,6 +41,7 @@ import {
   type DigestState,
   type EngagementDay,
   type EngagementStore,
+  nextSampleRate,
 } from "./engagement";
 import { V2_QUESTIONS } from "./v2content";
 
@@ -301,6 +302,8 @@ function attnStore(shards: AttentionShardDoc[]) {
   const state = {
     shards: [...shards],
     applied: [] as Array<{ day: string; delta: AttnDelta; ids: string[] }>,
+    /** The published coin, as the last putSampleRate left it (runbook 4.2). */
+    rate: 1,
     days: new Map<string, {
       devices: number;
       s: Record<string, { reach: number; est: number }>;
@@ -312,6 +315,8 @@ function attnStore(shards: AttentionShardDoc[]) {
   };
   const store: AttentionStore = {
     async shardPage(cap) { return state.shards.slice(0, cap); },
+    async getSampleRate() { return state.rate; },
+    async putSampleRate(rate) { state.rate = rate; },
     async dayQids(day) { return state.days.get(day)?.q ?? new Set<string>(); },
     // the memory twin of the batched set-merge + delete: additive, and it
     // removes exactly the ids it was handed
@@ -483,6 +488,41 @@ describe("runAttentionFold", () => {
     const res = await runAttentionFold(store, 10);
     expect(res).toMatchObject({ shards: 10, capped: true });
     expect(state.shards).toHaveLength(20);
+  });
+
+  // ── DATA-EFFICIENCY-RUNBOOK 4.2: the channel samples itself ─────────
+  it("publishes tomorrow's coin from tonight's count: a fifth lower on a capped night, back up when the pile fits", async () => {
+    const many = Array.from({ length: 30 }, (_, i) => sh(`s${i}`, "2026-08-22", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    const capped = await runAttentionFold(store, 10);
+    expect(capped.rate).toBe(0.8);
+    expect(state.rate).toBe(0.8);
+    // the next night, under the cap: the rate rises toward the size that
+    // fills 80% of the cap, and never past 1
+    const eased = await runAttentionFold(store, 100);
+    expect(eased.rate).toBe(1);
+    expect(state.rate).toBe(1);
+  });
+
+  it("nextSampleRate: converges on the cap, never lies below the rules' floor, and treats junk as 1", () => {
+    // 100,000 devices at rate 1 fill a 20,000 cap: 0.8, 0.64, 0.512… until
+    // the sampled pile is under the cap, then it settles where the pile is
+    // 80% of the cap.
+    let rate = 1;
+    const devices = 100_000;
+    for (let night = 0; night < 30; night++) {
+      const shards = Math.min(SHARD_FOLD_CAP, Math.round(devices * rate));
+      rate = nextSampleRate(rate, shards);
+    }
+    expect(rate).toBeCloseTo(0.16, 2);
+    expect(Math.round(devices * rate)).toBeLessThanOrEqual(SHARD_FOLD_CAP);
+    // a small crowd draws the coin at 1 whatever the history
+    expect(nextSampleRate(0.3, 500)).toBe(1);
+    expect(nextSampleRate(1, 0)).toBe(1);
+    // the floor is the rules' own: a shard may not claim less
+    expect(nextSampleRate(0.002, SHARD_FOLD_CAP * 50)).toBe(MIN_SHARD_RATE);
+    expect(nextSampleRate("junk", SHARD_FOLD_CAP)).toBe(0.8);
+    expect(nextSampleRate(NaN, 100)).toBe(1);
   });
 
   // THE CAP IS ABOUT THE DAY DOCUMENT, and for a long time it was not.
@@ -658,6 +698,7 @@ function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
   };
   const store: RollupStore = {
     async rollupPage(cap) { return state.rows.slice(0, cap); },
+    async countUnfolded() { return state.rows.length; },
     async getFgStates(uids) {
       const out = new Map<string, number[]>();
       for (const uid of uids) { const w = state.fg.get(uid); if (w) out.set(uid, w); }
@@ -822,6 +863,76 @@ describe("runRollupFold", () => {
     expect(d.sessions).toBe(300); // clamped to the rules' own bound
     expect(d.dayparts).toEqual([0, 0, 0, 0]);
   });
+
+  // ── DATA-EFFICIENCY-RUNBOOK 4.1: the fold DRAINS ────────────────────
+  //
+  // It read one page of ROLLUP_FOLD_CAP and stopped, and called that
+  // "capped" — so past ten thousand active devices a night the rest never
+  // folded: the same oldest days came first every night and the newest
+  // rollups died unfolded at their TTL, while the warning promised
+  // "leftovers fold tomorrow". Now the page is the memory bound and the
+  // time budget is the night's; a full page is a reason to ask again.
+  // A 25,000-row fixture is a real amount of work for a fake store; the
+  // two drains below took 5.2 s on a loaded two-vCPU sandbox against the
+  // 5 s default (2026-09-09), and a size probe that fails on the machine's
+  // mood is a probe nobody trusts. Thirty seconds is the budget, not a
+  // target — the assertions are what hold.
+  const DRAIN_TIMEOUT_MS = 30_000;
+  it("drains 25,000 rollups over three pages, and calls none of it capped", async () => {
+    const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, `2026-08-${String(1 + (i % 20)).padStart(2, "0")}`));
+    const { store, state } = rollupStore(many);
+    const res = await runRollupFold(store);
+    expect(res).toMatchObject({ rollups: 25_000, days: 20, capped: false, left: 0 });
+    expect(state.rows, "rollups were left unfolded on a night with budget to spare").toHaveLength(0);
+  }, DRAIN_TIMEOUT_MS);
+
+  it("a budget stop leaves the rest unfolded — not lost — and says how many", async () => {
+    const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, "2026-08-22"));
+    const { store, state } = rollupStore(many);
+    // a clock that is already past the deadline by the first page's end
+    let t = 0;
+    const res = await runRollupFold(store, ROLLUP_FOLD_CAP, { deadlineAt: 1000, nowMs: () => (t += 2000) });
+    expect(res.capped).toBe(true);
+    expect(res.rollups).toBe(ROLLUP_FOLD_CAP);
+    expect(res.left).toBe(25_000 - ROLLUP_FOLD_CAP);
+    expect(state.rows).toHaveLength(25_000 - ROLLUP_FOLD_CAP);
+    // …and the next night's first page is exactly what this one left
+    const again = await runRollupFold(store);
+    expect(again).toMatchObject({ rollups: 25_000 - ROLLUP_FOLD_CAP, capped: false, left: 0 });
+    expect(state.rows).toHaveLength(0);
+  }, DRAIN_TIMEOUT_MS);
+
+  it("takes the pass's deadline over its own slice, and a caller without one keeps the slice", async () => {
+    // The half a fold-local stopwatch could not express, and the reason
+    // the option is an INSTANT: the nightly pass hands down the earlier
+    // of this fold's slice and the invocation's own ceiling, so a fold
+    // that starts late stops early instead of running past the kill.
+    // Here the pass's instant is 4,500 and the clock reads 5,000 at the
+    // end of the first page — already past it — while the slice alone
+    // would have allowed 5,000 + 300,000 and drained all 25,000.
+    const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, "2026-08-22"));
+    const { store } = rollupStore(many);
+    let t = 4_000;
+    const res = await runRollupFold(store, ROLLUP_FOLD_CAP, { deadlineAt: 4_500, nowMs: () => (t += 1_000) });
+    expect(res.capped, "the pass's ceiling did not stop the fold").toBe(true);
+    expect(res.rollups).toBe(ROLLUP_FOLD_CAP);
+
+    // …and the control: the same clock with no deadline at all falls back
+    // to the slice from here, which is 300 seconds away, so nothing stops.
+    const { store: s2 } = rollupStore(Array.from({ length: 25_000 }, (_, i) => rr(`v${i}`, "2026-08-22")));
+    let t2 = 4_000;
+    const res2 = await runRollupFold(s2, ROLLUP_FOLD_CAP, { nowMs: () => (t2 += 1_000) });
+    expect(res2.capped, "a direct caller lost the slice the constant names").toBe(false);
+    expect(res2.rollups).toBe(25_000);
+  }, DRAIN_TIMEOUT_MS);
+
+  it("stops on a full page of junk rather than asking for it forever", async () => {
+    const junk = Array.from({ length: ROLLUP_FOLD_CAP }, (_, i) => rr(`u${i}`, "someday"));
+    const { store } = rollupStore(junk);
+    const res = await runRollupFold(store);
+    expect(res.rollups).toBe(ROLLUP_FOLD_CAP);
+    expect(res.capped).toBe(false);
+  });
 });
 
 describe("the _state document is shared, so the digest must MERGE it", () => {
@@ -915,7 +1026,7 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
     } as unknown as Parameters<typeof firestoreAttentionStore>[0];
 
     const store = firestoreAttentionStore(db);
-    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: 3 }, q: {}, qOther: 0 }, ["shard1"]);
+    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: { reach: 3, est: 3 } }, q: {}, qOther: 0 }, ["shard1"]);
     expect(calls[0].data.attn.s, "the guard removed a real counter map").toBeTruthy();
   });
 
@@ -976,7 +1087,7 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
       day: "2026-08-25", actives: 3, firstTime: 1, votes: 4, events: 5,
       bySurface: { daily: 3 },
       returned: {
-        d1: { of: 2, came: 1 }, d7: { of: 0, came: 0 }, d30: { of: 0, came: 0 },
+        d1: { of: 2, returned: 1 }, d7: { of: 0, returned: 0 }, d30: { of: 0, returned: 0 },
       },
       streaksBroken: 0,
     });
@@ -1086,7 +1197,7 @@ describe("the digest's ledger read (D399)", () => {
   // built with, which in production is the night's shared memo.
   it("ledgerDay is the reader the store was built with (D399: one read a night, three folds)", async () => {
     const asked: string[] = [];
-    const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
+    const reader = async (day: string) => { asked.push(day); return [{ id: "ev1", at: 1_756_000_000_000, uid: "u1", qid: "daily-000" }]; };
     const db = {
       // firestoreEngagementStore takes a metaRef off its first collection
       // before returning; ledgerDay never touches it.
@@ -1094,7 +1205,7 @@ describe("the digest's ledger read (D399)", () => {
     } as unknown as Parameters<typeof firestoreEngagementStore>[0];
     const rows = await firestoreEngagementStore(db, reader).ledgerDay("2026-08-25");
     expect(asked).toEqual(["2026-08-25"]);
-    expect(rows).toEqual([{ uid: "u1", qid: "daily-000" }]);
+    expect(rows).toEqual([{ id: "ev1", at: 1_756_000_000_000, uid: "u1", qid: "daily-000" }]);
   });
 });
 

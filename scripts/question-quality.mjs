@@ -751,8 +751,15 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   }
 
   const opts = (q.options || []).map((o) => (o && typeof o === "object" ? o.label : o));
+  // A cast round's four answers ARE sentences by design (D437, the owner's
+  // 2026-09-09 brief: "every prompt and answer is a plain sentence a person
+  // would say" — *the one who thinks ahead for you both*), and the card
+  // draws them as full-width rows, never side by side, so the label bound
+  // that keeps a split ballot legible does not describe them. The bound
+  // still reaches every other 1v1 entry.
+  const sentences = q.kind === "cast";
   for (const o of opts) {
-    if (String(o).length > OPTION_MAX) {
+    if (!sentences && String(o).length > OPTION_MAX) {
       err("option-length", `option ${JSON.stringify(String(o))} is ${String(o).length} chars (max ${OPTION_MAX})`);
     }
   }
@@ -1836,6 +1843,43 @@ if (invokedDirectly) {
       }
     });
   }
+  // The LIVE DAILY seed — the archive entries above, promoted. The pick
+  // seed one block up has held PARITY with its archive since the day it
+  // shipped; the daily seed, which is the bank that ships the daily card,
+  // had the rules applied and no parity check at all.
+  //
+  // The join is not by id. `promote-questions.mjs`'s own header says why:
+  // "live hydration joins the seeded bank to the demo layer by
+  // PROMPT-STRING EQUALITY (`liveSync` in daily-questions.js), so a
+  // hand-retyped prompt silently unhooks the question from the Map
+  // forever." `daily-questions.js` repeats it, and `liveSync` even warns
+  // at run time — but only in a browser, on a live build, into a console
+  // nobody is reading. Nothing said it here, where it is cheap.
+  //
+  // Measured 2026-09-09: retyping one promoted daily prompt and
+  // regenerating left check:content, check:quality, check:neighbors and
+  // check:taxonomy ALL at exit 0, while the identical edit to the pick
+  // seed failed this gate by id.
+  //
+  // DIRECTION MATTERS. This asks that every seeded prompt still has an
+  // archive twin — the direction `liveSync` warns about, where a bank
+  // entry's votes stop feeding the Map. The reverse (an archive entry no
+  // seed carries) is ordinary: the archive is 171 prompts and the seed is
+  // what has been promoted so far.
+  {
+    const archivePrompts = new Set(corpus.specQ.map((q) => q.prompt));
+    corpus.seed.forEach((q) => {
+      if (archivePrompts.has(q.prompt)) return;
+      failed = true;
+      console.error(
+        `  ✗ daily(seed) ${q.id}: prompt is in no archive entry — `
+        + `${JSON.stringify(String(q.prompt).slice(0, 60))}`
+        + "\n      promotion copies byte-for-byte and liveSync joins on the string, so this"
+        + "\n      question's votes no longer reach the Map. Restore the prompt, or promote again.",
+      );
+    });
+  }
+
   corpus.learn.cards.forEach((card) => {
     const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
     report("learn", card.id, errs, warn);
