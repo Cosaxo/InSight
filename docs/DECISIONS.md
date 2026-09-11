@@ -50081,3 +50081,108 @@ code it pins), `test:scripts` (74 / 1,288), `test --prefix functions`
 (39 / 839), `test:rules` (214, coverage and budget ratchets at baseline),
 `test:e2e:all`, `build` + `check:bundle`, and every static gate the
 changed files touch. The counts are in the PR body.
+
+## D453 · The sign-in wall stopped waiting for auth to speak: the warm boot's own treatment, one surface over
+
+**2026-09-11.** **Status: Proposed** — the owner's tick on
+`MERGE-LIST.md` is the decision. Reported from a device by the owner,
+in one sentence: *"even when you are signed in the sign in page will
+show for a brief while before it relises you are signed in"*.
+
+**What was wrong, and it was structural rather than a race.**
+`ui/SignInGate.tsx` composed the wall's verdict itself —
+`!(LIVE.linked && !LIVE.needsEmailVerify)` — and BOTH of those flags
+are initialised to false and moved only by live.ts's auth observer.
+That observer cannot fire until the Firebase Auth SDK has been imported
+(~400 KB of Auth and Firestore to fetch and parse) and the auth
+restore's own IndexedDB read has come back. D356 named that pair "the
+longest LOCAL wait a warm boot has left" and took the DECK out from
+behind it: a returning device paints its real deck, answers, aggregates
+and anchors off its own caches, and `initLive`'s race releases the
+render at that point. The wall never got the same treatment, so the
+render D356 releases early is a render in which a signed-in user is
+indistinguishable from a stranger — the screen goes up, the restore
+lands, the screen comes down. Not a rare interleaving: it is every
+launch of every walled build with a linked account, which since D414 is
+every install.
+
+**The fix is D356's own shape, one surface over.** The wall now reads
+what auth last told THIS DEVICE until auth tells it something this
+session:
+
+- `data/live.ts` keeps `insight.authMirror.v1` — the verdict, written
+  whenever it moves and read while it is unknown. A new `state.authKnown`
+  says whether the observer has spoken; `LIVE.wallPass` is
+  `linked && !needsEmailVerify` once it has and the mirror until then.
+- `ui/SignInGate.tsx` asks that one question instead of composing two
+  flags. The two-condition rule it used to state — an unverified
+  password address is not a passed wall, because the mail that is the
+  only way back into a typo'd account goes to the wrong inbox — moved
+  to the getter with the composition, since it is a fact about the
+  account rather than about the component.
+- The observer writes the mirror and announces the FIRST observation
+  even when neither flag moved. That arm is the whole of the correction
+  path: a device whose mirror opened the wall, for a session auth then
+  reports as anonymous, moves nothing — so without it the app would
+  stay open behind a wall that could never close.
+- `LIVE.refreshVerification` writes it too. That path clears
+  `needsEmailVerify` without the observer (its own comment says why:
+  `reload()` notifying is an SDK implementation detail), and missing it
+  would have flashed the wall at exactly the person who had just
+  confirmed their address.
+- The account-switch arm writes it AFTER `resetForNewUid`, because that
+  is what purges the `insight.` namespace the write lands in. Nothing in
+  the reset touches the two flags, so the verdict there is already the
+  new account's — and without the second write, switching INTO a linked
+  account cost that account a flash on its next launch.
+- `initLive`'s early return sets `authKnown` as well: in a build with no
+  Firebase behind it nothing will ever observe auth, so the wall must
+  not wait for a word that is not coming — and a mirror left by a build
+  that DID have Firebase cannot open it.
+
+**What it costs, stated rather than assumed.** The wall can now be down
+for one auth restore over a session that has really ended — revoked,
+deleted from another device, or auth storage cleared without
+localStorage. What is on screen in that window is this device's own
+cached deck for the account the mirror names, which is the account
+whose session was lost; nothing of anyone else's is on disk to draw,
+and no write can reach Firestore in it (getDb parks every mutator
+behind `authSettled` while the uid is provisional — D356). The key
+lives in the `insight.` namespace `purgeLocalTrace` sweeps, so a
+deleted account leaves no open door for the next one, and an absent,
+unreadable or unrecognised value reads as WALLED — a device that has
+never passed the wall waits for auth exactly as it did before.
+
+That last property has a consequence worth stating rather than
+discovering: an account signed in BEFORE this shipped has no mirror on
+disk, so the first launch after the update still flashes, once, and
+writes the mirror on the way past. Every launch after it is clean. The
+alternative — seeding the key from something already on disk, the
+profile mirror say — would be inferring a verdict auth never gave, on
+the one surface where a wrong guess opens the wall.
+
+**Why the mirror and not a hold.** The obvious alternative is to render
+nothing until auth speaks. It pays the same wait D356 removed, and pays
+it on the signed-OUT path too (a first launch would sit on a blank
+background for the restore instead of showing the door); it needs a
+timeout, because `subscribeToAuth` gives up after one retry and a
+failed chunk would otherwise leave `#root` blank for the session — the
+exact failure `SignInGate`'s slot exists to prevent; and at the end of
+that timeout it puts the wall up anyway. The mirror adds no wait in
+either direction and has no blank-forever state.
+
+**Measured, and every case mutation-checked red first.** Six cases in
+`data/warm-boot.test.ts` over real store state (the mirror before auth
+speaks and auth's word after; the contradiction closing the wall again
+AND announcing it; the write that opens the next launch; the inbox
+poll's own write; the sweep on an account switch, and the re-write that
+survives it), and the gate's own suite gains the first-frame pin plus
+the correction — with the store mock offering `wallPass` and nothing
+else, so a component that goes back to composing the flags walls every
+case in the file. Dropping the mirror read fails four; dropping the
+first-observation notify fails the one it exists for; dropping the
+verify-path write fails the inbox case; moving the switch's write back
+before the reset fails the sixth.
+`lint`, `tsc -b`, `test:unit`, `test:scripts`, `build` +
+`check:bundle` (eager graph unmoved at its ceiling), `check:globals`,
+`check:purge`, `check:figures`.

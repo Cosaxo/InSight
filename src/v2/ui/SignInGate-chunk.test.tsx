@@ -29,8 +29,10 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 const LIVE = vi.hoisted(() => {
   const subs = new Set<() => void>();
   return {
-    linked: false,
-    needsEmailVerify: false,
+    // The wall's verdict, as one member since D453 — the store composes
+    // it, and answers off this device's last verdict until the auth
+    // observer speaks (`data/live.ts`).
+    wallPass: false,
     subscribe(fn: () => void) { subs.add(fn); return () => { subs.delete(fn); }; },
     announce() { for (const fn of [...subs]) fn(); },
   };
@@ -51,7 +53,7 @@ import SignInGate from "./SignInGate";
 const TheApp = () => <div data-testid="app">the app</div>;
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
 
-afterEach(() => { cleanup(); vi.unstubAllEnvs(); LIVE.linked = false; });
+afterEach(() => { cleanup(); vi.unstubAllEnvs(); LIVE.wallPass = false; });
 
 describe("a chunk fetch that fails behind the account wall", () => {
   it("does not take the root down with it, and the wall still comes down on sign-in", async () => {
@@ -71,7 +73,7 @@ describe("a chunk fetch that fails behind the account wall", () => {
     // event can reach anything. Here the component is still mounted, so
     // the store's announcement still brings the wall down — a user whose
     // sign-in succeeds reaches the app without relaunching.
-    LIVE.linked = true;
+    LIVE.wallPass = true;
     await act(async () => { LIVE.announce(); });
     expect(screen.getByTestId("app"), "the tree was dead after the failed fetch").toBeTruthy();
     expect(container.firstElementChild).toBe(screen.getByTestId("app"));
