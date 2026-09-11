@@ -45,7 +45,13 @@ beforeAll(async () => {
       // returns a different shape, so it is keyed separately. Keying the
       // whole host would make one of the two readings answer the other's
       // body — which is how a stub agrees with itself and proves nothing.
-      const key = req.url.includes("entries:list") ? "logging:entries" : host;
+      // Same reasoning one host over: the database reading and the schedule
+      // reading are both GETs to firestore.googleapis.com and return
+      // completely different shapes, so keying the host alone would let one
+      // answer the other's body.
+      const key = req.url.includes("entries:list") ? "logging:entries"
+        : req.url.includes("/backupSchedules") ? "firestore:schedules"
+          : host;
       const r = reply[key] || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
@@ -62,6 +68,8 @@ beforeEach(() => {
     "logging.googleapis.com": { status: 200, body: { metrics: [{ name: "m1" }] } },
     "cloudfunctions.googleapis.com": { status: 200, body: { functions: [] } },
     "cloudbilling.googleapis.com": { status: 200, body: { billingEnabled: true, billingAccountName: "billingAccounts/X" } },
+    "firestore.googleapis.com": { status: 200, body: { name: "projects/prvfire33/databases/insight", pointInTimeRecoveryEnablement: "POINT_IN_TIME_RECOVERY_DISABLED" } },
+    "firestore:schedules": { status: 200, body: {} },
     "logging:entries": {
       status: 200,
       body: { entries: [{ resource: { type: "cloud_run_revision", labels: { service_name: "onv2answercreated", project_id: "p" } }, timestamp: "2026-08-26T00:00:00Z" }] },
@@ -94,7 +102,7 @@ describe("a refusal is a result, not a crash", () => {
   it("reports EVERY refusal in one run, not just the first", async () => {
     for (const h of Object.keys(reply)) reply[h] = { status: 403, body: { error: { message: "denied" } } };
     const j = await asJson();
-    expect(j.blocked).toHaveLength(4);
+    expect(j.blocked).toHaveLength(6);
     expect(j.reachable).toEqual([]);
   });
 
@@ -111,6 +119,45 @@ describe("a refusal is a result, not a crash", () => {
   it("exits 0 when a reading is refused — a missing role is the answer", async () => {
     reply["monitoring.googleapis.com"] = { status: 403, body: { error: { message: "denied" } } };
     await expect(observe()).resolves.toBeTruthy();
+  });
+});
+
+describe("the backup reading, which nothing could answer before D450", () => {
+  it("reports PITR off and no schedules when there are none — the tree's own state", async () => {
+    const j = await asJson();
+    expect(j.readings.backups.pitr).toBe(false);
+    expect(j.readings.backupSchedules).toMatchObject({ count: 0, daily: false, weekly: false });
+  });
+
+  it("reads PITR and both schedules back once they are armed", async () => {
+    reply["firestore.googleapis.com"] = {
+      status: 200,
+      body: { name: "projects/prvfire33/databases/insight", pointInTimeRecoveryEnablement: "POINT_IN_TIME_RECOVERY_ENABLED" },
+    };
+    reply["firestore:schedules"] = {
+      status: 200,
+      body: {
+        backupSchedules: [
+          { retention: "604800s", dailyRecurrence: {} },
+          { retention: "8467200s", weeklyRecurrence: { day: "SUNDAY" } },
+        ],
+      },
+    };
+    const j = await asJson();
+    expect(j.readings.backups.pitr).toBe(true);
+    expect(j.readings.backupSchedules).toMatchObject({ count: 2, daily: true, weekly: true });
+    // Retention read BACK, not assumed: a schedule created with the wrong
+    // duration is accepted, listed, and quietly keeps three hours.
+    expect(j.readings.backupSchedules.retention).toEqual(["604800s", "8467200s"]);
+  });
+
+  it("does not read a weekly-only project as covered", async () => {
+    reply["firestore:schedules"] = {
+      status: 200,
+      body: { backupSchedules: [{ retention: "8467200s", weeklyRecurrence: { day: "SUNDAY" } }] },
+    };
+    const j = await asJson();
+    expect(j.readings.backupSchedules).toMatchObject({ count: 1, daily: false, weekly: true });
   });
 });
 

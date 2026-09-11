@@ -168,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Ten jobs — verified rather than assumed,
+**What the environment gates.** Eleven jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -179,7 +179,12 @@ this paragraph's history — and it caught the sixth, `appcheck.yml`, in
 the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
 same way and in the same commit — and the ninth and tenth,
-`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09.)
+`apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09, and the
+eleventh, `backups.yml`, on 2026-09-11.) **The table below had drifted the
+other way** — it is supposed to be the list, and it was missing
+`apply-bigquery.yml` and `backfill-log.yml` from the day they were counted
+in the prose above, because `check:figures` holds the COUNT and nothing
+holds the ROWS. Both added 2026-09-11 with `backups.yml`.
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -191,6 +196,9 @@ same way and in the same commit — and the ninth and tenth,
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
 | `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
+| `apply-bigquery.yml` | `apply` | creating the BigQuery dataset and tables the answer log writes to |
+| `backfill-log.yml` | `backfill` | replaying existing answers into the log — once, dry then `apply` |
+| `backups.yml` | `arm` | point-in-time recovery and the two backup schedules — the only copy of the answers there is (D450) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -478,6 +486,62 @@ window. Aggregates already double-counted are NOT self-healing: the
 ledger says the work was done. `## Correcting aggregates after a
 fake-account ring (D28)` below is the closest thing to a repair path, and
 it is a rebuild rather than an undo.
+
+## Backups and point-in-time recovery (D450)
+
+**Rolling back a deploy is not the same as getting the data back, and
+until 2026-09-11 this document only had the first.** There were no
+backups and no PITR. The repository knew it as two lines in
+`docs/COST-EXPOSURE.md` §7 under *"what this page could not verify from
+here"*, filed as a COST footnote — so the fact that the only asset had no
+copy read as an unpriced line rather than as an unprotected database.
+
+**Why this outranks every other recovery path written down here.** D290's
+invariant makes the answer document the source of truth and every
+aggregate a projection rebuilt from it. `## Correcting aggregates after a
+fake-account ring (D28)` and `functions/src/replay.ts` both obey it: they
+rebuild aggregates **out of** `v2_users/{uid}/answers`. So every repair
+path in this file assumes the answers survived. Nothing made that true.
+
+### Arming it
+
+    npm run backups            # report: PITR, both schedules, and what is restorable
+    npm run backups -- --apply # create them
+
+or **Actions → Backups**, `apply` off first — dispatch-only behind the
+`production` environment, so it can only run from `main`. Three things, in
+this order:
+
+| | What | Why this one |
+| --- | --- | --- |
+| 1 | Point-in-time recovery, 7 days | The only one that recovers from *"the backfill ran with the wrong predicate at 02:00"*. A daily snapshot either predates that and loses a day of answers, or postdates it and contains the damage. |
+| 2 | Daily schedule, 7-day retention | The coarse net. |
+| 3 | Weekly schedule, 14-week retention | This repo's failure mode is quiet — a retirement, a purge, a moderation sweep. Seven days is not long enough to notice one. |
+
+**Not on the deploy path, and it must not become one** — `monitoring.yml`'s
+rule, for the same reason: a pipeline that can create a backup schedule
+can delete one, in a deploy that was about something else, and the blast
+radius here is the whole product.
+
+### Reading it back
+
+`npm run observe` reports `backups.pitr`, and `backupSchedules` with the
+retention read back rather than assumed — a schedule created with the
+wrong duration is accepted, listed, and quietly keeps three hours.
+*"A schedule exists"* is not the reading anybody wants; *"how far back can
+I go"* is.
+
+The script's `restorable now` line is the only output that is evidence
+rather than a promise. A schedule takes up to a day to produce its first
+backup, so a run immediately after arming reports **nothing**, and that is
+correct.
+
+### What is still owed
+
+**A schedule is not a restore.** Nothing here has been restored into a
+scratch database and a row read back, so recovery is a well-evidenced
+belief rather than a fact. That is the next row on this page, and the only
+thing that turns it into one is doing it once.
 
 ## Rolling back a bad deploy
 
