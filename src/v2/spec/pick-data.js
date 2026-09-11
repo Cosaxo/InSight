@@ -896,6 +896,30 @@ export let PICK_QS;
       275960: 2,    // Mass Effect — below the floor; the Citadel vote
       0: 14,        // Not listed — everyone's private somewhere
     },
+    // daily catalog-question run, 2026-09-11 — the fourth athletes canon
+    // is the TEAMMATE: pk28 asks who deserves the crown, pk30 who is
+    // worth the ticket, pk34 whose life you would take; this asks who
+    // you want BESIDE you when it matters, which selects for trust and
+    // unselfishness over peak. The boards provably differ: Nadal and
+    // Magic Johnson chart top-10 here and nowhere else, and LeBron —
+    // who FOLDS on the GOAT board — leads this one, because making
+    // teammates better is his signature trait.
+    pk41: {
+      36159: 22,    // LeBron James — makes everyone around him better
+      615: 19,      // Lionel Messi — carries quietly, never a scene
+      10132: 15,    // Rafael Nadal — never concedes a point; top-10 on no other board
+      134183: 12,   // Magic Johnson — the assist made famous; only board he charts
+      11459: 10,    // Serena Williams — the ally you want when the room is hostile
+      41421: 9,     // Michael Jordan — you would win, and hear about it
+      5812: 8,      // Novak Djokovic — wins from two sets down
+      39562: 7,     // Michael Phelps — the relay anchor, literally the teammate
+      352159: 6,    // Stephen Curry — gravity that frees everyone else
+      36107: 6,     // Muhammad Ali — the corner you want in your corner
+      11571: 5,     // Cristiano Ronaldo — clears the floor, folds outside the top 10
+      17515: 3,     // Diego Maradona — below the floor; genius, but which one turns up?
+      209518: 2,    // Wayne Gretzky — below the floor
+      0: 13,        // Not listed — the five-a-side friend who always shows up
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1383,6 +1407,20 @@ export let PICK_QS;
         Men: { 49740: 8, 323862: 7, 27438121: 6, 17185964: 5, 3182559: 4 },
       },
     },
+    pk41: {
+      ageBand: {
+        // who you trust follows who you watched: the youngest cells pick
+        // the playmakers they grew up on, the oldest reach for Magic,
+        // Ali and Jordan — reorder, never flip
+        '18-24': { 36159: 8, 615: 7, 352159: 5, 5812: 4, 11459: 3 },
+        '25-34': { 615: 8, 36159: 6, 10132: 5, 11459: 4, 39562: 3 },
+        '45+': { 41421: 6, 134183: 5, 36107: 4, 615: 3 },
+      },
+      gender: {
+        Women: { 11459: 8, 615: 6, 10132: 5, 36159: 5, 5812: 3 },
+        Men: { 36159: 9, 615: 8, 41421: 6, 10132: 5, 134183: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1558,6 +1596,7 @@ export let PICK_QS;
     { id: 'pk38', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game you’ve sunk the most hours into?', n: 150 },
     { id: 'pk39', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'If the whole world had to share one language, which should it be?', n: 139 },
     { id: 'pk40', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game world you’d actually live in?', n: 133 },
+    { id: 'pk41', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d want beside you, whatever the game?', n: 137 },
   ];
   window.PICK_QS = PICK_QS;
 })();
