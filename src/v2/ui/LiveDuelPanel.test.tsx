@@ -1288,6 +1288,41 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
   });
 
+  it("says a failed tap failed, and lets you ask again", async () => {
+    // `loadRevealHistory` ANSWERS "failed" rather than throwing, so a
+    // `void`ed call read as success: the tap set `histAsked`, the button
+    // disappeared, the rounds never arrived and nothing on screen said
+    // why. There was no way to ask again without leaving the room.
+    // LiveGroupsMirrorBody reads the same answer correctly; this is that
+    // reading, at the tap.
+    const load = vi.fn(async (gid: string) => { void gid; return "failed" as const; });
+    LIVE.social.loadRevealHistory = load;
+    LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
+    await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+    await waitFor(() => expect(screen.getByText(/Couldn.t read the older rounds/i)).toBeTruthy());
+    // …and the affordance is back, or "try again" is a sentence with no
+    // control under it.
+    expect(
+      screen.getByRole("button", { name: /Load older rounds/i }),
+      "the button stayed gone after a failed read — nothing left to tap",
+    ).toBeTruthy();
+  });
+
+  it("a busy answer is not a failure — the history is in hand or on its way", async () => {
+    // The other two answers `loadRevealHistory` gives. "busy" means the
+    // read is already done or already running, which is exactly what the
+    // button asked for, so it must not draw a failure.
+    const load = vi.fn(async (gid: string) => { void gid; return "busy" as const; });
+    LIVE.social.loadRevealHistory = load;
+    LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
+    await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+    expect(screen.queryByText(/Couldn.t read the older rounds/i)).toBeNull();
+  });
+
   // Dates RELATIVE TO NOW, not literals. The labels are a claim about how
   // long ago a day was, so a fixture pinned to August could only ever be
   // right on the day it was written — and it stayed green for months
