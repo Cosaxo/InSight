@@ -36,6 +36,7 @@ import {
   runReviewVerdict,
   takeReviewCall,
   ReviewBudgetHeld,
+  ReviewDeferred,
   REVIEW_CALLS_PER_DAY,
   REVIEW_MAX_TOKENS,
   goLive,
@@ -824,7 +825,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
    *  a transaction that re-reads it, and a record of what was written.
    *  `reads` lets a case change the status BETWEEN the outer read and the
    *  transaction's, which is the race the second guard exists for. */
-  function fakeDb(statuses: string[]) {
+  function fakeDb(statuses: string[], payload: Record<string, unknown> = BOOKING as unknown as Record<string, unknown>) {
     const writes: Record<string, unknown>[] = [];
     // Reads are counted because the OUTER guard's whole job is to spend
     // nothing on a booking that is not in review: without it the function
@@ -838,7 +839,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
       reads.push(status);
       return {
         exists: true,
-        get: (k: string) => (k === "status" ? status : (BOOKING as unknown as Record<string, unknown>)[k]),
+        get: (k: string) => (k === "status" ? status : payload[k]),
       };
     };
     const ref = { get: async () => snapFor(), update: async (u: Record<string, unknown>) => { writes.push(u); } };
@@ -856,10 +857,62 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
   }
 
   it("writes a verdict for a booking that is still in review — the control", async () => {
-    const f = fakeDb(["review", "review"]);
+    // A GATED decline, which is a verdict reached without any model call
+    // — this case is the control for its three siblings, which assert
+    // that a live/declined/missing booking is written NOTHING, so what it
+    // has to show is that a review-status booking is written something.
+    //
+    // It used to take the no-key path and assert an APPROVE. That stopped
+    // being available at D456, for the reason the two cases below give:
+    // no reviewer now means HOLD, so a control resting on it would have
+    // been asserting that a deployment without a reviewer approves.
+    const f = fakeDb(["review", "review"], { ...BOOKING, prompt: "???" });
     await reviewBooking(f.db, "b1");
     expect(f.writes, "the ordinary path stopped writing a verdict").toHaveLength(1);
-    expect(f.writes[0].status).toBe("approved");
+    expect(f.writes[0].status).toBe("declined");
+  });
+
+  it("HOLDS rather than approves when no reviewer is configured", async () => {
+    // The line D456 changed, and the most dangerous one this file has
+    // carried. reviewGates reads the SHAPE — payload parses, no duplicate
+    // options, two alphanumerics — and never the words. So "no key →
+    // approve" meant a submission naming a private person or carrying a
+    // slur was approved automatically and could be paid for and published
+    // under a paid band. Holding leaves it in `review`, which is the
+    // queue the Routine reads.
+    const was = process.env.ANTHROPIC_API_KEY;
+    const wasEmu = process.env.FUNCTIONS_EMULATOR;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.FUNCTIONS_EMULATOR;
+    try {
+      const f = fakeDb(["review", "review"]);
+      await reviewBooking(f.db, "b1");
+      expect(f.writes, "a deployment with no reviewer settled a booking anyway").toEqual([]);
+    } finally {
+      if (was !== undefined) process.env.ANTHROPIC_API_KEY = was;
+      if (wasEmu !== undefined) process.env.FUNCTIONS_EMULATOR = wasEmu;
+    }
+  });
+
+  it("does not count an ATTEMPT while it waits for the Routine", async () => {
+    // MAX_REVIEW_ATTEMPTS (6) exists to stop a booking the reviewer cannot
+    // settle from retrying forever. The sweep runs every half hour, so
+    // counting here would stall every booking on a Routine-reviewed
+    // deployment after three hours — well inside the window the Routine
+    // is expected to answer in.
+    const was = process.env.ANTHROPIC_API_KEY;
+    const wasEmu = process.env.FUNCTIONS_EMULATOR;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.FUNCTIONS_EMULATOR;
+    try {
+      const f = fakeDb(["review", "review"]);
+      await reviewBooking(f.db, "b1");
+      const counted = f.writes.some((w) => "reviewAttempts" in w);
+      expect(counted, "waiting for the Routine burned an attempt").toBe(false);
+    } finally {
+      if (was !== undefined) process.env.ANTHROPIC_API_KEY = was;
+      if (wasEmu !== undefined) process.env.FUNCTIONS_EMULATOR = wasEmu;
+    }
   });
 
   it("writes nothing for a booking that is already LIVE — it has been paid for", async () => {
@@ -1060,9 +1113,12 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
     let taken = 0;
     const refuse = async () => { taken += 1; throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); };
     try {
-      // No key: gates-only, and the budget is untouched.
+      // No key: DEFERRED to the review Routine since D456, and the budget
+      // is untouched. This read `gates-only` and asserted an APPROVE until
+      // then — the budget half was right and the verdict half was the bug.
       delete process.env.ANTHROPIC_API_KEY;
-      expect((await runReviewVerdict(BOOKING, null, refuse)).by).toBe("gates-only");
+      delete process.env.FUNCTIONS_EMULATOR;
+      await expect(runReviewVerdict(BOOKING, null, refuse)).rejects.toBeInstanceOf(ReviewDeferred);
       expect(taken).toBe(0);
       // A gated decline never reaches the budget either.
       process.env.ANTHROPIC_API_KEY = "test-key";
@@ -1092,5 +1148,8 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
     } finally {
       if (was === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = was;
     }
+
   });
 });
+
+// ── D455's gate, appended after main's review-budget suite ──────────

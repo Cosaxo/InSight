@@ -50186,3 +50186,358 @@ before the reset fails the sixth.
 `lint`, `tsc -b`, `test:unit`, `test:scripts`, `build` +
 `check:bundle` (eager graph unmoved at its ceiling), `check:globals`,
 `check:purge`, `check:figures`.
+
+## D454 · The money path and the two BigQuery steps become readings: whether a sale can complete today is an API call, and had been all along
+
+**2026-09-09.** **Status:** binding. The owner asked *"is bigquerry and
+stripe setup if not lets do that"*. The answer to the first half is **no,
+neither is**, and the answer to the second half is that neither can be
+done from a session: Stripe needs a Stripe account and BigQuery needs a
+console toggle and an extension install. What could be done, and is done
+here, is the part that made the question hard to answer at all.
+
+### The question could not be answered, and that was written down as a fact
+
+`OWNER-LIST.md` carried this, verbatim, about the paid loop's three
+secrets:
+
+> A session cannot read the deployed environment, so whether a sale can
+> go through TODAY is a fact only you can check.
+
+It is false, and it is false in the exact shape D292 already recorded
+once. That decision found the read-only observer's every reading to be
+an ordinary Google API call that `fn-log.mjs` had been making since
+D179 — the six `gcloud` commands of runbook 5.13 buy LEAST PRIVILEGE,
+not access — and the cost of having treated them as a prerequisite was
+that nobody could see production's own state for as long as they went
+unrun, which on 2026-08-26 was long enough for every instrument in the
+repo to report zero answers over 108 real ones for fifteen days (D296).
+
+The same thing had happened again, one credential over. The Cloud
+Functions v2 list response carries `serviceConfig.environmentVariables`
+and `serviceConfig.uri`. `observe.mjs` was already fetching it, already
+reading `.uri` from it for the stray-function reading, and already
+running daily on `FIREBASE_SERVICE_ACCOUNT`. Three secrets whose absence
+D367 called *"a shipped pipeline with no step that turns it on"* were
+one field away from the reader that had been looking at them since it
+was written.
+
+### What is read now
+
+All of it derived from calls the run already made, except one list:
+
+| Reading | Answers | From |
+| --- | --- | --- |
+| `paidPath.secrets` | which of the three names are in the deployed runtime | the functions list already fetched |
+| `paidPath.canSell` | *A sale can complete today: YES/NO* | the two that stop a sale |
+| `paidPath.reviewJudged` | judgement, or the deterministic gates alone | `ANTHROPIC_API_KEY` |
+| `paidPath.webhookUrl` | runbook 5.14 step 2's whole input | `serviceConfig.uri` |
+| `bqMirror.installed` | runbook 5.11 | `ext-firestore-bigquery-export-*` functions |
+| `billingExport.on` | runbook 5.12 | `gcp_billing_export_*` tables |
+| `bigquery.datasets` | D165's residency question | one new datasets list |
+
+Three of those readings were chosen against the easier version of
+themselves:
+
+**The secret is read by PRESENCE, never by value.** This project's
+secrets reach the runtime through the dotenv the deploy writes rather
+than through Secret Manager — deliberately, so a missing Secret Manager
+entry can never make `firebase deploy` refuse an emergency rules fix
+(`DEPLOYMENT.md`). The consequence is that `sk_live_…` is *inside the
+body this probe parses*. Only the key set crosses out of the pick
+function, and `observe.test.mjs` plants a fake key and asserts it reaches
+no line of `--json`, `--functions` or the default output. An Actions log
+is readable by everyone with repo read and kept for months; this is the
+discipline `auth-config.yml` already applies to the demo password.
+
+**An absent env map is UNREADABLE, not unset.** The two look identical to
+a reader that folds them and have opposite fixes — one is a secret to
+set, the other is a reading that did not come back. Folding them would
+be D296's failure rebuilt: an instrument reporting a number it did not
+measure. The derived readings carry the parent probe's refusal for the
+same reason, pinned by its own test.
+
+**The mirror and the export are detected by what they BUILD, not by what
+they are called.** A dataset named `firestore_export` can be created by
+anyone; an `ext-firestore-bigquery-export-*` function is the extension.
+Runbook 5.12 explicitly lets the operator name the billing dataset, so a
+name-keyed reader would report any dataset as the export — it is keyed on
+the `gcp_billing_export_*` tables instead.
+
+### What this does NOT do
+
+It does not turn anything on. Stripe needs an account nobody here can
+create; 5.12 is a billing-console toggle on a permission the deploy
+service account does not have and should not be given; and 5.11 is
+**deliberately timed** — the extension streams from the moment it is
+installed, so installing it before the first real users mirrors an empty
+collection and installing it after loses the rows of accounts erased in
+the interim. The reader prints that argument beside the box so the line
+cannot be read as *install it now*. All three stay owner actions on
+`OWNER-LIST.md`; what changed is that their state is a line in a workflow
+run instead of a fact the repository could not see.
+
+### The gate that caught the defect in this change
+
+`source-pins.test.mjs` failed on the first version: both new readers of
+`functions/src/paid.ts` matched against the raw file with nothing
+stripping comments, which is how a superseded name parked in a comment
+above the live declaration gets read as live. `paid.ts` has a 45-line
+header comment naming `createPaidCheckoutV2` and `stripeWebhookV2`. The
+fix was `stripComments()`, not a raised ceiling.
+
+
+## D455 · The web buy door opens: a gate a browser can pass, a page that actually calls the backend, and a city picker that is the difference between a campaign and a refund
+
+**2026-09-10.** **Status:** binding. The owner's answer to "when a customer
+sees their price, what should happen next" — *they click Buy and pay right
+there* — taken with the cost stated: a third-party anti-bot script on the
+page and a privacy page that moves first.
+
+### Two things were wrong, and only one of them was written down
+
+`web/ask.html`'s own header said *"the pay tap is not open yet, and the
+block is App Check, not code"*. That was true about the callables and it
+hid the larger fact: **the page made no backend call at all**. One fetch,
+to a static price file; every number up to the quote computed in the
+browser; no sign-in, no booking, no checkout. The App Check blocker was
+real and it was the second problem, not the first.
+
+### The gate: server-verified reCAPTCHA, not App Check's own bridge
+
+D337 declined the web App Check provider because *"there is no public web
+client"*. D368's shape A built one, so the premise expired rather than
+being wrong, and the question became WHICH browser attestation.
+
+`assertRecaptcha` verifies a v3 token with Google's `siteverify` for
+success, **action** and score before either callable does any work.
+`check-appcheck.mjs` exempts the two naming it as their `gate`, and that
+script asserts the callable's body really calls what its reason claims —
+so the substitute cannot decay into a hole the way a prose-only exemption
+can. Both hops are gated: a booking id is `uid_<base36 ms>`, guessable
+enough that leaving checkout unlatched would undo the first.
+
+Chosen over App Check's own reCAPTCHA bridge for two reasons.
+
+**The practical one.** That flow ends in a token exchange whose request
+and response field names this session could not read from any source it
+had — `firebase.google.com` is blocked by the egress proxy here, and no
+caller in this repository exercises it. A hand-written call to an
+unverified endpoint fails *silently*, as a pay button that does nothing,
+which is precisely the failure mode `check:csp-hashes` exists for one file
+over. Every other REST shape on the page was read off a working caller in
+this tree instead: anonymous sign-in from `question-scorecard.mjs`, the
+callable envelope from `operator-call.mjs`, the document read from the
+same aggregate loop.
+
+**The one about strength.** `siteverify` returns a score and the action
+the token was minted for, checked on our side, per request. An App Check
+token is a yes/no that is replayable for its whole TTL. The abuse actually
+in question is somebody spending the Anthropic budget five Claude reviews
+at a time from unlimited free anonymous accounts, and a score beats a yes.
+
+**Unset is CLOSED**, which inverts the polarity of every other credential
+in `paid.ts`. Those degrade honestly because their absence costs a
+feature; this one's absence would cost the budget it protects. The
+emulator arm is `deviceBind.ts`'s idiom one file over — `FUNCTIONS_EMULATOR`
+is set *by* the emulator and cannot be set into a deployed runtime.
+
+### The page, with no SDK
+
+`web/` has no build step and is served verbatim, and this page is one
+inline script pinned by sha256 under `default-src 'none'`. A bundled
+Firebase SDK would be a second script, a policy rewrite and a build step
+for a directory that has none. So: plain `fetch` throughout, one external
+script (reCAPTCHA), and a CSP that gains exactly the hosts those calls
+need.
+
+The flow is sign in → token for action `book` → `bookPaidQuestionV2` →
+**poll the buyer's own booking document** → token for action `checkout` →
+`createPaidCheckoutV2` → Stripe. The poll is there because the review runs
+on a Firestore trigger rather than inside the booking call, and
+`firestore.rules` already admits an own-uid read of that document.
+
+### The city picker, which is the expensive part
+
+A booking's `dims.city` is matched against the anchor an answer
+snapshotted when it was written (D8), and that anchor is a **catalogue
+key**: `"Oslo, NO"` — `placeKey()` in `src/v2/data/places.ts`. A free-text
+city box would therefore have taken €320 and reached **nobody**, quietly,
+with every gate green: "Oslo", "oslo" and "Oslo, Norway" are all
+reasonable things to type and none of them is the key. The error the
+server returns says *"a city ask needs your city set on your profile"*,
+written for an in-app buyer who has one; a web buyer does not.
+
+So `web/ask-places.txt` — 10,929 city names, generated from
+`public/cities.txt`, 57 KB gzipped, fetched only on a place scope — and a
+picker whose failure to resolve is a **refusal to sell** rather than a
+warning. Country names come from `Intl.DisplayNames` rather than the
+catalogue, which is `places.ts`'s own reasoning for not shipping 245 of
+them. `check:ask-places` holds the generated file to its source.
+
+### Two bugs found by driving the page rather than reading it
+
+The place requirement started on the QUOTE button. The ruler starts on
+"Your city", so the page opened with its main button disabled and nothing
+saying why. The place is needed to BOOK, not to be quoted — a city ask
+costs what it costs whichever city it is — so it moved to the tap, where
+the composer reopens on the missing field. And `drawPlace` had to join
+`draw()`, or the page opened on a place scope with no place field visible.
+
+The test harness had the same shape of fault: it stubbed one `fetch` for
+every URL, so the config reader received the pricing card — an object with
+no `apiKey`, which reads as "door closed". The right answer, arrived at by
+accident, and it would have stayed the answer after the door opened.
+
+### What did not change
+
+A deployment with no keys ships the same correct page it did before, with
+the honest "payment is not open yet" note — a local checkout, a preview,
+and production before runbook 5.14 all land there. That note is now chosen
+by `cfgReady()` rather than written in, so it is a statement about the
+deployment rather than a claim about the code.
+
+`web/privacy.html` moved FIRST (D183): what Google receives, that the
+score is kept with the booking, and that it runs on that page alone and
+never loads if you do not open it. Two `check:policy-claims` rows hold
+both halves. The second matters more than it looks — a reader who learns
+the app loads Google's anti-bot script will reasonably assume it loads
+everywhere, and the true answer is the one that stops being written down
+the moment nothing holds it.
+
+**Still the owner's, and the only thing left:** runbook 5.14's five keys.
+Nothing here can create a Stripe account or a reCAPTCHA site.
+
+
+## D456 · The buy door's gate comes off and the reviewer becomes a Routine: a buyer's humanity is not worth proving, and "no reviewer" must mean hold rather than approve
+
+**2026-09-11.** **Status:** binding. Two owner rulings in one sentence —
+*"routine is fine, if the reCAPTCHA is only for limitin pepole that buys
+that dosent matter if they are real or not that only matters for the
+votes and ais can beat reCAPTCHA now so is pretty useless"* — taken
+whole, and the second one uncovered a line far more dangerous than the
+gate it removed.
+
+### The distinction the owner drew, and why it is right
+
+D451 put a server-verified reCAPTCHA in front of the two buy-door
+callables because App Check could not reach a browser. The owner's
+objection is that it answers a question nobody needs answered: **a
+buyer's humanity does not matter, a voter's does.** That is exactly the
+product's own line. A vote is the raw material every aggregate in this
+app is folded from, and a fake one corrupts the picture; a purchase is
+filtered by €320 changing hands.
+
+The arithmetic holds. `goLive` runs on the PAYMENT webhook, so an unpaid
+booking is an invisible document that never becomes a question anyone
+sees. And the thing reCAPTCHA was actually protecting was the per-review
+model spend — which the same sentence abolished. The owner's other half
+(reCAPTCHA v3 is weak against current solvers) is true, and means the
+removal is less a downgrade than the retirement of a porous gate guarding
+something that had moved away.
+
+**Every vote path still enforces App Check** — 20 callables, unchanged.
+That is the owner's distinction drawn in code, and `check:appcheck` is
+where it can be read.
+
+### What guards the two callables now
+
+`assertBookingBudget` (five a rolling day per account) on the booking, and
+`assertOwnApprovedBooking` on the checkout — the latter extracted from
+three inline `if`s for this record, because `check-appcheck.mjs` proves a
+callable calls the guard its exemption NAMES, and a reason pointing at
+inline code is a reason nothing can hold. That script's own header
+records the same failure about `seedContentV2`.
+
+### The line this uncovered, which is the real finding
+
+With `ANTHROPIC_API_KEY` unset, `runReviewVerdict` returned
+**`{ verdict: "approve", by: "gates-only" }`**.
+
+`reviewGates` checks three things: the payload parses, no two options are
+identical, and the prompt contains two alphanumerics. **It never reads the
+words.** So on a deployment without that key, a submission naming a
+private person, carrying a slur, or linking to a gambling site was
+approved automatically, could be paid for, and would publish to the
+chosen audience under a paid disclosure band.
+
+That was survivable while two premises held: production was expected to
+carry the key, and the door was shut to browsers. This session retired
+both — the owner's ruling makes "no key" the *expected* production state,
+and D451 opened the door. Fail-open on a path where the failure is
+publishing unreviewed content to strangers is not a degradation, it is
+the absence of the feature while the UI says otherwise.
+
+It now throws `ReviewDeferred`: the booking stays in `review`, **which is
+the Routine's queue**.
+
+**The emulator is the one exception, and CI is what found it.** The first
+version deferred everywhere, and `e2e-v2-loop.mjs` went red: that suite
+walks book → review → pay → live, and a held booking never settles, so
+deferring in the emulator would not have tested the hold — it would have
+deleted the only end-to-end coverage the paid loop has. So the emulator
+keeps the old gates-only approve. The danger of that line is a real
+buyer's words reaching a real audience, and an emulator has neither; the
+production behaviour is covered by `paid.test.ts` instead, whose cases
+delete `FUNCTIONS_EMULATOR` first for exactly this reason. Keyed on the
+variable the emulator sets and nothing can set into a deployed runtime,
+which is `ENFORCE_APP_CHECK`'s own shape one file over.
+
+No attempt is counted, because
+`MAX_REVIEW_ATTEMPTS` exists for a booking the reviewer cannot settle and
+this one has not been looked at once — counting would stall every booking
+after six sweeps, three hours, well inside the window a Routine answers
+in.
+
+### The Routine
+
+`scripts/paid-review.mjs`, on `observe.mjs`'s pattern: the deploy
+credential and plain REST, rather than two new operator callables needing
+deploy targets, exemptions, rules and tests to do what that credential
+already does.
+
+**The reviewer is the SESSION, not the script.** `--list` prints the
+submissions and the guidelines — read out of `paid.ts`, so they cannot
+drift from the ones the server-side path used — and the Routine's own
+Claude judges them. The script holds no heuristic of its own, because one
+there would be a second, weaker reviewer that the real one could not see
+it was disagreeing with.
+
+It refuses to settle a booking that has moved on, reads before it writes,
+and sends an `updateMask` — a PATCH without one REPLACES a document in
+Firestore's REST API, which would blank the quote and leave checkout
+unable to find one.
+
+**Chartered, not created** (`ROUTINES.md` §10): there is nothing to
+review until the Stripe keys exist, and an hourly Routine firing at an
+empty queue for a week is one somebody learns to ignore before it
+matters. No trigger id is written, because inventing one is the failure
+that file's §7 is about.
+
+### The cost that replaced the one removed
+
+An unpaid booking was the only thing an unguarded caller could leave
+behind, and bookings carried **no expiry at all** — an approved,
+never-paid document sat forever. `BOOKING_TTL_DAYS` (60) now stamps
+`expireAt`, and `goLive` **deletes** it on the paying webhook, because the
+closer reads that record months later to compute a refund and there is no
+right later date for a sold campaign. The TTL policy itself is one
+console command, runbook 5.1b — a fourth collection group, not covered by
+5.1's ticked box, since a policy is per collection group.
+
+### What the buyer is told
+
+The wait is now hours, not seconds, so the held copy stopped saying *"the
+reviewer is not answering right now"* — on this deployment it usually is
+not answering **yet**, which is a different sentence. It says the price is
+held and nothing is lost by closing the page, and names no cadence, per
+`CLAUDE.md`'s rule about sentences with expiry dates.
+
+### What did not change
+
+The privacy page lost the reCAPTCHA disclosure **in the same commit as the
+two `check:policy-claims` rows that held it** — a page that keeps
+promising what it no longer does is the failure D183 exists to stop,
+pointed the other way. The page still loads no external script, which is
+what it was before D451 and what its one-inline-script design is for.
+
