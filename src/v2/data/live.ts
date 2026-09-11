@@ -7517,6 +7517,28 @@ const LIVE = {
   get linked() {
     return state.linked;
   },
+  // Has the auth observer spoken yet? FALSE for the whole restore, and
+  // since D453 that window is on screen: the wall used to cover it —
+  // every install is walled since D414 — and now it passes on the mirror
+  // rather than waiting, so the app is up while `linked` is still the
+  // flag's cold default.
+  //
+  // Every other identity surface composes from `linked` alone, which in
+  // that window is a claim about an account nobody has asked about yet.
+  // A returning, linked user opening the account panel there read "Your
+  // answers live on this phone only — a reinstall or a new phone loses
+  // them", under a "Continue with Google" button whose only possible
+  // answer is `provider-already-linked`; the profile overlay called the
+  // same session "anonymous session — sign in to keep it", which is the
+  // sentence the D344 amendment was written to remove.
+  //
+  // So the surfaces ask this first and say nothing about the account
+  // until it answers. A reader who is told nothing for a moment can
+  // still be told the truth afterwards; a reader told the wrong thing
+  // has already acted on it.
+  get authKnown() {
+    return state.authKnown;
+  },
   // The wall is passed when the session is linked AND nothing is waiting on
   // an inbox. Two flags rather than one so the gate can say WHICH it is:
   // "sign in" and "confirm your address" are different screens, and a

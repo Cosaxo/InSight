@@ -915,6 +915,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // `linked`: the mount suites build a walled build only by stubbing
     // VITE_REQUIRE_SIGNIN, and none of them does.
     wallPass: false,
+    // SETTLED: the mount suites are about what a screen draws once auth
+    // has spoken, not about the restore window. A case that wants the
+    // window flips this and leaves `linked` as it is — which is the
+    // combination the identity surfaces used to state as a fact.
+    authKnown: true,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).

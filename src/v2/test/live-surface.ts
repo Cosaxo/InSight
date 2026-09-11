@@ -153,7 +153,11 @@ export const LIVE_MEMBERS = [
   // because a change to either has to be a change to it.
   "wallPass",
   "linkApple",
-  "linkGoogle", "linked", "myCity",
+  "linkGoogle", "linked",
+  // …and whether the auth observer has spoken at all, which is what
+  // stops the identity surfaces stating `linked` during the restore.
+  "authKnown",
+  "myCity",
   "myVotes",
   // The clear the store's two drains apply, for an aggregate THIS STORE
   // DID NOT FETCH: `data/pulse` reads its own day-keyed documents, so a
