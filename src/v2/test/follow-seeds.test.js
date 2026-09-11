@@ -158,7 +158,7 @@ describe("what the follow surfaces may advertise (D96)", () => {
     window.WORLD_FEED_QS = [];
     try {
       expect(ST.offers()).toEqual([]);
-      expect(ST.all().length).toBe(13); // the dictionary stays whole (13 since the 2026-09-10 births)
+      expect(ST.all().length).toBe(18); // the dictionary stays whole (18 since the 2026-09-11 births)
     } finally {
       window.WORLD_FEED_QS = pool;
     }
