@@ -40,12 +40,13 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T11:25:47Z -->
+<!-- console:generated 2026-09-11T16:28:10Z -->
 
 ## Open
 
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 24 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 293 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#485** · a session · *what:* Both of last night's shifts, composed as one tree and reviewed as one unit. · *how:* All 63 commits are kept as written; nothing was reverted. · CI running (10 pending) · current with main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 25 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 294 behind main · opened 2026-09-01 · stage **new**
 - [ ] **night-20260911** (no PR yet) · Claude 2's night shift · 32 commits · last 05:33 UTC 2026-09-11
 - [ ] **nightb-20260911** (no PR yet) · Claude 1's night shift B · 31 commits · last 04:12 UTC 2026-09-11
 
