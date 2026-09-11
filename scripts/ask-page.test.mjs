@@ -134,6 +134,36 @@ describe("the link (D378) and the quote", () => {
     $("quoteBtn").click();
     expect($("qLink").hidden).toBe(true);
   });
+
+  it("states the refund RULE and forecasts nothing", () => {
+    // The line used to work an example off `Math.round(a * 0.67)` and
+    // print it as counts — "if it is answered 1 675 times instead of
+    // 2 500". The 0.67 was carried from a design draft and exists in no
+    // committed file, on the page that takes the money. The server
+    // refuses the same thing one step earlier: pricingFold's estimates
+    // are withheld until a cohort has a campaign to measure from, and
+    // `web/ask-pricing.json` carries no estimates block at all.
+    //
+    // So this pins the shape rather than the wording: every figure in
+    // the sentence is one the panel above it already quotes, and none of
+    // them is a prediction.
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+    const line = sp($("refundLine").textContent);
+    expect(line).toMatch(/every answer it does not get comes back to you/);
+    expect(line, "the page forecasts a delivery rate again").not.toMatch(/instead of/);
+    // The two numbers it does quote are the panel's own, not new ones.
+    const cap = sp($("qCap").textContent);
+    const answers = sp($("qAnswers").textContent).replace(/^up to /, "");
+    const rate = sp($("qRate").textContent);
+    expect(line).toContain("charged " + cap + " now");
+    expect(line).toContain("answered up to " + answers + " times");
+    expect(line).toContain("comes back to you at " + rate + " an answer");
+  });
 });
 
 // ── the pay tap, which is a closed door and must say so ─────────────────

@@ -749,7 +749,6 @@
   function showPanel(state) {
     st.panel = state;
     var P = st.P, a = answers(), r = rate();
-    var served = Math.round(a * 0.67);
 
     $("panel").hidden = false;
     $("compose").hidden = state !== null && state !== "declined";
@@ -776,11 +775,28 @@
     $("qLink").textContent = dom ? dom + " ↗" : "";
 
     $("refundLine").hidden = state === "declined";
+    // NO FORECAST HERE, and the deletion is the point. This line used to
+    // work an example off `Math.round(a * 0.67)` and print it as concrete
+    // counts — "if it is answered 1 675 times instead of 2 500". That
+    // 0.67 was carried from a design draft and exists in no committed
+    // file: it is not a measured delivery rate, and the page said it to
+    // the buyer on the screen that takes the money.
+    //
+    // The server refuses exactly this one step earlier. pricingFold.ts's
+    // `estimates` are WITHHELD until a cohort has a campaign to measure
+    // from — "an empty ledger prints prices and open days — never a
+    // forecast" — and `web/ask-pricing.json` carries no estimates block
+    // at all, so there was nothing behind the number.
+    //
+    // What the buyer needs is the RULE, and the rule needs no forecast:
+    // the cap, the window, the per-answer rate, and that unserved answers
+    // refund themselves. Every figure below is one the page already
+    // quotes above it.
     $("refundLine").textContent =
       "You are charged " + fmtEur(budget()) + " now. The question runs for "
-      + P.refundDays + " days; if it is answered " + n(served) + " times instead of "
-      + n(a) + ", the " + n(a - served) + " unserved answers come back to you as "
-      + fmtEur((a - served) * r) + ". Nobody has to ask.";
+      + P.refundDays + " days and is answered up to " + n(a)
+      + " times; every answer it does not get comes back to you at "
+      + fmt(r) + " an answer. Nobody has to ask.";
 
     $("declineReason").hidden = state !== "declined";
     $("declineReason").textContent =
