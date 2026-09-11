@@ -7048,8 +7048,15 @@ const LIVE = {
   coreFeedAggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.feedBank
+      // EVERY SHAPE THE FIT FOLDS, not two options alone (D458): the Map
+      // draws a row per published loading now, so a three-option choice, a
+      // scale and a catalogue card each have dots to place — and each is a
+      // core feed question the nightly fitted. `pool()` keeps its own
+      // two-option filter, so the Oracle and the People lens are unmoved;
+      // this widens what is AVAILABLE, not what they read.
       .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
-        && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
+        && ((q.options || []).length >= 2 || q.type === "catalog")
+        && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   }),
   /**

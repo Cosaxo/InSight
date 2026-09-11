@@ -54,11 +54,22 @@ vi.mock("../data/patterns", () => ({
     ready: () => h.ready,
     hasLoadings: () => h.hasLoadings,
     pool: () => h.pool,
+    // D458: the Map draws a dot per published ROW. These fixtures are
+    // about the tab's ruler rather than the ring, so the rows are the
+    // pool's own two-option questions in the row shape — one dot each,
+    // which is what the pool used to mean.
+    rows: () => (h.pool as { q: { id: string; text: string; cat: string; options: { id: string; label: string }[] }; L: number[]; n: number; marginal: number; mine: number | null }[])
+      .map((p) => ({
+        key: p.q.id, kind: "bin", qid: p.q.id, title: p.q.text, label: "", cat: p.q.cat,
+        optionLabels: [p.q.options[0].label, p.q.options[1].label],
+        options: p.q.options, L: p.L, n: p.n, marginal: p.marginal, mine: p.mine,
+      })),
     nextAsk: () => null,
     seal: () => null,
     grade: () => null,
     meter: () => ({ records: [], called: 0, avgBits: 0 }),
     say: () => Promise.resolve(null),
+    sayRow: () => Promise.resolve(null),
     subscribe: () => () => {},
   },
   ensureLive: () => Promise.resolve(),

@@ -159,6 +159,45 @@ export interface PairSay {
   both: number;
 }
 
+/** One side of a row, as the counted sentence names it: what to test a
+ * sample row for, and the words for it. A catalogue side carries its
+ * entity key instead of a label — the device names it from the
+ * catalogue, which the card loads on the tap and this module never
+ * needs. */
+interface RowSide {
+  label: string;
+  entity?: string;
+  /** The option index this side IS, where the row has one — what lets the
+   * card say "you went the other way" from the viewer's own answer
+   * without this module reading it (the 2026-08-20 standalone's rule). */
+  idx?: number;
+  test: (r: SayRow) => boolean;
+}
+
+/** The counted sentence between two DOTS (D458) — the pair card's own
+ * 2×2, generalised from two-option questions to any two published rows.
+ * The shape says what it counted and over whom, because every kind ends
+ * up in the same sentence and only the basis tells them apart. */
+export interface RowSay {
+  /** "Pick X here — and N% pick Y". */
+  pick: string;
+  pickEntity?: string;
+  then: string;
+  thenEntity?: string;
+  /** The option index the `then` side is, where the target row has one. */
+  thenIdx?: number;
+  pct: number;
+  /** The unconditional share — the tick the card draws. */
+  base: number;
+  /** People the count is over: in both samples, or in the one sample when
+   * a profile value is one side of it. */
+  both: number;
+  /** How the two were joined, because the sentence is only as good as
+   * this: `both` = two samples intersected, `one` = one question's sample
+   * cut by the frozen chips it already carries. */
+  over: "both" | "one";
+}
+
 /** The Oracle's evidence reading: among the people in both bounded
  * samples who took the viewer's side on the evidence question, the share
  * that picked each side of the target. */
@@ -270,8 +309,13 @@ const tellSessionCache = new Map<string, TellShare | null>();
 // Map-lens selection that was up to ~800 profile reads a session bought
 // and thrown away. `fetchVoterPicks` is the same query without the second
 // one.
-const sayRowCache = new Map<string, Promise<{ uid: string; optionIdx: number }[]>>();
-function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
+// The row type carries what the SAMPLE carries: a vote's option index, a
+// catalogue pick's entity (D453), and the answer's frozen chips (D8) —
+// which is what lets a You bead be counted against a question inside that
+// question's own sample, with no second list (D458).
+type SayRow = { uid: string; optionIdx: number; entity?: string; anchors?: Readonly<Record<string, string>> };
+const sayRowCache = new Map<string, Promise<SayRow[]>>();
+function sayRows(qid: string): Promise<SayRow[]> {
   let p = sayRowCache.get(qid);
   if (!p) {
     p = (async () => {
@@ -288,6 +332,121 @@ function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
   }
   return p;
 }
+const rowSayCache = new Map<string, RowSay | null>();
+
+/** The sides a dot can be tested for. One for a bead (it IS that answer),
+ * two for a two-option dot or a scale (the search picks whichever lifts).
+ * `median` is the scale's own, read off the sample it will be counted in
+ * — a bank's option list says nothing about how people used it. */
+function sidesOf(row: MapRow, sample: readonly SayRow[]): RowSide[] {
+  if (row.kind === "opt") {
+    const opt = row.opt ?? 0;
+    return [{ label: row.label, idx: opt, test: (r) => r.optionIdx === opt }];
+  }
+  if (row.kind === "pick") {
+    const e = row.entity ?? "";
+    return [{ label: "", entity: e, test: (r) => r.entity === e }];
+  }
+  if (row.kind === "anc") {
+    const dim = row.dim ?? "", bucket = row.bucket ?? "";
+    return [{ label: row.label, test: (r) => r.anchors?.[dim] === bucket }];
+  }
+  if (row.kind === "ord") {
+    const vals = sample.map((r) => r.optionIdx).filter((v) => Number.isInteger(v) && v >= 0).sort((a, b) => a - b);
+    if (!vals.length) return [];
+    const mid = vals[Math.floor(vals.length / 2)];
+    return [
+      { label: "high", test: (r) => r.optionIdx >= mid },
+      { label: "low", test: (r) => r.optionIdx < mid },
+    ];
+  }
+  return [
+    { label: row.optionLabels?.[0] ?? "yes", idx: 0, test: (r) => r.optionIdx === 0 },
+    { label: row.optionLabels?.[1] ?? "no", idx: 1, test: (r) => r.optionIdx === 1 },
+  ];
+}
+
+/** The best positive-lift cell of a 2×2 built from two side lists over a
+ * population of people each side can be tested on. The rule is `say`'s,
+ * kept in one place so the two joins cannot drift apart. */
+function bestLift(
+  people: readonly SayRow[],
+  as: readonly RowSide[],
+  bs: readonly RowSide[],
+  over: "both" | "one",
+): RowSay | null {
+  const both = people.length;
+  if (both < 12) return null;
+  let best: RowSay | null = null;
+  for (const a of as) {
+    const inA = people.filter(a.test);
+    if (inA.length / both < 0.18) continue; // decent support only
+    for (const b of bs) {
+      const base = people.filter(b.test).length / both;
+      const cond = inA.filter(b.test).length / inA.length;
+      if (base <= 0 || cond / base <= 1) continue;
+      if (!best || cond / base > best.pct / Math.max(1, best.base)) {
+        best = {
+          pick: a.label,
+          ...(a.entity ? { pickEntity: a.entity } : {}),
+          then: b.label,
+          ...(b.entity ? { thenEntity: b.entity } : {}),
+          ...(b.idx === undefined ? {} : { thenIdx: b.idx }),
+          pct: Math.round(cond * 100),
+          base: Math.round(base * 100),
+          both,
+          over,
+        };
+      }
+    }
+  }
+  return best;
+}
+
+/** Two question rows: their samples intersected on the device. */
+async function sayOverBoth(A: MapRow, B: MapRow): Promise<RowSay | null> {
+  const [va, vb] = await Promise.all([sayRows(A.qid), sayRows(B.qid)]);
+  const bByUid = new Map(vb.map((v) => [v.uid, v]));
+  const people: SayRow[] = [];
+  const asSide = sidesOf(A, va);
+  const bsSide = sidesOf(B, vb);
+  // the joined person carries BOTH answers, so the b-side tests read the
+  // b sample's own row rather than the a sample's copy of that person
+  const paired: { a: SayRow; b: SayRow }[] = [];
+  for (const v of va) {
+    const b = bByUid.get(v.uid);
+    if (!b) continue;
+    paired.push({ a: v, b });
+    people.push(v);
+  }
+  if (!asSide.length || !bsSide.length) return null;
+  const bs = bsSide.map((side) => ({
+    ...side,
+    test: (r: SayRow) => {
+      const pair = paired.find((x) => x.a.uid === r.uid);
+      return !!pair && side.test(pair.b);
+    },
+  }));
+  return bestLift(people, asSide, bs, "both");
+}
+
+/** A profile value and a question row: the question's own sample, cut by
+ * the frozen chips its rows already carry. */
+async function sayOverOne(A: MapRow, B: MapRow): Promise<RowSay | null> {
+  const anc = A.kind === "anc" ? A : B;
+  const q = A.kind === "anc" ? B : A;
+  const sample = await sayRows(q.qid);
+  // only people whose answer froze the dim can be on either side of it
+  const dim = anc.dim ?? "";
+  const people = sample.filter((r) => typeof r.anchors?.[dim] === "string" && r.anchors[dim]);
+  const sides = sidesOf(anc, people);
+  const qs = sidesOf(q, people);
+  if (!sides.length || !qs.length) return null;
+  // the sentence always reads from the tapped dot; the caller passes it
+  // first, so keep that order
+  return A.kind === "anc" ? bestLift(people, sides, qs, "one") : bestLift(people, qs, sides, "one");
+}
+
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => { try { f(); } catch { /* a broken listener must not stop the rest */ } });
 
@@ -370,6 +529,167 @@ function pool(): PoolItem[] {
     });
   }
   return out;
+}
+
+/** One DOT on the Map (D458): a published row, which is one axis people
+ * can lean along. A two-option question and a scale are one row each and
+ * so one dot; a choice is one row per option, a catalogue card one per
+ * popular pick, a profile value one of its own — bead groups, drawn
+ * together and tapped as a group.
+ *
+ * The rule the whole design rests on: a dot is a ROW. It was already true
+ * of the Map's two-option dots (one row each, which is why nobody noticed
+ * it was a rule), and keeping it costs no new arithmetic — `edgesOf` has
+ * always been cosines between rows. */
+export interface MapRow {
+  /** The published row's key — `qid`, `qid~opt`, `qid~entity`, or
+   * `anchor~dim~bucket`. */
+  key: string;
+  kind: "bin" | "ord" | "opt" | "anc" | "pick";
+  /** The question this row belongs to; the bead group's identity.
+   * `anchor~{dim}` for a profile value. */
+  qid: string;
+  /** The question's own text — the card's head. */
+  title: string;
+  /** What THIS dot is: the option's label, the bucket, or "" where the
+   * dot is the question itself (bin/ord) or needs a catalogue to name
+   * (pick — the card loads it on the tap; a bead on the rim has no text). */
+  label: string;
+  /** The topic arc it sits under; anchors have their own arc (the You
+   * ring), so theirs is null. */
+  cat: string | null;
+  /** The catalogue this row's entity belongs to, where it has one — what
+   * the card needs to name and picture a bead. */
+  domain?: string | null;
+  L: number[];
+  n: number;
+  marginal: number;
+  /** The viewer's own standing on this row: +1/−1 for bin, opt and pick,
+   * the option INDEX for ord, +1/−1 for an anchor they carry, null when
+   * they have not answered (or, for an anchor, left the dim empty). */
+  mine: number | null;
+  /** Both option labels, where the row IS a two-option question — its
+   * two sides are the sentence's candidate picks (D458's `sidesOf`). */
+  optionLabels?: [string, string];
+  /** The question's own options, where it has them — what the card's
+   * ballot votes with, and what a chip row is named from. Absent on an
+   * anchor (no ballot) and on a catalogue card (its board is the feed's,
+   * not a row of buttons). */
+  options?: { id: string; label: string }[];
+  /** The option index this row encodes, for the chip row's ordering. */
+  opt?: number;
+  entity?: string;
+  dim?: string;
+  bucket?: string;
+}
+
+/**
+ * Every published row the bank can NAME, grouped by question (D458).
+ *
+ * The join is the pool's, one shelf wider: the loadings document's rows
+ * against the two corpora the fit folds, plus the anchor rows, which name
+ * no bank question at all. A row whose question the bank no longer
+ * carries is dropped rather than drawn as a mystery dot — the pool's own
+ * rule, and the reason a retired question leaves the Map the night it is
+ * retired.
+ *
+ * NO NEW READ: `loadings.items` is the metadata the fit already publishes
+ * so a device can encode its own answers (D395), and both corpora are
+ * already in hand. A build whose engine publishes no `items` (the online
+ * fit) has bin rows and nothing else, which is exactly the Map as it
+ * stood before this existed.
+ */
+function rows(): MapRow[] {
+  if (!LIVE.enabled || !loadings) return [];
+  const items = loadings.items;
+  const votes = LIVE.myVotes();
+  const byQid = new Map<string, LiveQuestion>();
+  for (const list of [LIVE.aggregated(), LIVE.coreFeedAggregated()]) {
+    for (const q of list) if (!byQid.has(q.id)) byQid.set(q.id, q);
+  }
+  const out: MapRow[] = [];
+  for (const [key, row] of Object.entries(loadings.q)) {
+    const meta = items?.[key];
+    const kind = meta?.kind ?? "bin";
+    const marginal = row.n > 0 ? row.sum / row.n : 0;
+    if (kind === "anc") {
+      if (!meta?.dim || meta.bucket === undefined) continue;
+      const carried = LIVE.anchors()[meta.dim as keyof ReturnType<typeof LIVE.anchors>];
+      out.push({
+        key, kind: "anc", qid: meta.qid, title: ANCHOR_TITLES[meta.dim] ?? meta.dim,
+        label: meta.bucket, cat: null, L: row.v, n: row.n, marginal,
+        mine: typeof carried === "string" && carried ? (carried === meta.bucket ? 1 : -1) : null,
+        dim: meta.dim, bucket: meta.bucket,
+      });
+      continue;
+    }
+    const qid = meta?.qid ?? key;
+    const q = byQid.get(qid);
+    if (!q) continue;
+    if (kind === "pick") {
+      if (meta?.entity === undefined) continue;
+      out.push({
+        key, kind: "pick", qid, title: q.text, label: "", cat: q.cat, domain: q.domain,
+        L: row.v, n: row.n, marginal,
+        // a pick rides `myVotes` in optionIdx's place — the entity key as
+        // a string, which is what `votePick` stores and the ledger carries
+        mine: votes[qid] ? (votes[qid] === meta.entity ? 1 : -1) : null,
+        entity: meta.entity,
+      });
+      continue;
+    }
+    const idx = optionIndexOf(q, votes);
+    if (kind === "opt") {
+      const opt = meta?.opt ?? 0;
+      out.push({
+        key, kind: "opt", qid, title: q.text,
+        options: q.options.map((o) => ({ id: o.id, label: o.label })), label: q.options[opt]?.label ?? "", cat: q.cat,
+        L: row.v, n: row.n, marginal,
+        mine: idx == null ? null : idx === opt ? 1 : -1,
+        opt,
+      });
+      continue;
+    }
+    if (kind === "ord") {
+      out.push({
+        key, kind: "ord", qid, title: q.text,
+        options: q.options.map((o) => ({ id: o.id, label: o.label })), label: "", cat: q.cat,
+        L: row.v, n: row.n, marginal, mine: idx,
+      });
+      continue;
+    }
+    if (q.options.length !== 2) continue;
+    out.push({
+      key, kind: "bin", qid, title: q.text, label: "", cat: q.cat,
+      options: q.options.map((o) => ({ id: o.id, label: o.label })),
+      optionLabels: [q.options[0]?.label ?? "", q.options[1]?.label ?? ""],
+      L: row.v, n: row.n, marginal, mine: encodedMine(q, votes),
+    });
+  }
+  out.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return out;
+}
+
+/** The dim's noun, for the card's head on a You bead — the profile's own
+ * words, not the cube's field names. */
+const ANCHOR_TITLES: Record<string, string> = {
+  ageBand: "Age",
+  gender: "Gender",
+  city: "City",
+  country: "Country",
+  education: "Education",
+  relationship: "Relationship",
+  heightBand: "Height",
+  jobField: "Work",
+};
+
+/** The viewer's option INDEX on a question, or null — `myVotes` carries
+ * option ids, and every kind but `bin` needs the index. */
+function optionIndexOf(q: LiveQuestion, votes: Record<string, string>): number | null {
+  const optId = votes[q.id];
+  if (optId == null) return null;
+  const i = q.options.findIndex((o) => o.id === optId);
+  return i >= 0 ? i : null;
 }
 
 /** The device ridge: the one the fit's scorecard was measured at, read
@@ -533,6 +853,9 @@ export const PATTERNS = {
   /** The fit has published something to draw. */
   hasLoadings(): boolean { return !!loadings && Object.keys(loadings.q).length > 0; },
   pool,
+  /** Every published row the bank can name, grouped by question — what
+   * the Map draws a dot per since D458. */
+  rows,
   /** The pool item the Oracle asks next: among the unanswered questions
    * with enough basis to guess against — reading a vector fitted on a
    * handful of answers as a prediction would be the map lying quietly —
@@ -764,6 +1087,47 @@ export const PATTERNS = {
     }
     saySessionCache.set(key, best);
     return best;
+  },
+  /**
+   * The same table between two DOTS (D458) — what the Map's card says
+   * once a dot can be an option, a catalogue pick, a scale or a profile
+   * value rather than only a two-option question.
+   *
+   * ONE FOLD, three joins, because the honest basis differs:
+   *
+   *   · two question rows → their two bounded samples intersected, which
+   *     is exactly what `say` has always done;
+   *   · a profile value and a question row → the QUESTION's sample alone,
+   *     cut by the frozen chips every row already carries (D8). No second
+   *     list exists to intersect — an anchor has no sample of its own —
+   *     and none is needed, which is why this is countable at all;
+   *   · two profile values → nothing. Any question's sample could be
+   *     cross-tabbed for it, and picking one would be picking the answer;
+   *     the chord still draws, and the card says the fit's reading rather
+   *     than a number.
+   *
+   * A side is what the DOT is: an option bead tests "picked this", a
+   * catalogue bead "picked this entity", a scale "above the sample's
+   * median", a two-option dot either side (the search below tries both).
+   * Same lift rule as `say`: positive direction only, decent support,
+   * a floor of twelve.
+   */
+  async sayRow(aKey: string, bKey: string): Promise<RowSay | null> {
+    const key = `${aKey}>>${bKey}`;
+    if (rowSayCache.has(key)) return rowSayCache.get(key) ?? null;
+    const all = rows();
+    const A = all.find((r) => r.key === aKey);
+    const B = all.find((r) => r.key === bKey);
+    // two beads of ONE question are the same answer's two faces: nobody
+    // picked both, so the table is all zeros and the sentence would be a
+    // tautology dressed as a finding
+    if (!A || !B || A.qid === B.qid) return null;
+    if (A.kind === "anc" && B.kind === "anc") return null;
+    const out = A.kind === "anc" || B.kind === "anc"
+      ? await sayOverOne(A, B)
+      : await sayOverBoth(A, B);
+    rowSayCache.set(key, out);
+    return out;
   },
   /** The working (2026-08-26): the sealed call rebuilt in the open. One
    * row per evidence question the GRADE named (grade-time evidence, held

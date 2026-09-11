@@ -1,0 +1,87 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "1 · At rest",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "YouOn.dc.html",
+      "title": "2 · You on",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "ChoiceTapped.dc.html",
+      "title": "3 · A choice tapped",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "PickTapped.dc.html",
+      "title": "4 · A catalogue card tapped",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "ScaleTapped.dc.html",
+      "title": "5 · A scale tapped",
+      "x": 0,
+      "y": 1180,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "YouTapped.dc.html",
+      "title": "6 · A You bead tapped",
+      "x": 470,
+      "y": 1180,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "OverBudget.dc.html",
+      "title": "7 · Over the budget",
+      "x": 940,
+      "y": 1180,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "Legend.dc.html",
+      "title": "8 · The legend",
+      "x": 1410,
+      "y": 1180,
+      "w": 390,
+      "h": 1040
+    }
+  ],
+  "annotations": [
+    {
+      "id": "the-rule",
+      "x": 0,
+      "y": -300,
+      "w": 420,
+      "text": "One rule for every kind of dot: a dot is an ANSWER — a row in the fit.\nTwo-option and scale questions stay one dot. A choice is a row of beads, one per option. A catalogue card is a row of its popular picks (at most ten). A profile value is a bead on the You arc.\nChords are the ones the Map already draws, over rows instead of questions. Every sentence under the field is an exact count with its basis."
+    },
+    {
+      "id": "for-the-owner",
+      "x": 470,
+      "y": -300,
+      "w": 420,
+      "text": "Three things this draft decides that are yours to change:\n1 · Pictures live in the card's chips, not on the rim — a 6 px bead cannot carry a face.\n2 · The You arc sits INSIDE the rim, so it never competes with the topic bands.\n3 · A bead group trimmed by the budget keeps one bead and a small +n; tap opens the group."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

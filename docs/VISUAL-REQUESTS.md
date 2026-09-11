@@ -519,6 +519,12 @@ that lets a buyer read them.
 
 ## Drafted
 
+## Designed
+
+_(none — 5 and 6 were built at D437 and moved below)_
+
+## Built
+
 ### 13 · A node with more than two answers on the Map ring
 
 - **asked by** — the owner, 2026-09-09 (*"could add the catalog picks to
@@ -571,25 +577,18 @@ that lets a buyer read them.
   corpus and every catalogue pick is invisible on the Map today, and
   the owner's own example — *Pikachu and strawberries* — cannot be
   drawn until this exists.
-- **status** — `drafted` (2026-09-10). **The canvas:**
-  <https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523>
-  — the eight artboards the plan lists, in its order, drawn in the
-  ring's own vocabulary (`patterns.css`'s tokens and type, the ring at
-  its built size). The owner refines it there; a tick on
-  `OWNER-LIST.md` accepts it and it moves to `designed`. Where the
-  plan left a choice to the canvas, the draft chose — each is one edit
-  on the canvas if wrong: the You arc sits **inside** the rim (a
-  shorter arc, labelled *YOU*), so the rim stays a ring of questions
-  and the arc reads as who gives them; a bead carries **no picture on
-  the rim** (a bead is 3 px) and the pictures come on the tapped
-  card's chip row, from the catalogue's own tiles; a group the budget
-  trims keeps its strongest bead and folds the rest into a small
-  **+n** at its place on the rim; groups are parted by a **hairline
-  tick**, not a gap, so a topic's arc stays one arc. Planned the same
-  day (the plan below), with the owner's answers of 2026-09-10 folded
-  in: profile values MAY be drawn (*"yes"* — the You arc), and *"lets
-  plan a way to include all types in a efficent and smart way"* is the
-  brief.
+- **status** — `built` 2026-09-11 (D458). **The canvas:**
+  <https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523>,
+  drafted 2026-09-10 and **accepted by the owner 2026-09-11** — *"its fine
+  how it is now"* — with the same word telling the session to build it. The
+  eight artboards are extracted at `design/map-ring-2026-09-11/`, which is
+  the durable record; the canvas is ephemeral. What the draft chose where
+  the plan left the choice to it, all four built as drawn: the You arc
+  inside the rim, pictures on the tapped card's chips and not on the rim, a
+  trimmed group folded into a `+n` at its place, groups parted by a
+  hairline tick. The owner's answers of 2026-09-10 are in it: profile
+  values MAY be drawn (the You arc, off by default), and *"lets plan a way
+  to include all types in a efficent and smart way"* was the brief.
 
 #### The plan (2026-09-10) — one rule for every type
 
@@ -710,11 +709,6 @@ off. 2 · You on. 3 · a choice question tapped: chip row, three ties.
 Pikachu sentence. 5 · a scale tapped: high/low. 6 · a You bead tapped.
 7 · over budget: *300 of 885 drawn*. 8 · the guide legend.
 
-## Designed
-
-_(none — 5 and 6 were built at D437 and moved below)_
-
-## Built
 
 ### 5 · The 1v1 and group profile — three instruments, and the pair's card
 

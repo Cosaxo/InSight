@@ -356,11 +356,15 @@ describe("the lists on this tree", () => {
     // planned on the owner's brief — one rule: a dot is an answer-axis —
     // and drafted the same day, its canvas link on the row. It is the
     // first row § Drafted has ever held, and § Planned is empty again.
+    // Built 7 since 2026-09-11 (D458): the owner accepted that canvas —
+    // "its fine how it is now" — and the ring drawing every kind of dot
+    // was built the same day, so item 13 crossed two sections in two days
+    // and § Drafted is empty again.
     expect(v.requested.length).toBe(8);
     expect(v.planned).toEqual([]);
-    expect(v.drafted).toEqual(["A node with more than two answers on the Map ring"]);
+    expect(v.drafted).toEqual([]);
     expect(v.designed.length).toBe(0);
-    expect(v.built.length).toBe(6);
+    expect(v.built.length).toBe(7);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

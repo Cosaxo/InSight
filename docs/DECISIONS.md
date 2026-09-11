@@ -50393,3 +50393,86 @@ next rebuild — the same field delete the voter samples take, over an id
 range (`people-` ≤ id < `people.`) rather than the account's own country
 chip, because a chip that changed would leave a row under the old one.
 The erasure e2e asserts the row is gone and the other person's stands.
+
+## D458 · A dot is a row: every kind of answer on the Map ring
+
+**Decided and built 2026-09-11**, on the owner's acceptance of request
+13's canvas (*"its fine how it is now"*) and their instruction to build
+it. The request is `VISUAL-REQUESTS.md` item 13, filed 2026-09-09 from
+`PATTERNS-PLAN.md` §5, planned 2026-09-10 on the owner's brief — *"lets
+plan a way to include all types in a efficent and smart way"* — drafted
+the same day, accepted and built the next. The accepted artboards are
+extracted at `design/map-ring-2026-09-11/`.
+
+### The rule
+
+**A dot is an answer-axis, which is a row in the fit.** Every row the
+nightly publishes is one direction people can lean in, with a vector, and
+the Map's chords have always been cosines between rows. The old ring drew
+one dot per two-option QUESTION, which happened to equal one dot per row —
+so keeping the equality and letting every kind of row be a dot costs no
+new arithmetic and no new read:
+
+| Kind | Rows | Dots | The dot means |
+| --- | --- | --- | --- |
+| two-option | one (`bin`) | one | the question; the chord's dash says which way |
+| scale · rating · dial | one (`ord`) | one | the question; low↔high is the axis |
+| choice (3–4) | one per option (`opt`) | a bead group | *picked this* |
+| catalogue card | one per popular pick (`pick`) | a bead group | *picked this entity* |
+| profile value | one per value (`anc`) | a bead on the You arc | *carries this* |
+
+Before this, half the core corpus and every catalogue pick was invisible
+on the Map: the fit folded them (D452, D453) and nothing drew them.
+
+### What it took
+
+`PATTERNS.rows()` beside `pool()` — the loadings' rows joined to the two
+corpora the fit folds, plus the anchor rows, which name no bank question
+at all. `pool()` is unchanged and still two-option, because the Oracle and
+the People lens are written in that shape. `coreFeedAggregated()` widened
+from two options to every shape the fit folds, which is what it always
+meant. The ring lays a question's beads contiguously with a hairline TICK
+between groups, and the budget now trims **a group as a group**: its
+strongest bead stays, the rest fold into a `+n` at its place, so a
+question never appears on the rim as two of its five options with nothing
+to say the others exist.
+
+### The counted sentence, generalised
+
+`say()` was a 2×2 over two questions' bounded voter samples. `sayRow()` is
+the same table between two ROWS, with three joins and an honest basis for
+each: two question rows intersect their samples (what `say` always did); a
+profile value and a question row are counted inside **that question's own
+sample**, cut by the frozen chips every row already carries (D8) — no
+second list exists and none is needed; two profile values are **not**
+counted at all, because any question's sample could be cross-tabbed for
+them and picking one would be picking the answer. The card says which
+population it counted over, which is D146 one step further than it had to
+go before.
+
+A catalogue bead's NAME is resolved on the tap, never for the rim: a bead
+is 3 px and carries no text, so the thousand-name list stays unfetched
+until a card wants to name something. `catalogs.ts` grew the typed
+resolver for it — the feed's `pickStore` was the only one and it is a
+method on a spec-layer component.
+
+### What the canvas decided
+
+The You arc sits **inside** the rim (the rim stays a ring of questions);
+pictures ride the tapped card's chips, never the rim; a trimmed group's
+rest folds into a `+n` at its place; groups are parted by a tick rather
+than a gap, because a gap is what parts topics and two silences of
+different sizes read as one hierarchy. **The You arc is off by default** —
+the owner said profile values MAY be drawn (D456 §1), and a reader who has
+not asked for their demographics on the picture should not find them
+there. A build whose fit folds no anchor rows shows no toggle at all.
+
+### The cost, measured
+
+No new read on the device: the rows are the loadings document's own, the
+metadata is what the fit already publishes so a phone can encode its
+answers (D395), and both corpora are in hand. The eager graph grew 64
+bytes (the entry 43, `live` 21) — which rounds the bundle gate's eager
+figure from 551 KB to 552 against a ceiling of 552, so **the eager budget
+now has no headroom**: the next change that touches first paint has to
+find some rather than raise it.

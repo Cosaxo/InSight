@@ -12,6 +12,9 @@
 // asset is absent and load() rejects; the picker shows its error state
 // and nothing pretends to be data.
 
+import POKEDEX from "./pokedex";
+import ELEMENTS_CATALOG from "./elements";
+
 export interface CatalogEntry {
   /** Wikidata QID numeric part (2831 = Q2831) — the stored answer key. */
   key: number;
@@ -166,3 +169,68 @@ declare global {
 Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
 export { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };
+
+/**
+ * A catalogue question's `domain`, resolved far enough to NAME a key.
+ *
+ * The feed's `pickStore` has been the only resolver since the first
+ * catalogue question, and it is a method on a spec-layer component, so
+ * nothing typed could reach it — D458 gave the Map a catalogue bead to
+ * name, one shelf away from that method. These two functions are that
+ * reach: everything the Map needs (the name, and a kick to load the
+ * list), and nothing else, so the stores' different entry shapes —
+ * `elements` carries an atomic number where the rest carry a key — stay
+ * inside the module that knows about them.
+ *
+ * The pokédex is the default rather than an arm, which is how it shipped:
+ * the first catalogue question was a Pokémon one and every later domain
+ * was added beside it. `catalogs.test.ts` pins every PICK_QS domain to an
+ * arm, which is what stops a real domain landing on that default.
+ */
+function storeOf(domain: string | null | undefined): {
+  NOT_LISTED: number;
+  load(): Promise<unknown>;
+  name(key: number): string | null;
+} {
+  const plain = (c: Catalog) => ({
+    NOT_LISTED: c.NOT_LISTED,
+    load: () => c.load() as Promise<unknown>,
+    name: (key: number) => { const l = c.peek(); return l ? c.nameOf(l, key) : null; },
+  });
+  switch (domain) {
+    case "films": return plain(FILMS);
+    case "artists": return plain(ARTISTS);
+    case "athletes": return plain(ATHLETES);
+    case "videogames": return plain(VIDEOGAMES);
+    case "emoji": return plain(EMOJI);
+    case "countries": return plain(COUNTRIES);
+    case "dogs": return plain(DOGS);
+    case "colors": return plain(COLORS);
+    case "languages": return plain(LANGUAGES);
+    case "elements": return {
+      NOT_LISTED: ELEMENTS_CATALOG.NOT_LISTED,
+      load: () => ELEMENTS_CATALOG.load() as Promise<unknown>,
+      name: (key: number) => { const l = ELEMENTS_CATALOG.peek(); return l ? ELEMENTS_CATALOG.nameOf(l, key) : null; },
+    };
+    default: return {
+      NOT_LISTED: POKEDEX.NOT_LISTED,
+      load: () => POKEDEX.load() as Promise<unknown>,
+      name: (key: number) => { const l = POKEDEX.peek(); return l ? POKEDEX.nameOf(l, key) : null; },
+    };
+  }
+}
+
+/** The entity's display name, or null while its catalogue is unloaded —
+ * a caller shows a placeholder rather than the raw key, the feed's own
+ * rule (`pickName`). */
+export function catalogName(domain: string | null | undefined, key: number): string | null {
+  const store = storeOf(domain);
+  if (key === store.NOT_LISTED) return "Not listed";
+  return store.name(key);
+}
+
+/** Kick the domain's list, once — resolves when a name can be had. */
+export function loadCatalogNames(domain: string | null | undefined): Promise<void> {
+  return storeOf(domain).load().then(() => undefined);
+}
+
