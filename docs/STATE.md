@@ -39,7 +39,7 @@ produced.
 
 | List | Open | Ticked |
 | --- | ---: | ---: |
-| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 145 | 3 |
+| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 146 | 3 |
 | [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 14 | 0 |
 | [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 39 |
 
@@ -51,10 +51,10 @@ channel — including every D334 privacy question a routine deferred into it.
 
 | | Count |
 | --- | ---: |
-| `check:*` gates | 51 |
+| `check:*` gates | 52 |
 | Cloud Functions | 46 |
 | …with an alert over them | 3 |
-| Decision records | 461 (29 amendments, 8 dated) |
+| Decision records | 464 (29 amendments, 8 dated) |
 
 ## Where to go next
 

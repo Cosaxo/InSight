@@ -37,6 +37,11 @@ import { fileURLToPath } from "node:url";
 // The JWT-bearer dance, the cloud-platform scope and the stub seam all live
 // in one place now that apply-monitoring is the third caller (D303).
 import { api, serviceAccount, accessToken } from "./google-api.mjs";
+// Every read-a-source-and-match below goes through this. A name parked in a
+// comment above the live declaration is what the match would otherwise find,
+// and source-pins.test.mjs holds the ceiling that made that concrete: this
+// file's two paid.ts readers were added without it and the gate said so.
+import { stripComments } from "./strip-comments.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -186,6 +191,26 @@ async function metricResources() {
   return readings;
 }
 
+// THE MONEY PATH'S OWN THREE NAMES, read out of the module that reads them
+// (D200/D201) rather than retyped here. Retyping is how the third copy of a
+// list drifts, and this list has a specific way of drifting: a renamed
+// variable would leave this reader printing "unset" for a name nothing looks
+// for any more, which reads as a missing secret and is a missing READER.
+const PAID_ENV_NAMES = (() => {
+  const src = stripComments(readFileSync(join(root, "functions/src/paid.ts"), "utf8"));
+  return [...new Set([...src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map((m) => m[1]))];
+})();
+
+// The functions paid.ts deploys. The dotenv the deploy writes is baked into
+// EVERY function's runtime config, so any of them would answer the presence
+// question — but the URL only exists on the webhook, and runbook 5.14 step 2
+// is "point a Stripe endpoint at it", so this reader is keyed on the ones a
+// buyer's money actually travels through.
+const PAID_FN_NAMES = (() => {
+  const src = stripComments(readFileSync(join(root, "functions/src/paid.ts"), "utf8"));
+  return [...src.matchAll(/^export const (\w+) = on/gm)].map((m) => m[1].toLowerCase());
+})();
+
 // The eight policies this repo commits, so "armed" can be answered by NAME
 // rather than by count — a project with eight unrelated policies would
 // otherwise read as fully armed.
@@ -258,6 +283,20 @@ const results = await Promise.all([
         const ev = f.eventTrigger || {};
         const topic = ev.pubsubTopic || "";
         const scheduled = /firebase-schedule/.test(topic);
+        // PRESENCE ONLY, never the value. The list response carries the
+        // runtime's environment variables in full, and this project's
+        // secrets reach the runtime through that dotenv rather than through
+        // Secret Manager (DEPLOYMENT.md § Runtime environment) — so
+        // `sk_live_…` is literally in the body being read here. Only the
+        // KEY SET crosses out of this function, and observe.test.mjs
+        // asserts a planted value reaches no line of any output mode. Same
+        // discipline auth-config.yml applies to the demo password.
+        //
+        // `undefined` is a THIRD answer and is not folded into "unset": if
+        // the API omits the map, saying the secrets are missing would be a
+        // fabricated reading of exactly the shape D296 recorded, where an
+        // instrument reported zero over 108 real answers for fifteen days.
+        const envMap = f.serviceConfig?.environmentVariables;
         return {
           name: f.name.split("/").pop(),
           region: f.name.split("/")[3],
@@ -266,6 +305,8 @@ const results = await Promise.all([
           entryPoint: f.buildConfig?.entryPoint || null,
           runtime: f.buildConfig?.runtime || null,
           updateTime: f.updateTime || null,
+          uri: f.serviceConfig?.uri || null,
+          envNames: envMap ? Object.keys(envMap) : null,
           trigger: scheduled ? "schedule"
             : ev.eventType ? ev.eventType
               : f.serviceConfig?.uri ? "https"
@@ -288,6 +329,27 @@ const results = await Promise.all([
     api("cloudbilling.googleapis.com", `/v1/projects/${PROJECT}/billingInfo`),
     "roles/billing.viewer",
     (b) => ({ enabled: b.billingEnabled === true, account: b.billingAccountName || null }),
+  ),
+  // Runbook 5.11 and 5.12 both END in a BigQuery dataset, and neither could
+  // be answered from this repository before today — 5.12's own text says the
+  // diff "has never happened", and the reason it never happened is that
+  // nobody could see whether the export was on. Listing datasets is the
+  // cheapest authoritative answer to both: the mirror writes one, the
+  // billing export writes one, and `location` is what D165's EU residency
+  // argument is actually about.
+  probe(
+    "bigquery",
+    api("bigquery.googleapis.com", `/bigquery/v2/projects/${PROJECT}/datasets?all=true&maxResults=200`),
+    "roles/bigquery.dataViewer",
+    (b) => {
+      const sets = (b.datasets || []).map((d) => ({
+        id: d.datasetReference?.datasetId || d.id || "?",
+        // The list response carries location per dataset, so the residency
+        // question costs no second call.
+        location: d.location || "?",
+      }));
+      return { count: sets.length, datasets: sets };
+    },
   ),
   // WHETHER THE ONLY ASSET SURVIVES A BAD AFTERNOON. Nothing in this
   // repository could answer that before 2026-09-11 — `docs/COST-EXPOSURE.md`
@@ -325,12 +387,102 @@ const results = await Promise.all([
 
 const metricReadings = METRICS ? await metricResources() : null;
 
+// THE MONEY PATH, derived from the functions reading rather than fetched
+// again — the list response already carries every field this needs.
+//
+// WHY THIS IS HERE AT ALL. `OWNER-LIST.md` carries the sentence "a session
+// cannot read the deployed environment, so whether a sale can go through
+// TODAY is a fact only you can check". That was true of every session that
+// had not tried, which is the same shape D292 recorded about the observer:
+// the reading was an ordinary API call the whole time, and treating it as
+// unavailable is what kept it unread. Runbook 5.14's own text asks for this
+// out loud about the third name — "the one of the three whose absence does
+// not stop the loop, which makes it the one to check rather than assume".
+const paidPath = (() => {
+  const fn = results.find((r) => r.name === "functions");
+  if (fn.status !== "ok") return { status: fn.status, why: fn.why };
+  const deployed = fn.detail.filter((d) => PAID_FN_NAMES.includes(d.name.toLowerCase()));
+  const webhook = deployed.find((d) => d.name.toLowerCase() === "stripewebhookv2");
+  // A function whose env map the API did not return is not evidence of an
+  // unset secret. Counted separately so the verdict can say "unreadable"
+  // instead of inventing "unset" — see the functions probe's own comment.
+  const withEnv = deployed.filter((d) => Array.isArray(d.envNames));
+  const secrets = Object.fromEntries(PAID_ENV_NAMES.map((n) => [n, {
+    on: withEnv.filter((d) => d.envNames.includes(n)).length,
+    of: withEnv.length,
+  }]));
+  const set = (n) => withEnv.length > 0 && secrets[n]?.on > 0;
+  return {
+    status: "ok",
+    deployed: deployed.map((d) => d.name),
+    missingFunctions: PAID_FN_NAMES.filter((n) => !deployed.some((d) => d.name.toLowerCase() === n)),
+    // Runbook 5.14 step 2 needs this string and nothing else. Printing it
+    // here is what turns "run gcloud functions describe" into "read the
+    // line above".
+    webhookUrl: webhook?.uri || null,
+    envReadable: withEnv.length > 0,
+    secrets,
+    // The two that stop a sale, and the one that only removes the judgement
+    // half of the review. Kept apart because folding them would report the
+    // loop as broken when it is merely reviewing on gates alone.
+    canSell: set("STRIPE_SECRET_KEY") && set("STRIPE_WEBHOOK_SECRET"),
+    reviewJudged: set("ANTHROPIC_API_KEY"),
+  };
+})();
+
+// The Firestore→BigQuery mirror (runbook 5.11) announces itself as deployed
+// FUNCTIONS, so it is answerable from the list already in hand. Detecting it
+// by its functions rather than by a dataset name is the authoritative half:
+// a dataset can be created by anything, an `ext-` function is the extension.
+const bqMirror = (() => {
+  const fn = results.find((r) => r.name === "functions");
+  if (fn.status !== "ok") return { status: fn.status, why: fn.why };
+  const fns = fn.detail.filter((d) => d.name.startsWith("ext-firestore-bigquery-export"));
+  return { status: "ok", installed: fns.length > 0, functions: fns.map((d) => `${d.region}/${d.name}`) };
+})();
+
+// Cloud Billing export (runbook 5.12) writes tables named
+// `gcp_billing_export_*` into a dataset of the operator's choosing, so the
+// dataset NAME proves nothing and the table names prove it exactly. One
+// list per dataset, bounded — this project holds a handful, and an
+// unbounded scan is the thing a daily scheduled reader must not grow.
+const BILLING_TABLE_SCAN_MAX = 10;
+const billingExport = await (async () => {
+  const bq = results.find((r) => r.name === "bigquery");
+  if (bq.status !== "ok") return { status: bq.status, why: bq.why };
+  const scanned = bq.datasets.slice(0, BILLING_TABLE_SCAN_MAX);
+  const hits = [];
+  for (const d of scanned) {
+    const r = await probe(
+      `tables:${d.id}`,
+      api("bigquery.googleapis.com", `/bigquery/v2/projects/${PROJECT}/datasets/${d.id}/tables?maxResults=200`),
+      "roles/bigquery.dataViewer",
+      (b) => ({ tables: (b.tables || []).map((t) => t.tableReference?.tableId || t.id || "?") }),
+    );
+    if (r.status !== "ok") continue;
+    const billing = r.tables.filter((t) => t.startsWith("gcp_billing_export_"));
+    if (billing.length) hits.push({ dataset: d.id, location: d.location, tables: billing });
+  }
+  return {
+    status: "ok",
+    on: hits.length > 0,
+    hits,
+    scanned: scanned.length,
+    truncated: bq.datasets.length > scanned.length,
+  };
+})();
+
 const out = {
   project: PROJECT,
   // No Date.now() in the payload beyond this: the caller stamps the day.
   readings: Object.fromEntries(results.map((r) => [r.name, r])),
   reachable: results.filter((r) => r.status === "ok").map((r) => r.name),
   blocked: results.filter((r) => r.status !== "ok").map((r) => ({ name: r.name, why: r.why, http: r.http })),
+  // Derived, not probed — they carry no `name` and never join `reachable`
+  // or `blocked`, so a caller counting readings still counts readings.
+  paidPath,
+  bqMirror,
+  billingExport,
   ...(metricReadings ? { metricResources: metricReadings } : {}),
 };
 
@@ -374,6 +526,9 @@ if (AS_JSON) {
       }
     } else if (r.name === "billing") {
       console.log(`  ✓ billing        enabled=${r.enabled} account=${r.account ?? "-"}`);
+    } else if (r.name === "bigquery") {
+      console.log(`  ✓ bigquery       ${r.count} dataset(s)`
+        + (r.count ? `: ${r.datasets.map((d) => `${d.id} (${d.location})`).join(", ")}` : ""));
     } else if (r.name === "backups") {
       console.log(`  ✓ backups        point-in-time recovery: ${r.pitr ? "ON" : "**OFF**"}`);
     } else if (r.name === "backupSchedules") {
@@ -385,6 +540,71 @@ if (AS_JSON) {
       }
     }
   }
+
+  // The money path and the two BigQuery steps, printed together because the
+  // question they answer is one question: can this project take a payment
+  // and can it see what it spent. Every line is a runbook box.
+  console.log("\n  The money path (runbook 5.14) — read from the deployment, not assumed:");
+  if (paidPath.status !== "ok") {
+    console.log(`    ✗ unreadable — the functions reading is ${paidPath.status} (${paidPath.why})`);
+  } else if (!paidPath.deployed.length) {
+    console.log("    ✗ none of paid.ts's functions are deployed — nothing to configure yet.");
+  } else if (!paidPath.envReadable) {
+    console.log("    · the API returned no environment map for these functions, so the three");
+    console.log("      secrets are UNREADABLE from here — which is not the same as unset, and is");
+    console.log("      not reported as unset. Check the deploy's 'Write functions runtime env' step.");
+  } else {
+    for (const n of PAID_ENV_NAMES) {
+      const c = paidPath.secrets[n];
+      const mark = c.on > 0 ? (c.on === c.of ? "✓" : "!") : "✗";
+      const note = c.on > 0 && c.on < c.of ? `  (on ${c.on} of ${c.of} — re-deploy, the dotenv is per-deploy)` : "";
+      console.log(`    ${mark} ${n.padEnd(21)} ${c.on > 0 ? "present in the runtime" : "NOT SET"}${note}`);
+    }
+    console.log("");
+    console.log(`    A sale can complete today: ${paidPath.canSell ? "YES" : "NO"}`
+      + (paidPath.canSell ? "" : " — checkout answers `unavailable` and the webhook 503s,"));
+    if (!paidPath.canSell) console.log("      so a buyer reaches an approved quote and a dead end, and nothing pages.");
+    console.log(`    Reviews use Claude's judgement: ${paidPath.reviewJudged ? "YES" : "NO — deterministic gates alone (paid_review_gates_only)"}`);
+  }
+  if (paidPath.status === "ok" && paidPath.webhookUrl) {
+    console.log(`\n    stripeWebhookV2 → ${paidPath.webhookUrl}`);
+    console.log("      That is the URL runbook 5.14 step 2 asks for. Subscribe THREE events:");
+    console.log("      checkout.session.completed, .async_payment_succeeded, .async_payment_failed");
+    console.log("      — EUR's delayed methods settle later, and `completed` alone strands them.");
+  } else if (paidPath.status === "ok" && paidPath.deployed.length) {
+    console.log("\n    stripeWebhookV2 has no URL in the reading — it may not be deployed.");
+  }
+  if (paidPath.status === "ok" && paidPath.missingFunctions.length) {
+    console.log(`    Not deployed: ${paidPath.missingFunctions.join(", ")}`);
+  }
+
+  console.log("\n  BigQuery (runbook 5.11 mirror, 5.12 billing export):");
+  if (bqMirror.status !== "ok") {
+    console.log(`    ✗ mirror         unreadable — functions is ${bqMirror.status}`);
+  } else {
+    console.log(`    ${bqMirror.installed ? "✓" : "·"} mirror         ${bqMirror.installed
+      ? `installed — ${bqMirror.functions.join(", ")}`
+      : "not installed. 5.11 is deliberately timed WITH the first real users:"}`);
+    if (!bqMirror.installed) {
+      console.log("                     the extension streams from the moment it is installed, and");
+      console.log("                     rows of accounts erased in the interim never arrive at all.");
+    }
+  }
+  if (billingExport.status !== "ok") {
+    console.log(`    ✗ billing export unreadable — the bigquery reading is ${billingExport.status}`);
+  } else if (billingExport.on) {
+    for (const h of billingExport.hits) {
+      console.log(`    ✓ billing export ${h.dataset} (${h.location}) — ${h.tables.join(", ")}`);
+    }
+  } else {
+    console.log(`    · billing export not on — no gcp_billing_export_* table in ${billingExport.scanned} dataset(s).`);
+    console.log("                     Until it is, every cost figure in docs/COSTS.md stays a");
+    console.log("                     prediction with nothing to diff against (5.12).");
+  }
+  console.log("");
+  console.log("      These three are OWNER actions: a Stripe account, a console toggle and an");
+  console.log("      extension install. What this reader changes is that their state is now a");
+  console.log("      line here rather than a fact nobody in the repo could see.");
   if (metricReadings) {
     console.log("\n  What each log-based metric's series will be written against:");
     for (const m of metricReadings) {

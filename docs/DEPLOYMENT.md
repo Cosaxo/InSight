@@ -336,6 +336,12 @@ webhook endpoint for **three** events — `checkout.session.completed`,
 --format="value(serviceConfig.uri)"`), then store its signing secret as
 `STRIPE_WEBHOOK_SECRET` and re-run the deploy so the dotenv carries it.
 
+**Whether the keys arrived is a reading, not a belief.** Actions →
+**Observe production** prints each name's presence in the deployed runtime,
+the verdict *A sale can complete today*, and the webhook's URL — so the
+`gcloud functions describe` above is a fallback rather than the only way to
+get it. Presence only; the values never leave the probe.
+
 The last two matter because the checkout is created without
 `payment_method_types`, so Stripe's dynamic methods apply — and EUR's
 delayed ones (SEPA Direct Debit, bank transfer) deliver

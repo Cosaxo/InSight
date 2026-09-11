@@ -14,6 +14,15 @@
 # that was long enough for every instrument in the repo to report zero
 # answers over 108 real ones for fifteen days (D296).
 #
+# WHAT IT READS BEYOND THE ALERTS. Since D454 the same run answers the
+# money path and the two BigQuery steps: which of paid.ts's three secrets are
+# present in the deployed runtime (PRESENCE ONLY — the values are in the body
+# being parsed and reach no line of output, pinned by a planted-secret test),
+# `stripeWebhookV2`'s URL for runbook 5.14 step 2, whether the
+# Firestore→BigQuery mirror is installed, and whether Cloud Billing export is
+# writing tables. All four were facts this repository could not see, and one
+# of them was written down as a fact no session COULD see.
+#
 # READ-ONLY BY CONSTRUCTION. Every call is a GET. There is no --apply, no
 # input that changes anything, and no write path — which is why this needs
 # no `environment: production` gate, unlike seed-content.yml and
