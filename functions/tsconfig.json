@@ -16,6 +16,8 @@
     // output layout, it just stops the compiler guessing.
     "rootDir": "src",
     "noImplicitReturns": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "outDir": "lib",
     "sourceMap": true,

@@ -863,7 +863,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
     // has to show is that a review-status booking is written something.
     //
     // It used to take the no-key path and assert an APPROVE. That stopped
-    // being available at D454, for the reason the two cases below give:
+    // being available at D455, for the reason the two cases below give:
     // no reviewer now means HOLD, so a control resting on it would have
     // been asserting that a deployment without a reviewer approves.
     const f = fakeDb(["review", "review"], { ...BOOKING, prompt: "???" });
@@ -873,7 +873,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
   });
 
   it("HOLDS rather than approves when no reviewer is configured", async () => {
-    // The line D454 changed, and the most dangerous one this file has
+    // The line D455 changed, and the most dangerous one this file has
     // carried. reviewGates reads the SHAPE — payload parses, no duplicate
     // options, two alphanumerics — and never the words. So "no key →
     // approve" meant a submission naming a private person or carrying a
@@ -1107,7 +1107,7 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
     let taken = 0;
     const refuse = async () => { taken += 1; throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); };
     try {
-      // No key: DEFERRED to the review Routine since D454, and the budget
+      // No key: DEFERRED to the review Routine since D455, and the budget
       // is untouched. This read `gates-only` and asserted an APPROVE until
       // then — the budget half was right and the verdict half was the bug.
       delete process.env.ANTHROPIC_API_KEY;
@@ -1145,4 +1145,4 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
   });
 });
 
-// ── D453's gate, appended after main's review-budget suite ──────────
+// ── D454's gate, appended after main's review-budget suite ──────────

@@ -233,14 +233,14 @@ One fact makes it small today, and the SECOND one expired on 2026-09-10:
 (`paid_review_gates_only`) and calls no model. What has gone is the
 sentence that used to sit beside it — *"the web door cannot attest a
 browser yet, so today only the app's own attested accounts can book at
-all"*. D453 opened that door, and the bound it was resting on was the
+all"*. D454 opened that door, and the bound it was resting on was the
 thing that changed: `bookPaidQuestionV2` no longer demands App Check, so
 "an attested account" is no longer what stands in front of the review.
 
 **What stands there instead is the per-account booking budget and the
-payment** (D454). The owner's ruling took the reCAPTCHA back out on two
+payment** (D455). The owner's ruling took the reCAPTCHA back out on two
 grounds, and both survive this page's arithmetic. The first is that it
-was protecting the per-review model spend, and D454 moved the review to a
+was protecting the per-review model spend, and D455 moved the review to a
 Routine — so there is no per-request model call left to protect, and the
 paragraph above is about a bill that is no longer charged per booking.
 The second is that reCAPTCHA v3 is weak against current automated
@@ -507,7 +507,7 @@ default to the billing account's admins and users. Both are §6 O4.
 - **C9 · `COSTS.md` housekeeping** rides C1: finding 3 answered (D333),
   the scheduler row, the fixed floor, and a pointer to this page from the
   controls section.
-- **C10 · An unpaid booking expires** — **built 2026-09-11 (D454)**. A
+- **C10 · An unpaid booking expires** — **built 2026-09-11 (D455)**. A
   booking carried no `expireAt`, so one abandoned between approval and
   payment sat in `v2_paid_bookings` forever. That was survivable while the
   door demanded App Check from an attested app; with the door open to a

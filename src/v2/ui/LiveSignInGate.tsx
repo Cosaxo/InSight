@@ -3,20 +3,32 @@
 // this file; see its header for why the two are separate (3 KB of
 // first-paint weight for a screen only one build shows).
 //
-// THIS REVERSES D3 FOR ONE BUILD, DELIBERATELY. D3 is anonymous-first and
-// says the upgrade is "never a wall", and that decision is unchanged for
-// the public build: this gate is off unless `VITE_REQUIRE_SIGNIN=true`, and
-// only `ios-release.yml` sets it. The reason it is worth having on the test
-// track is the thing D3 was protecting against, arriving from the other
-// side — D6 turned Android system backup off and iOS never had it, so an
-// anonymous session lives on ONE phone and dies with it. A tester who
-// answers for two weeks and then replaces a handset has produced nothing.
-// A wall costs a tap; the alternative cost a fortnight of somebody's
-// evenings.
+// THIS REVERSES D3'S POSTURE FOR EVERY SHIPPING BUILD (D414). D3 is
+// anonymous-first and says the upgrade is "never a wall"; its MECHANISM is
+// untouched — initLive() still signs the session in anonymously and every
+// door but one links it, see below — but the wall is now the default a
+// release carries, not an exception one build makes.
 //
-// It is a flag rather than a code change so the public build can drop it
-// without a diff, and so a bad day on the test track is one variable away
-// from being over.
+// This paragraph said the opposite for as long as D414 has been in the
+// tree: "unchanged for the public build… only `ios-release.yml` sets it".
+// Both halves were wrong. `ios-release.yml` AND `play-release.yml` set
+// `VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'true' }}`, so unset
+// means WALLED, and both REFUSE to upload when it does not resolve to
+// 'true'. `signInRequired.ts` beside this file has the correct account and
+// is the wording to copy. Every other build — dev, CI, the demo — still
+// compiles the gate to a pass-through.
+//
+// THE ORIGIN, kept because it is why the flag exists at all: the wall
+// started on the test track, against the thing D3 was protecting against
+// arriving from the other side — D6 turned Android system backup off and
+// iOS never had it, so an anonymous session lives on ONE phone and dies
+// with it. A tester who answers for two weeks and then replaces a handset
+// has produced nothing. A wall costs a tap; the alternative cost a
+// fortnight of somebody's evenings.
+//
+// It stayed a flag rather than a code change so a bad day is one variable
+// away from being over — `REQUIRE_SIGNIN=false` now opens a specific build
+// up, which is the same lever pointed the other way.
 //
 // WHAT IT DOES NOT DO WHERE IT CAN AVOID IT: create an account. initLive()
 // has already signed the session in anonymously by the time this renders,

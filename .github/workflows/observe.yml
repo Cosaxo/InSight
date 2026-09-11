@@ -14,7 +14,7 @@
 # that was long enough for every instrument in the repo to report zero
 # answers over 108 real ones for fifteen days (D296).
 #
-# WHAT IT READS BEYOND THE ALERTS. Since D452 the same run answers the
+# WHAT IT READS BEYOND THE ALERTS. Since D453 the same run answers the
 # money path and the two BigQuery steps: which of paid.ts's three secrets are
 # present in the deployed runtime (PRESENCE ONLY — the values are in the body
 # being parsed and reach no line of output, pinned by a planted-secret test),

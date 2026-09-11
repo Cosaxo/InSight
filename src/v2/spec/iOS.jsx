@@ -8,7 +8,9 @@ import React from 'react';
 
 // iOS.jsx — Simplified iOS 26 (Liquid Glass) device frame
 // Based on the iOS 26 UI Kit + Figma status bar spec. No assets, no deps.
-// Exports: IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSKeyboard
+// Exports: IOSDevice. (This line named five for a long time; the other four
+// — IOSStatusBar, IOSNavBar, IOSGlassPill, IOSKeyboard — are internal to the
+// frame and have never been exported.)
 
 // ─────────────────────────────────────────────────────────────
 // Status bar
@@ -299,7 +301,8 @@ function IOSKeyboard({ dark = false }) {
   );
 }
 
-Object.assign(window, {
-  IOSDevice,
-});
+// The `Object.assign(window, { IOSDevice })` publication that stood here is
+// gone: `app-shell.jsx` imports the binding (line 34) and nothing in the tree
+// reads the name off `window`. Checked the D280 way — rule 5 is satisfied by
+// an import, so it could not have found this one.
 

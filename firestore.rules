@@ -1678,6 +1678,17 @@ service cloud.firestore {
     // `list` is refused in writing — the registry answers "is @olaf
     // someone" and cannot be asked "who is everyone".
     //
+    // READ THAT AS LEAST PRIVILEGE ON THIS COLLECTION, not as an
+    // anti-enumeration control for the app. `v2_users` is world-read and
+    // carries `handle` in its own allowlist, so (uid, handle) for every
+    // account is already enumerable by any signed-in reader — which the
+    // directory paragraph below says in as many words, and which
+    // `docs/data-inventory.md` states outright as an exposure delta of
+    // nil. The deny is worth keeping for the reason it was written:
+    // nothing in the app wants the list, so nothing is granted it. It is
+    // not what stands between a reader and the population, and a reader
+    // who takes it for that will look for a barrier that is not there.
+    //
     // WRITE is server-only. A claim is two writes that must not
     // interleave (take the new key, release the old), and rules cannot
     // express atomicity across two documents: a create-if-absent rule

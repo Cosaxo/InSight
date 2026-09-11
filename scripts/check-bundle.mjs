@@ -549,7 +549,21 @@ const DEMO = process.argv.includes("--demo");
 // the entry graph. The feature is bigger and the boot is 15 KB lighter,
 // which is the trade the previous entry describes, run deliberately this
 // time rather than under a failing gate.
-const MAX_CHUNK_KB = 735;
+//
+// 735 → 340 (2026-09-09). NOT a win — a re-measurement. This ceiling was
+// last moved when the entry chunk WAS the largest chunk, at 723.4 KB; the
+// lazy groups since (the feed, the overlays, the Map, the Mirror, the duel
+// panel) took the entry down to 101 KB, and the largest chunk in the
+// shipping bundle is now the Firestore SDK at 297 KB. So the ceiling was
+// sitting 438 KB above anything it measured, which is not a ratchet — a
+// chunk could have doubled twice over without reddening it.
+//
+// 340 is this file's usual ~10 KB-convention margin taken above the
+// Firestore SDK, with room for legitimate firebase-js-sdk growth. What the
+// ceiling still catches at this height is one lazy group merging into
+// another, or a large dependency landing in a chunk that had none — entry
+// growth is MAX_EAGER_KB's job and has been since the deferrals.
+const MAX_CHUNK_KB = 340;
 // 2285 → 2292 (2026-08-16): D177's room tabs — Near's Answers · People ·
 // Compare, its shape functions and the store's room loader. Measured with
 // a DSN, so these are the numbers CI reads: total 2283 → 2289, eager

@@ -102,8 +102,8 @@ export default function LiveCallCard(): React.ReactElement | null {
   const [nowMs] = React.useState(() => Date.now());
   React.useEffect(() => {
     // One bounded fetch per session, on the tap that asks (D124/D129).
-    void LIVE.loadCallOutcomes?.();
-    return LIVE.subscribe?.(() => bump((x) => x + 1));
+    void LIVE.loadCallOutcomes();
+    return LIVE.subscribe(() => bump((x) => x + 1));
   }, []);
 
   if (!LIVE.enabled || !LIVE.callQs) return null;
