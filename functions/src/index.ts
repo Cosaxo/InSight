@@ -404,16 +404,44 @@ export const deleteAccount = onCall(
       failed.push("patternSamples");
     }
 
+    // THE ANSWERS ARE 1a′'s INDEX, so the subtree wipe below waits for it.
+    // 1a′ finds the city rows by reading this account's own answers for
+    // the frozen `anchors.city` each carries; phase 1b deletes exactly
+    // those answers. Unconditional, that ordering makes a failed 1a′
+    // PERMANENT: phase 5 refuses the auth delete so the caller retries,
+    // and the retry finds no answers, builds an empty `pairs`, scrubs
+    // nothing and reports success. What is left behind is world-readable
+    // and keyed by uid — the display name, the frozen anchors, the parsed
+    // core scores (the political coordinate among them) and the logic
+    // percentile — on an account that no longer exists to ask again.
+    //
+    // So the wipe is conditional. The cost of waiting is that the answers
+    // survive one more round trip on an erasure that already failed and
+    // already told the caller so; the cost of not waiting is a row nobody
+    // can ever reach. 1a′'s own comment refuses this exact caveat for the
+    // world family ("the price of 'gone means gone' holding without a
+    // caveat") and the city arm was taking it.
+    //
+    // Phase 5's contract is unchanged: any entry in `failed` still aborts
+    // before the auth delete, so this never reports a partial erasure as
+    // done. The closing sweep near the end of this function carries the
+    // same guard, for the same reason.
+    const samplesPending = failed.includes("patternSamples");
+
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
     // user contributed stay — anonymous tallies. The one place
     // that CAN attribute a count to this uid is the agg-events ledger
     // (D28), taken by phase 1a above, so the tallies are anonymous again
     // the moment this call returns.
-    try {
-      await db.recursiveDelete(db.collection("v2_users").doc(uid));
-    } catch (err) {
-      logger.error("[deleteAccount] v2 subtree wipe failed:", err);
-      failed.push("v2Subtree");
+    if (samplesPending) {
+      logger.warn("[deleteAccount] v2 subtree wipe deferred: the voter-sample scrub failed and the answers are its index");
+    } else {
+      try {
+        await db.recursiveDelete(db.collection("v2_users").doc(uid));
+      } catch (err) {
+        logger.error("[deleteAccount] v2 subtree wipe failed:", err);
+        failed.push("v2Subtree");
+      }
     }
 
     // 1b1. The verified-logic attempt doc (D57) — keyed by uid in its own
@@ -1362,11 +1390,17 @@ export const deleteAccount = onCall(
     //     the folds consult — which is a uid-keyed record that outlives
     //     the account, so it is a decision rather than a patch. On the
     //     night list.
-    try {
-      await db.recursiveDelete(db.collection("v2_users").doc(uid));
-    } catch (err) {
-      logger.error("[deleteAccount] closing v2 subtree sweep failed:", err);
-      failed.push("v2SubtreeSweep");
+    if (samplesPending) {
+      // Same guard as phase 1b: while the voter-sample scrub is still
+      // owed, the answers are the only index that can find its rows.
+      logger.warn("[deleteAccount] closing v2 subtree sweep deferred: the voter-sample scrub is still owed");
+    } else {
+      try {
+        await db.recursiveDelete(db.collection("v2_users").doc(uid));
+      } catch (err) {
+        logger.error("[deleteAccount] closing v2 subtree sweep failed:", err);
+        failed.push("v2SubtreeSweep");
+      }
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
