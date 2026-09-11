@@ -209,10 +209,46 @@ export function mergeSample(
     const kept = cur && cur.n !== undefined ? { n: cur.n, s: cur.s ?? null, l: cur.l ?? null } : {};
     rows[add.uid] = { o: add.optionIdx, a: add.anchors ?? {}, d: add.day, ...kept, ...(add.stamp ? stampFields(add.stamp) : {}) };
   }
+  // THE DAY'S STAMP REACHES THE DAY'S ROWS, AND NO OTHERS.
+  //
+  // This loop used to walk EVERY row in the sample, so anyone who appeared
+  // in the day's stamp map — which is built from the day's ledger entries,
+  // ANY question — had their stamp rewritten on every question they had
+  // ever answered. The stamp it writes is the profile as it stood WHEN
+  // THEY ANSWERED; `profileFanout.restampSamples` writes the same three
+  // fields with the profile as it stands NOW. So the pass wrote the stale
+  // one back over the live one, once a night, on a document every
+  // signed-in device reads.
+  //
+  // Measured 2026-09-10 against this function: a person whose row already
+  // carried a new name and a withdrawn political coordinate, who did NOT
+  // answer this question today, came back out of the merge with the old
+  // name and the coordinate republished. Withdrawing political consent
+  // (D330/D331) strips `s.political` from every row; this put it back.
+  //
+  // Restricting the loop to the day's own additions costs nothing it was
+  // for. Its stated purpose is the edit case — "an addition without a
+  // stamp is an edit's" — where the addition carries no stamp of its own
+  // and this supplies it; that case is an addition by construction. What
+  // it drops is reaching rows the day did not touch, which is where the
+  // whole regression lived, and the nightly fan-out heal is the thing
+  // designated to reach those rows, with the CURRENT profile rather than a
+  // remembered one.
+  //
+  // WHAT THIS DOES NOT CLOSE, said plainly because a half-fix read as a
+  // whole one is worse than none: a row the day's addition DOES write
+  // still takes the as-of-answer stamp, so answering at 10:00 and
+  // withdrawing consent at 14:00 republishes the coordinate on that day's
+  // own questions tonight. Closing that needs the CURRENT profile for the
+  // day's actives — `patterns.ts` reads `v2_users/{uid}/patterns/state`,
+  // not the profile document, so it is a read per active person per night
+  // — or a stamp timestamp on the row, which is a schema addition to a
+  // document everyone downloads. Both are the owner's call and both are on
+  // docs/OWNER-LIST.md with the arithmetic.
   if (stamps) {
-    for (const [uid, row] of Object.entries(rows)) {
-      const stamp = stamps.get(uid);
-      if (stamp) rows[uid] = { ...row, ...stampFields(stamp) };
+    for (const add of trimmed) {
+      const stamp = stamps.get(add.uid);
+      if (stamp && rows[add.uid]) rows[add.uid] = { ...rows[add.uid], ...stampFields(stamp) };
     }
   }
   const kept = Object.entries(rows).sort(sampleOrder).slice(0, cap);

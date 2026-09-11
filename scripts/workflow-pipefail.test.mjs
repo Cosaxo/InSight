@@ -338,13 +338,25 @@ function freeTextInputs(src) {
  * and read `"$NAME"` in the shell, which is the pattern these files
  * already use for their secrets.
  *
- * WHERE THIS RULE STOPS. It holds free-text inputs only, not every
+ * WHERE THIS RULE STOPS. It holds free-text inputs and SECRETS, not every
  * `${{ }}`: `github.sha`, `runner.temp` and a `type: choice` cannot carry
  * a payload, and a rule that cried about them would be turned off. The
  * other classic carrier — an issue title or PR body through
  * `pull_request_target` / `issue_comment` — has no instance here because
  * no workflow uses those triggers at all; if one ever does, this is the
  * function to widen.
+ *
+ * SECRETS JOINED THE RULE ON 2026-09-11, and the scope note above is why
+ * they were not in it: it reasoned about what an ATTACKER can put in a
+ * box, and a secret is set by the operator. But the substitution is the
+ * same substitution — the value is spliced in before bash parses the line
+ * — so a password holding a quote, a backtick or a dollar is a broken
+ * command at best, and `$( )` inside the double quotes it usually sits in
+ * executes at worst. `play-release.yml` had exactly one such site, on the
+ * keystore sanity check run immediately before signing, in a job that also
+ * holds the Play service account and the decoded keystore; every other
+ * secret in every other workflow here already went through `env:`. So this
+ * rule costs nothing today and holds the shape that was one edit away.
  */
 describe("free-text inputs never reach a run body", () => {
   it("finds the free-text inputs this rule is about", () => {
@@ -353,6 +365,24 @@ describe("free-text inputs never reach a run body", () => {
     // Vacuity guard: if this ever hits zero the parser has broken and
     // every case below would pass by finding nothing.
     expect(all.size, "no free-text workflow inputs found at all — freeTextInputs() has stopped parsing").toBeGreaterThan(0);
+  });
+
+  it("no run block interpolates a secret either", () => {
+    // Secrets go in `env:` and are read as `"$NAME"`, which is what every
+    // workflow here does — see the note above for why this joined the rule.
+    const bad = [];
+    for (const f of files) {
+      const src = readWorkflow(join(dir, f));
+      for (const { body } of runBlocks(src)) {
+        for (const m of body.matchAll(/\$\{\{\s*secrets\.([A-Za-z0-9_]+)\s*\}\}/g)) {
+          bad.push(`${f}: \${{ secrets.${m[1]} }}`);
+        }
+      }
+    }
+    expect(
+      bad,
+      "a secret is interpolated into a run body, where it is spliced in before bash parses the line — bind it in the step's env: and read \"$NAME\" instead",
+    ).toEqual([]);
   });
 
   it("no run block interpolates one", () => {

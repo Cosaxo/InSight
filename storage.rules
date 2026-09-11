@@ -57,10 +57,13 @@ service firebase.storage {
     // one of them can republish a permanent link to it. Written down
     // rather than fixed here, because the fix is a mechanism choice, not
     // a rule: rotating the token on report, or serving faces through the
-    // SDK and paying for it. `web/privacy.html` promises no signed-in
-    // floor for photos (it says the photo is "shown anywhere your name is
-    // shown"), so the page is not falsified by this — the two comments
-    // and the inventory row were.
+    // SDK and paying for it. `web/privacy.html` never promised a
+    // signed-in floor for photos (it says the photo is "shown anywhere
+    // your name is shown"), so the page was not falsified by this — the
+    // two comments and the inventory row were. It no longer leaves the
+    // point implied either: the same night gave the photo its own
+    // "who can see what" row, naming the link and whoever holds it, and
+    // `check:policy-claims` pins that sentence (D178).
     //
     // What the token DOES still buy, and D223's control is unaffected: a
     // removed face is deleted rather than flagged, so no link survives a

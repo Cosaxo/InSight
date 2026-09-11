@@ -6,7 +6,8 @@
 //   4. the additions group by question in a deterministic order;
 //   5. (DATA-EFFICIENCY-RUNBOOK 2.2) the person's stamp — name, scores,
 //      logic — rides the row, an edit keeps its create's, and the day's
-//      stamp refreshes every row the merge rewrites;
+//      stamp refreshes the day's OWN rows and no others (it used to reach
+//      every row, which republished what the fan-out had corrected);
 //   6. (runbook 2.5) the per-city pairs, hottest first, cut to the budget.
 import { describe, expect, it } from "vitest";
 import {
@@ -118,19 +119,55 @@ describe("the stamp on a row (DATA-EFFICIENCY-RUNBOOK 2.2)", () => {
     expect(s3.rows.u1).toEqual({ o: 0, a: {}, d: "2026-09-04", n: "", s: null, l: null });
   });
 
-  it("the day's stamps refresh every row the merge rewrites, additions or not", () => {
-    // u1 answered this question weeks ago; today they answered something
-    // ELSE with a new name. The sample is being rewritten for u2's
-    // addition anyway, so u1's row takes the newer stamp for free.
+  // WHAT THIS CASE USED TO PIN, and why the pin was the bug.
+  //
+  // It read: "the day's stamps refresh every row the merge rewrites,
+  // additions or not" — u1 answered this question weeks ago, answered
+  // something ELSE today with a new name, and "u1's row takes the newer
+  // stamp for free". The word doing the damage is NEWER. The day's stamp
+  // map is built from the day's LEDGER entries, so it is the profile as it
+  // stood when they answered; `profileFanout.restampSamples` writes the
+  // same three fields with the profile as it stands NOW. Against a row the
+  // fan-out has already corrected, the ledger's copy is OLDER, and this
+  // loop wrote it back — every night, on a document every signed-in device
+  // reads, for every question the person had ever answered.
+  //
+  // The case below is the one that makes it concrete rather than abstract.
+  it("leaves a row the day did not touch alone — the fan-out owns those", () => {
     const prev = mergeSample(null, "q", [{ uid: "u1", optionIdx: 0, day: "2026-08-01", stamp }]);
     const stamps = new Map([["u1", later]]);
     const s = mergeSample(prev, "q", [{ uid: "u2", optionIdx: 1, day: "2026-09-01" }], undefined, stamps);
-    expect(s.rows.u1).toEqual({ o: 0, a: {}, d: "2026-08-01", n: "Olaf T", s: { big5: { O: 71 } }, l: null });
+    // u1 did not answer THIS question today. Their row keeps what it had.
+    expect(s.rows.u1).toEqual({ o: 0, a: {}, d: "2026-08-01", n: "Olaf", s: { big5: { O: 70 } }, l: 55 });
     expect(s.rows.u2).toEqual({ o: 1, a: {}, d: "2026-09-01" });
-    // and a row written before the stamp existed gains one the same way
-    const old = mergeSample(null, "q", [{ uid: "u3", optionIdx: 0, day: "2026-08-01" }]);
-    const s2 = mergeSample(old, "q", [], undefined, new Map([["u3", stamp]]));
-    expect(s2.rows.u3.n).toBe("Olaf");
+  });
+
+  it("…and a withdrawn political coordinate is not republished by tonight's pass", () => {
+    // The regression in the shape a reader will recognise. The row already
+    // carries what the fan-out wrote after the withdrawal — the new name,
+    // and scores with no `political` key. The person is in tonight's stamp
+    // map because they answered SOMETHING today, and the ledger's copy of
+    // their profile predates the withdrawal.
+    const afterWithdrawal = { n: "New Name", s: { big5: { O: 70 } }, l: null };
+    const asOfAnswer = { n: "Old Name", s: { big5: { O: 70 }, political: { x: 3, y: -7 } }, l: null };
+    const prev = mergeSample(null, "q", [
+      { uid: "u1", optionIdx: 0, day: "2026-08-01", stamp: afterWithdrawal },
+    ]);
+    const s = mergeSample(prev, "q", [{ uid: "u2", optionIdx: 1, day: "2026-09-01" }],
+      undefined, new Map([["u1", asOfAnswer]]));
+    expect(s.rows.u1.n, "the pass reverted a rename").toBe("New Name");
+    expect((s.rows.u1.s as Record<string, unknown> | null)?.political,
+      "a withdrawn political coordinate was republished").toBeUndefined();
+  });
+
+  it("still stamps the day's OWN addition — the edit case this loop is for", () => {
+    // The control, and the reason the loop survives at all: an addition
+    // without a stamp is an edit's, and the day's map is what supplies one.
+    // Narrowing the loop must not take this with it.
+    const prev = mergeSample(null, "q", [{ uid: "u1", optionIdx: 0, day: "2026-08-01" }]);
+    const s = mergeSample(prev, "q", [{ uid: "u1", optionIdx: 1, day: "2026-09-01" }],
+      undefined, new Map([["u1", later]]));
+    expect(s.rows.u1).toEqual({ o: 1, a: {}, d: "2026-09-01", n: "Olaf T", s: { big5: { O: 71 } }, l: null });
   });
 });
 

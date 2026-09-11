@@ -36,13 +36,45 @@
 // never overwrites: the map is the newer truth (an edit made after the
 // healed day is in the map and not in that day's ledger).
 //
-// THE BOUND is the bank, not time. One answer per question (the document
-// id IS the question id, create-only), so a map holds at most as many
-// entries as there are questions — ~20 bytes each, ~23 KB at today's bank
-// and the 1 MiB document ceiling somewhere past 40,000 questions. That is
-// SCALE-PLAN's unbounded feed's number to watch, and a per-surface split is
-// the remedy if it is ever reached; no guard here, because a guard on a
-// bound nothing approaches is a branch nothing tests.
+// THE BOUND IS THE BANK FOR FIVE OF THE SIX SURFACES, AND TIME FOR PULSE.
+// This paragraph used to say "the bank, not time" flat, and that was the
+// sentence licensing the absence of a guard. It is false for `pulse`.
+//
+// The static five (daily, feed, test, learn, call) are one answer per
+// question — the answer document's id IS the question id, create-only — so
+// their half of the map holds at most one entry per question: ~20 bytes
+// each, ~23 KB at today's bank, the 1 MiB ceiling past 40,000 questions.
+// That half is SCALE-PLAN's unbounded feed's number to watch and a
+// per-surface split is its remedy.
+//
+// A PULSE ANSWER'S QID IS THE COMPOSITE `{qid}_{day}` — replay.ts says so
+// where it refuses to address one by bank id, live.ts says so where the
+// day-docs crowd a page, and replay.test.ts pins it. The trigger merges
+// `{ [qid]: optionIdx }` with whatever qid the answer document carries
+// (v2.ts), so a pulse answer adds a NEW key every day and never revisits
+// one. Five templates today (content/pulse-questions.json), which is five
+// keys a day for as long as the account is active:
+//
+//   `pace_2026-09-10` is 15 bytes + 1 for the name, + 8 for the integer
+//   = 24 bytes an entry · 5/day · 365 = ~43 KB per year of daily use.
+//
+// So the DOCUMENT ceiling is still distant — ~43,700 entries, about
+// twenty-four years at five a day — and it is not the part that bites. The
+// READ is: `fetchAnswersOf` (src/v2/data/circle.ts) takes the whole
+// document with no field mask, for up to `FOLLOW_CAP` = 50 members on one
+// Circle open, so ten years of pulse is ~50 × 440 KB on a tap. Group and
+// duo answers never reach here (the trigger returns before the vote
+// branch) and catalog and rank carry no option index, so pulse is the only
+// surface that does this.
+//
+// NO GUARD YET, and that is now a deferral with arithmetic rather than a
+// bound nothing approaches. The two obvious remedies both cost more than
+// this file: dropping `pulse` from `WORLD_SURFACES` is a two-package change
+// (answerMaps.test.ts pins that list equal to voters.ts's
+// `WORLD_ANSWER_SURFACES`, which is what the device queries), and keying a
+// pulse entry by its base qid would collide with a real qid and with the
+// other five surfaces' entries. Whoever reaches for one should read this
+// arithmetic first, and the runbook's 3.2 carries the same correction.
 //
 // THE BACKFILL folds the answers that exist into maps once, through an
 // operator callable driven by scripts/backfill-answer-maps.mjs from the

@@ -78,7 +78,8 @@ one write — an answer — and the surfaces differ only in how they cut it.
                        any signed-in user                        (any bucket)
 
   the duel answers above ─►  reveal doc, server-written  ──────► the MIRROR's Groups
-   (sealed until then)        next day, world-readable            portrait
+   (sealed until then)        on the round's reveal,               portrait
+                              world-readable
 ```
 
 One more read joined the picture at D112: a completed instrument writes

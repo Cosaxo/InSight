@@ -63,7 +63,10 @@ const LIVE = vi.hoisted(() => ({
   // unscoped one. Stubbed rather than exercised here — this file is about
   // what the field DRAWS; the pool it draws from is pinned in vote.test.ts.
   loadCityKindred: vi.fn(() => Promise.resolve()),
-  loadNames: vi.fn(() => Promise.resolve()),
+  // Promise<BOOLEAN>: live.ts answers false for a refused profile read,
+  // and the field draws a different sentence for it. Resolving undefined
+  // here would put every case in this file on the failed path.
+  loadNames: vi.fn(() => Promise.resolve(true)),
   similarityLoading: (): boolean => false,
   testAggsState: (): "loading" | "ready" | "failed" => "ready",
   kindredState: (): "loading" | "ready" | "failed" => "ready",
@@ -190,7 +193,7 @@ beforeEach(() => {
   // with a promise it holds open; leaving that in place made the NEXT
   // case's field wait forever for names, which is a fixture leak rather
   // than a finding about the component.
-  LIVE.loadNames = vi.fn(() => Promise.resolve());
+  LIVE.loadNames = vi.fn(() => Promise.resolve(true));
 });
 afterEach(cleanup);
 
@@ -386,7 +389,7 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.near.room = () => ({ people: room, qs: {} });
     LIVE.scoresFor = () => null;
     let release: () => void = () => {};
-    LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
+    LIVE.loadNames = vi.fn(() => new Promise<boolean>((r) => { release = () => r(true); }));
     render(<NearField />);
     expect(screen.getByText(/Matching/), "the room was blamed before it was read").toBeTruthy();
     expect(screen.queryByText(/Nobody here has taken a test yet/)).toBeNull();
@@ -421,7 +424,7 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.near.room = () => ({ people: room, qs: {} });
     LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
     let release: () => void = () => {};
-    LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = () => r(); }));
+    LIVE.loadNames = vi.fn(() => new Promise<boolean>((r) => { release = () => r(true); }));
     render(<NearField />);
     expect(screen.queryByText(/the rest have not taken one, or share too few axes with yours/),
       "four people were called untested while their profiles were in flight").toBeNull();
@@ -438,6 +441,43 @@ describe("the Near field is a crowd, never a directory", () => {
     render(<NearField />);
     expect(await screen.findByText(/the rest have not taken one, or share too few axes with yours/)).toBeTruthy();
     expect(screen.queryByText(/closest/)).toBeNull();
+  });
+
+  // A REFUSED PROFILE READ IS NOT A ROOM OF UNTESTED PEOPLE.
+  //
+  // `loadNames` swallows a failure by design and answers `false` — live.ts
+  // gave it that return for this caller class in as many words, and the
+  // Compare lens one file over already consumes it. This field dropped it
+  // through `.finally`, so a refused batch arrived as `reading` false with
+  // no scores in hand, which is indistinguishable from a room where nobody
+  // has taken anything — and the field said exactly that, on the surface
+  // the stop OPENS on, about a room where everyone may have.
+  it("says the read failed rather than blaming the room", async () => {
+    const room = Array.from({ length: 20 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    // A real test of my own, so "finish a test" is not the answer either,
+    // and no scores back for anybody — the shape of a refused batch.
+    LIVE.myTestResults = () => rawBig5(50, 50, 50, 50, 50);
+    LIVE.scoresFor = () => null;
+    LIVE.loadNames = vi.fn(() => Promise.resolve(false));
+    render(<NearField />);
+    expect(await screen.findByText(/Couldn’t read who’s here/)).toBeTruthy();
+    expect(screen.queryByText(/Nobody here has taken a test yet/),
+      "a refused read was reported as a room where nobody has taken anything").toBeNull();
+  });
+
+  it("…and still blames the room when the read really did land", async () => {
+    // The control. Same room, same absent scores, the read ANSWERING —
+    // so the sentence about the room is the true one and the new arm must
+    // not swallow it.
+    const room = Array.from({ length: 20 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.myTestResults = () => rawBig5(50, 50, 50, 50, 50);
+    LIVE.scoresFor = () => null;
+    LIVE.loadNames = vi.fn(() => Promise.resolve(true));
+    render(<NearField />);
+    expect(await screen.findByText(/Nobody here has taken a test yet/)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t read who’s here/)).toBeNull();
   });
 
   it("asks for the room again when the beat moves it underneath the field", async () => {

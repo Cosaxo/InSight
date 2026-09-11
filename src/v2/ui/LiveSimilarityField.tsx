@@ -660,15 +660,31 @@ export function NearField() {
   // A no-op on a warm open: the fetch resolves without a round trip when
   // the cache already holds the roster, so the flag never becomes visible.
   const [reading, setReading] = React.useState(false);
+  // …AND WHETHER THE READ CAME BACK AT ALL. `loadNames` swallows a failure
+  // by design — a name resolution is not a price a lens should charge —
+  // and it was given a boolean return for exactly this caller class:
+  // live.ts says so where it returns it, and LiveCompareLens one file over
+  // consumes it into the same flag. This one dropped it on the floor
+  // through `.finally`, so a REFUSED profile batch reached the ladder
+  // below as `reading` false with no scores in hand, which is the shape of
+  // a room where nobody has taken anything. Measured 2026-09-10 with
+  // `loadNames` resolving false against a twenty-person roster and a real
+  // Big Five of my own: "Nobody here has taken a test yet — 20 in the
+  // room, People lists them." No "Matching…", no error arm, nothing true
+  // about the room in it.
+  const [namesFailed, setNamesFailed] = React.useState(false);
   React.useEffect(() => {
     // Clearing on the way OUT matters as much as setting on the way in:
     // the cleanup drops `live`, so a fetch in flight when the key empties
     // never runs its setReading(false), and this arm would return without
     // clearing it either — leaving the flag up for the life of the mount.
-    if (!rosterKey) { setReading(false); void LIVE.loadNames([]); return; }
+    if (!rosterKey) { setReading(false); setNamesFailed(false); void LIVE.loadNames([]); return; }
     let live = true;
     setReading(true);
-    void LIVE.loadNames(rosterKey.split(",")).finally(() => { if (live) setReading(false); });
+    setNamesFailed(false);
+    void LIVE.loadNames(rosterKey.split(","))
+      .then((ok) => { if (live) setNamesFailed(!ok); })
+      .finally(() => { if (live) setReading(false); });
     return () => { live = false; };
   }, [rosterKey]);
   // AFTER the hooks, never before: an early return above them changes the
@@ -726,7 +742,12 @@ export function NearField() {
   // ever read in a PARTIALLY read room: some members' scores already in
   // the profile cache, the rest still on the wire. Those in flight would
   // be counted as people who have not taken it.
-  const untested = reading ? 0 : roster.length - placeable.length;
+  // `namesFailed` joins `reading` here for the same reason and it is the
+  // half that was missing: on a PARTIAL failure the drawn caption counted
+  // people whose profiles were REFUSED as people who "have not taken one,
+  // or share too few axes with yours" — the exact conflation this line
+  // exists to prevent, one cause further along.
+  const untested = reading || namesFailed ? 0 : roster.length - placeable.length;
   const capped = placeable.length > placed.length;
   // THE THIRD REASON, and it is the one both sentences below were missing.
   // `scoreMatch(…, MIN_PLACE_AXES)` returns null on FEWER THAN THREE SHARED
@@ -783,15 +804,25 @@ export function NearField() {
                    reader can act on. Only the claim ABOUT THE ROOM has to
                    wait for the room to be read. */
                 ? <>Matching…</>
-                : scored
+                /* SIXTH, and it goes here rather than higher for the reason
+                   the fifth does: the two arms above are things the reader
+                   can act on or facts about the room that hold regardless.
+                   This one is the honest answer when the room could not be
+                   read — it says nothing about who has taken what, because
+                   nothing was learned. It sits ahead of `scored` because
+                   `scored` is computed from the very profiles that did not
+                   arrive, so its answer would be zero for the wrong reason. */
+                : namesFailed
+                  ? <>Couldn&rsquo;t read who&rsquo;s here.</>
+                  : scored
                   /* They have scores; they just do not overlap with yours.
                      Naming the instrument gap is the only version a reader
                      can act on — take the one they took. */
-                  ? <>Nobody here shares enough axes with your tests yet
-                    {" "}(needs {MIN_PLACE_AXES}) — {roster.length} in the room,
-                    {" "}<strong>People</strong> lists them.</>
-                  : <>Nobody here has taken a test yet — {roster.length} in the
-                    room, <strong>People</strong> lists them.</>}
+                    ? <>Nobody here shares enough axes with your tests yet
+                      {" "}(needs {MIN_PLACE_AXES}) — {roster.length} in the room,
+                      {" "}<strong>People</strong> lists them.</>
+                    : <>Nobody here has taken a test yet — {roster.length} in the
+                      room, <strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }

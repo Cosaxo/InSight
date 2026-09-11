@@ -107,24 +107,32 @@ describe("storage: the profile photo (D178)", () => {
     await assertSucceeds(getBytes(avatar(asAnonAuth(), OWNER)));
   });
 
-  it("but not by the signed-out world THROUGH THE SDK — which is not how the app draws it", async () => {
-    // What this proves and what it does not, because the sentence that
-    // stood here — "the bucket is not a public CDN, signed-in is the
-    // floor everywhere else in this app and it is the floor here" — was
-    // true of this call and false of the app.
+  it("but not by the signed-out world — on the SDK path, which is not the one the app uses", async () => {
+    // WHAT THIS PROVES, AND WHAT IT DOES NOT. It proves the rule: a
+    // request that reaches `storage.rules` with no auth is refused. It
+    // does NOT prove that a face is unreadable to the signed-out world,
+    // and this comment used to say it did ("the bucket is not a public
+    // CDN. Signed-in is the floor everywhere else in this app and it is
+    // the floor here").
     //
-    // PROVES: the SDK route (`getBytes`) obeys the rule, so a signed-out
-    // caller cannot read the object through the Firebase client.
+    // No surface fetches a face this way. `avatarUrl` (src/v2/data/avatar.ts)
+    // builds `…/o/avatars%2F{uid}?alt=media&token=…` and every face is a
+    // plain <img> on that address — a Firebase DOWNLOAD TOKEN, which by
+    // design is consulted INSTEAD of the rules. Measured 2026-09-10
+    // against the storage emulator: the tokenless address is 403 (this
+    // case), the tokenised one is 200 with no Firebase app, no
+    // Authorization header and no account at all. The token itself sits on
+    // `v2_avatars/{uid}`, which any signed-in — so any free anonymous —
+    // account may read, so the link is obtainable and then shareable.
     //
-    // DOES NOT: say anything about how a face actually reaches a screen.
-    // The app never calls getBytes for a photo — `avatarUrl`
-    // (src/v2/data/avatar.ts) builds the download-token endpoint,
-    // `…?alt=media&token=…`, and an `<img>` fetches it. That endpoint
-    // does not evaluate Security Rules, so this assertion cannot fail for
-    // the thing it was read as promising, and no assertion in an
-    // emulator can: the token is a bearer credential and the served
-    // audience is anyone holding the link. storage.rules carries the
-    // whole argument and what it would cost to change.
+    // `storage.rules` carries the whole argument and what the two fixes
+    // would cost; `web/privacy.html` now says so rather than promising the
+    // floor this case cannot deliver, and `check:policy-claims` pins that
+    // sentence. Restoring the floor for real is the other option and it is
+    // not free: it means drawing faces through `getBytes`/`getBlob` into an
+    // object URL, which costs the plain <img> and the property avatar.ts
+    // banks on — a user who never sets a photo never pays for
+    // `firebase/storage`.
     await env.withSecurityRulesDisabled(async (ctx) => {
       await uploadBytes(avatar(ctx.storage(), OWNER), small(), JPEG);
     });

@@ -5528,6 +5528,26 @@ const LIVE = {
         getDb(),
       ]);
       const objectRef = ref(getStorage(), avatarPath(uid));
+      // ASKED BEFORE THE BYTES ARE SPENT, because the upload is the half
+      // that cannot be taken back. Moderation removes a face by freezing
+      // this DOCUMENT (`hidden: true`) and deleting the object;
+      // `storage.rules` cannot see that freeze — Storage rules have no
+      // cross-database `firestore.get()` — so its write grant is
+      // ownership, size and type, and nothing else. The order was the only
+      // thing standing between a removed face and the bucket, and it ran
+      // the wrong way: the upload SUCCEEDED, the document write was
+      // refused, and the caller was told "removed" while the image sat
+      // back under `avatars/{uid}`, which `allow read: if request.auth !=
+      // null` serves to any signed-in caller by path — no download token
+      // needed, so the frozen document does not gate it.
+      //
+      // One extra read on an action a person takes once. It closes the
+      // shipped client, which is what put the bytes there; a modified
+      // client can still upload and that cannot be closed in
+      // storage.rules at all — docs/MODERATION.md § Faces says so now
+      // rather than claiming the removal is durable.
+      const mine = await getDoc(doc(db, "v2_avatars", uid));
+      if (mine.exists() && mine.get("hidden") === true) return { ok: false, reason: "removed" };
       await uploadBytes(objectRef, small, { contentType: "image/jpeg" });
       const token = tokenFromUrl(await getDownloadURL(objectRef));
       if (!token) return { ok: false, reason: "unavailable" };

@@ -1714,6 +1714,40 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await refused(deleteDoc(ref));
   });
 
+  // THE COOLDOWN'S OTHER SIDE, and it was true ZERO times across the whole
+  // suite. Every existing case reaches the clause through one of two arms:
+  // a first edit, where `editedAt` is absent from the old document, or a
+  // second edit inside the window, which is refused. The arm that says an
+  // edit is allowed AFTER the window — `request.time > resource.data
+  // .editedAt + duration.value(60, 's')` — was never taken, so a mistake
+  // in it could not redden anything.
+  //
+  // `>` flipped to `<` IS caught, by the in-window refusal above. What is
+  // not: the unit. `'s'` typed as `'h'` makes the cooldown sixty HOURS, the
+  // first edit still passes on the absent-key arm, the second is still
+  // refused, every assertion in this file stays green — and D86's edit has
+  // silently become once per answer, forever.
+  //
+  // Seeded rather than waited for: the window is real time, and a suite
+  // that sleeps sixty seconds to prove a bound is a suite people stop
+  // running.
+  it("D86: an edit is allowed again once the cooldown has passed", async () => {
+    await seedQuestion();
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID2);
+    await assertSucceeds(setDoc(ref, answer({ qid: QID2 })));
+    // Straight past the window, through the admin path — the client
+    // cannot write `editedAt` to anything but `request.time`.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID2), {
+        editedAt: Timestamp.fromMillis(Date.now() - 120_000),
+      }, { merge: true });
+    });
+    await assertSucceeds(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+    // …and the window re-arms behind it, so this proves the cooldown is a
+    // WINDOW rather than a switch the seed above simply turned off.
+    await refused(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+  });
+
   it("D86: the kill switch reaches edits, not just creates", async () => {
     // Its own question and a FIRST edit, so the refusal can only be the
     // active check — the cooldown test above cannot isolate it.
@@ -3313,6 +3347,48 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
   });
 
+  // AND THE SIGNED-OUT WORLD READS NONE OF IT — the one arm of the twelve
+  // this file defers that is actually load-bearing.
+  //
+  // The count two thousand lines below holds the NUMBER of sign-in-gated
+  // read arms and says outright that it does not assert each has a case:
+  // "writing twelve fixtures is tomorrow's work". Measured 2026-09-10, the
+  // twelve are not equal. Seven of them — taste's `get`, the collection-
+  // group invites, `v2_groups`, group invites, `v2_flags` create,
+  // `v2_presence` create/update and delete — fail closed WITHOUT their
+  // `request.auth != null`, because the next conjunct dereferences
+  // `request.auth.uid` and errors on a null auth. This one does not:
+  //
+  //   allow read: if request.auth != null
+  //     && (resource.data.hidden == false
+  //       || resource.data.authorUid == request.auth.uid);
+  //
+  // `resource.data.hidden == false` is TRUE for a signed-out caller, so
+  // the left disjunct carries the whole condition and `request.auth !=
+  // null` is the entire gate — on a world-scale, author-attributed
+  // free-text corpus. Delete that line and every non-hidden take in the
+  // app is readable by the unauthenticated internet, with the suite and
+  // every gate green.
+  //
+  // Both operations, because they fail differently: a `get` is decided per
+  // document, and a LIST is decided against the query's constraints — the
+  // distinction D65's leak was made of, recorded at the case below.
+  it("…and the signed-out world reads no take at all, one or many", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t_open"), {
+        gid: GID, authorUid: OWNER, text: "in the open",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await refused(getDoc(doc(asSignedOut(), "v2_takes", "t_open")));
+    await refused(getDocs(query(
+      collection(asSignedOut(), "v2_takes"),
+      where("gid", "==", GID),
+      where("hidden", "==", false),
+    )));
+  });
+
   // The case whose absence WAS the bug (D65). Every take assertion above
   // this line uses getDoc, and getDoc was never the leak: a per-document
   // rule is applied per document. A LIST is a different operation, and the
@@ -4431,6 +4507,37 @@ describe("people directory: found by name (D239)", () => {
     // does.
     await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_people", STRANGER),
       { name: "Stranger", nameKey: "stranger" }));
+  });
+
+  // THE ORDINARY RENAME — the SECOND write, which nothing exercised.
+  //
+  // The case above ends on a handle-less account's FIRST name write, and
+  // that one takes the other disjunct: with no document yet, `resource ==
+  // null` decides it. The clause beside it — `resource.data.get("handle",
+  // null) == null` — is what decides an UPDATE to an existing row that has
+  // no handle, and that is the ordinary path: `writeDirectoryRow`
+  // (src/v2/data/socialFetch.ts) merges {name, nameKey} into the existing
+  // row every time a display name changes, and most accounts never claim a
+  // handle. Every other case here either creates the row or seeds one that
+  // HAS a handle, so across the whole run that clause was true ZERO times
+  // — the emulator's own coverage report puts it at `true 0x, false 1x,
+  // error 39x`, while the identically-shaped clause on `v2_users` is
+  // covered.
+  //
+  // NEITHER RATCHET COULD SEE IT. The never-false gate cannot, by
+  // construction: the atom IS false once, on the DROP case above, so it
+  // never reaches the never-false list. Measured 2026-09-10 by mutation —
+  // the clause rewritten to `== "zzz-mutation-never"`, so it can never
+  // hold — the suite came back fully green: 222 passed, coverage at its
+  // baseline of 8, all 15 budget probes at their pins. Every repeat name
+  // change in the people directory would have been silently refused for
+  // every account without a handle, and CI would have said nothing.
+  it("lets a handle-less account rename again — the second write, not the first", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_people", STRANGER), { name: "Stranger", nameKey: "stranger" });
+    });
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_people", STRANGER),
+      { name: "Stranger Two", nameKey: "stranger two" }));
   });
 
   // The owner deletes their own row (D440): clearing a display name is
