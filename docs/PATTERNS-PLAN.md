@@ -383,9 +383,7 @@ line on that owner-list row, not a build.
 counts about 31,700 entries at today's shape, not 15,000, because the
 benched engine's block and the per-question scorecard count too — and
 the exemption is the collection-group wildcard (`*`) rather than four
-named fields, since nothing queries inside `v2_patterns` at all; 1 MiB
-holds about 3,500 rows of this shape, so the shard trigger stands
-inside the wall and sharding waits for the count; the *answered* ring
+named fields, since nothing queries inside `v2_patterns` at all; the *answered* ring
 is a chip in the topic control; the dot budget keeps each topic's
 strongest hubs in proportion; the People fetch prefers the daily by a
 surface tag on each pool item; the whole-world map is the ask it was.
@@ -414,6 +412,28 @@ about 130 KB Firestore-accounted at 545 rows (`ALGORITHM-REFLECTION.md`
 §3), so 1 MiB is near 4,000 rows. When rows pass 2,500, shard `q` by
 topic into `v2_patterns/loadings-{cat}`; the reader joins rows to the
 bank by id already, so a per-topic document is a loop over documents.
+
+**Corrected 2026-09-12, and the correction is the instrument's own.**
+`publicationOf` benched the candidate engine at a fixed 113 rows — the
+ring's dot figure from §7.2, not a candidate count — while
+`functions/src/patterns.ts` gives BOTH candidates the full row set
+(`q: alsRowsOut`, `q: sgdRowsOut`). So the measured document was about
+40% light, and the two sentences it supported were wrong in opposite
+directions:
+
+- **1 MiB holds 2,226 rows of this shape, not ~3,500.** At the old
+  trigger of 2,500 the document is 1,176,530 bytes — the nightly write
+  refuses BEFORE sharding begins, which is precisely the failure this
+  section predicted in words ("a second engine carrying the full corpus
+  in `candidates`… the nightly write refusing, with the cursor left
+  behind"). The trigger is **1,800** now, with 426 rows of room, and
+  `SHARD_AT` is one exported constant the script prints against the
+  measurement rather than a number asserted to be safe.
+- **The index wall is behind us, not ahead.** Today's 885 rows cost
+  about 47,700 entries against the 40,000 limit. The wildcard exemption
+  is not headroom bought for later; it is the only reason tonight's
+  write is legal at all. Removing it does not cost efficiency, it stops
+  the publish.
 
 **7.2 The ring.** 113 dots on a rim of radius 131 already sit about five
 pixels apart; the rest of the core halves that, and a thousand is a
