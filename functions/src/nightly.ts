@@ -195,7 +195,7 @@ export async function runNightlyPass(
   // of flags is the whole output of this fold on an ordinary night.
   if (vel && vel.authScanned < vel.authTotal) {
     log.warn(
-      `[velocity] the birth-cluster scan read ${vel.authScanned} of ${vel.authTotal} active accounts before the pass's clock — its "no clusters" covers that many`,
+      `[velocity] the birth-cluster scan read ${vel.authScanned} of ${vel.authTotal} active accounts before the pass's clock — its "no clusters" covers that many, and the window advances anyway, so what it did not look at is not deferred`,
       { metric: "velocity_auth_partial", scanned: vel.authScanned, total: vel.authTotal },
     );
   }

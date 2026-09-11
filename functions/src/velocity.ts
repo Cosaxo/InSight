@@ -309,6 +309,14 @@ export interface BindCoverage {
  * cannot be shown to have come from a qualifying account has not been
  * shown to have come from one. The other direction overstates coverage on
  * precisely the day it is trusted.
+ *
+ * THAT ARGUMENT HOLDS FOR AN ACCOUNT THAT WAS ASKED ABOUT AND NOT FOUND,
+ * and for no other kind — so `perUid` must arrive already narrowed to the
+ * accounts the Auth read actually reached. An account nobody asked about
+ * is not evidence in either direction, and counting it at L0 makes the
+ * ladder say "unbound" about a question that was never put. The caller
+ * narrows it; this note is here because the two are far apart in the
+ * file and the bound that made them differ arrived later than both.
  */
 export function bindCoverage(
   perUid: Map<string, number[]>,
@@ -756,7 +764,19 @@ export async function runVelocityScan(
   // operator has on flip day, and again on every later tightening, is
   // "what share of real votes would this refuse", and they should not
   // have to do the subtraction while deciding.
-  const cov = bindCoverage(fold.perUid, levels);
+  // NARROWED TO WHAT WAS ASKED. The Auth loop above stops on the pass's
+  // clock, and the uids it reached are its first `scanned` in the same
+  // sorted order — so everything after that point is an account nobody
+  // asked about, which `bindCoverage` would otherwise tally at L0 and
+  // report as unbound. On a night that stopped early, that is the number
+  // an operator reads before flipping enforcement, overstating what it
+  // would refuse without bound: at the limit, "would refuse 100% of
+  // answers" about a population the scan never saw.
+  const askedAbout = new Set(uids.slice(0, scanned));
+  const covPool = scanned >= uids.length
+    ? fold.perUid
+    : new Map([...fold.perUid].filter(([uid]) => askedAbout.has(uid)));
+  const cov = bindCoverage(covPool, levels);
   const atBar = refusedAt(cov, REQUIRED_LEVEL);
   const ladder = [...cov.byLevel.entries()]
     .sort((a, b) => a[0] - b[0])
@@ -765,11 +785,18 @@ export async function runVelocityScan(
   log.info(
     `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
       + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
-      + `from ${atBar.voters}/${cov.voters} voters`,
+      + `from ${atBar.voters}/${cov.voters} voters`
+      // The basis, and only when it is not the obvious one: a partial
+      // night's ratio is still a real ratio, over a smaller room.
+      + (scanned >= uids.length ? "" : ` — over the ${scanned} of ${uids.length} active accounts this pass reached`),
     {
       metric: "bind_coverage",
       voters: cov.voters,
       answers: cov.answers,
+      // The population the ratio is OVER, so the metric can be read
+      // without the message: equal on an ordinary night.
+      scanned,
+      active: uids.length,
       bar: REQUIRED_LEVEL,
       refusedVoters: atBar.voters,
       refusedAnswers: atBar.answers,
