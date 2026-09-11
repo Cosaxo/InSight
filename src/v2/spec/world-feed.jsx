@@ -1920,7 +1920,12 @@ class WorldFeed extends React.Component {
     const tile = (ent, nm, label, strong, count, rank) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
-        <span aria-hidden="true" style={{ position: 'relative', overflow: 'hidden', width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}>
+        {/* 92 px tall until 2026-09-11, which was the right height for a
+            face made of pattern and the wrong one for a face made of a
+            picture: fitted inside a 2:1 box, a square subject drew 92 px
+            wide in a 180 px face and the tile was mostly gutter. Squarer
+            box, whole subject — and the pattern still frames it. */}
+        <span aria-hidden="true" style={{ position: 'relative', overflow: 'hidden', width: '100%', aspectRatio: '4 / 3', minHeight: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}>
           {/* the picture, where the catalogue has one (D421) — over the
               generated art, which stays as the fallback */}
           <PickArt domain={q.domain} id={ent} />

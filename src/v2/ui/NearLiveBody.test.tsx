@@ -231,6 +231,19 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     expect(await screen.findByText(/Near stays off until you allow location/i)).toBeTruthy();
   });
 
+  it("an approximate grant is told so, not sent outside", async () => {
+    // REPORTED FROM A DEVICE. The refusal for a fix wider than the presence
+    // square was reported as "unavailable", which this card renders as "No
+    // location fix — try again outside" — advice that cannot work, because
+    // the phone HAS a fix and the switch that would narrow it is in the OS.
+    LIVE.near.enable = vi.fn(async () => ({ ok: false, reason: "imprecise" }));
+    render(<NearLiveBody />);
+    fireEvent.click(nearSwitch());
+    const msg = await screen.findByText(/approximate location/i);
+    expect(msg.textContent).toMatch(/Precise Location/);
+    expect(screen.queryByText(/try again outside/i), "the unfollowable sentence is back").toBeNull();
+  });
+
   it("turn-off calls disable — the doc-delete promise rides on it", async () => {
     LIVE.near.on = () => true;
     LIVE.near.count = () => 2;
