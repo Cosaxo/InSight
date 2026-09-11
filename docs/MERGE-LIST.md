@@ -40,12 +40,13 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T16:40:27Z -->
+<!-- console:generated 2026-09-11T17:10:58Z -->
 
 ## Open
 
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 28 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 297 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#486** · a session · *what:* Asked for in one sentence — *"go through this app and look for improvments optemzations and clean up and maitance"* — so the subject is the whole tree rather than one surface. · *how:* `docs/DECISIONS.md` D451** is the record. · CI running (10 pending) · current with main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 29 behind main · conflicts · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 298 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
 
