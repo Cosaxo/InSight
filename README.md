@@ -56,8 +56,9 @@ A live stop is not one reading. City, Country and World carry a tab row —
 only** (D152) — under a similarity
 field that draws above it always: your city's people ranked by test-score
 match, and cities and countries placed by their real average-score
-profiles (decisions D112, D136). Circle and Groups carry the three of
-those a circle of nine can answer (D190). Every one of them is a fold
+profiles (decisions D112, D136). Circle carries the three of
+those a circle of nine can answer (D190); Groups carries four, its first
+tab the room's votes and its third the room rating itself (D434–D437). Every one of them is a fold
 over aggregates that were publishing anyway.
 
 The slicing is the whole trick, and it costs one write. An answer is
