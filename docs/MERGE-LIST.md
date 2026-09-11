@@ -40,17 +40,14 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T16:28:47Z -->
+<!-- console:generated 2026-09-11T16:40:27Z -->
 
 ## Open
 
-- [ ] **#485** · a session · *what:* Both of last night's shifts, composed as one tree and reviewed as one unit. · *how:* All 63 commits are kept as written; nothing was reverted. · CI running (7 pending) · 1 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 26 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 295 behind main · opened 2026-09-01 · stage **new**
-- [ ] **night-20260911** (no PR yet) · Claude 2's night shift · 32 commits · last 05:33 UTC 2026-09-11
-- [ ] **nightb-20260911** (no PR yet) · Claude 1's night shift B · 31 commits · last 04:12 UTC 2026-09-11
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 28 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 297 behind main · opened 2026-09-01 · stage **new**
 
-**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · and 10 more.
+**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
 
 ## In the shift
 
@@ -66,6 +63,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#485** · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, five conflicts, and the sweep neither shift finished (D450) · merged 2026-09-11
 - **#484** · Now 2026-09-11: the ranking or the trophy, and orbit from home soil · merged 2026-09-11
 - **#483** · Duel 2026-09-11: two new packs, ten 1v1, and the romantic pool reaches its while-dark cap · merged 2026-09-11
 - **#482** · Feed 2026-09-11: sixty at the wall — five rooms, thirteen twins that fit, and the first paths since pt7 · merged 2026-09-11
@@ -120,4 +118,3 @@ merge shift like any other PR.
 - **#442** · Rounds replace the day on 1v1 and group: the volley, its notifications, world questions as duel content, and the card from the owner's canvas (D426) · merged 2026-09-08
 - **#441** · The lanes grow the taxonomy: subtopics first, new topics into the Map's fixed ring (D424, D425) · merged 2026-09-08
 - **#440** · The catalogue pictures land: 2,651 across five domains, and the three things that stood between a correct builder and a picture on disk (D423) · merged 2026-09-08
-- **#439** · The duel lane runs daily for the bank burst — re-paced 2026-09-08, registered · merged 2026-09-08
