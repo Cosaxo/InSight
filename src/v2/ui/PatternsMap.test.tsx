@@ -249,7 +249,7 @@ describe("a selection", () => {
   });
 });
 
-describe("the ring is the topic's own (D436)", () => {
+describe("the ring is the topic's own (D455)", () => {
   const MIXED = [
     item("sa", vec(1, 0), 1, "sport"),
     item("sb", vec(0.9, 0.1), -1, "sport"),

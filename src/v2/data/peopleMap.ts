@@ -77,7 +77,7 @@ export function countryOf(city: string | undefined): string | null {
  * the component adapts; keeping the shape local keeps this module pure). */
 export interface PeopleItem {
   qid: string;
-  /** The question's surface, for the fetch order (D436): the daily is the
+  /** The question's surface, for the fetch order (D455): the daily is the
    * one question everyone answers, so its lists are where overlap lives. */
   surface?: string;
   /** The published loading vector. */
@@ -92,7 +92,7 @@ export interface PeopleItem {
   optionLabels: readonly string[];
 }
 
-/** One anchor row the fit published (D433): the breakdown dim, the value
+/** One anchor row the fit published (D452): the breakdown dim, the value
  * it stands for, its vector, and the crowd's mean of the encoded value. */
 export interface PeopleAnchorRow {
   dim: string;
@@ -169,7 +169,7 @@ export interface PeopleField {
 
 /**
  * Which questions' voter lists the lens asks for: the viewer's answered
- * pool questions — the DAILY's first (D436: everyone answers the same
+ * pool questions — the DAILY's first (D455: everyone answers the same
  * daily, so those lists are where two people's answers overlap however
  * large the feed grows, and `PEOPLE_MIN_SHARED` stays reachable), then
  * strongest loading basis. Recency would match Kindred's choice but the
@@ -235,7 +235,7 @@ export interface PeopleFoldOpts {
    * otherwise. Both solves — strangers' and the viewer's — use it. */
   lambda?: number;
   /**
-   * The anchor rows the fit published (D433). Each stranger's frozen
+   * The anchor rows the fit published (D452). Each stranger's frozen
    * chips are encoded against them exactly as the fit encoded everyone —
    * +1 carrying the value, −1 carrying the dim with another value,
    * nothing for a dim left empty — so a person's dot starts from their
@@ -296,7 +296,7 @@ export function foldPeople(
     }
   }
 
-  // the strangers' anchors as evidence (D433) — after the floor below has
+  // the strangers' anchors as evidence (D452) — after the floor below has
   // been decided on answers alone, which is why this adds to `obs` and to
   // nothing else
   const anchorRows = opts.anchorRows ?? [];

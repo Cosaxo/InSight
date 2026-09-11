@@ -39,7 +39,7 @@ export const PATTERNS_SAMPLE_CAP = 200;
 export interface SampleRow {
   /** The option index picked — absent on a catalogue pick's row. */
   o?: number;
-  /** A catalogue pick's canonical entity key (D434) — the row's answer
+  /** A catalogue pick's canonical entity key (D453) — the row's answer
    * where `o` is a vote's. One of the two is present. */
   e?: string;
   /** The answer's frozen anchors (D8) — `{}` for an entry that carried none. */
@@ -57,7 +57,7 @@ export interface SampleDoc {
 
 export interface SampleAddition {
   uid: string;
-  /** A vote's option index, or a pick's entity key (D434) — one of the two. */
+  /** A vote's option index, or a pick's entity key (D453) — one of the two. */
   optionIdx?: number;
   entity?: string;
   anchors?: Record<string, string>;
@@ -113,7 +113,7 @@ export function sampleAdditions(
       list.push({ uid, optionIdx, anchors: anchorsByUid.get(uid)?.[qid], day });
       out.set(qid, list);
     }
-    // a catalogue question's sample is its picks (D434): the same rows the
+    // a catalogue question's sample is its picks (D453): the same rows the
     // pair card would count, one person one row, the entity where a vote
     // has its option
     for (const [qid, entity] of Object.entries(picksByUid.get(uid) ?? {})) {

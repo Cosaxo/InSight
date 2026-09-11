@@ -371,7 +371,7 @@ describe("the crossover rule", () => {
   });
 });
 
-describe("anchors as items (D433)", () => {
+describe("anchors as items (D452)", () => {
   /** The two-factor crowd with a gender the first trait reads off —
    * trait +1 is "Woman", −1 is "Man" — every third person leaving the
    * dim empty, and an age band that is a coin. */
@@ -475,7 +475,7 @@ describe("anchors as items (D433)", () => {
   });
 });
 
-describe("catalogue picks as items (D434)", () => {
+describe("catalogue picks as items (D453)", () => {
   /** The two-factor crowd with a favourite the first trait decides:
    * trait +1 picks entity "25", −1 picks "6", one in five picks
    * something rare, and every fourth person never answered the card. */
@@ -558,7 +558,7 @@ describe("catalogue picks as items (D434)", () => {
   });
 });
 
-describe("the link's slope (D435)", () => {
+describe("the link's slope (D454)", () => {
   it("scales the model's lean and nothing else: tau 0 is the marginal, tau 1 the shipped link, and 1 is in the sweep", () => {
     expect(ALS_TAUS).toContain(1);
     const index = indexItems(compileItems(TWO_FACTOR_BANK));

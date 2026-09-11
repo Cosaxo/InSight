@@ -49,12 +49,12 @@ import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
 const S = 352, C = 176, R = 131, RA = 142, RL = 158;
 const GAP = 2.6;   // the silence between two topic groups, in dot-steps
 const FIG_N = 10;  // how many ties speak at rest
-/** The most dots one ring draws (D436): a rim of radius 131 is about 820
+/** The most dots one ring draws (D455): a rim of radius 131 is about 820
  * px around, and past three hundred dots it is a line. Above the budget
  * each topic keeps its strongest hubs, in proportion, and the sentence
  * under the field says how many of the pool are drawn. */
 export const MAP_DOT_BUDGET = 300;
-/** The pseudo-topic that rings the viewer's own answers (D436). */
+/** The pseudo-topic that rings the viewer's own answers (D455). */
 export const MAP_TOPIC_ANSWERED = "answered";
 
 interface Topic { id: string; label: string; color: string }
@@ -204,11 +204,11 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
 }): React.ReactElement {
   const [sel, setSel] = React.useState<number | null>(null);
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
-  // a chosen topic re-rings the field (D436), so a selection's index
+  // a chosen topic re-rings the field (D455), so a selection's index
   // belongs to the ring it was made on
   React.useEffect(() => { setSel(null); }, [topic]);
 
-  // THE RING IS THE TOPIC'S OWN (D436). The chip used to dim the other
+  // THE RING IS THE TOPIC'S OWN (D455). The chip used to dim the other
   // topics and leave every dot on the rim, which at a few hundred core
   // questions is a rim of touching dots whatever is chosen. Now the ring
   // holds the chosen topic's questions alone — or, under "answered", the
@@ -391,7 +391,7 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
                 const i = p.i;
                 const answered = D[i].mine != null;
                 if (i === nxt) return null; // the beacon draws it on the top layer
-                // at rest nothing dims: the ring is the topic's own (D436)
+                // at rest nothing dims: the ring is the topic's own (D455)
                 const dim = sel != null ? i !== sel && !(near?.has(i) ?? false) : false;
                 const col = dotCol(catHue(i));
                 return (

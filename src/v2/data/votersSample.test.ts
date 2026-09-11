@@ -1,6 +1,6 @@
 // The nightly sample's reader (D397), on the rows a document can hold:
 // a vote's row carries its option, a catalogue pick's carries the entity
-// instead (D434), and a row with neither is not a voter. Pinned here
+// instead (D453), and a row with neither is not a voter. Pinned here
 // rather than in voters.test.ts because that file has no Firestore mock
 // and this reader needs one document.
 import { describe, expect, it, vi } from "vitest";

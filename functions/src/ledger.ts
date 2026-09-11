@@ -34,9 +34,9 @@ export interface LedgerDayEntry {
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the nightly voter samples
    *  (D397). Absent on entries written before the field; on catalog
-   *  entries since D434. */
+   *  entries since D453. */
   anchors?: Record<string, string>;
-  /** A catalogue pick's canonical entity key (D434) — the fit's own
+  /** A catalogue pick's canonical entity key (D453) — the fit's own
    *  reading of a `pick` answer, the way `optionIdx` is of a vote. Absent
    *  on every other arm, and on catalog entries written before it. */
   entity?: string;

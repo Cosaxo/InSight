@@ -182,11 +182,11 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
   { qid, uid, optionIdx?, fromIdx?, dedup: at-least-once delivery can't
     anchors?, entity?, at,         double-count. `entity` is a catalogue
-    expireAt }                     pick's canonical key (D434), what the
+    expireAt }                     pick's canonical key (D453), what the
                                    fit reads where a vote has optionIdx;
                                    `anchors` the answer's frozen chips
                                    (D397, and on catalog entries since
-                                   D434). Attribution: uid is what
+                                   D453). Attribution: uid is what
                                    lets an operator subtract a discovered
                                    fake-account ring from the exact counts
                                    and republish (DEPLOYMENT.md,
@@ -338,14 +338,14 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
                                    · dial, the instrument items included)
                                    and one one-hot pseudo-item per option
                                    of an unordered pick (`opt`, keyed
-                                   `qid~i`) — and, since D433, one item per
+                                   `qid~i`) — and, since D452, one item per
                                    profile value enough people carry
                                    (`anc`, keyed `anchor~dim~value`: +1 for
                                    a person whose frozen anchors carry the
                                    value, −1 for one carrying the dim with
                                    another value; compiled from the people,
                                    floored and capped per dim) — and, since
-                                   D434, one item per entity enough people
+                                   D453, one item per entity enough people
                                    picked on a catalogue question (`pick`,
                                    keyed `qid~entity`, at most CANON_TOP_N
                                    per question: +1 picked it, −1 picked
@@ -358,8 +358,8 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
   items? {key: {kind, qid, opt?,   the candidate's item metadata — how a
      nOptions, dim?, bucket?,       device encodes its own answer to each
      entity?}}                      row, which dim and value an anchor row
-                                   stands for (D433), which entity a pick
-                                   row does (D434); absent while the
+                                   stands for (D452), which entity a pick
+                                   row does (D453); absent while the
                                    online engine owns `q`, whose rows are
                                    all two-option
   lambdaU                          the device ridge the engine's scorecard
@@ -367,7 +367,7 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
                                    solve (estimateTheta) to read rather
                                    than assume
   tau                              the link's slope it was measured at
-                                   (D435): the guess is marginal + tau·θ·L;
+                                   (D454): the guess is marginal + tau·θ·L;
                                    swept on a (ridge, slope) grid for the
                                    candidate, the shipped 1 for the online
                                    engine; absent on a document before it
@@ -396,7 +396,7 @@ v2_patterns/sample-{qid}           the nightly voter sample (D397)
                                    who-voted sheet's own cap) voters of one
                                    question: the option index picked — or,
                                    on a catalogue question, the entity key
-                                   (`e`, D434) — the answer's frozen anchors
+                                   (`e`, D453) — the answer's frozen anchors
                                    (D8) and the UTC day it was ledgered.
                                    Keyed by uid so
                                    a person is one row (an edit moves it)
@@ -426,11 +426,11 @@ v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D395)
                                    subcollection, ~1/50th its bytes
   an: {dim: value}                 the person's NEWEST frozen anchors as
                                    their last ledgered answer carried them
-                                   (D433) — BREAKDOWN_DIMS keys, values the
+                                   (D452) — BREAKDOWN_DIMS keys, values the
                                    cube would count — the anchor items'
                                    substrate. A snapshot replaced whole, so
                                    a dim the person cleared is cleared here
-  p: {qid: entity}                 the person's catalogue picks (D434), the
+  p: {qid: entity}                 the person's catalogue picks (D453), the
                                    canonical key per card, compacted like
                                    `a` — the pick items' substrate
 read: NOBODY · write: NOBODY — the push/ shape; the nightly pass (admin SDK)

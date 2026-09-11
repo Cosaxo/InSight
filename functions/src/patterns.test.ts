@@ -869,7 +869,7 @@ describe("the candidate engine (D395)", () => {
     expect(cand.streak).toBe(0);
     expect(ALS_LAMBDAS_U).toContain(cand.lambdaU);
     expect(Object.keys(cand.lambdaSweep ?? {})).toHaveLength(ALS_LAMBDAS_U.length);
-    // and the link's slope beside the ridge (D435): swept on the same
+    // and the link's slope beside the ridge (D454): swept on the same
     // days, published for the phone, the online engine's the shipped 1
     expect(ALS_TAUS).toContain(cand.tau);
     expect(Object.keys(cand.tauSweep ?? {})).toHaveLength(ALS_TAUS.length);
@@ -1132,7 +1132,7 @@ describe("the voter samples the sweep publishes", () => {
   });
 });
 
-describe("anchors as items (D433)", () => {
+describe("anchors as items (D452)", () => {
   const DAY = 24 * 3600 * 1000;
   const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
   const TEST_ITEM = V2_QUESTIONS.find((q) => q.surface === "test")!.id;
@@ -1212,7 +1212,7 @@ describe("anchors as items (D433)", () => {
   });
 });
 
-describe("catalogue picks as items (D434)", () => {
+describe("catalogue picks as items (D453)", () => {
   const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
   const PICK = [...PICK_QIDS][0];
 

@@ -146,7 +146,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
     // and pick items included (D396) — under the ridge the fit published
     viewerObs: PATTERNS.evidence(),
     // and every stranger from their frozen chips against the fit's anchor
-    // rows (D433) — the same evidence the fit solved them with
+    // rows (D452) — the same evidence the fit solved them with
     anchorRows: PATTERNS.anchorRows(),
     lambda: PATTERNS.lambdaU(),
     circle: circleSet,

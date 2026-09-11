@@ -293,7 +293,7 @@ export const LEDGER_RETENTION_DAYS = 90;
 // says who answered, not what. It adds nothing the answer doc does not
 // already publish (D98), rides the same 90-day TTL, and erases with the
 // account (index.ts phase 4c). Absent on catalog entries, which carry
-// `entity` instead since D434 — and an edit's entry carries the NEW
+// `entity` instead since D453 — and an edit's entry carries the NEW
 // side, so a refit leans toward what the person now says.
 //
 // `anchors` joined for the nightly voter samples (D397): the sample a
@@ -301,7 +301,7 @@ export const LEDGER_RETENTION_DAYS = 90;
 // each voter's FROZEN cohort chips (D8), and the ledger is the one place
 // the sample builder can take them from without a second read per entry.
 // The snapshot the answer itself carries, string values only; public like
-// the answer (D98); same TTL, same erasure. On catalog entries since D434.
+// the answer (D98); same TTL, same erasure. On catalog entries since D453.
 function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const out: Record<string, string> = {};
@@ -318,7 +318,7 @@ function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: num
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
     ...(a ? { anchors: a } : {}),
-    // A catalogue pick's canonical key (D434) — what the fit reads as the
+    // A catalogue pick's canonical key (D453) — what the fit reads as the
     // person's answer where a vote carries `optionIdx`. Validated above
     // against the committed catalogue before this entry is written, so
     // an unknown key never reaches the ledger. Public like the answer.
@@ -1022,7 +1022,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // rules and both are gone — `rest` is now simply "everything
         // outside the top N", which is what a reader assumed it was.
         const canon = canonTopN(ent, CANON_TOP_N);
-        // With the pick and the chips since D434 — the fit compacts the one
+        // With the pick and the chips since D453 — the fit compacts the one
         // and the samples carry the other, exactly as on the vote arm.
         tx.set(eventRef, ledgerEntry(event.params.uid, qid, undefined, undefined, snap.get("anchors"), key));
         // Bounded growth: `ent` is capped by catalogue validation (~1k

@@ -47106,7 +47106,7 @@ measurement. The owner row is closed as answered rather than done, because
 nothing was changed — only learned.
 
 
-## D432 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
+## D451 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
 
 **2026-09-09.** **Status:** binding. Step 1 of `PATTERNS-PLAN.md` (§3),
 built on the owner's *"ok start building step 1"* the same day the plan
@@ -47198,15 +47198,15 @@ sources; a claim moved, none was deleted (D146, COPY.md §3).
 (the shrink, the naïve-Bayes combination, the nesting rule, the clamp,
 three options); `src/v2/data/patterns.test.ts` pins the seal with its
 shadow, the evidence centring, the grade of all three, the meter, the
-working's rows and floors, and that a pre-D432 record still grades.
+working's rows and floors, and that a pre-D451 record still grades.
 `PatternsOracle.test.tsx` renders the panel unchanged. `tsc -b`, eslint,
 `check:globals`, `check:public-copy` and the unit suite were green at
 the commit.
 
-## D433 · Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it
+## D452 · Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it
 
 **2026-09-09.** **Status:** binding. Step 2 of `PATTERNS-PLAN.md` (§4),
-built on the owner's *"ok build step 2"* the same day as step 1 (D432).
+built on the owner's *"ok build step 2"* the same day as step 1 (D451).
 The first half of the owner-list row that asks whether the fit may fold
 the anchors and whether the Map may draw them: the fold is this record,
 and the picture waits on the tick and on request 13.
@@ -47248,7 +47248,7 @@ above the marginal from their anchors alone.
 - **The Oracle** encodes the viewer's own anchors against the rows as
   evidence, under the WORLD centre only. There the demographics enter
   through the model, as they do for everyone the People lens places;
-  under the cohort centre they already entered through D432's prior,
+  under the cohort centre they already entered through D451's prior,
   and twice is twice. So the two guesses sealed on every record are now
   two clean answers to one question — the cells or the rows — and
   `meter()` decides between them on each device's own record. Nothing
@@ -47293,11 +47293,11 @@ newcomers above the marginal from their anchors). On the device,
 their dot and never their counts. Both packages' suites, `tsc`, eslint
 and the check gates were green at the commit.
 
-## D434 · Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag
+## D453 · Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag
 
 **2026-09-09.** **Status:** binding. Step 3 of `PATTERNS-PLAN.md` (§5),
 built on the owner's *"ok build step 3"* the same day as steps 1 and 2
-(D432, D433). The fold is this record; the picture — a dot with more
+(D451, D452). The fold is this record; the picture — a dot with more
 than two answers on the Map — is request 13 and waits on its design.
 
 ### The finding first: the pick questions are not core
@@ -47354,7 +47354,7 @@ its cost.
   another entity on that card, nothing for a card never answered. The
   one walk `encodedOf` feeds the statistics, the fit and the
   observations; the scorecard solves a person from their picks from
-  before the day (`PersonKnown`, which replaced D433's anchors-only
+  before the day (`PersonKnown`, which replaced D452's anchors-only
   parameter). `binRows` and the mount gate never see one.
 - **The samples carry it.** A catalogue question's sample row is
   `{e, a, d}` where a vote's is `{o, a, d}`; `fetchVoterSample` reads
@@ -47381,7 +47381,7 @@ holds by construction: a favourite spread over a thousand species
 names its popular picks and nothing else, and a person's rare pick is
 said only as *neither of these*. Not built, each with its reason: the
 *rest* row the plan sketched (the cap bounds the rows and the −1s
-already say the rest, D433's argument); strangers' picks in the People
+already say the rest, D452's argument); strangers' picks in the People
 fold (their rows are not among the twelve lists the lens fetches, and
 displacing a two-option list would cost `shared` counts to buy a
 refinement); and any drawing (request 13).
@@ -47401,11 +47401,11 @@ fitted from picks alone across two nights. On the device,
 pick, and `votersSample.test.ts` the sample reader. Both packages'
 suites, `tsc`, eslint and the check gates were green at the commit.
 
-## D435 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
+## D454 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
 
 **2026-09-10.** **Status:** binding. Step 4 of `PATTERNS-PLAN.md` (§6),
 built on the owner's *"do the 2 last once"* — the last two steps of the
-plan, this and D436 — the day after steps 1–3.
+plan, this and D455 — the day after steps 1–3.
 
 ### The slope
 
@@ -47428,7 +47428,7 @@ measured to help at one ridge and hurt at another for the same reason.
 
 ### The meter
 
-Seal-time stores the base rate since D432 (`m0`), so every graded record
+Seal-time stores the base rate since D451 (`m0`), so every graded record
 has its surprisal under plain guessing. `meter()` now says `skill` —
 `1 − bits/baseBits` over the records that stored a base rate, the same
 figure the fit publishes for the crowd, read off one person's record —
@@ -47470,7 +47470,7 @@ exactly; `patterns.test.ts` (functions) that the publication carries the
 slope and its sweep beside the ridge. Both suites, `tsc`, eslint and the
 gates green at the commit.
 
-## D436 · The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map
+## D455 · The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map
 
 **2026-09-10.** **Status:** binding. Step 5 of `PATTERNS-PLAN.md` (§7),
 the second half of the owner's *"do the 2 last once"*.
@@ -47525,7 +47525,7 @@ on the owner list and is not built.
 
 ### The gate counts answers
 
-D433 and D434 put the viewer's anchors and picks into the vector; the
+D452 and D453 put the viewer's anchors and picks into the vector; the
 tab is earned by answers, and `patternsEligible` refuses a catalogue
 card and anything without two options by shape, which
 `patternsReady.test.ts` now pins so a tab earned by filling in a form
@@ -47538,15 +47538,15 @@ budget prints how far off it is, and the reader already joins rows to
 the bank by id. The all-pairs pass is not a wall until thousands of rows
 (§7.3 of the plan).
 
-## D437 · The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot
+## D456 · The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot
 
 **2026-09-10.** **Status:** binding. The owner read the five rows the
 plan had filed (`OWNER-LIST.md`) and answered each in one line. This
-record is what each answer changed, and one correction to D434.
+record is what each answer changed, and one correction to D453.
 
 ### 1 · Profile values on the map — *"yes"*
 
-The anchor rows (D433) will be drawn: a *You* arc outside the topics,
+The anchor rows (D452) will be drawn: a *You* arc outside the topics,
 one bead per value the crowd carries, the viewer's own values solid,
 behind a toggle in the topic control that is off by default — the map
 is a map of questions until asked. It is part of request 13's plan
@@ -47568,11 +47568,11 @@ first (D183), and `check:policy-claims` holds it.
 
 ### 3 · The question rule — *"sound good"*
 
-Kept as built at D435. The tick is the owner's.
+Kept as built at D454. The tick is the owner's.
 
 ### 4 · The pick cards — *"i thought it already was served to everyone"*
 
-They were not, and D434's finding needs a correction. D434 read the
+They were not, and D453's finding needs a correction. D453 read the
 absent `core` flag as the pick file having never been classified. The
 generator's own comment says otherwise: *"No `core` flag ever: an
 entity answer has no option share for a cohort fold to read, so a pick
@@ -47592,7 +47592,7 @@ bias D161 names, and not every card reached every person.
 The owner's expectation is the intended state, so the generator emits
 `core: true` for every pick card: they ship at boot to every device
 with the rest of the core, the answerers stop being interest-selected,
-and the caveat D434 recorded retires. What does not change: the Mirror
+and the caveat D453 recorded retires. What does not change: the Mirror
 (nothing on it reads a pick), the fit's eligibility (`PICK_QIDS` is
 gated on the type; `itemEligible` still wants two options), the
 readiness gate, and the tail's paging. The cost is the 24 documents a
@@ -47608,7 +47608,7 @@ is a bead group of its popular picks; a profile value is a bead on the
 You arc. The chords are the cosines the Map already draws, over rows
 instead of questions; every card sentence is an exact count with its
 basis, from the samples the pair card already shares (the entity rides
-them since D434) or the cube's cells for a You bead; the dot budget
+them since D453) or the cube's cells for a You bead; the dot budget
 trims a bead group as a group. Efficient because nothing new is read
 or computed beyond what the loadings document and the samples already
 hold; smart because one rule covers every kind, including the ones the

@@ -416,14 +416,14 @@ export function buildEntries(content = loadContent()) {
   // validates it against the committed catalogue the doc's `domain`
   // names (CATALOG_DOMAINS, functions/src/v2.ts).
   //
-  // CORE since D437 (2026-09-10, the owner's word). Until then this said
+  // CORE since D456 (2026-09-10, the owner's word). Until then this said
   // "no `core` flag ever: an entity answer has no option share for a
   // cohort fold to read, so a pick card is tail by construction" — which
   // conflated two things the flag means. `core` is D161's SERVING rule
   // (shipped whole to every device, unpersonalized) and the Mirror's
   // corpus rule; the Mirror could never fold a pick and still cannot,
   // and nothing on it reads one (the daily archive is what its readers
-  // walk), while the fit reads picks since D434 and the owner's
+  // walk), while the fit reads picks since D453 and the owner's
   // expectation was that every card reaches every person. So the flag
   // says what it means: every pick card ships at boot to everyone, the
   // answerers stop being interest-selected, and the Mirror is unchanged.

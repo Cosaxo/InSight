@@ -48,7 +48,7 @@ vi.mock("../data/patterns", () => ({
     // D396: the viewer's evidence and the published ridge, read by the
     // People lens's own solve — empty and the shipped value here
     evidence: () => [],
-    // D433: the anchor rows the People fold reads — none published here
+    // D452: the anchor rows the People fold reads — none published here
     anchorRows: () => [],
     lambdaU: () => 0.5,
     ready: () => h.ready,
