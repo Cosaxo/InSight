@@ -185,7 +185,14 @@ roughly double on the three operation lines.
 > account is deleted, one DELETE a night over the whole table for the
 > day's deleted accounts (a pass billed at $6.25 a TiB, the table under
 > a gibibyte for a long time). `npm run costs:target` carries both as
-> lines; not a line here until phase D moves the folds onto it.
+> lines; not a line here until phase D moves the folds onto it. **Since
+> A.7 (2026-09-11, D453) the night also shadows the folds** — two
+> aggregate queries over the day's partition and one id lookup per
+> twenty thousand of the ledger day's entries over three partitions'
+> id column, each query billed at BigQuery's 10 MB minimum: about a
+> gigabyte a night at 50,000 DAU, twenty cents a month, and a minute of
+> the pass caps what a larger day can spend. Gone with phase D, which
+> is what a week of it licenses.
 
 > **Re-measured 2026-09-08 (DATA-EFFICIENCY-RUNBOOK 1.4 and 1.5).** A
 > return to the foreground re-reads today's aggregate rather than the

@@ -104,7 +104,46 @@ until phase D.
       `DEPLOYMENT.md` § The answer log; the App Check exemption and the
       deploy list for the callable; `COSTS.md`'s note (bytes: under a
       dollar a month at every size in its table).
-- [ ] **A.7 The shadow queries** (S, once the table holds a week) — one
+- [x] **A.7 The shadow queries. DONE 2026-09-11 (D453)** —
+      `functions/src/logShadow.ts`, the pass's tenth runner, right after
+      the reconcile so the day it reads is the day the reconcile just
+      made whole. Built in two halves rather than the one the step
+      imagined, because the two clocks make one impossible: a ledger
+      entry's `at` is the commit's server time and its row's
+      `answered_at` is the trigger's `Date.now()` a few hundred
+      milliseconds before, so an answer at the midnight seam sits on the
+      ledger's day D and the log's day D−1, and neither is wrong. The
+      EXACT half looks the ledger day's rows up by id a day either side
+      (`LOG_SHADOW_ID_CHUNK` ids a query) and counts what the table
+      lacks, what carries another person, question or option, and what
+      is filed under another day (`seam`). The FOLD half runs the three
+      queries phase D will run over the log's OWN day — `COUNT(*)`,
+      `COUNT(DISTINCT uid)`, and the samples' additions as
+      `ARRAY_AGG … ORDER BY uid LIMIT 200` over each person's newest
+      answer — against the same folds off the shared ledger read, the
+      samples' side through `sampleAdditions` and `trimAdditions`
+      (extracted from `mergeSample`, so the comparison is the fold's own
+      arithmetic and not a copy). One line, `log_shadow`, info when
+      `clean` and a warning naming every number when not; a fold diff no
+      larger than `seam` is the seam, a fold diff with the seam at zero
+      is a query that does not reproduce the fold. **What it does not
+      compare, so a clean week is read as what it is:** the cumulative
+      sample document (a read per sample and the table's whole history;
+      the merge is deterministic over the day's additions this does
+      compare), the frozen chips on a row, and the candidate's corpus
+      filter (the shadow folds every option-shaped entry, a superset).
+      The exact half is bounded by the pass's clock
+      (`LOG_SHADOW_SLICE_MS`, a minute, an absolute instant like every
+      bounded fold's) and a capped night is never clean; the fold half
+      always runs. The week is read off the log lines — seven nights of
+      `clean: true` — and nothing is written anywhere to count it.
+      Costs bytes (COSTS.md's phase-A note). `logShadow.test.ts` (the
+      fold, the diff, the runner: skip, clean, each of the three exact
+      findings, a fold disagreement named, the chunking, the clock),
+      `log.test.ts` (the queries held to the fold's cap, order and
+      tie-break), `nightly.test.ts` (the tenth runner, its deadline).
+      Original text below.
+      The shadow queries (S, once the table holds a week) — one
       query per nightly fold whose result is compared with the fold's
       own and logged as a diff: the digest's active count, the samples'
       newest two hundred per question, the velocity scan's entry count.

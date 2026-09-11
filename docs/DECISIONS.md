@@ -50081,3 +50081,105 @@ code it pins), `test:scripts` (74 / 1,288), `test --prefix functions`
 (39 / 839), `test:rules` (214, coverage and budget ratchets at baseline),
 `test:e2e:all`, `build` + `check:bundle`, and every static gate the
 changed files touch. The counts are in the PR body.
+
+## D453 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
+
+**2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK A.7, built on
+the owner's *"start with the free ones, A.7 and the rules gate"*. The
+second of those was already built: D438 chained `rules-budget.mjs
+--gate` into `test:rules` on 2026-09-09, and the assessment that named
+it as open had read `ORIENTATION.md`'s row for the plan rather than the
+plan's own §5. The row said *"Phase 3's gate and Phase 4's split remain
+proposals"* two days after the gate shipped; it is corrected in this
+change, and the finding under it is the one `check:docs` rule 7
+already records for the Status column — a row that summarises a page
+goes stale the day the page moves, so read the page. Numbered D453
+after D452 on this branch; `main` may have claimed it since, and D408's
+rule makes that a move at merge, not a wait.
+
+**What was asked, and what the clocks did to it.** A.7 wanted one
+query per nightly fold whose result is compared with the fold's own —
+the digest's actives, the velocity scan's entry count, the samples'
+newest two hundred per question — so that a week of zero diffs licenses
+phase D. One query per fold cannot be exact here, and the reason is
+worth the record: a ledger entry's `at` is `FieldValue.serverTimestamp()`
+(pure.ts, the commit) and its BigQuery row's `answered_at` is the
+trigger's `Date.now()` a few hundred milliseconds earlier (v2.ts, the
+four `logRow` sites), so an answer committed just past midnight UTC sits
+on the ledger's day D and the log's day D−1. Neither is wrong; they are
+two definitions of a day, and under phase D the log's becomes THE day.
+A shadow that compared the ledger's day D with the log's day D would
+report that seam every busy night and never reach a clean week. The
+reconcile (A.3) already meets the same fact and looks a day either side
+by id; the shadow does the same, and then some.
+
+**What was built** (`functions/src/logShadow.ts`, the pass's tenth
+runner, right after the reconcile so the day it reads is the day the
+reconcile just completed):
+
+- **The exact half, by id.** The ledger day's ids, `LOG_SHADOW_ID_CHUNK`
+  (20,000) a query — an `IN UNNEST` parameter under a megabyte against
+  the 10 MB request ceiling — looked up across three partitions, and
+  each row compared with what `rowFromLedgerEntry` would have written
+  for its entry: `missing` (the reconcile could not put it back),
+  `mismatched` (another person, question or option — an index the row
+  nulls is compared as null, the same rule on both sides), `seam` (the
+  row is filed under another day). Bounded by the pass's clock
+  (`LOG_SHADOW_SLICE_MS`, a minute, through `sliceDeadline` like every
+  bounded fold), checked before each chunk because a chunk started is a
+  chunk paid for; a capped night says `checked` and is never clean.
+- **The fold half, by query, over the log's own day.** The three
+  queries phase D will run — `shadowCountsSql` (`COUNT(*)` and
+  `COUNT(DISTINCT uid)` with an empty uid no person, as the digest reads
+  the ledger) and `shadowAdditionsSql` (each person's newest
+  option-shaped answer of the day, ties by id, which is the ledger's own
+  tie-break; then `ARRAY_AGG … ORDER BY uid LIMIT 200`, the cap inlined
+  because ARRAY_AGG's LIMIT takes a constant) — against the same folds
+  computed off the shared ledger read. The samples' side goes through
+  `sampleAdditions` and `trimAdditions`, the second EXTRACTED from
+  `mergeSample` in this change so the comparison is the fold's own
+  arithmetic and not a second copy of it (D197's lesson, one file over;
+  `mergeSample`'s behaviour is unchanged and its suite says so).
+- **One line.** `log_shadow`, info when `clean`, a warning carrying every
+  number when not. `clean` is the conjunction: the exact half complete
+  with nothing missing, mismatched or on another day, the two counts
+  equal, no question's list differing. Read against `seam`: a fold diff
+  no larger than it is the seam; a fold diff with the seam at zero is a
+  query that does not reproduce the fold, which is the finding the week
+  exists to make before a fold moves.
+
+**What it deliberately does not compare**, so a clean week is read as
+what it is and not more: the cumulative sample DOCUMENT (a Firestore
+read per sample and a scan of the table's whole history, and the merge
+is deterministic over the day's additions this does compare — a week of
+matching days is a matching fold by induction); the frozen chips on a
+row; and the candidate's corpus filter (`patterns.ts` folds only the
+items its corpus names, the shadow folds every option-shaped entry, and
+equality on the superset is equality on the subset). The week is read
+off the log lines — seven nights of `clean: true` — and nothing is
+written anywhere to count it: a state document for a diagnostic that
+retires with phase D would outlive its purpose.
+
+**What it costs.** The ledger day: nothing, the memoised reader holds it
+for the folds ahead. BigQuery: two aggregates over one partition plus
+`ceil(entries / 20,000)` lookups over three partitions' id column, each
+billed at the 10 MB minimum — about a gigabyte a night at 50,000 DAU on
+COSTS.md's answer rate, twenty cents a month, and the minute caps what a
+larger day can spend. COSTS.md's phase-A note carries the sentence.
+
+**Verified, not assumed.** 15 new tests: the fold (an edit is the later
+entry, a pick is a person and not an addition, the cap in uid order
+through the fold's own trim), the diff (an option, a person, a missing
+question, the examples bounded), the runner (skips reading nothing where
+there is no BigQuery, and a skip is not clean; a mirror is one info
+line; each of the three exact findings counted once at warn; a nulled
+index is not a mismatch; a fold disagreement is not clean and names the
+question; the chunking at the constant; the clock stopping before the
+second chunk and a deadline already past looking nothing up while the
+two fold queries still run), the queries held to the fold's cap, order
+and tie-break, and the pass's order and the tenth runner's deadline
+(the source scan that derives bounded runners from the interface found
+it without being told). 1,007 functions tests green, `tsc` and the test
+typecheck clean, eslint clean. Not verified from here: a real BigQuery
+answering the two shapes — the first night's `log_shadow` line is that
+test, and the emulator and the suites are off by construction.

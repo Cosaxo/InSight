@@ -85,7 +85,7 @@ type LogRowT = import("./log").LogRow;
  *  none on the redelivery the ledger mark turns away (log.ts, D447). */
 function fakeLog() {
   const rows: LogRowT[] = [];
-  setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUsers() { return "done" as const; }, async tableBytes() { return null; }, async rowsFor() { return null; } } as never);
+  setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUsers() { return "done" as const; }, async tableBytes() { return null; }, async rowsFor() { return null; }, async shadowRows() { return null; }, async shadowFold() { return null; } } as never);
   return rows;
 }
 

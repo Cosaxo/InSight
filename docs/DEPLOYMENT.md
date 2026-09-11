@@ -720,7 +720,15 @@ operationally:
   `erased`, `passes` — a warning when `missing` is not zero, because a
   reconciled row is a live append that failed; `passes` is the DELETE
   statements the night ran, one per 500 pending accounts, each a pass
-  over the table), `log_erasure_deferred` (an account whose rows were
+  over the table), `log_shadow` (the nightly shadow of the folds phase
+  D will move, runbook A.7 — `clean` when the ledger day's rows all match
+  their table rows by id and the three fold queries agree with the
+  folds; otherwise a warning carrying `missing`, `mismatched`, `seam`
+  (rows the log files under another day than the ledger's — the two
+  clocks, read the fold diffs against it), `logEntries` and
+  `logActives` beside `entries` and `actives`, and `differing` of
+  `questions` with a few of their ids; seven `clean` nights in a row is
+  what licenses phase D), `log_erasure_deferred` (an account whose rows were
   not deleted at once — the streaming buffer refused, or the table is
   past `LOG_ERASE_NOW_MAX_BYTES`, a gibibyte; the marker in
   `v2_log_erasures` is taken by the next night's one statement). The same `gcloud logging
