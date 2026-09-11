@@ -385,6 +385,44 @@ describe("the pay tap with keys", () => {
     expect(calls.some((u) => u.indexOf("accounts:signUp") >= 0)).toBe(true);
   });
 
+  it("sends the budget the page SHOWED, on a booking where no chip was tapped", async () => {
+    // THE TEN-TIMES BUG. `st.budget` is null until a budget chip is
+    // tapped, and the wire used to send that null — while everything on
+    // screen is drawn from `budget()`, which falls back to the smallest
+    // budget, and that chip's `aria-pressed` is computed from `budget()`
+    // too, so it renders as already selected. The server reads null as
+    // "no budget stated" and quotes the card's CAP, which is the largest.
+    // A buyer who read "€5 · up to 250 answers" and paid without touching
+    // the budget row was charged €50 for 2 500.
+    //
+    // Deliberately composed WITHOUT tapping a chip: tapping one sets
+    // `st.budget` and hides the whole defect, which is why every earlier
+    // case passed over it.
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    const shownCap = sp($("qCap").textContent);
+    $("payBtn").click();
+    await settle();
+    const book = globalThis.fetch.mock.calls.find((c) => String(c[0]).indexOf("bookPaidQuestionV2") >= 0);
+    expect(book, "the door never called bookPaidQuestionV2").toBeTruthy();
+    const sent = JSON.parse(book[1].body).data;
+    expect(
+      typeof sent.budgetEur,
+      "the booking carried no budget — the server reads that as the card's cap, which is not what the page showed",
+    ).toBe("number");
+    // And it is the SAME budget the panel quoted — read off the panel
+    // rather than asserted as a literal, so the two cannot drift apart if
+    // the rate card changes.
+    const shownEur = Number(shownCap.replace(/[^0-9.,]/g, "").replace(",", "."));
+    expect(Number.isFinite(shownEur), "could not read a number out of the quoted cap: " + shownCap).toBe(true);
+    expect(
+      sent.budgetEur,
+      "the page quoted " + shownCap + " and the wire carried " + sent.budgetEur,
+    ).toBe(shownEur);
+  });
+
   it("refuses to book a place scope with nothing picked, and calls nobody", async () => {
     const { fn } = wire();
     await mount(pricing, { cfg: CFG, fn });

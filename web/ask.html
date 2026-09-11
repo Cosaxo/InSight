@@ -1072,7 +1072,26 @@
       scope: scopeKey(),
       dims: {},
       wearName: false,
-      budgetEur: st.budget == null ? null : st.budget,
+      // THE BUDGET THE PAGE SHOWED, not the one nobody tapped. This sent
+      // `st.budget == null ? null : st.budget`, and `st.budget` is null
+      // until a chip is tapped — while everything the buyer can see is
+      // drawn from `budget()`, which falls back to the smallest budget,
+      // and that chip's `aria-pressed` is computed from `budget()` too,
+      // so it RENDERS AS SELECTED. Nothing on screen said otherwise.
+      //
+      // The server reads null as "no budget stated" and quotes the card's
+      // cap (paid.ts, priceQuote: `const want = typeof budgetEur ===
+      // "number" && Number.isFinite(budgetEur) ? Math.round(budgetEur) :
+      // card.capEur`) — which is the LARGEST budget, not the smallest. So
+      // a buyer who wrote a question, read "€5 · up to 250 answers" and
+      // paid without ever touching the budget row was charged €50 for
+      // 2 500. web/terms.html promises the opposite in as many words:
+      // "the price is the rate card that page prints before you commit."
+      //
+      // null stays legal on the server for the reason its comment gives —
+      // a stored booking from before the budget existed carries it — but
+      // this page has always shown a budget, so it has one to send.
+      budgetEur: budget(),
       link: st.link.trim()
     };
     if (st.place && st.place.city) d.dims.city = st.place.city;
