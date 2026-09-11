@@ -11278,6 +11278,48 @@
       "lo": 20,
       "hi": 2000,
       "unit": "people"
+    },
+    {
+      "id": "n22",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "The new No. 1 meets the rival she just displaced in the US Open final. The real crown: the ranking, or the trophy?",
+      "bg": "Elena Rybakina took the WTA No. 1 ranking from Aryna Sabalenka after her US Open quarterfinal, then reached Saturday’s final — her first there, Sabalenka’s fourth in a row. It is the pair’s 18th meeting; Sabalenka leads 10–7.",
+      "from": "2026-09-11",
+      "until": "2026-09-19",
+      "options": [
+        {
+          "label": "The ranking — the whole year"
+        },
+        {
+          "label": "The trophy — the one day"
+        },
+        {
+          "label": "The rivalry itself"
+        }
+      ]
+    },
+    {
+      "id": "n23",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "For the first time, a rocket reached orbit from Western European soil. Does it matter where a launch leaves from?",
+      "bg": "Isar Aerospace’s Spectrum reached orbit from Andøya in Arctic Norway on 5 September, deploying five small satellites — the first orbital launch from Western European soil and the first by a privately built European rocket, on the vehicle’s second flight after a 2025 failure.",
+      "from": "2026-09-11",
+      "until": "2026-09-20",
+      "options": [
+        {
+          "label": "Yes — home soil hits different"
+        },
+        {
+          "label": "Orbit is orbit"
+        },
+        {
+          "label": "I just want to see one go up"
+        }
+      ]
     }
   ]
 }

@@ -5206,6 +5206,22 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "n22": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "n23": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {
