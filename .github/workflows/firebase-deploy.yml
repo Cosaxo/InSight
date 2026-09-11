@@ -243,10 +243,25 @@ jobs:
             echo "::warning::VITE_FIREBASE_API_KEY unset — the buy page will ship with payment closed (runbook 5.14)."
             rm -f web/ask-config.json
           else
-            # THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
-            # is a textual substitution GitHub performs before bash sees
-            # the script, so a value pasted into the body is code. Same
-            # rule auth-config.yml records at length.
+            # THROUGH THE ENVIRONMENT, never through the run body: a
+            # dollar-double-brace expression is a textual substitution
+            # GitHub performs before bash sees the script, so a value
+            # pasted into the body is code. Same rule auth-config.yml
+            # records at length.
+            #
+            # NAMED RATHER THAN WRITTEN, on purpose. This is a bash
+            # comment inside the run body, and GitHub's expression parser
+            # reads the whole body before bash does — a bash comment is
+            # not a YAML comment. The first version of this step wrote
+            # the empty expression syntax here literally, and GitHub
+            # refused the ENTIRE workflow as invalid from the first push
+            # of #498's branch (2026-09-11 18:06Z, run 225) until this
+            # edit: a failed run with zero jobs on every push to every
+            # branch, and no production deploy of #498 or #500 meanwhile.
+            # No local gate can see it — the YAML parses. auth-config.yml
+            # and play-release.yml write the same literal safely because
+            # theirs sit between YAML keys, where the YAML parser strips
+            # them before GitHub reads a single expression.
             node -e '
               const fs = require("fs");
               fs.writeFileSync("web/ask-config.json", JSON.stringify({
