@@ -15193,6 +15193,44 @@ const BANK_3: V2SeedQuestion[] = [
   "unit": "people"
  },
  {
+  "id": "feed-n22",
+  "surface": "feed",
+  "seq": 577,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The new No. 1 meets the rival she just displaced in the US Open final. The real crown: the ranking, or the trophy?",
+  "options": [
+   "The ranking — the whole year",
+   "The trophy — the one day",
+   "The rivalry itself"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-11",
+  "until": "2026-09-19",
+  "bg": "Elena Rybakina took the WTA No. 1 ranking from Aryna Sabalenka after her US Open quarterfinal, then reached Saturday’s final — her first there, Sabalenka’s fourth in a row. It is the pair’s 18th meeting; Sabalenka leads 10–7."
+ },
+ {
+  "id": "feed-n23",
+  "surface": "feed",
+  "seq": 578,
+  "type": "vote",
+  "domain": null,
+  "prompt": "For the first time, a rocket reached orbit from Western European soil. Does it matter where a launch leaves from?",
+  "options": [
+   "Yes — home soil hits different",
+   "Orbit is orbit",
+   "I just want to see one go up"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-11",
+  "until": "2026-09-20",
+  "bg": "Isar Aerospace’s Spectrum reached orbit from Andøya in Arctic Norway on 5 September, deploying five small satellites — the first orbital launch from Western European soil and the first by a privately built European rocket, on the vehicle’s second flight after a 2025 failure."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -16562,7 +16600,9 @@ const BANK_3: V2SeedQuestion[] = [
    "One house",
    "Rooms apart"
   ]
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gs9",
   "surface": "group",
@@ -16606,9 +16646,7 @@ const BANK_3: V2SeedQuestion[] = [
    "label": "the medic",
    "seat": "heart"
   }
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gr21",
   "surface": "group",
@@ -20154,7 +20192,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "moral",
   "test": "values"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-values-09",
   "surface": "test",
@@ -20190,9 +20230,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "beauty",
   "test": "values"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-11",
   "surface": "test",
@@ -23914,7 +23952,9 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "orderliness",
   "invert": true
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-129",
   "surface": "test",
@@ -23952,9 +23992,7 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "C",
   "test": "big5",
   "facet": "dutifulness"
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-131",
   "surface": "test",
@@ -28088,7 +28126,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 62,
   "k": "Red Spot: Jupiter's storm",
   "w": "A storm wider than Earth that has been blowing for at least 200 years."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-sol11",
   "surface": "learn",
@@ -28131,9 +28171,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 45,
   "k": "Uranus rolls on its side",
   "w": "Tilted about 98° — likely knocked over by an ancient collision. Venus is the backwards one, not the sideways one."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol13",
   "surface": "learn",
