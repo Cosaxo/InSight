@@ -227,12 +227,25 @@ attested, signed-in account that is up to 30 Opus calls a day with a
 16,000-token ceiling each; price it on the current rate card, then
 multiply by however many accounts an actor holds.
 
-Two facts make it small today and are worth confirming rather than
-assuming: `OWNER-LIST.md` still carries *"Set the paid loop's three
-secrets"* unticked, and with `ANTHROPIC_API_KEY` empty the review runs on
-gates alone (`paid_review_gates_only`) and calls no model; and the web
-door (`web/ask.html`, D368) cannot attest a browser yet, so today only
-the app's own attested accounts can book at all. The day the key is set,
+One fact makes it small today, and the SECOND one expired on 2026-09-10:
+`OWNER-LIST.md` still carries the money path's keys unticked, and with
+`ANTHROPIC_API_KEY` empty the review runs on gates alone
+(`paid_review_gates_only`) and calls no model. What has gone is the
+sentence that used to sit beside it — *"the web door cannot attest a
+browser yet, so today only the app's own attested accounts can book at
+all"*. D451 opened that door, and the bound it was resting on was the
+thing that changed: `bookPaidQuestionV2` no longer demands App Check, so
+"an attested account" is no longer what stands in front of the review.
+
+**What stands there instead is `assertRecaptcha`**, and that is the
+reason it refuses when its secret is unset rather than degrading like
+every other credential in `paid.ts`. Without it the arithmetic above
+loses its denominator entirely: anonymous accounts are free and
+unlimited, so "per account" stops bounding anything. `REVIEW_CALLS_PER_DAY`
+(C3, done) is what holds the spend either way — but note the second loss,
+which is not a money one: fifty reviews a day is also the budget a
+LEGITIMATE buyer needs, so an actor spending it denies the door to
+everyone. The cap protects the bill; the gate protects the service. The day the key is set,
 the cap that matters is the **workspace spend limit in the Anthropic
 console** (§6 O2) — the one control that holds whatever the code does —
 followed by a global daily counter and a `max_tokens` the verdict
