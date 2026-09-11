@@ -291,6 +291,12 @@ const state = {
   uid: null as string | null,
   linked: false,
   needsEmailVerify: false,
+  // Whether the auth observer has spoken this session (D453). Until it
+  // has, `linked` and `needsEmailVerify` are merely the values they were
+  // initialised to — false, and indistinguishable from an anonymous
+  // session auth has confirmed. Only the wall cares about the
+  // difference, and only at boot: see AUTH_MIRROR_LS and `wallPass`.
+  authKnown: false,
   // The address the account signs in with, so the verify screen can name
   // it after a relaunch — by then the component's own field is empty and
   // "we sent a link to your address" is the sentence a stuck user least
@@ -368,6 +374,17 @@ const state = {
   //                 snapshots and the post-vote delayed refresh.
   inflight: {} as Record<string, true>,
   unaggregated: {} as Record<string, number>,
+  // …and, for a D86 EDIT only, the option index it moved AWAY from.
+  // `unaggregated` says "the published aggregate does not hold this
+  // answer yet", which is true of a create and FALSE of an edit — the
+  // trigger folded the original, so the crowd already counts this device
+  // at the old option. Without that index the deck could not subtract it
+  // from where it actually sits (data/deck.ts `countsFor`), and every
+  // share on the card was drawn over a total one vote too high until the
+  // refresh landed. Cleared with the mark it belongs to, through
+  // `clearUnaggregated` — a second map with five separate deletions to
+  // remember is the drift this file has already paid for once.
+  unaggregatedFrom: {} as Record<string, string>,
   // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
@@ -422,6 +439,14 @@ const state = {
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
   revealHistLoaded: {} as Record<string, boolean>,
+  // …and the third state the pair above cannot hold, for the reason the
+  // sentence above gives: a failed query leaves `revealHistLoaded` unset
+  // ON PURPOSE so a later call retries, which makes it indistinguishable
+  // from a room whose history has never been asked for. The loader
+  // ANSWERS "failed" and one caller listens; this is the same answer
+  // where every caller can read it. `takesFailed` is the same field one
+  // surface over.
+  revealHistFailed: {} as Record<string, true>,
   // My CALL on each duel answer — answer id → guessIdx — kept beside the
   // pick, which `votes` holds alone. The card's sealed list (request 12)
   // says "you: Ignore · called Answer" for every round waiting on the
@@ -437,6 +462,13 @@ const state = {
   // revealHistLoading above.
   takes: {} as Record<string, TakeDoc[]>,
   takesLoading: {} as Record<string, boolean>,
+  // …and the third state the two above cannot hold between them. The
+  // catch in `loadTakes` leaves the key ABSENT on purpose, so a failed
+  // read is indistinguishable from a room that never wrote a take —
+  // `takesLoading`'s own docstring says so and fixed only the in-flight
+  // half. `kindredFailed`/`testAggsFailed` are the same field one
+  // surface over; this is scope-keyed because the read is.
+  takesFailed: {} as Record<string, true>,
   // takeId → true once this account has flagged it. Flags are create-only
   // and unreadable BY DESIGN (firestore.rules: `allow read: if false` —
   // they are anonymous to the circle and to the moderation run), so this
@@ -851,6 +883,15 @@ function loadPending(uid: string): Record<string, PendingAnswer> {
 const restoredPending = new Set<string>();
 // Back into memory as the state they died in: voted, unconfirmed, and
 // not yet in the public aggregate (the display flag every create sets).
+// A duel answer's id (`g_{gid}_r{n}` / the day-keyed shape before D426).
+// Two things in the pending machinery are about the WORLD aggregate and
+// have nothing to answer for a duel: `unaggregated`, which is cleared by
+// the aggregate re-read, and `scheduleAggRefresh`, which would put a
+// non-qid into a `v2_question_aggs` `in` query and spend a read on a
+// document that does not exist. The seal itself is mirrored like any other
+// answer; only these two are skipped.
+const isDuelAid = (aid: string): boolean => aid.startsWith("g_");
+
 function restorePending(uid: string): void {
   for (const [aid, p] of Object.entries(loadPending(uid))) {
     // On a re-run hydrate (a wake after a failed boot) the file also
@@ -861,8 +902,10 @@ function restorePending(uid: string): void {
     if (aid in state.inflight && !restoredPending.has(aid)) continue;
     state.votes[aid] = p.v;
     state.inflight[aid] = true;
-    const n = Number(p.v);
-    state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    if (!isDuelAid(aid)) {
+      const n = Number(p.v);
+      state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+    }
     restoredPending.add(aid);
   }
 }
@@ -905,8 +948,14 @@ function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: s
     }
     if (q.surface === "test") LIVE.syncPassiveResults();
   }
-  scheduleAggRefresh(db, aid);
+  if (!isDuelAid(aid)) scheduleAggRefresh(db, aid);
 }
+/** The mark and the edit's origin index go together, always. */
+function clearUnaggregated(id: string): void {
+  delete state.unaggregated[id];
+  delete state.unaggregatedFrom[id];
+}
+
 function rollbackPending(aid: string, serverValue?: string): void {
   if (serverValue === undefined) {
     delete state.votes[aid];
@@ -914,7 +963,7 @@ function rollbackPending(aid: string, serverValue?: string): void {
     state.votes[aid] = serverValue;
   }
   delete state.inflight[aid];
-  delete state.unaggregated[aid];
+  clearUnaggregated(aid);
   dropFeedMirror(aid, serverValue);
   clearPending(aid);
 }
@@ -1128,9 +1177,26 @@ let profileCacheTimer: ReturnType<typeof setTimeout> | null = null;
 // actually expires.
 const profileSeen = new Map<string, number>();
 
+// Which uid's cache is already in `state`. Two call sites reach this —
+// `warmFromDisk`'s warm-paint branch and `hydrate` — and on a warm boot both
+// run, so the same blob was JSON.parsed and walked twice, up to
+// PROFILE_CACHE_CAP = 800 entries each carrying a nested score map, for
+// byte-identical results. Neither call site should have to know about the
+// other, so the guard lives here.
+//
+// Keyed on the uid rather than a boolean: the anonymous → linked upgrade
+// changes `state.uid`, and that boot must load the new owner's cache. Reset
+// in `resetForNewUid` beside `profileSeen.clear()`, where this class of
+// module state already resets.
+let profileCacheLoadedFor: string | null = null;
+
 function loadProfileCache(): void {
+  if (profileCacheLoadedFor === state.uid) return;
   try {
     const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    // NOT marked loaded on this arm, deliberately: a boot that read nothing
+    // (no blob yet, or another owner's) must not suppress a later legitimate
+    // load for the same uid.
     if (!raw || raw.owner !== state.uid || !raw.e) return;
     const now = Date.now();
     for (const [uid, v] of Object.entries(raw.e as Record<string, {
@@ -1156,6 +1222,9 @@ function loadProfileCache(): void {
       // of a removal being immediate everywhere.
       profileSeen.set(uid, v.t);
     }
+    // At the END of a successful walk, so a throw part-way through is retried
+    // rather than remembered as done.
+    profileCacheLoadedFor = state.uid;
   } catch {
     /* corrupt or unavailable — treat as empty */
   }
@@ -1317,7 +1386,7 @@ async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<v
       // today this drain is only armed after the ack, so inflight
       // is already clear.)
       if (d.id in state.unaggregated && !(d.id in state.inflight)) {
-        delete state.unaggregated[d.id];
+        clearUnaggregated(d.id);
       }
     }
     state.stats.aggsFetched += snap.size;
@@ -1468,6 +1537,7 @@ function voteCtx(qid: string): VoteContext {
     agg: state.aggs[qid],
     mine: state.votes[qid],
     pending: qid in state.unaggregated,
+    pendingFrom: state.unaggregatedFrom[qid],
   };
 }
 
@@ -1588,7 +1658,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // optimistic split; here it was unreachable until restorePending
       // put an inflight answer in front of the boot's deck read.
       if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight)) {
-        delete state.unaggregated[d.id];
+        clearUnaggregated(d.id);
       }
     });
     state.stats.aggsFetched += snap.size;
@@ -1992,6 +2062,64 @@ function failProvisional(err: unknown): void {
   armAuthGate();
 }
 
+// ── the wall's opening posture, mirrored (D453) ──────────────────────
+//
+// The account wall (D134, D414) is decided from `linked` and
+// `needsEmailVerify`, and BOTH ARE FALSE UNTIL THE AUTH OBSERVER HAS
+// SPOKEN — which is after the ~400 KB Auth/Firestore import and the auth
+// restore's own IndexedDB read, the longest local wait a warm boot has
+// left. D356 took that wait off the DECK and painted it off this device's
+// own caches; the wall never got the same treatment, so every returning
+// signed-in user was shown the sign-in screen for the length of the
+// restore and then watched it vanish. Reported from a device, 2026-09-11:
+// "even when you are signed in the sign in page will show for a brief
+// while before it realises you are signed in".
+//
+// So the wall gets the mirror every other warm surface already has: the
+// verdict auth last handed this device, written when the observer speaks
+// and read while it has not. Same trade D356 priced, and the same
+// exposure — what a wrongly-open frame can show is this device's own
+// cached deck for the account the mirror names, which is the account
+// whose session was lost. Nothing of anyone else's is on disk to draw.
+//
+// FAIL-SAFE IN THE DIRECTION THAT MATTERS: absent, unreadable or
+// anything but the written string reads as WALLED, so a device that has
+// never passed the wall waits for auth exactly as it did before. The key
+// is inside the `insight.` namespace purgeLocalTrace sweeps, so a
+// deleted account leaves no open door for the next one — that sweep is
+// the only thing here that must not be forgotten, and it is why the key
+// is spelled with the prefix rather than as `authMirror.v1`.
+const AUTH_MIRROR_LS = "insight.authMirror.v1";
+
+// Read rather than cached in module scope, and the render cost is what
+// makes that safe: the only reader is `LIVE.wallPass`, which stops
+// consulting the mirror the instant `authKnown` flips — so this runs a
+// handful of times at boot and never again. A cached copy would also
+// have to hear the purge (check:purge's whole subject), for a read that
+// is already one synchronous map lookup.
+function readAuthMirror(): boolean {
+  try {
+    return localStorage.getItem(AUTH_MIRROR_LS) === "1";
+  } catch {
+    return false;
+  }
+}
+
+// Written from the two places the verdict can move: the auth observer,
+// and the verify poll that clears `needsEmailVerify` without the
+// observer's help (LIVE.refreshVerification says why it writes the flag
+// itself). Missing the second would re-flash the wall at the next launch
+// for exactly the person who just confirmed their address.
+function syncAuthMirror(): void {
+  const pass = state.linked && !state.needsEmailVerify;
+  try {
+    if (pass) lsSet(AUTH_MIRROR_LS, "1");
+    else localStorage.removeItem(AUTH_MIRROR_LS);
+  } catch {
+    /* best-effort: the next launch waits for auth, which is the old behaviour */
+  }
+}
+
 function saveOwnProfile(): void {
   const uid = state.uid;
   if (torndown || !uid) return;
@@ -2096,9 +2224,37 @@ function mirrorFeedVotes(): void {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v == null || wf[q.id] != null) return;
+      if (v == null) return;
       const mv = mirrorVoteValue(q, v);
-      if (mv != null) wf[q.id] = mv;
+      if (mv == null) return;
+      // AN EXISTING ENTRY IS REPLACED ONLY WHERE THAT CANNOT LOSE
+      // ANYTHING, which is the plain vote card — its mirror value IS the
+      // stored option index, in the same units.
+      //
+      // Why it has to be replaced at all: a D86 edit made on ANOTHER
+      // device arrives here through hydrate's edit delta, which writes
+      // `state.votes` and nothing else. The guard that stood here was
+      // `wf[q.id] != null`, so the mirror kept the pre-edit option — and
+      // `world-feed.jsx` renders from the mirror, not from the store. The
+      // card highlighted the option the reader had moved AWAY from, and
+      // tapping the one they had actually chosen was refused with "your
+      // vote stands". Permanent on that device: nothing else ever rewrote
+      // the entry. The paragraph at hydrate's edit query reasons at
+      // length about one way an edit fails to propagate and misses this
+      // one.
+      //
+      // Why NOT for a dial or a field: their mirror value is the bucket's
+      // MIDPOINT, and the local entry is the reader's own exact position
+      // on the range. Replacing it would round their dial every boot, and
+      // telling "the answer changed" from "the same answer, stored more
+      // precisely" needs the inverse of the midpoint map, which lives in
+      // the spec layer that data/ cannot import (the note above
+      // `mirrorVoteValue` says why the midpoint math is duplicated at
+      // all). So they keep the old behaviour, and the gap is written down
+      // rather than closed by rounding.
+      const replaceable = q.type !== "dial" && q.type !== "field";
+      if (wf[q.id] != null && !replaceable) return;
+      wf[q.id] = mv;
     });
     lsSet(WF_LS, JSON.stringify(wf));
   } catch {
@@ -3267,12 +3423,26 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     surface: string,
     qids: string[],
   ): Promise<Array<QuestionDoc & { id: string }>> => {
+    // CONCURRENT chunks, the shape every other `in`-chunk read in this file
+    // already uses — this was the last one still awaiting inside the loop, so
+    // a heal of N ids cost ceil(N/30) serial round trips instead of one.
+    //
+    // It is also the one that runs at the worst moment: a `contentRev` bump
+    // writes the bank with `clearFirst: true`, which drops every paged learn
+    // and tail row, so the next boot's need list is the whole paged
+    // remainder rather than a handful. Order does not matter — both call
+    // sites re-sort by `seq` and merge by id.
+    //
+    // The three SURFACE blocks below stay sequential on purpose: they are
+    // separately try/caught so "each surface fails alone" holds, and running
+    // them together would trade that property for much less than this.
+    const chunks: string[][] = [];
+    for (let i = 0; i < qids.length; i += 30) chunks.push(qids.slice(i, i + 30));
+    const snaps = await Promise.all(chunks.map((chunk) => getDocs(
+      query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+    )));
     const out: Array<QuestionDoc & { id: string }> = [];
-    for (let i = 0; i < qids.length; i += 30) {
-      const chunk = qids.slice(i, i + 30);
-      const snap = await getDocs(
-        query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
-      );
+    for (const snap of snaps) {
       for (const d of snap.docs) {
         const row = d.data() as QuestionDoc & { updatedAt?: unknown };
         delete row.updatedAt;
@@ -3975,8 +4145,12 @@ const SOCIAL = {
   async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<RevealHistoryRead> {
     // "busy" for both early returns, and it is the honest word for each:
     // the history is either in hand or on its way, and neither is a
-    // failure the caller should draw. `revealHistoryLoading` is what says
-    // which — a panel wanting to distinguish them asks that.
+    // failure the caller should draw. It is also all it can say — the two
+    // are different frames on a screen, and the answer collapses them, so
+    // a caller that needs them apart asks `revealHistState` rather than
+    // reading the word. `revealHistoryLoading` separates "on its way"
+    // from the other two and cannot tell "in hand" from "never asked",
+    // which is why the three-word reader exists.
     if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return "busy";
     // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
     // that did not follow it. The Groups stop mounts this on a `[gid]`
@@ -4015,6 +4189,12 @@ const SOCIAL = {
       // unconditional since D98 — so it is reported, where the per-key
       // version swallowed permission-denied as the ordinary late-joiner
       // case. Transient (offline, deadline) is reported the same way.
+      // …and recorded where every caller can read it, not only the one
+      // that keeps the answer. The Groups Mirror stop `void`s this call,
+      // so a refused read left it drawing "no rounds revealed yet" under
+      // the room's own name — the definite claim the arming notify two
+      // blocks up exists to stop, arriving by the other door.
+      state.revealHistFailed[gid] = true;
       reportError(err, { where: "revealHistory", gid });
     } finally {
       state.revealHistLoading[gid] = false;
@@ -4039,6 +4219,30 @@ const SOCIAL = {
    */
   revealHistoryLoading(gid: string): boolean {
     return !!state.revealHistLoading[gid];
+  },
+  /**
+   * Has this room's reveal history been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The finish of the sentence `revealHistoryLoading` above starts, and
+   * the same shape as `takesState`, `kindredState`, `testAggsState`. The
+   * loader already answers "failed" to its caller — but only `void`ing
+   * callers were left, one of them the Groups Mirror stop, which then
+   * printed "no rounds revealed yet" about a room it had failed to read.
+   * An answer a caller may drop is a fact the store should keep.
+   *
+   * 'ready' also covers "never asked": a room nobody loaded has no
+   * failure to report, and the load is on-demand by design.
+   */
+  revealHistState(gid: string): "loading" | "ready" | "failed" {
+    if (state.revealHistLoading[gid]) return "loading";
+    // A history that HAS been read is settled, whatever came before it —
+    // derived from the settled flag rather than by clearing the mark on
+    // the retry's arm, because a derivation from a value the success
+    // path already sets cannot drift out of step with it, and no harness
+    // in this tree can resolve a reveal-history read to catch it if it
+    // did (reveal-history-arm.test.ts records why).
+    if (state.revealHistLoaded[gid]) return "ready";
+    return state.revealHistFailed[gid] ? "failed" : "ready";
   },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     type Row = Record<string, unknown> & { day: string; id: string };
@@ -4279,6 +4483,17 @@ const SOCIAL = {
     state.inflight[aid] = true;
     markPending(aid, String(optionIdx));
     if (typeof guessIdx === "number") state.duelCalls[aid] = guessIdx;
+    // THE DISK MIRROR (D357), which this path did without. `cacheVote` is
+    // ack-only by contract, so between the tap and the server's ack the
+    // seal lived in this process's memory alone — and a relaunch before the
+    // queue drained lost it. `roundsOf` then found no vote for the round
+    // and offered it again, and the second seal is a `setDoc` onto an
+    // existing document: `firestore.rules` restricts `allow update` to
+    // daily/feed/test, so a group or duo answer can never be updated. The
+    // round was spent, unanswerable, and the reveal showed nothing from
+    // this account. The other five optimistic write paths have carried
+    // this since D357.
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -4310,7 +4525,8 @@ const SOCIAL = {
       } catch (err) {
         // Through the same helper the five paths use, so the mirror is
         // cleared with the vote rather than left behind to be restored
-        // on the next boot as an answer the server refused.
+        // on the next boot as an answer the server refused. `duelCalls` is
+        // this path's own and is not something rollbackPending knows about.
         rollbackPending(aid);
         delete state.duelCalls[aid];
         notify();
@@ -4449,6 +4665,10 @@ const SOCIAL = {
     // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
     // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    // A retry is a fresh claim: the guard above lets one through exactly
+    // because the failed read cached nothing, so the old mark must not
+    // outlive the attempt it was about.
+    delete state.takesFailed[key];
     notify();
     try {
       const db = await getDb();
@@ -4475,6 +4695,11 @@ const SOCIAL = {
       // Leave the key absent rather than caching an empty list: a
       // transient failure that freezes "no takes" into the session reads
       // exactly like a circle that never wrote any.
+      // …and record that it failed, which is the half leaving the key
+      // absent cannot express: the panel reads `[]` afterwards and, with
+      // only the in-flight flag to ask, prints "No takes yet. Say the
+      // first thing." over a room it never managed to read.
+      state.takesFailed[key] = true;
       reportError(err, { where: "loadTakes", gid });
     } finally {
       state.takesLoading[key] = false;
@@ -4506,6 +4731,28 @@ const SOCIAL = {
   takesLoading(gid: string, qid?: string): boolean {
     const key = takeScopeKey(gid, qid);
     return key == null ? false : !!state.takesLoading[key];
+  },
+  /**
+   * Has this scope's take list been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The finish of the sentence `takesLoading` above starts. That flag
+   * separated "in flight" from `takes()`'s `[]`; it cannot separate the
+   * other two, because the catch leaves the key absent so a later open
+   * retries — which is right for the cache and silent for the reader.
+   * The panel then said "No takes yet. Say the first thing." for the
+   * life of the mount after a refused read: a definite claim about a
+   * room that may be full, and an invitation to be first in it.
+   *
+   * 'ready' also covers "never asked", exactly like `kindredState` and
+   * `testAggsState`: a scope nobody loaded has no failure to report, and
+   * the read breaker's pause is a state the caller checks in front (the
+   * paused arm is true whatever the query would have found).
+   */
+  takesState(gid: string, qid?: string): "loading" | "ready" | "failed" {
+    const key = takeScopeKey(gid, qid);
+    if (key == null) return "ready";
+    if (state.takesLoading[key]) return "loading";
+    return state.takesFailed[key] ? "failed" : "ready";
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -5453,6 +5700,26 @@ const LIVE = {
         getDb(),
       ]);
       const objectRef = ref(getStorage(), avatarPath(uid));
+      // ASKED BEFORE THE BYTES ARE SPENT, because the upload is the half
+      // that cannot be taken back. Moderation removes a face by freezing
+      // this DOCUMENT (`hidden: true`) and deleting the object;
+      // `storage.rules` cannot see that freeze — Storage rules have no
+      // cross-database `firestore.get()` — so its write grant is
+      // ownership, size and type, and nothing else. The order was the only
+      // thing standing between a removed face and the bucket, and it ran
+      // the wrong way: the upload SUCCEEDED, the document write was
+      // refused, and the caller was told "removed" while the image sat
+      // back under `avatars/{uid}`, which `allow read: if request.auth !=
+      // null` serves to any signed-in caller by path — no download token
+      // needed, so the frozen document does not gate it.
+      //
+      // One extra read on an action a person takes once. It closes the
+      // shipped client, which is what put the bytes there; a modified
+      // client can still upload and that cannot be closed in
+      // storage.rules at all — docs/MODERATION.md § Faces says so now
+      // rather than claiming the removal is durable.
+      const mine = await getDoc(doc(db, "v2_avatars", uid));
+      if (mine.exists() && mine.get("hidden") === true) return { ok: false, reason: "removed" };
       await uploadBytes(objectRef, small, { contentType: "image/jpeg" });
       const token = tokenFromUrl(await getDownloadURL(objectRef));
       if (!token) return { ok: false, reason: "unavailable" };
@@ -7302,6 +7569,28 @@ const LIVE = {
   get needsEmailVerify() {
     return state.needsEmailVerify;
   },
+  // …and the single boolean anyway, for the ONE caller that is not a
+  // screen (D453). `ui/SignInGate` asks only whether the wall is up, and
+  // it has to ask something that can answer BEFORE auth has spoken —
+  // composing the two flags itself put the sign-in screen in front of
+  // every returning signed-in user for the length of the auth restore.
+  // So the composition lives here, where the mirror is: auth's word once
+  // there is one, this device's last verdict until then.
+  //
+  // TWO CONDITIONS, NOT ONE, and the second is not a formality. An
+  // account created at the email door exists the moment Firebase accepts
+  // the password — `linked` is already true — and nothing has yet shown
+  // that the address belongs to whoever typed it. Passing on `linked`
+  // alone would let a typo'd or borrowed address through with a full
+  // account behind it, and the reset mail that is the only way back into
+  // such an account goes to the wrong inbox. Apple and Google hand over
+  // an address they have already verified, so they never meet this arm
+  // (the observer in initLive has the precise rule).
+  get wallPass(): boolean {
+    return state.authKnown
+      ? state.linked && !state.needsEmailVerify
+      : readAuthMirror();
+  },
   get accountEmail() {
     return state.accountEmail;
   },
@@ -7318,6 +7607,10 @@ const LIVE = {
     const verified = await refreshVerification();
     if (verified && state.needsEmailVerify) {
       state.needsEmailVerify = false;
+      // The wall's verdict just moved without the observer (D453) — the
+      // sentence above is the whole reason this path writes the flag
+      // itself, and the mirror is part of the flag now.
+      syncAuthMirror();
       notify();
     }
     return verified;
@@ -7591,6 +7884,15 @@ const LIVE = {
     // answer is an ordinary answer document, so nothing new has to unset
     // it.
     state.unaggregated[aid] = optionIdx;
+    // IN FLIGHT, like every other write path — and here it is not
+    // bookkeeping. `noteFolded` and both of the store's drains refuse to
+    // clear an unfolded mark for an answer the server has not
+    // acknowledged, because no aggregate can hold it yet; without this
+    // flag that guard is vacuous on the one path whose mark nothing else
+    // clears. It also settles the older inconsistency: `restorePending`
+    // sets the flag for a restored answer, so a pulse vote was
+    // unconfirmed after a relaunch and confirmed before one.
+    state.inflight[aid] = true;
     markPending(aid, String(optionIdx));
     notify();
     return (async () => {
@@ -7605,6 +7907,7 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: answerAnchors(),
         });
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
         clearPending(aid);
       } catch (err) {
@@ -7618,10 +7921,14 @@ const LIVE = {
         // drains, and pulse aggregates are fetched by `data/pulse`
         // instead. So a refused write left the mark set for the session
         // and the reveal added a vote nobody cast, to an option nobody
-        // chose. The extra deletes are no-ops here (this path never sets
-        // `inflight`, and a pulse id is not in the feed mirror), which is
-        // the argument for using the shared copy rather than curating a
-        // second list of what to undo.
+        // chose. Using the shared copy rather than curating a second list
+        // of what to undo is the argument — and the same commit that
+        // added the mark made it load-bearing rather than spare:
+        // `votePulse` sets `inflight` now, so `rollbackPending`'s delete
+        // of it is work this path needs. (A pulse id is still not in the
+        // feed mirror, so that one really is a no-op.) This read "the
+        // extra deletes are no-ops here — this path never sets
+        // `inflight`", which its own commit falsified thirty lines up.
         rollbackPending(aid);
         notify();
         reportError(err, { where: "votePulse", qid: aid });
@@ -7639,6 +7946,35 @@ const LIVE = {
    * nothing readable and fails a test rather than shifting every share by
    * one (the D72 shape).
    */
+  /**
+   * The clear the store's two drains apply, for an aggregate THIS STORE
+   * DID NOT FETCH.
+   *
+   * `data/pulse` reads its day-keyed aggregates itself, and both drains
+   * here iterate documents live.ts fetched for the deck — so a pulse id
+   * reached neither, and the comment on `votePulse` that says "nothing
+   * new has to unset it" was wrong about its own file. The mark then
+   * stood for the life of the session: `pulsePending` kept answering,
+   * and once the fold HAD landed the card added a vote nobody cast on
+   * top of the one it was already counting. Its own suite records the
+   * fact and covers only the refused write.
+   *
+   * Called on the TREND read, not on the day read, and the difference is
+   * the whole safety of it. The forced refetch after an answer
+   * "reliably loses the race with the fold" — pulse.ts's own words, and
+   * the reason the mark exists at all — and `ensureToday` then
+   * short-circuits on the day it already has, so no later read of that
+   * day happens. The trend is the tap that comes afterwards, which is
+   * the same assumption `drainAggRefresh` makes about its own re-read.
+   *
+   * Guarded like the drains: an answer still in flight cannot be in any
+   * aggregate, and one the device never wrote is not its business.
+   */
+  noteFolded(aid: string): void {
+    if (!(aid in state.unaggregated) || !state.votes[aid] || aid in state.inflight) return;
+    clearUnaggregated(aid);
+    notify();
+  },
   pulsePending(baseQid: string): number | null {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;
@@ -7916,13 +8252,35 @@ const LIVE = {
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
     if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;
+    // BEFORE the optimistic move, which is the only moment the old index
+    // still exists in this process: one line later `state.votes[qid]` is
+    // the new one.
+    const from = state.votes[qid];
+    // …AND WHETHER THE CROWD HOLDS IT, which is the whole premise of the
+    // subtraction below and is exactly what this flag denies: an id
+    // already marked unaggregated is one the trigger has NOT folded, so
+    // there is nothing of this device's in the published counts to take
+    // back out. Read before the mark is overwritten, one line down.
+    const wasFolded = !(qid in state.unaggregated);
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     // The new option is not in the public agg yet — same display flag as a
-    // create. The old option briefly reads one high (my old vote is still
-    // in the counts, no longer marked mine); the delayed refresh below
-    // pulls the moved counts and settles it.
+    // create — but an edit is NOT a create underneath it, and the counts
+    // need both facts. The crowd already holds this device at the old
+    // option, so the deck subtracts it from there (`countsFor`) rather
+    // than leaving it to the delayed refresh: until that landed, the old
+    // option read one high AND the total read one high, which put every
+    // share on the card over a denominator that did not exist.
     state.unaggregated[qid] = optionIdx;
+    // ONLY IF THE CROWD ACTUALLY HOLDS IT. An edit that follows a create
+    // the trigger has not folded yet — answer, then nudge the dial again,
+    // which every re-pick on the daily and the feed routes through here —
+    // would otherwise name an option the aggregate holds this device at
+    // nowhere, and the subtraction would take a vote out of a crowd that
+    // never had it: the same total-off-by-one this arm was added to
+    // close, with the sign reversed. A second edit keeps the FIRST
+    // origin, which is right: the crowd still holds the original.
+    if (wasFolded && from !== undefined && from !== optionId) state.unaggregatedFrom[qid] = from;
     markPending(qid, optionId, true);
     notify();
     void (async () => {
@@ -7990,6 +8348,7 @@ function resetForNewUid(uid: string): void {
   state.votes = {};
   state.inflight = {};
   state.unaggregated = {};
+  state.unaggregatedFrom = {};
   state.editedAt = {};
   state.aggs = {};
   state.overflowCells = {};
@@ -8004,6 +8363,7 @@ function resetForNewUid(uid: string): void {
   state.revealHist = {};
   state.revealHistLoading = {};
   state.revealHistLoaded = {};
+  state.revealHistFailed = {};
   state.duelCalls = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
@@ -8012,6 +8372,7 @@ function resetForNewUid(uid: string): void {
   // (flags are `allow read: if false` by design).
   state.takes = {};
   state.takesLoading = {};
+  state.takesFailed = {};
   state.myFlags = {};
   // The voter lists carry an `isMe` flag computed against the OLD uid, so
   // a survivor would mark a stranger's answer as this account's own. The
@@ -8043,6 +8404,8 @@ function resetForNewUid(uid: string): void {
   // arbitrary amount. Cancel the queued write for the same reason
   // cancelAggCache is called: it would re-create the key just removed.
   profileSeen.clear();
+  // …and the once-per-uid guard on loadProfileCache, for the same reason.
+  profileCacheLoadedFor = null;
   if (profileCacheTimer) {
     clearTimeout(profileCacheTimer);
     profileCacheTimer = null;
@@ -8458,6 +8821,24 @@ export function refreshLive(): Promise<void> {
 // attached or the deck has aged out.
 function wake(): void {
   if (torndown) return;
+  // NOT WHILE THE APP IS HIDDEN, and `online` is why this line exists.
+  // Two events reach this handler: the app coming to the foreground, and
+  // the network coming back. The second can fire with the app
+  // BACKGROUNDED — a phone changing between wifi and cellular in a
+  // pocket, a tunnel ending — and everything below it undoes the idle
+  // detach: `cancelIdleDetach` drops the armed timer and
+  // `resubscribeForToday` re-attaches the reveal listeners and restarts
+  // the deck poll. Nothing re-arms either, because the only thing that
+  // does is a visibilitychange to HIDDEN and the app is already there —
+  // so one network blip in a pocket bought back the whole listener bill
+  // IDLE_DETACH_MS exists to bound, for the rest of the background
+  // period.
+  //
+  // Returning costs nothing: the timer stays armed, the detach happens on
+  // schedule, and the next foreground calls this again through the
+  // visibility handler — which is the path that has always done the
+  // re-attaching.
+  if (typeof document !== "undefined" && document.hidden) return;
   cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   // `attached`, not `ready` (D356): a warm-painted session whose network
@@ -8611,7 +8992,17 @@ export function _idleDetachForTest(): { pending: boolean; run: () => void } {
 
 export async function initLive(timeoutMs = 2500): Promise<void> {
   const flag = import.meta.env.VITE_V2_LIVE === "true";
-  if (!flag || !firebaseEnabled) return;
+  if (!flag || !firebaseEnabled) {
+    // NOTHING WILL EVER OBSERVE AUTH IN THIS BUILD, so say so rather than
+    // leaving the wall waiting for a word that is not coming (D453). It
+    // matters for exactly one combination — a build with the wall on and
+    // no Firebase behind it, which is misconfigured either way — and the
+    // answer it produces is the pre-D453 one: `linked` is false, so the
+    // wall is up, and a mirror left by a build that DID have Firebase
+    // cannot open it.
+    state.authKnown = true;
+    return;
+  }
   const boot = refreshLive();
 
   // R2/D270: arm the anonymous feature tally. The writer is the ordinary
@@ -8695,19 +9086,37 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       && !user.emailVerified
       && user.providerData.some((p) => p.providerId === "password");
     state.accountEmail = (user && !user.isAnonymous && user.email) || null;
-    const linkedChanged = state.linked !== wasLinked
-      || state.needsEmailVerify !== wasNeeds;
+    // AUTH HAS SPOKEN, and both halves of that matter (D453). The mirror
+    // records the verdict for the next launch's wall — and the FIRST
+    // observation is a change in its own right even when neither flag
+    // moved, because that is exactly the case the mirror creates: a
+    // device whose mirror opened the wall, for a session auth then
+    // reports as anonymous, moves nothing here. Without the `!wasKnown`
+    // arm nothing would be announced and the wall would never go back
+    // up.
+    const wasKnown = state.authKnown;
+    state.authKnown = true;
+    syncAuthMirror();
+    const authChanged = state.linked !== wasLinked
+      || state.needsEmailVerify !== wasNeeds
+      || !wasKnown;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);
+      // AFTER the reset, because it purges the `insight.` namespace and
+      // the sync above wrote into it (D453). The verdict is the NEW
+      // account's — nothing in the reset touches the two flags — so
+      // writing it here is what keeps a switch INTO a linked account
+      // from costing that account a flash on its next launch.
+      syncAuthMirror();
       return;
     }
     if (next && !state.uid) {
       state.uid = next;
-      if (linkedChanged) notify();
+      if (authChanged) notify();
       return;
     }
-    if (linkedChanged) notify();
+    if (authChanged) notify();
     // While the uid is the mirror's (D356), a null state is the SDK
     // reporting "no restored session yet" on the way to refreshLive's own
     // sign-in — the recovery below would start a SECOND anonymous sign-in

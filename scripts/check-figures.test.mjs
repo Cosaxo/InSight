@@ -188,6 +188,67 @@ describe("the cold-boot list is copied, and held equal to the code", () => {
   });
 });
 
+// ── the bank count comes from the parser, not from a key scan ─────────
+//
+// This is the joint that was missing on 2026-09-09, and its absence cost a
+// day of five documents quoting a bank size that nothing holds.
+//
+// The gate counted the bank by scanning `functions/src/v2content.ts` for
+// `"id":` keys, on the written ground that the file is "one flat array of
+// objects, each with a literal id", so counting keys was exact. D434 ended
+// that: a role vote carries `scen: { id … }` and `role: { id … }`, 22
+// entries grew two nested ids each, and the scan began reporting 1342 for
+// a bank of 1298 — then ENFORCED 1342 into SHIP-CHECKLIST, LAUNCH-RUNBOOK,
+// SCHEMA-V2, COSTS and one source comment. Nothing went red, because this
+// gate is the thing that decides what the number is; `check:content`
+// printed the true 1298 three steps later in the same CI job and no one
+// compared them.
+//
+// So the property is not "the count is 1298" — that moves every promotion
+// cycle and pinning it would recreate the drift trap this file's own header
+// is about. It is: **a nested `id` is not an entry**. Plant one in a real
+// copy of the tree and the reported total must not move.
+describe("the seeded-bank figure is parsed, not key-scanned", () => {
+  /** The bank total the gate reports, read out of its own summary line. */
+  function bankFigure(t) {
+    const r = runGate(t);
+    const m = /questions: (\d+), (\d+) daily/.exec(r.out);
+    expect(m, `the gate stopped printing its bank figures:\n${r.out}`).toBeTruthy();
+    return { total: Number(m[1]), daily: Number(m[2]) };
+  }
+
+  it("does not count a nested id as a question", () => {
+    const bank = join(tree, "functions/src/v2content.ts");
+    const before = readFileSync(bank, "utf8");
+    const baseline = bankFigure(tree);
+    try {
+      // The D434 shape, minimally: one existing entry gains a nested member
+      // carrying its own literal "id". No question has been added.
+      const at = before.indexOf('"surface":');
+      expect(at, "v2content.ts no longer has a literal surface key").toBeGreaterThan(0);
+      writeFileSync(bank, `${before.slice(0, at)}"scen": { "id": "zzz-probe", "label": "probe" }, ${before.slice(at)}`);
+      const after = bankFigure(tree);
+      expect(after.total, "a nested id was counted as a question — the key scan is back").toBe(baseline.total);
+      expect(after.daily).toBe(baseline.daily);
+    } finally {
+      writeFileSync(bank, before);
+    }
+  });
+
+  it("agrees with the shared parser every other reader uses", async () => {
+    // The cross-read that makes the case above more than a single shape:
+    // whatever the gate reports, `bankArray` — the one parser cost-arith,
+    // question-quality and check:content all resolve through (D197) — must
+    // report the same, so the two numbers in one CI job cannot disagree
+    // again.
+    const { bankArray } = await import("./v2content-lib.mjs");
+    const parsed = bankArray(readFileSync(join(root, "functions/src/v2content.ts"), "utf8"));
+    const live = bankFigure(tree);
+    expect(live.total).toBe(parsed.length);
+    expect(live.daily).toBe(parsed.filter((q) => q.surface === "daily").length);
+  });
+});
+
 // ── the remedy this gate prints ───────────────────────────────────────
 //
 // A mismatch prints `Correct the sentence to: "<sentence>"`, and a

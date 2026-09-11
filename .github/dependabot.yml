@@ -24,6 +24,25 @@ updates:
         update-types: [version-update:semver-major]
       # Exact-pinned on purpose — see package.json. Let a human choose.
       - dependency-name: "@firebase/rules-unit-testing"
+      # The Sentry pair, which CANNOT MOVE ONE AT A TIME.
+      # @sentry/capacitor declares an EXACT dependency on @sentry/browser
+      # (4.2.0 → 10.60.0) and its postinstall, scripts/check-siblings.js,
+      # hard-fails `npm ci` when the root's pin disagrees. So a lone bump of
+      # either half is a PR that can never be green — #213 (@sentry/browser
+      # 10.60.0 → 10.70.0) sat red for 23 days proving it, and every future
+      # one would do the same.
+      #
+      # Moved BY HAND, both in one commit: read
+      # `npm view @sentry/capacitor@<target> dependencies` and set
+      # @sentry/browser to exactly that value.
+      - dependency-name: "@sentry/browser"
+      - dependency-name: "@sentry/capacitor"
+      # @types/node tracks the RUNTIME, not the latest release: .nvmrc,
+      # engines, firebase.json's nodejs22 and ci.yml all say 22, and a types
+      # major ahead of them makes a Node-24-only declaration typecheck clean
+      # and be undefined at runtime. Minors and patches are welcome.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
     # Deliberately NOT grouped: a single "all dev dependencies" PR is the
     # one nobody reviews, and it is exactly where a toolchain regression
     # would hide.

@@ -131,6 +131,35 @@ const EXPORTS = {};
   // which is 13 — read it off `check:globals`, never from here.) `|| {}`
   // is a data guard, not a load-order one: an imported binding cannot be
   // unset, but a store with no profile yet can answer {}.
+  // THE BUILD, NOT THE BOOT — scenes.js's and follows.js's gate, and it is
+  // here for the third time for the same reason. `LIVE.enabled` is false on
+  // a DEMO build and ALSO on a live build whose boot has not attached
+  // (live.ts's `demoInProd`), so reading it as "is this the demo" seeds the
+  // sample persona on a shipped device that cold-starts offline. Measured
+  // 2026-09-10, mounting the real panel against the real store: the persona
+  // lands in `insight.profileGeneral.v2`, and when the boot attaches and the
+  // tree re-renders, the anchors effect below writes Mira Halvorsen's age
+  // band, education, profession and city to `v2_users/{uid}` — which D8 then
+  // stamps onto every answer, create-only (D5). A fabricated cohort that
+  // cannot be corrected, on a real account, with no relaunch needed.
+  //
+  // The build flag cannot flip mid-session, so it answers the question the
+  // seed is actually asking. The residual it leaves is the one this file
+  // already accepts and describes at the anchors effect: on a live build
+  // that has not hydrated, Basics displays empty for a moment.
+  //
+  // IT IS AN `||` AND NOT A REPLACEMENT, which is measured rather than
+  // reasoned: gating on the build flag ALONE turned seven live cases red.
+  // `smoke-live` and `passive-fold-live` drive a live STORE through the
+  // fixture without setting the build flag, so the two disagree there, and
+  // the panel would have drawn the demo Scenes field and seeded the persona
+  // inside a harness whose whole subject is live mode. Neither flag alone is
+  // the question. The question is "is this the demo", and the demo is the
+  // one case where NEITHER is true: not built live, and no live store
+  // attached. Both directions of the flip are covered — `profile-persona-
+  // anchors.test.jsx` for the build, those seven for the store.
+  const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
+
   function baseFor(live) {
     if (!live) return seedFromData();
     const a = LIVE.anchors() || {};
@@ -184,7 +213,11 @@ const EXPORTS = {};
   }
 
   function loadGen() {
-    const live = LIVE.enabled;
+    // Either half is enough to mean "not the demo" — see LIVE_BUILD above.
+    // `LIVE.enabled` alone still decides whether anything may be WRITTEN to
+    // the server, which is a different question and is asked at the anchors
+    // effect.
+    const live = LIVE_BUILD || LIVE.enabled;
     const base = baseFor(live);
     try {
       const saved = JSON.parse(localStorage.getItem(GKEY) || 'null') || migrateV1(live);
@@ -615,9 +648,15 @@ const EXPORTS = {};
     useEffect(() => {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
-    // One liveness read for the panel: the anchors mirror below and the
-    // demo-section gate at the foot both branch on it.
+    // One liveness read for the panel, and it now has ONE consumer: may
+    // anything be written to the server yet. The demo-section gate at the
+    // foot used to branch on it too and no longer does — that is a question
+    // about the BUILD, and asking it of the boot is what let the sample
+    // persona reach a real account (see LIVE_BUILD above).
     const LIVE_ON = LIVE.enabled;
+    // …and the demo-section gate takes the other question, the one about
+    // the demo rather than about the server (LIVE_BUILD above).
+    const LIVE_LIKE = LIVE_BUILD || LIVE_ON;
     // Mirror the anchor subset onto the owner-only profile doc (D8), so
     // later answers can snapshot it. Only in live mode — in mock mode the
     // vitals are demo data and there is no server to write to.
@@ -694,13 +733,13 @@ const EXPORTS = {};
             section scale. Live mode drops the section whole; follows are
             managed from the feed's chip row and search until a live scenes
             surface exists with real numbers behind it (D1). */}
-        {!LIVE_ON && (
+        {!LIVE_LIKE && (
           <div>
             <Chapter>Scenes you follow</Chapter>
             <MirrorFieldBody pop="groups" worldZoom="world" />
           </div>
         )}
-        {LIVE_ON && (
+        {LIVE_LIKE && (
           <div>
             <Chapter>Scenes you follow</Chapter>
             <LiveScenesCard />

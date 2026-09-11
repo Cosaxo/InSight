@@ -463,6 +463,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.
     revealHistoryLoading: () => false,
+    // Settled AND read: the empty history above is a room that has not
+    // played, not one this fixture failed to read for.
+    revealHistState: () => "ready" as const,
     // Answers the word the store answers ("ok" | "failed" | "busy"), not
     // `undefined` — LiveRolesPanel branches on it. Inert here only
     // because this fixture hands back no groups, so the loop that reads
@@ -500,6 +503,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // Settled: a mount test is about what the screen draws once the
     // read has landed, not about the frame before it.
     takesLoading: () => false,
+    // Same reason one line up, and the other state the pair cannot hold
+    // between them: the fixture's empty list is a room that wrote
+    // nothing, not a read that was refused. A case that wants the
+    // refused one overrides this member.
+    takesState: () => "ready" as const,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
@@ -759,6 +767,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fold has counted them. The real store returns the option index only
     // while `unaggregated` still holds it.
     pulsePending: () => null,
+    // Nothing to clear, for the reason directly above: the fixture's
+    // votes are seeded as already folded, so no id carries an unfolded
+    // mark and the real store's clear would return at its first guard
+    // too. A case that seeds an unfolded answer overrides this the same
+    // way it overrides `pulsePending`.
+    noteFolded: () => {},
     // Same reason, one question wider: the fixture's votes are seeded as
     // folded, so nothing here is unaggregated and every question answers
     // null. A case that wants the other side of the fold overrides this
@@ -905,6 +919,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // (profile-overlay.jsx, D344 amendment). A case that needs the linked
     // branch flips this in its prep.
     linked: false,
+    // …and the wall's own read of the same fact (D453). False with
+    // `linked`: the mount suites build a walled build only by stubbing
+    // VITE_REQUIRE_SIGNIN, and none of them does.
+    wallPass: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).

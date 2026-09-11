@@ -24,7 +24,9 @@ semantics instead of hand-converting 65 files to ESM at once:
   *after* first paint instead — see **The world feed is lazy** below; the
   order among those four is semantic in exactly the same way, which is why
   they are awaited in sequence rather than in parallel.
-- `main.jsx` — styles + spec-index, then renders `globalThis.App`.
+- `main.jsx` — styles + spec-index, then renders the imported `App`
+  inside `SignInGate`. The `globalThis.App` publication survives for the
+  mount suites alone (D354).
 - `styles.css` — every style block from the standalone verbatim; font URLs
   point at `/public/fonts/*.woff2` (Hanken Grotesk, bundled — no external
   font hosts).
@@ -103,13 +105,33 @@ rather than in the one file that visibly needs it, because vitest's module
 cache is per worker: after D108's split no file can assume another already
 paid for the load.
 
-## …and so are the five no-button overlays
+## …and so are the no-button overlays
 
-`loadOverlays()` (D38) defers `test-overlay`, `person-mindmap`,
-`person-overlay`, `city-overlay`, `suggestions` and `logic-test` (which
-imports `data/logic-gen` directly since D51, pulling it into the same
-chunk) — the overlays with no control in the header or tabbar, reached
-only through the `window.open*` cross-links. Entry chunk 922 → 837 KB.
+`loadOverlays()` (D38) defers the overlays with no control in the header
+or tabbar, reached only through the `window.open*` cross-links. Entry
+chunk 922 → 837 KB.
+
+The list is `spec-index.js`'s own body and not repeated as a count here:
+a number in this heading is the hand-maintained figure CLAUDE.md says
+this repo keeps re-committing, and this paragraph proved it by naming
+`test-overlay` and `suggestions` for months after both files were deleted
+(D121, and the deletion note is in `spec-index.js` itself). What is worth
+saying in prose is the ORDER, because it is semantic:
+
+- `await loadMirrorTab()` **first** (D355) — three members of this group
+  read Mirror globals at render (`profile-general`'s `MirrorFieldBody`
+  and `LENSES`, `profile-overlay`'s `LensesPanel`, `person-overlay`'s
+  `CompareCarousel`), so no overlay may be able to open before that chunk
+  has landed.
+- then `relmap.jsx`, and the subtopic stock installed for this group too
+  (`search-overlay` reads `SUBTOPICS.offers()`), and `duo-daily.jsx`.
+- then the rest in the order they held in the eager list (D223), with one
+  pair whose sequence IS the contract: `profile-general.jsx` before
+  `profile-overlay.jsx`, because the second looks up
+  `window.GeneralPanel` at render time and these sequential awaits are
+  what order the two.
+- `logic-test.jsx` imports `data/logic-gen` directly since D51, pulling
+  it into the same chunk.
 
 **The synchronisation is different from the feed's, and that difference is
 the whole design.** The feed needs `main.jsx` to re-render after its chunk
@@ -141,10 +163,14 @@ import).
 **Two gates, and what each does not cover.** `check:bundle`'s per-chunk
 ceiling came down 940 → 850 with the win, and its header records exactly
 which regressions that catches (measured, not assumed — the smallest single
-module can still slip under the headroom). `smoke-overlays.test.jsx` carries
-five cases that delete each global and assert the shell degrades to a blank
-rather than a `ReferenceError`; those were mutation-checked by restoring the
-bare identifiers one at a time. Neither gate can see eager-vs-lazy itself:
+module can still slip under the headroom). `smoke-overlays.test.jsx` carries one
+case per row of its `GUARDED` table — each deletes that global and asserts
+the shell degrades to a blank rather than a `ReferenceError`, and those
+were mutation-checked by restoring the bare identifiers one at a time. The
+table's size is deliberately not quoted here either: the suite holds it
+equal to every `&& <window.X` render guard in `app-shell.jsx` in a case of
+its own, so a new guard reddens it until it has a row and a removed one
+reddens it until the row goes. Neither gate can see eager-vs-lazy itself:
 re-adding a static import to `spec-index.js` leaves every test green and is
 caught only by the ceiling.
 
@@ -400,14 +426,14 @@ Run it for the live figure rather than quoting one here (D39,
 | `LiveAnswerRows` | the headline reads BY TYPE (a rating leads with its average, a scale with how much of the room agrees) — dropping `row.type` compiles and then every rating leads with the share who picked a 7; a question this cohort has not answered still draws its options at an explicit zero; a share is printed only where it reads as one, every other bar carries its exact count (D98); the standing sentence is never a percentage of ONE answer (D170); and "most divisive" and "most agreed" are the two orderings they claim |
 | `profileSetup` | the GATE, not the screen — the persistence contract `LiveProfileSetup.test.tsx` never touches (it does not import these two functions at all): the fact is on the DEVICE, re-read per call, so a boot-time snapshot would pass every other test in this tree; the key sits inside the `insight.*` namespace D51's purge sweeps, or it survives an account deletion and the next account on that device is never asked; and seen beats every reason to ask |
 | `walkthrough` | the GATE for D393's first-launch screen — `profileSetup`'s contract one screen earlier, plus two of its own: a live BUILD is the condition rather than a live boot (a first launch with no network is shown it; the demo build, where every mount suite runs, never is); the purge takes the screen down WITHOUT recording it, because a flag written on the way out would be written under the new uid; and the promise main.jsx sequences the account questions behind settles on every way out — Start, Skip, the purge, and at once when there is nothing to show — since a promise that hangs is a form that never appears |
-| `LiveWalkthrough` | the claims, not the sentences (`docs/COPY.md` §4): answers are public, under your name, said on the LAST page; the daily's three stops and the Mirror's seven by their own names, so a rename there and not here fails; "sealed until tomorrow" in the duel panel's words; NO mention of the Patterns tab (D265 — "no third button, no teaser"); and every button reports while no gesture does — a swipe or an arrow past the last page stays put |
+| `LiveWalkthrough` | the claims, not the sentences (`docs/COPY.md` §4): answers are public, under your name, said on the LAST page; the daily's three stops and the Mirror's seven by their own names, so a rename there and not here fails; the duel's SEALING and its names, pinned as claims rather than as the phrase "sealed until tomorrow" the copy used to carry; NO mention of the Patterns tab (D265 — "no third button, no teaser"); and every button reports while no gesture does — a swipe or an arrow past the last page stays put |
 | `duelMarks` | a mark is coloured by an ID and never by the name printed beside it — two members called Ada are two people, and `markHue(name || uid)` compiles, reads tidier, and gives two strangers one colour; shape is KIND (round is a person, a rounded square a circle) at every size; each mark reads its OWN initials rule, a swap tsc cannot see; and nothing is invented from an id — no name means a dot, because an initial made out of a uid is a name we made up and showed to the person it is about |
 | `Avatar` | each face is its OWN (a captured uid dresses a whole list in one stranger's photo — the only defect here that looking twice does not correct); the branch is on the URL, not the token, so a build with no bucket does not get `<img src="">` on every face; a failed load falls back to initials keyed by UID rather than by slot, since Near re-orders under a mounted component and React keeps state at the POSITION; the photo is named and the initials are silent; and `initialsOf` is executed, never stubbed — this is the only suite that runs it |
 | `EmptyField` | the licensed copy stays a copy — the geometry is compared against `LiveSimilarityField`'s original rather than pinned to literals, because neither tsc nor check:globals can see the two drift; the drawing comes first and alone, `aria-hidden`, with the sentence as the readable half; and `prime` runs BEFORE the nav jump (D190), the ordering the door depends on |
 | `LiveCompareLens` | attribution — two people's numbers inside one picture, so each score keeps its own side axis for axis (swap either and every card reads as its mirror image with every number on it still correct); an instrument only ONE of you has draws no card, and an axis their side lost to its floor leaves the rose rather than sitting at a neutral 50; the three emptinesses stay apart; your side folds through `voteIndices`, because the store's option ids are STRINGS and a raw `myVotes()` folds to nothing while looking reasonable in the diff (D132) |
 | `MirrorLensTabs` | the row is the list it was handed, in that order (Explore is the World's alone, Compare ends the row); exactly one tab reports `aria-selected`, and it is the caller's; CLOSED is closed — a stop opens with nothing open and an `open` that is not in `tabs` must read as nothing rather than as the first tab; a tap on the already-open tab still goes up as that tab's id, which is how all four callers close a stop; and the size ladder steps down as the row widens, the row being unscrollable |
 | `PulseCard` | the card draws the pulse it was HANDED, not the roster's first — five identical columns all recording against one pulse is the failure; it is blind until you answer; the dot you tap is the optionIdx recorded (the 1..5 step vs 0..4 wire is where an off-by-one names itself back to you correctly); absent is not zero; the reading's 21-day window is fetched on the tap, never on the open |
-| `SignInGate` | a build that will not show the wall never fetches the screen chunk (the split is the whole reason it is two files, and only a bundle ceiling can otherwise see it); off, it renders no element of its own; behind the wall the app is not merely hidden but unmounted; and the wall COMES DOWN — `linked` flips on the store's auth observer, so dropping the subscription strands a user who signed in successfully |
+| `SignInGate` | a build that will not show the wall never fetches the screen chunk (the split is the whole reason it is two files, and only a bundle ceiling can otherwise see it); off, it renders no element of its own; behind the wall the app is not merely hidden but unmounted; and the wall COMES DOWN — `wallPass` flips on the store's auth observer, so dropping the subscription strands a user who signed in successfully. Since D453 the gate asks that ONE store member rather than composing `linked` and `needsEmailVerify` itself: both are false until the observer speaks, which is long after D356 releases the render, so the composition walled every returning signed-in user for the length of the auth restore |
 
 Each of those rows was **mutation-checked**: the property was broken in the
 component, the suite was watched to fail, and the change reverted. A

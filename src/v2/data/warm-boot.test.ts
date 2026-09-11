@@ -46,6 +46,17 @@ interface Call {
   path: string;
   cons: Constraint[];
 }
+// What the auth observer is handed. `uid` alone is all most cases here
+// need — and reads as an anonymous session, since `isAnonymous === false`
+// is what live.ts tests for — but the wall's mirror (D453) turns on the
+// other three, so the shape is spelled out rather than cast at each call.
+interface AuthUser {
+  uid: string;
+  isAnonymous?: boolean;
+  emailVerified?: boolean;
+  email?: string;
+  providerData?: Array<{ providerId: string }>;
+}
 interface Pending extends Call {
   release: () => void;
   fail: (err: Error) => void;
@@ -72,7 +83,7 @@ const h = vi.hoisted(() => ({
   // switch leaves on disk is one of the things these cases are about.
   listeners: {} as Record<string, Array<(ev?: unknown) => void>>,
   // The auth observer's callback, so a test can switch accounts.
-  authCb: null as null | ((u: { uid: string } | null) => void),
+  authCb: null as null | ((u: AuthUser | null) => void),
   // Every setDoc/updateDoc handed to the SDK, by path — and, held, the
   // writes park like the reads do: an offline device's mutation queue.
   writes: [] as string[],
@@ -116,7 +127,11 @@ vi.mock("../../lib/firebase", () => ({
   getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+  // The inbox poll (D453's second writer). Answers "verified" so a case
+  // can drive the one path that moves the wall's verdict without the
+  // observer's help.
+  refreshVerification: () => Promise.resolve(true),
+  subscribeToAuth: (cb: (u: AuthUser | null) => void) => {
     h.authCb = cb;
     if (h.autoAuth) cb({ uid: h.uid });
     return () => {};
@@ -958,6 +973,186 @@ describe("the provisional account", () => {
     expect(LIVE.uid).toBe("uid_test");
     expect(LIVE.myVotes()).toEqual({ q_1: "1" });
     expect(h.signIns).toBe(1);
+  });
+});
+
+// ── the wall's own mirror (D453) ────────────────────────────────────
+//
+// The account wall reads `linked` and `needsEmailVerify`, and both are
+// false until the auth observer speaks — which on a returning device is
+// several hundred milliseconds after this file's whole subject, the warm
+// paint, has already put the app on screen. So the wall was UP for every
+// returning signed-in user and then came down: "even when you are signed
+// in the sign in page will show for a brief while" (the owner, from a
+// device, 2026-09-11).
+//
+// The properties below are the two halves of the fix and the price of
+// it. The gate's own suite (`ui/SignInGate.test.tsx`) mocks the store, so
+// it structurally cannot see any of this: what it pins is that the gate
+// asks ONE question, and what these pin is that the answer is right
+// before auth has spoken, corrected the moment it does, and announced
+// even when the correction moves neither flag.
+describe("the wall's mirror", () => {
+  const AUTH_MIRROR_LS = "insight.authMirror.v1";
+  const mirror = () => storage.getItem(AUTH_MIRROR_LS);
+  // A linked, verified account — what auth hands back for Apple, Google,
+  // or a password account whose address has been confirmed.
+  const linkedUser = { uid: "uid_test", isAnonymous: false, emailVerified: true, email: "a@b.c" };
+
+  it("is what the wall reads before auth has spoken, and auth's word after", async () => {
+    await seedWarmDevice();
+    storage.setItem(AUTH_MIRROR_LS, "1");
+    // Neither the observer nor the sign-in has answered: exactly the
+    // window the warm paint renders in.
+    h.autoAuth = false;
+    h.holdSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+
+    expect(LIVE.ready).toBe(true);
+    // The flag itself is still honest — nothing has upgraded this
+    // session, and the privacy panel and the identity row read THAT.
+    expect(LIVE.linked).toBe(false);
+    // …and the wall reads the device's last verdict instead of the
+    // uninitialised flag, which is the whole fix.
+    expect(LIVE.wallPass).toBe(true);
+
+    // Auth confirms the same account, linked. The verdict is unchanged
+    // and now it is auth's rather than the disk's.
+    h.releaseSignIn?.();
+    h.authCb?.(linkedUser);
+    await releaseAll(LIVE);
+    expect(LIVE.linked).toBe(true);
+    expect(LIVE.wallPass).toBe(true);
+    expect(mirror()).toBe("1");
+  });
+
+  it("closes the wall again when auth contradicts it — and says so", async () => {
+    // The price of answering provisionally: a device whose mirror opened
+    // the wall for a session auth then reports as anonymous (revoked,
+    // deleted elsewhere, storage cleared unevenly). NEITHER FLAG MOVES
+    // here — both were already false — so the announcement is the only
+    // thing that can bring the wall back, and a notify keyed on the flags
+    // alone would leave the app open behind it for the session.
+    await seedWarmDevice();
+    storage.setItem(AUTH_MIRROR_LS, "1");
+    h.autoAuth = false;
+    h.holdSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    expect(LIVE.wallPass).toBe(true);
+
+    let told = 0;
+    LIVE.subscribe(() => { told += 1; });
+    h.authCb?.({ uid: "uid_test" });
+    await flush();
+
+    expect(LIVE.wallPass).toBe(false);
+    expect(told).toBeGreaterThan(0);
+    // …and the disk no longer says otherwise, so the next launch is
+    // walled from its first frame rather than flashing the app.
+    expect(mirror()).toBe(null);
+  });
+
+  it("is written when auth links the session, and opens the next launch", async () => {
+    await seedWarmDevice();
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await releaseAll(LIVE);
+    // The device has never passed the wall: nothing on disk says it has,
+    // and the anonymous session auth confirmed does not.
+    expect(LIVE.wallPass).toBe(false);
+    expect(mirror()).toBe(null);
+
+    // The account is upgraded (D134's link, or a sign-in at the door).
+    h.authCb?.(linkedUser);
+    await flush();
+    expect(LIVE.wallPass).toBe(true);
+    expect(mirror()).toBe("1");
+
+    // Kill the app. The next launch draws its deck off disk before the
+    // SDK has been imported — and now draws the WALL off disk too.
+    relaunch();
+    h.autoAuth = false;
+    h.holdSignIn = true;
+    const mod2 = await import("./live");
+    await mod2.initLive(30_000);
+    expect(mod2.default.ready).toBe(true);
+    expect(mod2.default.wallPass).toBe(true);
+  });
+
+  it("follows the inbox poll, which moves the verdict without the observer", async () => {
+    // A password account exists the moment Firebase accepts it, and the
+    // wall holds it at "confirm your address" until the mail is clicked.
+    // Clicking it changes nothing on this device — LIVE.refreshVerification
+    // is what learns about it, and it writes the flag itself rather than
+    // waiting for an observer that may never fire. The mirror is part of
+    // that flag now; without this write the next launch would flash the
+    // wall at exactly the person who just confirmed their address.
+    await seedWarmDevice();
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await releaseAll(LIVE);
+
+    h.authCb?.({
+      uid: "uid_test",
+      isAnonymous: false,
+      emailVerified: false,
+      email: "a@b.c",
+      providerData: [{ providerId: "password" }],
+    });
+    await flush();
+    expect(LIVE.needsEmailVerify).toBe(true);
+    expect(LIVE.wallPass).toBe(false);
+    expect(mirror()).toBe(null);
+
+    expect(await LIVE.refreshVerification()).toBe(true);
+    expect(LIVE.wallPass).toBe(true);
+    expect(mirror()).toBe("1");
+  });
+
+  it("is swept with everything else when the account is switched", async () => {
+    // purgeLocalTrace takes the `insight.` namespace whole, which is the
+    // only reason this key needs no wiring of its own — and the reason it
+    // is spelled with the prefix. A device handed on with a deleted
+    // account must not hand on an open wall with it.
+    await seedWarmDevice();
+    storage.setItem(AUTH_MIRROR_LS, "1");
+    h.autoAuth = false;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    expect(LIVE.wallPass).toBe(true);
+
+    // Auth names a different account: the mirror's whole trace goes.
+    h.uid = "uid_new";
+    h.authCb?.({ uid: "uid_new" });
+    await flush();
+    expect(mirror()).toBe(null);
+    expect(LIVE.wallPass).toBe(false);
+  });
+
+  it("survives that switch when the account switched TO is linked", async () => {
+    // The ordering, which is the only thing this case is about: the
+    // observer writes the verdict, and the reset that follows purges the
+    // namespace it wrote into. A sync that ran only before the reset
+    // would leave a linked account with no mirror, and its next launch
+    // would flash exactly once for no reason.
+    await seedWarmDevice();
+    h.autoAuth = false;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+
+    h.uid = "uid_new";
+    h.authCb?.({ uid: "uid_new", isAnonymous: false, emailVerified: true, email: "b@c.d" });
+    await flush();
+    expect(LIVE.wallPass).toBe(true);
+    expect(mirror()).toBe("1");
   });
 });
 

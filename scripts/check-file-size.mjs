@@ -81,19 +81,29 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
  * for it is that wall with room to reach it, not yesterday's length.
  */
 export const SIZE_BASELINE = {
-  // 8,848 — 8,648 after the first slice left for data/localWrite.ts
-  // (D-2026-09-09h), plus main's 76 commits at the merge, plus the
-  // `scopeIds` docblock the merge itself needed. It was 1,285 lines 40
-  // days earlier, which is the number this ceiling exists for.
-  "src/v2/data/live.ts": { mode: "ratchet", lines: 8848 },
-  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4619 },
+  // 9,257, and the arithmetic is the argument for the meter rather than
+  // an embarrassment to be smoothed over. The first slice took ~90 lines
+  // out for data/localWrite.ts (D-2026-09-09h) and put the branch at
+  // 8,648; `main` ADDED 409 over the same three nights, reaching 9,179 on
+  // its own tip, and the merge of the two is 9,257. So the file grew four
+  // times faster than it was being split, on nights when somebody was
+  // actively splitting it. It was 1,285 lines 40 days earlier. Every
+  // raise here is deliberate and lands in the commit that says why —
+  // which is the whole claim: not that the file has a target, but that it
+  // cannot get bigger without someone signing for it.
+  "src/v2/data/live.ts": { mode: "ratchet", lines: 9257 },
+  // +31 from main's feed work at the 2026-09-11 merge.
+  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4650 },
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2323 },
   // The suites are watched too, and for the same reason rather than out of
   // tidiness: vote.test.ts is the file that pins the whole window.LIVE
   // surface, so it grows every time the store does, and a 4,000-line test
   // file is as hard to read a failure out of as a 4,000-line module.
-  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4264 },
-  "firestore-tests/rules.test.ts": { mode: "ratchet", lines: 5199 },
+  // Both raised at the 2026-09-11 merge: +191 and +151 of real coverage
+  // from main's shifts. Growth that buys assertions is still growth a
+  // reader has to walk, so it is signed for here rather than exempted.
+  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4455 },
+  "firestore-tests/rules.test.ts": { mode: "ratchet", lines: 5350 },
   "functions/src/pure.ts": { mode: "ratchet", lines: 2798 },
   // GENERATED and appended daily by the content lanes — hence `ceiling`.
   // 40,000 is chosen from what actually breaks rather than from taste: it

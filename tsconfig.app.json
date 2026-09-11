@@ -28,6 +28,19 @@
     "jsx": "react-jsx",
 
     /* Linting */
+    /* The three projects here and functions/tsconfig.json used to hold three
+       DIFFERENT subsets of these: this one and tsconfig.node.json had no
+       noImplicitReturns, functions/ had no noUnusedParameters and no
+       noFallthroughCasesInSwitch. Nothing chose those subsets — they are what
+       three configs written at three different times happen to contain, and
+       each missing flag costs zero errors today (measured: tsc -b, the
+       functions build and functions/tsconfig.test.json all stay at 0 with the
+       full set). Aligned, so the strictness of a file no longer depends on
+       which project happens to include it.
+       Note what this still does NOT reach: the app project compiles .ts/.tsx
+       only, so the spec layer's ~33k lines of JSX have no return-path check
+       at all and eslint remains the only thing looking at them. */
+    "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,

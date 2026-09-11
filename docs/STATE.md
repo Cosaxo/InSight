@@ -26,10 +26,10 @@ Largest single line: **InSight night worker** — $2,325.68 in the measured wind
 
 | | Count |
 | --- | ---: |
-| Questions in the bank | 1,417 |
-| Daily deck runway | 99 days |
-| Answers counted | 107 |
-| Unpromoted | 38 |
+| Questions in the bank | 1,536 |
+| Daily deck runway | 101 days |
+| Answers counted | 112 |
+| Unpromoted | 44 |
 
 **Answers counted** is the one number to read first, and the reason this
 page leads with cost: a program is only expensive relative to what it has
@@ -39,9 +39,9 @@ produced.
 
 | List | Open | Ticked |
 | --- | ---: | ---: |
-| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 138 | 3 |
-| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 4 | 0 |
-| [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 20 | 39 |
+| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 145 | 3 |
+| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 14 | 0 |
+| [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 39 |
 
 A tick is the mechanism the program runs on (`PROGRAM-PLAN.md` §2.4), so
 the ratio in the OWNER-LIST row is the throughput of the whole ask
@@ -51,10 +51,10 @@ channel — including every D334 privacy question a routine deferred into it.
 
 | | Count |
 | --- | ---: |
-| `check:*` gates | 50 |
+| `check:*` gates | 51 |
 | Cloud Functions | 46 |
 | …with an alert over them | 3 |
-| Decision records | 457 (29 amendments, 8 dated) |
+| Decision records | 461 (29 amendments, 8 dated) |
 
 ## Where to go next
 

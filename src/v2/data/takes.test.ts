@@ -474,6 +474,82 @@ describe("loadTakes caches for the session (the read bound)", () => {
     expect(LIVE.social.takes(GID).map((t) => t.id)).toEqual(["t1"]);
   });
 
+  it("says the read FAILED, which the pair of flags could not", async () => {
+    // The half `takesLoading` could not reach, and its own docstring
+    // named: the catch leaves the key absent so the case above can
+    // retry, which means the panel afterwards sees an empty list with
+    // nothing in flight — the same two facts a circle that never wrote a
+    // take produces. It printed "No takes yet. Say the first thing." on
+    // the strength of a read that did not happen.
+    const LIVE = await bootLive();
+    const mod = await import("firebase/firestore");
+    vi.spyOn(mod, "getDocs").mockRejectedValueOnce(new Error("offline"));
+
+    await LIVE.social.loadTakes(GID);
+    expect(LIVE.social.takes(GID)).toEqual([]);
+    expect(
+      LIVE.social.takesState(GID),
+      "a refused read is indistinguishable from an empty room",
+    ).toBe("failed");
+  });
+
+  it("…and a real empty result is still 'ready' — the control", async () => {
+    // Without this, answering 'failed' unconditionally would satisfy the
+    // case above and take the composer's invitation away from the one
+    // room it belongs to.
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes(GID);
+    expect(LIVE.social.takes(GID)).toEqual([]);
+    expect(LIVE.social.takesState(GID)).toBe("ready");
+  });
+
+  it("drops the mark when the retry is armed, not when it lands", async () => {
+    // The retry the case above this pair exists for. A mark that outlives
+    // its own attempt would keep the failed sentence on screen through a
+    // read that is working, and the arm is the moment the claim stops
+    // being about anything.
+    const LIVE = await bootLive();
+    const mod = await import("firebase/firestore");
+    vi.spyOn(mod, "getDocs").mockRejectedValueOnce(new Error("offline"));
+    await LIVE.social.loadTakes(GID);
+    expect(LIVE.social.takesState(GID)).toBe("failed");
+
+    h.takeDocs.push(takeDoc("t1", 1000));
+    await LIVE.social.loadTakes(GID);
+    expect(LIVE.social.takesState(GID)).toBe("ready");
+    expect(LIVE.social.takes(GID).map((t) => t.id)).toEqual(["t1"]);
+  });
+
+  it("is 'loading' while the query is in flight, after a failed one", async () => {
+    // The sentence on screen has to be about the attempt the reader is
+    // waiting on, not the one before it. Measured, not assumed, about
+    // WHICH line does that: reversing the two branches in `takesState`
+    // leaves this green, because the arm's clear has already dropped the
+    // mark by the time either is read — the ordering there is
+    // belt-and-braces, and the case above is what actually holds this.
+    // What this one pins is the in-flight branch existing at all:
+    // without it a retry reads 'ready' and the panel calls a room empty
+    // in the middle of reading it.
+    const LIVE = await bootLive();
+    const mod = await import("firebase/firestore");
+    vi.spyOn(mod, "getDocs").mockRejectedValueOnce(new Error("offline"));
+    await LIVE.social.loadTakes(GID);
+    expect(LIVE.social.takesState(GID)).toBe("failed");
+
+    let release: () => void = () => {};
+    const held = new Promise<void>((r) => { release = r; });
+    vi.spyOn(mod, "getDocs").mockImplementationOnce(
+      async () => { await held; return { docs: [] } as never; },
+    );
+    const p = LIVE.social.loadTakes(GID);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(LIVE.social.takesState(GID)).toBe("loading");
+    release();
+    await p;
+    expect(LIVE.social.takesState(GID)).toBe("ready");
+  });
+
   it("keys per question in world scope, so a different qid still fetches", async () => {
     const LIVE = await bootLive();
     await LIVE.social.loadTakes("world", "q_1");

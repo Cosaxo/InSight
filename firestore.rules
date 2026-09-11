@@ -389,6 +389,25 @@ service cloud.firestore {
         // the coordinate is never COMPUTED without it (data/live.ts), and
         // that is a client decision about a client-derived value either
         // way. A rule here would be theatre.
+        //
+        // ABSENCE IS NOT A FREE PASS — the third clause in this rule to
+        // learn it, after `handle` (below) and `testResults` (2026-09-10),
+        // and the one where it costs the most. Written as `!("consent" in
+        // …) || …`, a NON-merge write that simply omitted the key deleted
+        // the record. `testResults` is frozen to the client now, so the
+        // published `testResults.political` coordinate would STAY while
+        // its consent went — read back as "never asked"
+        // (`readPoliticalConsent` returns null), which is exactly the
+        // state D331 couples the two writes to make impossible.
+        //
+        // Nothing legitimate omits it: `request.resource.data` is the
+        // RESULTING document, so a merge that never mentions consent
+        // still presents the stored one, and a withdrawal is a server
+        // write (`saveTestResultV2`, admin SDK) that does not pass
+        // through here at all.
+        && (("consent" in request.resource.data)
+          || resource == null
+          || !("consent" in resource.data))
         && (!("consent" in request.resource.data)
           || (request.resource.data.consent is map
             && request.resource.data.consent.keys().hasOnly(["political"])
@@ -1658,6 +1677,17 @@ service cloud.firestore {
     // finding people is the directory below. So the grant is `get`, and
     // `list` is refused in writing — the registry answers "is @olaf
     // someone" and cannot be asked "who is everyone".
+    //
+    // READ THAT AS LEAST PRIVILEGE ON THIS COLLECTION, not as an
+    // anti-enumeration control for the app. `v2_users` is world-read and
+    // carries `handle` in its own allowlist, so (uid, handle) for every
+    // account is already enumerable by any signed-in reader — which the
+    // directory paragraph below says in as many words, and which
+    // `docs/data-inventory.md` states outright as an exposure delta of
+    // nil. The deny is worth keeping for the reason it was written:
+    // nothing in the app wants the list, so nothing is granted it. It is
+    // not what stands between a reader and the population, and a reader
+    // who takes it for that will look for a barrier that is not there.
     //
     // WRITE is server-only. A claim is two writes that must not
     // interleave (take the new key, release the old), and rules cannot

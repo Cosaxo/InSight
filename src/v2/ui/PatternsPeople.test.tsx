@@ -99,6 +99,35 @@ describe("the thin and loading states", () => {
     expect(screen.queryByText("Crowd too thin")).toBeNull();
   });
 
+  it("says the CROWD could not be read when every list settled empty", () => {
+    // The state between "still reading" and "thin", and the one nothing
+    // covered. `loadVoters` swallows each failure, leaves the key ABSENT
+    // on purpose so a later open retries, and drops its loading flag — so
+    // after a total refusal `votersLoading` is false everywhere and this
+    // fell through to "Crowd too thin", a confident claim about the crowd
+    // made from twelve lists that never arrived. `field.basis` already
+    // counted how many came back with rows; only the legend of the DRAWN
+    // state read it, where it can never be zero.
+    LIVE.voters = () => null;
+    LIVE.votersLoading = () => false;
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(screen.getByText("Could not read the crowd")).toBeTruthy();
+    expect(screen.queryByText("Crowd too thin")).toBeNull();
+    expect(screen.queryByText("Reading the crowd…")).toBeNull();
+  });
+
+  it("…and still says thin when the lists answered with a small crowd", () => {
+    // The control. One row that really arrived is a basis of one, so the
+    // new arm must not swallow the true sentence — this is the same
+    // fixture as the first case in this block, asserted against the new
+    // arm rather than against the old fall-through.
+    LIVE.voters = () => [row("only", 0)];
+    LIVE.votersLoading = () => false;
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(screen.getByText("Crowd too thin")).toBeTruthy();
+    expect(screen.queryByText("Could not read the crowd")).toBeNull();
+  });
+
   it("says the circle could not be READ, never that it is empty", () => {
     // loadFollows leaves its cache null on failure on purpose — "could not
     // ask" must not render as "you follow nobody". This lens collapsed the

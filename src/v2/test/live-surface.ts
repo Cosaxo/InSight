@@ -147,9 +147,18 @@ export const LIVE_MEMBERS = [
   // screen drives these three. `abandonSignIn` is the way out of a typo.
   "abandonSignIn", "accountEmail",
   "needsEmailVerify", "refreshVerification", "sendVerification",
+  // The wall's verdict as one boolean (D453) — `ui/SignInGate`'s only
+  // read, and the one member here whose answer is PROVISIONAL before the
+  // auth observer speaks. Listed beside the two flags it composes
+  // because a change to either has to be a change to it.
+  "wallPass",
   "linkApple",
   "linkGoogle", "linked", "myCity",
   "myVotes",
+  // The clear the store's two drains apply, for an aggregate THIS STORE
+  // DID NOT FETCH: `data/pulse` reads its own day-keyed documents, so a
+  // pulse id reached neither drain and its mark stood for the session.
+  "noteFolded",
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
   // that is the only thing the server ever returns about anyone.
   "near",
@@ -235,6 +244,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "revealHistoryLoading",
+  // …and the reader that finishes its sentence, for the caller that
+  // `void`s the loader's own answer rather than keeping it.
+  "revealHistState",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
   // Rounds (ROUNDS-PLAN, D426): where the account stands in a room's
   // rounds, and a given round's question.
@@ -249,6 +261,10 @@ export const LIVE_SOCIAL_MEMBERS = [
   // what makes the surface reviewed, and this one existed in state for a
   // long time without it.
   "takesLoading",
+  // …and the reader that finishes its sentence: 'loading' | 'ready' |
+  // 'failed', because the in-flight flag alone still let a refused read
+  // print "No takes yet."
+  "takesState",
   // Handles and invitations (D122) — the uid-addressed way into a circle.
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.

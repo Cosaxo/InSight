@@ -146,9 +146,16 @@ export function MatchRing({ pct, color = 'var(--accent)', size = 50, thick = 2.4
 // D39 that caveat is gone: consumers import these by name, so ordering is
 // the module graph's problem rather than a fact about a list.
 //
-// `useDialog` is for the eight full-screen overlays, which each own a
-// top-level `.overlay` div. `Sheet` is for the seven wf-scrim/wf-sheet
-// bottom sheets, whose markup is identical enough to be one component.
+// `useDialog` is for the full-screen overlays, which each own a top-level
+// `.overlay` div. `Sheet` is for the wf-scrim/wf-sheet bottom sheets, whose
+// markup is identical enough to be one component.
+//
+// Neither count is written here any more, and the reason is that both were
+// wrong: this said "eight" while `AskedByYouOverlay` had shipped as a ninth
+// with no dialog props at all — no Escape, no focus move, no trap, no
+// restore. Nothing enumerates them, so nothing could notice. The honest
+// list is `grep -rn 'className="overlay' src/v2/spec src/v2/ui`, and every
+// root it returns should spread `{...dlg}`.
 
 // What the trap treats as a Tab stop. Deliberately excludes
 // [tabindex="-1"]: the dialog container itself carries that so it can be

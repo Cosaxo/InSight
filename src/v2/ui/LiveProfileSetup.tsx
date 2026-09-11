@@ -255,14 +255,29 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
       written.current.anchors = vKey;
     }
     if (save) {
-      // Best-effort, like the anchors: a name that fails to write is worth
-      // less than the screen staying up over it, and the account panel is
-      // where it can be set again.
+      // Best-effort, like the anchors — and FIRE-AND-FORGET like them too,
+      // which the `await` here was not.
+      //
+      // `saveDisplayName` is a raw `setDoc`, and an offline Firestore write
+      // PARKS rather than rejecting: the promise simply never settles until
+      // the queue drains. So the `catch` below could not run offline, the
+      // await never returned, and `busy` stayed true — which disables Save,
+      // Skip and both politics chips. This screen has no close control, no
+      // Escape handler and no back layer; it is `position: fixed, inset: 0`
+      // on its own root outside `<App/>`. First run, offline, one tap on
+      // Save, and the app was unusable until it was killed.
+      //
+      // Unawaited, the queue still delivers the name when the connection
+      // comes back, `written.current.name` already dedupes, and the flow
+      // reaches the handle claim — the one step on this screen that IS
+      // allowed to hold the screen, because only it can fail for a reason
+      // the user has to see.
       const n = name.trim().slice(0, 60);
       if (newName && written.current.name !== n) {
         written.current.name = n;
-        try { await LIVE.saveDisplayName(n); }
-        catch { /* offline — the account panel keeps the field */ }
+        void LIVE.saveDisplayName(n).catch(() => {
+          /* refused rather than parked — the account panel keeps the field */
+        });
       }
       // The handle is NOT best-effort, and it is the one thing on this
       // screen that can fail for a reason the user must see: somebody else

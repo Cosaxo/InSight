@@ -74,7 +74,7 @@ who decides:
 | `src/v2/ui/` | The hand-written TSX panels — the live Mirror bodies, the duel, privacy, city and search panels. One test suite each, mutation-checked | `src/v2/README.md` § Panel tests |
 | `src/v2/test/` | The mount smoke tests over `src/v2/test/mount-app.jsx`. The only gate that renders the whole app — the spec layer's other three are all name-level | `src/v2/README.md` § Mount tests |
 | `src/v2/styles.css` | The design system, verbatim from the spec | — |
-| `src/v2/main.jsx` | Styles + spec-index, then renders `globalThis.App` | `src/v2/README.md` |
+| `src/v2/main.jsx` | Styles + spec-index, then renders the imported `App` inside `SignInGate`; the `globalThis.App` publication survives for the mount suites alone (D354) | `src/v2/README.md` |
 | `src/lib/` | Firebase init, anonymous-first auth, emulator wiring, Sentry | `docs/LOCAL-TESTING.md` |
 | `src/dev/` | `TweaksPanel.jsx`, the host-era design-time panel. Behind `import.meta.env.DEV` and a dynamic import, so a production build has no reference to this directory at all and rolldown drops it whole (D223) | `src/v2/README.md` |
 | `functions/src/` | `v2.ts` (seed + aggregates) · `v2social.ts` (groups, duos, reveals, push) · `moderation.ts` · `index.ts` (account deletion) · `exportAccount.ts` (its read-only twin, the data export — D443) · `ops.ts` (**where `setGlobalOptions` lives**) · `pure.ts` (the fold arithmetic) | `functions/README.md`, `docs/SCHEMA-V2.md` |
@@ -98,12 +98,18 @@ who decides:
 ## 4 · The documents
 
 **Status** is the column to read first: `tree` describes the app as it
-exists, `plan` is proposed and **not built** — do not read it as a
-description — `mixed` is partly built and says which half, and `past` is
-kept for its method or its record while its conclusion has moved. Four of
-these files declare "plan only" or "plan notes" in their own opening
-lines, and `check:docs` holds this column to that declaration in both
-directions.
+exists, `mixed` is partly built and says which half, `past` is kept for
+its method or its record while its conclusion has moved, and `plan` means
+**read that page's own Status line before you read its body**. `plan`
+used to be glossed as "proposed and not built", and that gloss is now
+narrower than the column: `check:docs` rule 7 pins this cell to `plan` for
+every page whose own opening lines still call itself a plan, and several
+of those were built and kept as the reasoning behind what shipped
+(ROUNDS-PLAN, RULES-BUDGET-PLAN, SPONSORED-PLAN and VISION-2026-09-09 are
+all built, all still declared plans by their own heads). The rule holds
+this column to that declaration in both directions — which is why the
+number of such files is not written here: it was "Four" while the gate's
+own regex found sixteen.
 
 | Document | What it answers | Status |
 | --- | --- | --- |
@@ -184,8 +190,8 @@ directions.
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
-| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | decided |
-| [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md) | The account wall and its three doors — Apple, Google and email/password, all BUILT 2026-09-07 and adopted as D414, on the owner's decision that the app should require an account. Why D219's condition was not met, what Apple guideline 4.8 binds the moment the wall goes up, why address verification stopped being deferrable, and what each of the five steps actually cost | describes |
+| [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) | Where the paid door lives, so Apple and Google take no cut of it. **Shape A adopted 2026-09-05 (D368)**: the funnel leaves the binary, buying moves to a page under `web/`, the app keeps the results room. Taken before submission because both facts that make it cheap — zero sales, never reviewed — expire there | mixed |
+| [`SIGNIN-PLAN.md`](SIGNIN-PLAN.md) | The account wall and its three doors — Apple, Google and email/password, all BUILT 2026-09-07 and adopted as D414, on the owner's decision that the app should require an account. Why D219's condition was not met, what Apple guideline 4.8 binds the moment the wall goes up, why address verification stopped being deferrable, and what each of the five steps actually cost | tree |
 | [`SPONSORED-PLAN.md`](SPONSORED-PLAN.md) | The paid system remade around one product — the sponsored question with its own places in the feed, a menu price by reach with the per-answer refund as the guarantee, a shareable results page and one reviewed link after answering; the self-serve ad lane retired. Five steps, each sized as a PR, the three decisions it reverses named, and the owner's four calls listed; built in full on the owner's go — §2.1 (D375), §2.3 (D376), §2.2 (D377), §2.4 (D378) and §2.5 (D379); the page stays as the reasoning behind the five records | plan |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
@@ -233,6 +239,7 @@ everything else: the static gates, and where each one runs.
 | --- | --- | --- |
 | `check:appcheck` | deploy | Every callable demands App Check attestation or is named with the reason it cannot (D36). Omitting it is silent: the function builds, deploys, passes every test, and serves any caller on the internet |
 | `check:fn-runtime` | deploy | Function memory and timeout, that `setGlobalOptions` lives in `functions/src/ops.ts` where the hoisted re-export cannot miss it, that every trigger watches the database `firebase.json` deploys to (D165), and that the client calls the region the functions are served from — naming it once, never as a literal at a call site (D200, D201) |
+| `check:fn-types` | ci | The server half's TEST files, typechecked at last. `functions/tsconfig.json` excludes them (they must not ship to Cloud Functions) and the root `tsc -b` never reaches that directory, so a fake that stops matching the interface it stands in for is invisible to every gate — and only wrong where something reads the part it dropped, which is why the suite stays green. CI only, not deploy: a test file is never deployed, so this cannot say whether a rules fix is safe to ship |
 | `check:deploy-targets` | deploy | Every exported function appears in the deploy `--only` list. One missing name builds, tests green, and never deploys |
 | `check:content` | deploy | The compiled content matches `content/`, byte for byte, plus the invariants the seed path assumes |
 | `check:learn-sample` | deploy | `content/learn-sample.json` — the fixed slice of the learn bank the JS bundle carries (D284) — is what its source generates |
@@ -255,7 +262,7 @@ everything else: the static gates, and where each one runs.
 | `check:tap-targets` | ci | No button drawn under 44px without a grown hit box. `jsx-a11y` has no size rule, so `check:a11y` stayed green while every sheet's Close button was 26px |
 | `check:panel-suites` | ci | One test suite per hand-written panel in `src/v2/ui/`, as a ratchet. The convention was written down and drifted to nine panels with none, including the on-trial tab's |
 | `check:purge` | ci | Every store persisting `insight.*` state hears the local purge. Deleting the keys is half a wipe if the in-memory copy writes itself back |
-| `check:bundle` | ci | Four ceilings, of which `MAX_EAGER_KB` is the one to quote for a first-paint claim. Refuses to grade a build not made as the shipping one, and withholds the total-JS ceiling when the Sentry DSN is unset (D191) |
+| `check:bundle` | ci | Seven ceilings — the largest chunk, total JS, the eager graph, the largest EAGER chunk, blocking CSS, total CSS and fonts — of which `MAX_EAGER_KB` is the one to quote for a first-paint claim. It said four here from the day the row was written, which was exact then; D220–D223 added the three asset ceilings one commit later, so a reader consulting this table would not have learned that CSS and fonts are gated at all. Refuses to grade a build not made as the shipping one, and withholds the total-JS ceiling when the Sentry DSN is unset (D191) |
 | `check:eager-content` | ci | Question content may not be in the static first-paint graph. Walks static imports from `src/v2/main.jsx` and names the chain, because the edge that mattered was invisible to `check:bundle`: a module inlined into the entry chunk has no chunk of its own to read. Its allowlist is a shrink-only ratchet — a listed module that stops being eager fails too, asking for its line out (`check:globals` rule 4's shape) |
 | `check:file-size` | ci | A shrink-only ceiling on the files already too big to change safely — `live.ts`, `world-feed.jsx`, `v2content.ts`, the two largest suites. Not a line limit and no opinion about file size: the only claim is that a watched file does not get bigger by accident. Every other meter here reads a relationship; this reads the simplest property there is, which is why nothing caught `live.ts` going 1,285 → 8,682 lines in 39 days. `check:globals` rule 4's shape (a shrink also fails, asking for the number to come down with it) |
 | `check:versions` | ci | Five version numbers that must move together across three files |

@@ -160,8 +160,13 @@ describe("PulseTrends · not a trend yet, and whose fault that is", () => {
     await mount();
     const text = document.body.textContent || "";
     expect(text).toMatch(/2 days in — not a trend yet/);
+    // "tomorrow" left this sentence on 2026-09-11: `dueOn` makes weekly =
+    // Sundays and often = Mon/Wed/Fri, so on two of the three cadences the
+    // next ask is never tomorrow. What this case is really the control for
+    // is unchanged — that the instruction is given at all when YOU are the
+    // thin half.
     expect(text, "the one case where answering again is the actual advice")
-      .toMatch(/Answer again tomorrow/);
+      .toMatch(/Answer again next time it asks/);
   });
 });
 
@@ -228,6 +233,75 @@ describe("PulseTrends · a day nobody asked about is not a day you skipped", () 
       await mount();
       expect(document.body.textContent, "unasked days were reported as skips")
         .not.toMatch(/didn’t answer on/);
+    })();
+  });
+
+  it("does not call an unasked day, or today, a day you skipped — in the READOUT", () => {
+    // The same rule the count above follows, at the place the file's own
+    // comment calls "the one place numbers are read". That readout asked
+    // only `d.v == null`, so on a weekly pulse it said "you skipped" under
+    // eighteen of the twenty-one columns — and under TODAY, on the screen
+    // you reach from the still-open ask.
+    return (async () => {
+      for (let i = 0; i < DAYS; i++) setDay(i, { scheduled: false });
+      setDay(0, { v: 3, scheduled: true });
+      setDay(7, { v: 4, scheduled: true });
+      await mount();
+      expect(document.body.textContent, "an unasked day was read as a skip")
+        .not.toMatch(/you skipped/);
+      expect(document.body.textContent, "an unasked day should say it was not asked")
+        .toMatch(/not asked/);
+    })();
+  });
+
+  it("…and still says you skipped when the day really was asked", () => {
+    // The control, and it has to move the finger: the readout draws ONE
+    // day — `days[sel]`, which starts on today — so a case that only seeds
+    // skips elsewhere would be asserting against today's own row. The
+    // keyboard handler is the seam the panel gives for that.
+    return (async () => {
+      setDay(0, { v: 3 });
+      setDay(1, { v: 4 });
+      // The readout draws ONE day — `days[sel]`, which starts on the last
+      // column — so the skip has to BE that column. Clearing `today` there
+      // makes it an ordinary scheduled day nobody answered, which is
+      // exactly what a skip is.
+      setDay(DAYS - 1, { scheduled: true, v: null, today: false });
+      await mount();
+      expect(document.body.textContent, "a real skip stopped being reported as one")
+        .toMatch(/you skipped/);
+    })();
+  });
+
+  it("counts your own side against the days it ASKED, not the window", () => {
+    // "your side is 1 day of 21" told a weekly answerer they had missed
+    // twenty days nobody asked them about. `askedN` is the number the
+    // footer three lines down already uses.
+    return (async () => {
+      for (let i = 0; i < DAYS; i++) { setDay(i, { scheduled: false }); setScope(i, { scheduled: false }); }
+      setDay(0, { v: 3, scheduled: true });
+      setScope(0, { scheduled: true });
+      setDay(7, { scheduled: true });
+      setScope(7, { scheduled: true });
+      await mount();
+      expect(document.body.textContent, "the window was quoted as the days asked")
+        .not.toMatch(/1 day of 21/);
+      expect(document.body.textContent).toMatch(/1 day of 2 asked/);
+    })();
+  });
+
+  it("does not promise the line starts tomorrow on a cadence that asks weekly", () => {
+    // `dueOn` makes weekly = Sundays and often = Mon/Wed/Fri, so for both
+    // the next ask is never tomorrow — and a weekly reading can only be
+    // OPENED on the day it asks, which made it wrong every time it showed.
+    return (async () => {
+      for (let i = 0; i < DAYS; i++) setDay(i, { scheduled: false });
+      setDay(0, { v: 3, scheduled: true });
+      setDay(7, { v: 4, scheduled: true });
+      await mount();
+      expect(document.body.textContent, "a weekly pulse was told to answer again tomorrow")
+        .not.toMatch(/again tomorrow/);
+      expect(document.body.textContent).toMatch(/next time it asks/);
     })();
   });
 

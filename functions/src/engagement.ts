@@ -651,7 +651,7 @@ export const MIN_SHARD_RATE = 0.001;
  * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
  * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
  * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
- * 1417 questions today, so a day cannot hold enough BANK qids to reach the
+ * 1536 questions today, so a day cannot hold enough BANK qids to reach the
  * fence. This said "the bank can double before this truncates anything
  * real" and check:figures kept the number current underneath it until the
  * claim expired: at 750 against 1,500 doubling lands exactly ON the fence,
@@ -1094,10 +1094,21 @@ export function foldRollups(rows: RollupRow[]): PeopleDelta {
 }
 
 /** How long one night may spend draining rollups before it hands the
- * rest to tomorrow — 300 of the pass's 480 seconds, leaving the folds
- * after it their share (DATA-EFFICIENCY-RUNBOOK 4.1). A page of
- * ROLLUP_FOLD_CAP is the memory bound; the budget is the time bound; the
- * two used to be one number, which meant the first page was the night. */
+ * rest to tomorrow — 300 of the pass's 480 seconds
+ * (DATA-EFFICIENCY-RUNBOOK 4.1). A page of ROLLUP_FOLD_CAP is the memory
+ * bound; this is the time bound; the two used to be one number, which
+ * meant the first page was the night.
+ *
+ * A SLICE, NOT A DEADLINE, and the pass is what turns it into one. The
+ * sentence here used to end "leaving the folds after it their share",
+ * which was never true of this fold: it runs LAST. What 300 seconds
+ * actually has to leave room for is the pass's own tail — the summary,
+ * the heartbeat and the failure report — and 300 counted from this
+ * fold's own first line could not: starting at t=250 it ends at t=550
+ * against a 480-second timeout, so the check below fires after the kill,
+ * or never. `runNightlyPass` hands down `deadlineAt` = the earlier of
+ * this slice and the pass's own ceiling, which is the only clock that
+ * can hold both promises. */
 export const ROLLUP_FOLD_BUDGET_MS = 300_000;
 
 export interface RollupFoldSummary {
@@ -1123,11 +1134,14 @@ export interface RollupFoldSummary {
 export async function runRollupFold(
   store: RollupStore,
   cap = ROLLUP_FOLD_CAP,
-  opts: { budgetMs?: number; nowMs?: () => number } = {},
+  opts: { deadlineAt?: number; nowMs?: () => number } = {},
 ): Promise<RollupFoldSummary> {
-  const budget = opts.budgetMs ?? ROLLUP_FOLD_BUDGET_MS;
   const clock = opts.nowMs ?? Date.now;
-  const started = clock();
+  // AN INSTANT ON THE PASS'S CLOCK, not a stopwatch of this fold's own
+  // (the constant's header): a caller with no deadline gets the slice
+  // from here, which is the old behaviour and is what a direct caller
+  // outside the nightly pass wants.
+  const deadlineAt = opts.deadlineAt ?? clock() + ROLLUP_FOLD_BUDGET_MS;
   let rollups = 0;
   const daysSeen = new Set<string>();
   let capped = false;
@@ -1167,7 +1181,7 @@ export async function runRollupFold(
     // of junk rows the fold declines and never marks — asking again
     // returns the same ones forever, the attention fold's own rule.
     if (page.length < cap || folded === 0) break;
-    if (clock() - started > budget) { capped = true; break; }
+    if (clock() >= deadlineAt) { capped = true; break; }
   }
   const left = capped ? await store.countUnfolded() : 0;
   return { rollups, days: daysSeen.size, capped, left };

@@ -549,7 +549,21 @@ const DEMO = process.argv.includes("--demo");
 // the entry graph. The feature is bigger and the boot is 15 KB lighter,
 // which is the trade the previous entry describes, run deliberately this
 // time rather than under a failing gate.
-const MAX_CHUNK_KB = 735;
+//
+// 735 → 340 (2026-09-09). NOT a win — a re-measurement. This ceiling was
+// last moved when the entry chunk WAS the largest chunk, at 723.4 KB; the
+// lazy groups since (the feed, the overlays, the Map, the Mirror, the duel
+// panel) took the entry down to 101 KB, and the largest chunk in the
+// shipping bundle is now the Firestore SDK at 297 KB. So the ceiling was
+// sitting 438 KB above anything it measured, which is not a ratchet — a
+// chunk could have doubled twice over without reddening it.
+//
+// 340 is this file's usual ~10 KB-convention margin taken above the
+// Firestore SDK, with room for legitimate firebase-js-sdk growth. What the
+// ceiling still catches at this height is one lazy group merging into
+// another, or a large dependency landing in a chunk that had none — entry
+// growth is MAX_EAGER_KB's job and has been since the deferrals.
+const MAX_CHUNK_KB = 340;
 // 2285 → 2292 (2026-08-16): D177's room tabs — Near's Answers · People ·
 // Compare, its shape functions and the store's room loader. Measured with
 // a DSN, so these are the numbers CI reads: total 2283 → 2289, eager
@@ -908,7 +922,35 @@ const MAX_TOTAL_JS_KB = 2440;
 // trip MEANS: no question lane can cause one — check:eager-content's
 // allowlist is down to three demo archives, none of which grows when a lane
 // writes — so this ceiling is measuring code in first paint and nothing else.
-const MAX_EAGER_KB = 552;
+//
+// 552 → 553 (2026-09-11): 1 KB, and the smallest raise in this file's
+// history by an order of magnitude, because the overrun is 369 BYTES. It is
+// recorded rather than absorbed for the reason every entry above exists —
+// a ceiling nobody signs for stops being a ceiling.
+//
+// WHAT BOUGHT THE BYTES, measured by building `origin/main` in a worktree
+// on the same commit and diffing the chunks rather than reasoning about it:
+// the whole 369 is in `live-*.js` (96,152 → 96,521) and none of it is a new
+// chunk. It is D-2026-09-09a's blind-vote filter and the `scopeIds` seam it
+// needed, D-2026-09-09b's `patternsSkill` read, and D-2026-09-09h's
+// `makeLsSet` factory — the first slice out of live.ts, which rolldown
+// inlines back into this same chunk, so the split cost bytes here and
+// bought testability there. main measured 551.997 against 552 on that same
+// build: THREE BYTES of headroom, which is why 369 bytes tripped a gate
+// that no single change of this size should be able to trip.
+//
+// AND THE RATE WARNING ABOVE IS NOW THE ANSWER, not a caveat. Three bytes
+// of headroom means the next commit of any kind trips this, and the
+// deferral this file has named twice is still sitting there: ~38 KB behind
+// app-shell.jsx's unconditional `<PassiveMeter />` (passive-meter,
+// result-card, type-marks, result-rose, explain-sheet), traced to its
+// anchor in the entry above. That is not done here because that entry is
+// right about what it is — "a design call about the header, not a
+// refactor", the header's lens ring popping in after the paint instead of
+// arriving with it. So it goes to the owner with its arithmetic
+// (docs/OWNER-LIST.md) rather than being taken on the way past, which is
+// what D352 asks of a limit that would block something.
+const MAX_EAGER_KB = 553;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

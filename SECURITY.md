@@ -45,10 +45,16 @@ In scope, and most interesting:
     answered, not where they are standing.
   - Push tokens at `v2_users/{uid}/push/tokens` — a credential. Anything
     that reads one is in scope.
-- **Duel answers before their reveal.** Sealed until the next-day reveal
-  doc exists. This is a game-integrity boundary rather than a privacy
-  one, and it is still a finding: reading a groupmate's pick early, or
-  answering a day already revealed, breaks the mechanic.
+- **Duel answers before their reveal.** Sealed until that ROUND's reveal
+  doc exists — written when everyone has played, or at the round's
+  48-hour deadline for whoever did (D426/D437; not a calendar day, which
+  is what this said until 2026-09-11). This is a game-integrity boundary
+  rather than a privacy one, and it is still a finding: reading a
+  groupmate's pick before that doc exists breaks the mechanic. Answering
+  a round that has already revealed does NOT — the rules permit it and
+  require `late: true` on it, which is what keeps a straggler's answer
+  out of the scoring (ROUNDS-PLAN §4). Writing an UNFLAGGED answer to a
+  revealed round is the finding there.
 - **The Cloud Functions callables** in `functions/src/` — authorization,
   rate limiting, invite-code minting, membership caps.
 - **`deleteAccount`** — anything it fails to erase, including data about a

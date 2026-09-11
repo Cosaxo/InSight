@@ -889,9 +889,9 @@ describe("runRollupFold", () => {
   it("a budget stop leaves the rest unfolded — not lost — and says how many", async () => {
     const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, "2026-08-22"));
     const { store, state } = rollupStore(many);
-    // a clock that has already spent the budget by the first page's end
+    // a clock that is already past the deadline by the first page's end
     let t = 0;
-    const res = await runRollupFold(store, ROLLUP_FOLD_CAP, { budgetMs: 1000, nowMs: () => (t += 2000) });
+    const res = await runRollupFold(store, ROLLUP_FOLD_CAP, { deadlineAt: 1000, nowMs: () => (t += 2000) });
     expect(res.capped).toBe(true);
     expect(res.rollups).toBe(ROLLUP_FOLD_CAP);
     expect(res.left).toBe(25_000 - ROLLUP_FOLD_CAP);
@@ -900,6 +900,30 @@ describe("runRollupFold", () => {
     const again = await runRollupFold(store);
     expect(again).toMatchObject({ rollups: 25_000 - ROLLUP_FOLD_CAP, capped: false, left: 0 });
     expect(state.rows).toHaveLength(0);
+  }, DRAIN_TIMEOUT_MS);
+
+  it("takes the pass's deadline over its own slice, and a caller without one keeps the slice", async () => {
+    // The half a fold-local stopwatch could not express, and the reason
+    // the option is an INSTANT: the nightly pass hands down the earlier
+    // of this fold's slice and the invocation's own ceiling, so a fold
+    // that starts late stops early instead of running past the kill.
+    // Here the pass's instant is 4,500 and the clock reads 5,000 at the
+    // end of the first page — already past it — while the slice alone
+    // would have allowed 5,000 + 300,000 and drained all 25,000.
+    const many = Array.from({ length: 25_000 }, (_, i) => rr(`u${i}`, "2026-08-22"));
+    const { store } = rollupStore(many);
+    let t = 4_000;
+    const res = await runRollupFold(store, ROLLUP_FOLD_CAP, { deadlineAt: 4_500, nowMs: () => (t += 1_000) });
+    expect(res.capped, "the pass's ceiling did not stop the fold").toBe(true);
+    expect(res.rollups).toBe(ROLLUP_FOLD_CAP);
+
+    // …and the control: the same clock with no deadline at all falls back
+    // to the slice from here, which is 300 seconds away, so nothing stops.
+    const { store: s2 } = rollupStore(Array.from({ length: 25_000 }, (_, i) => rr(`v${i}`, "2026-08-22")));
+    let t2 = 4_000;
+    const res2 = await runRollupFold(s2, ROLLUP_FOLD_CAP, { nowMs: () => (t2 += 1_000) });
+    expect(res2.capped, "a direct caller lost the slice the constant names").toBe(false);
+    expect(res2.rollups).toBe(25_000);
   }, DRAIN_TIMEOUT_MS);
 
   it("stops on a full page of junk rather than asking for it forever", async () => {
@@ -1002,7 +1026,7 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
     } as unknown as Parameters<typeof firestoreAttentionStore>[0];
 
     const store = firestoreAttentionStore(db);
-    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: 3 }, q: {}, qOther: 0 }, ["shard1"]);
+    await store.applyAttention("2026-09-05", { devices: 1, s: { opens: { reach: 3, est: 3 } }, q: {}, qOther: 0 }, ["shard1"]);
     expect(calls[0].data.attn.s, "the guard removed a real counter map").toBeTruthy();
   });
 
@@ -1063,7 +1087,7 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
       day: "2026-08-25", actives: 3, firstTime: 1, votes: 4, events: 5,
       bySurface: { daily: 3 },
       returned: {
-        d1: { of: 2, came: 1 }, d7: { of: 0, came: 0 }, d30: { of: 0, came: 0 },
+        d1: { of: 2, returned: 1 }, d7: { of: 0, returned: 0 }, d30: { of: 0, returned: 0 },
       },
       streaksBroken: 0,
     });
@@ -1173,7 +1197,7 @@ describe("the digest's ledger read (D399)", () => {
   // built with, which in production is the night's shared memo.
   it("ledgerDay is the reader the store was built with (D399: one read a night, three folds)", async () => {
     const asked: string[] = [];
-    const reader = async (day: string) => { asked.push(day); return [{ uid: "u1", qid: "daily-000" }]; };
+    const reader = async (day: string) => { asked.push(day); return [{ id: "ev1", at: 1_756_000_000_000, uid: "u1", qid: "daily-000" }]; };
     const db = {
       // firestoreEngagementStore takes a metaRef off its first collection
       // before returning; ledgerDay never touches it.
@@ -1181,7 +1205,7 @@ describe("the digest's ledger read (D399)", () => {
     } as unknown as Parameters<typeof firestoreEngagementStore>[0];
     const rows = await firestoreEngagementStore(db, reader).ledgerDay("2026-08-25");
     expect(asked).toEqual(["2026-08-25"]);
-    expect(rows).toEqual([{ uid: "u1", qid: "daily-000" }]);
+    expect(rows).toEqual([{ id: "ev1", at: 1_756_000_000_000, uid: "u1", qid: "daily-000" }]);
   });
 });
 

@@ -138,9 +138,12 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     const src = read("velocity.ts");
     const m = /\.select\(([^)]*)\)/.exec(src);
     expect(m, "the ledger scan's .select() moved or was renamed — this case is vacuous").toBeTruthy();
+    // `expect(...).toBeTruthy()` narrows nothing for the compiler, and this
+    // case's whole point is that it must not read `m[1]` off a null match.
+    if (!m) return;
     for (const field of ["uid", "qid", "at", "fromIdx"]) {
       expect(
-        m[1],
+        m![1],
         `velocity.ts's scan drops \`${field}\` from its projection`,
       ).toContain(`"${field}"`);
     }

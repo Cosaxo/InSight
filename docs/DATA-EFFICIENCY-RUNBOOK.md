@@ -150,9 +150,23 @@ and the city samples' bound.
       cuts them to the cap in the sample's own order BEFORE the merge
       (exact: an addition dropped there is outranked by cap others in the
       final sort), then merges; the same call takes the day's stamps and
-      refreshes every row it rewrites anyway, so a new name reaches the
-      rows of questions the person did not answer today, for the samples
-      the night touches. An edit keeps its create's stamp.
+      applies them to the day's OWN rows. An edit keeps its create's stamp,
+      and the day's map is what supplies one to an edit that carries none.
+      **It used to refresh EVERY row it rewrote**, on the argument that a
+      new name would then reach questions the person did not answer today
+      — and the argument is backwards: the day's map is built from the
+      LEDGER, so it is the profile as of when they answered, while
+      `profileFanout.restampSamples` writes the same fields with the
+      profile as it stands now. Against a row the fan-out had already
+      corrected, this wrote the older copy back, nightly, on a
+      world-readable document — including republishing a political
+      coordinate whose consent had been withdrawn (D330/D331). The
+      fan-out and its nightly heal own the rows the day did not touch;
+      they read the current profile, this cannot. **Still open** and on
+      `OWNER-LIST.md`: a row the day DOES write still takes the
+      as-of-answer stamp, so a withdrawal made after answering is
+      republished on that day's own questions until the next profile
+      change.
 - [x] **2.3 The device stops reading profiles for people the sample
       named. DONE 2026-09-08** — `fetchSampleDoc` fills the three caches
       from rows that carry `n`, where the cache has nothing (a value read
@@ -229,12 +243,20 @@ as a fallback until the backfill has run.
       own document, atomic with the ledger mark, so a redelivered event
       that returns on the ledger writes nothing here either and a crash
       cannot leave the map behind the count. The edit branch moves the
-      entry after its retry guard. **No `ANSWER_MAP_CAP` guard**: one
-      answer per question means the map holds at most one entry per
-      question — bounded by the bank (~23 KB today), not by time, and the
-      1 MiB ceiling sits past 40,000 questions, SCALE-PLAN's number to
-      watch; a guard on a bound nothing approaches is a branch nothing
-      tests. `idempotence.test.ts` pins the create, the edit, the merge
+      entry after its retry guard. **No `ANSWER_MAP_CAP` guard**, and the
+      reason given here was wrong for one of the six surfaces: this said
+      the map is bounded by the bank and not by time, which holds for
+      daily, feed, test, learn and call — one answer per question, the
+      document id IS the question id — and does not hold for **pulse**,
+      whose answer qid is the composite `{qid}_{day}`. Five templates
+      today, so a daily-active account adds five keys a day forever:
+      ~24 bytes an entry, ~43 KB a year. The 1 MiB ceiling is still
+      distant (~24 years at that rate); the READ is the part that bites,
+      since `fetchAnswersOf` takes the whole document with no field mask
+      for up to `FOLLOW_CAP` = 50 members on one Circle open. Deferred
+      with the arithmetic rather than guarded, because both remedies cost
+      more than the guard — `answerMaps.ts`'s header has them.
+      `idempotence.test.ts` pins the create, the edit, the merge
       across questions and the redelivery; the e2e loop asserts the map
       lands with the count and moves with the edit.
 - [x] **3.3 The nightly heal. DONE 2026-09-08** — `runAnswerMapHeal`
@@ -301,7 +323,11 @@ reads until its second half is built, and says so.
       that folded nothing (junk rows the fold declines and never marks —
       asking again returns the same ones forever, the attention fold's
       own rule) or the time budget (`ROLLUP_FOLD_BUDGET_MS`, 300 of the
-      pass's 480 s). `capped` is true only when the budget ended it, and
+      pass's 480 s — a SLICE, which `runNightlyPass` turns into an
+      absolute instant: the earlier of that slice from where the fold
+      actually starts and the invocation's own ceiling less its tail,
+      since this fold runs LAST and 300 counted from t=250 would end
+      past the kill). `capped` is true only when the budget ended it, and
       then the summary carries `left` — a `count()` aggregation over the
       unfolded rollups, one read per 1,000 counted, paid only on a
       budget stop — so the warning names a number rather than a hope. `engagement.test.ts`: a 25,000-rollup fixture
