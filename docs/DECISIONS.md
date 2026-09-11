@@ -50233,3 +50233,121 @@ and two mount suites), `test:scripts` (82 / 1,380), `lint`, `tsc -b`,
 (50/50), `check:figures`, `check:a11y`, `check:tap-targets`,
 `check:public-copy`, `check:data-inventory`, `check:eager-content`,
 `build` + `check:bundle`.
+
+---
+
+## D454 · Name the thing, not its class — the fourth device report, and the catalogue cards that were written and never dealt
+
+**Decided:** 2026-09-11 · **Status:** binding
+
+The owner, reading the feed off a device: *"in a lot of questions you are
+a bit too general like what type of movie insted of concrete movies same
+with other things like famous persons."*
+
+The example is `f16`, *Rank by rewatchability* → **Comedies · Thrillers ·
+Sci-fi · Documentaries**: four categories where four films would be. The
+second half is a run of questions that ask about famous people and name
+none — *Dinner with one* → *a scientist you admire · a musician you love
+· a leader you'd grill*.
+
+**Why it is not a matter of taste, and this is the part worth writing
+down.** A category answer says which shelf someone browses. A named
+answer says who they are — and it is the one the app can draw a
+connection FROM. Two people who both said *Pulp Fiction* are joined by
+something an axis can read; two who both said "thrillers" are joined by a
+bucket a third of the world is in. `CLAUDE.md`'s opening is the test —
+does this create a link between data that did not exist? — and a class
+answer largely does not.
+
+### The bank already had the answer, unpromoted
+
+The catalogue lane has been writing `pick` cards into the archive
+(`PICK_QS`) since D14, one a day, six days a week. **41 cards in the
+archive, 24 in the live seed** — and the 17 that had never been promoted
+included **every film question, every video-game question, and three of
+the four athlete questions**. The live seed carried Pokémon, emoji,
+elements, countries and dogs, one athlete, and not one film.
+
+So the app's sharpest concrete-entity questions existed, were gated, and
+nobody had opened the gate: promotion is human-initiated by design
+(QUESTION-FARM.md § the catalog run — "a run's job is unchanged (write
+the archive); promotion stays a human-initiated step"), and no human had
+initiated it since D232's mechanism landed.
+
+Nine promoted, all three domains the report names, all three with
+pictures already on hosting (films 731, athletes 632, video games 632):
+
+| | |
+| --- | --- |
+| films | *Your favourite film?* · *The film you've rewatched the most?* · *The film that made you cry the most?* |
+| athletes | *The athlete you'd pay to watch in their prime?* · *The athlete whose life you'd want?* · *The athlete you'd want beside you, whatever the game?* |
+| video games | *The greatest video game ever made?* · *The game you've sunk the most hours into?* · *The game world you'd actually live in?* |
+
+Byte-for-byte through `npm run promote`, which is the only path — live
+hydration joins seed to archive by PROMPT-STRING EQUALITY, so a retyped
+prompt silently unhooks the card. Provenance rows written with them
+(D97); the 1-in-20 audit shortfall accrues as it already did.
+
+`colors` and `languages` are equally ready and equally unpromoted (eight
+more cards). Not taken here: the report names movies, people and things,
+and a promotion is a content decision the owner can make one line at a
+time now that the path is warm.
+
+### The one retirement, and the ones deliberately not taken
+
+`f16` is retired (`active: false`), because it is the report's own
+example and because its concrete successor is now in the bank: *The film
+you've rewatched the most?* asks the same question of a thousand films
+instead of four genres. Retirement rather than an edit is the only legal
+fix — **a shipped question's options are never edited or reordered**,
+since answers store (qid, optionIdx) forever and a reorder silently
+re-keys them (the D30 failure class, QUESTION-FARM.md).
+
+Four more questions carry the new warning and stay active, which is the
+honest half:
+
+- `f51` *Dinner with one* and `f107` *A new statue for your town square*
+  would both be better with names — but `f51` is `core: true`, so
+  retiring it shrinks the Mirror's corpus and can close the patterns tab
+  for someone who had earned it (D265's remembered crossing exists for
+  exactly this). That is the owner's call, not a night's.
+- `f103` *Whose diary would you rather read? Someone famous · A stranger
+  your age* is the warning's own false positive: the contrast between a
+  class and a stranger IS the question.
+- `f135` *One genre forever* is about genres. A class is not a defect
+  when it is the subject.
+
+### The rule, and the half of it a gate can hold
+
+`docs/QUESTION-FARM.md` § Writing the questions gains the rule beside
+D-series' *"named people are question material"* (2026-08-15), which it
+extends: that one says a name is allowed, this one says the general form
+is the weaker question. It carries the test (*could a concrete entity
+stand in this option's place and keep the question honest?*), the three
+exceptions (a stance, a format, a class that is the subject), and the
+escalation — where the app has a catalogue, the sharpest form is not four
+named options but a `pick` card over the whole thousand.
+
+`check:quality` warns on the two shapes a word list can see: a genre as
+an option on a movies/music card, and a person class ("a scientist",
+"someone famous") as an option. **It can only ever warn.** The judgement
+it wants — is this question about a stance or about things in the world?
+— is not one a list can make, and a gate that refuses on it would refuse
+*Musicals: joy, or endurance?*
+
+Two false positives were measured and fixed before it shipped, and they
+are why the two lists carry their own topics rather than one shared set:
+the genre list called Dwayne Johnson a music genre (*The Rock* → rock,
+once a leading article was stripped) and a chess time control another
+(*Blitz or classical?*). It now fires on **5 of 557 active feed
+questions**, each a writer's call — the ratio is pinned by test, because
+a list that fires on a tenth of the bank is one whose warnings stop being
+read.
+
+**Measured:** `check:content` (1,545 questions), `check:quality`,
+`check:catalogs`, `check:catalog-art`, `check:neighbors` (pick 41,
+closest pair 0.429), `check:taxonomy`, `check:seed-fields`,
+`check:figures` (nine prose figures corrected: the bank count in five
+documents, the political-consent corpus, the circle cap's answerable
+count, and the bank's wire size), `test:scripts` (82 / 1,386),
+`test:unit`.

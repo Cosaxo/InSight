@@ -3289,7 +3289,8 @@ const BANK_0: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f17",
@@ -15519,6 +15520,114 @@ const BANK_3: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "pick-pk26",
+  "surface": "feed",
+  "seq": 1024,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "Your favourite film?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk27",
+  "surface": "feed",
+  "seq": 1025,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "The film you’ve rewatched the most?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk31",
+  "surface": "feed",
+  "seq": 1026,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "The film that made you cry the most?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk30",
+  "surface": "feed",
+  "seq": 1027,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete you’d pay to watch in their prime?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk34",
+  "surface": "feed",
+  "seq": 1028,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete whose life you’d want?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk41",
+  "surface": "feed",
+  "seq": 1029,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete you’d want beside you, whatever the game?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk37",
+  "surface": "feed",
+  "seq": 1030,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The greatest video game ever made?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk38",
+  "surface": "feed",
+  "seq": 1031,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The game you’ve sunk the most hours into?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk40",
+  "surface": "feed",
+  "seq": 1032,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The game world you’d actually live in?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,
@@ -16401,7 +16510,9 @@ const BANK_3: V2SeedQuestion[] = [
    "Open door",
    "Full — sorry"
   ]
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gr15",
   "surface": "group",
@@ -16600,9 +16711,7 @@ const BANK_3: V2SeedQuestion[] = [
    "One house",
    "Rooms apart"
   ]
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gs9",
   "surface": "group",
@@ -20030,7 +20139,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "estab",
   "test": "political"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-values-00",
   "surface": "test",
@@ -20192,9 +20303,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "moral",
   "test": "values"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-09",
   "surface": "test",
@@ -23776,7 +23885,9 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "sympathy",
   "invert": true
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-120",
   "surface": "test",
@@ -23952,9 +24063,7 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "orderliness",
   "invert": true
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-129",
   "surface": "test",
@@ -27928,7 +28037,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 44,
   "k": "About 20,000 human genes",
   "w": "Far fewer than the pre-genome guess of 100,000. The famous 3 billion counts base pairs, not genes."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-gene12",
   "surface": "learn",
@@ -28126,9 +28237,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 62,
   "k": "Red Spot: Jupiter's storm",
   "w": "A storm wider than Earth that has been blowing for at least 200 years."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol11",
   "surface": "learn",
