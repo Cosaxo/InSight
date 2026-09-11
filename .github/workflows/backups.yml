@@ -1,0 +1,108 @@
+# Put a restorable copy of the database in place, from the credential that
+# is already here.
+#
+# WHY THIS EXISTS. The tree had no backups and no point-in-time recovery.
+# Not "had them misconfigured" — had none, and knew it only as two cost
+# footnotes in `docs/COST-EXPOSURE.md` §7 listing things that page could not
+# verify from here. Meanwhile D290's invariant makes the answer documents the
+# single source every other recovery path in this repo reads FROM:
+# `rebuild-aggregate` and `replay.ts` rebuild aggregates out of them, so
+# neither can help if the answers are what is lost.
+#
+# This is `monitoring.yml`'s shape one API over, deliberately: same
+# FIREBASE_SERVICE_ACCOUNT, same `environment: production`, same
+# dispatch-only, same `apply` off unless asked. Read that file's header for
+# why the environment line does more than scope a secret — it also means this
+# can only run from `main`, i.e. from something that went through review.
+#
+# NOT ON THE DEPLOY PATH, and it must not become one, for monitoring.yml's
+# reason rather than a new one: a pipeline that can create a backup schedule
+# can delete one, in a deploy that was about something else, and the blast
+# radius here is the entire product. `firebase-deploy.yml` calling this would
+# be the same mistake DEPLOYMENT.md § Alerting already refuses.
+
+name: Backups
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "CREATE the schedules and turn PITR on. Off = report what is missing and change nothing."
+        type: boolean
+        default: false
+      weekly_day:
+        description: "Which day the weekly backup runs"
+        type: choice
+        default: SUNDAY
+        options: [SUNDAY, MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY]
+
+permissions:
+  contents: read
+
+# Two runs would each see the same schedules missing and each create them,
+# and a duplicate backup schedule is not a harmless duplicate — it doubles
+# the backup storage bill silently and forever. The script matches on
+# recurrence for the same reason; this is the other half of the belt.
+# Not `cancel-in-progress`: killing a run between PITR and the schedules
+# leaves half the protection in place and reports nothing.
+concurrency:
+  group: backups
+  cancel-in-progress: false
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Arm
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          # pipefail, for the reason seed-content.yml records: `cmd | tee`
+          # reports TEE's status, so without it a FAILED run is a green job.
+          set -o pipefail
+          # `apply` and `weekly_day` are both interpolated, and that is safe
+          # for the reason monitoring.yml states about its own boolean: these
+          # are type: boolean and type: choice, so the only values that can
+          # reach the shell are ones this file lists above. Free text would
+          # have to travel through the environment instead.
+          ARGS=(--weekly-day "${{ inputs.weekly_day }}")
+          [ "${{ inputs.apply }}" = "true" ] && ARGS+=(--apply)
+          node scripts/backups.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/backups.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Backups"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/backups.txt" 2>/dev/null || echo "(the script did not run — see the step log)"
+            echo '```'
+            echo ""
+            echo "#### Reading it"
+            echo ""
+            echo "\`+ … would create\` is a DRY RUN. Nothing was changed. Re-dispatch with"
+            echo "\`apply\` on to create them."
+            echo ""
+            echo "A failure naming \`roles/…\` is a role missing from the deploy service"
+            echo "account, not a code change — the line names the exact role and the"
+            echo "account to grant it to."
+            echo ""
+            echo "**\`restorable now\` is the only line that is evidence.** The schedules are"
+            echo "a promise about the future; a schedule takes up to a day to produce its"
+            echo "first backup, so a run immediately after arming reports NOTHING and that"
+            echo "is correct. Re-run \`report\` tomorrow, or read it with **Observe"
+            echo "production** (\`backups.pitr\`, \`backups.daily\`, \`backups.weekly\`)."
+            echo ""
+            echo "And a schedule is still not a restore. The first real test is restoring"
+            echo "into a scratch database and reading a row back. Until that has happened"
+            echo "once, recovery here is a belief — a well-evidenced one, but a belief."
+          } >> "$GITHUB_STEP_SUMMARY"

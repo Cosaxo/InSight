@@ -113,6 +113,7 @@
     "screens": "node scripts/device-screens.mjs",
     "asc:push": "node scripts/asc-push.mjs",
     "monitoring:apply": "node scripts/apply-monitoring.mjs",
+    "backups": "node scripts/backups.mjs",
     "check:monitoring": "node scripts/check-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "testuser": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/test-users.mjs",
