@@ -319,7 +319,7 @@ export const digestEngagementV2 = onSchedule(
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
       fanout: (deadlineAt) => runFanoutHeal(firestoreFanoutHealStore(db), { deadlineAt }),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
-      rollup: () => runRollupFold(firestoreRollupStore(db)),
+      rollup: (deadlineAt) => runRollupFold(firestoreRollupStore(db), ROLLUP_FOLD_CAP, { deadlineAt }),
     });
   },
 );

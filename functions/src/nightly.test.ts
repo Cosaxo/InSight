@@ -7,6 +7,7 @@
 // around them, which is the part the old three-function arrangement got
 // for free from being three functions and this file has to earn.
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { runNightlyPass, PASS_CEILING_MS, PASS_TAIL_MS, type NightlyRunners, type NightlyLog } from "./nightly";
 import { ROLLUP_FOLD_BUDGET_MS } from "./engagement";
 import { FANOUT_HEAL_SLICE_MS } from "./profileFanout";
@@ -60,6 +61,46 @@ function healthy(): NightlyRunners & { ran: string[]; deadlines: number[]; deadl
     rollup: async (deadlineAt: number) => { ran.push("rollup"); deadlineOf.rollup = deadlineAt; return { rollups: 3, days: 1, capped: false, left: 0 }; },
   };
 }
+
+describe("the production thunks", () => {
+  // A SOURCE SCAN, because nothing else here can see this. The runners
+  // are an inline object literal inside `onSchedule`, so no test can
+  // call them; every case in the file below drives FAKES, which take the
+  // parameter faithfully and prove nothing about the real wiring. And
+  // TypeScript accepts a zero-argument function where
+  // `(deadlineAt: number) => …` is declared — a narrower signature is
+  // assignable — so `tsc` and `check:fn-types` are green on a fold that
+  // silently never receives its deadline.
+  //
+  // That is not hypothetical: the rollup drain shipped exactly that way
+  // for a night. Its bound was the one the whole time-budget argument was
+  // written about — it runs LAST, so a fold-local 300 seconds can end
+  // past the invocation's kill and take the pass's tail with it — and the
+  // production thunk passed nothing, so the fold fell back to counting
+  // from its own first line while the pass computed a deadline and threw
+  // it away. The three folds beside it were wired; the one the commit was
+  // about was not.
+  //
+  // The list is derived from the INTERFACE rather than typed out, so a
+  // fifth fold that gains a bound is covered the day it gains it.
+  const src = readFileSync(new URL("./nightly.ts", import.meta.url), "utf8");
+
+  it("hands every bounded runner its deadline", () => {
+    const iface = src.slice(src.indexOf("export interface NightlyRunners"));
+    const bounded = [...iface.slice(0, iface.indexOf("\n}")).matchAll(/^\s{2}(\w+): \(deadlineAt: number\)/gm)]
+      .map((m) => m[1]);
+    expect(bounded.length, "no bounded runner found — the interface was reshaped and this scan is vacuous")
+      .toBeGreaterThan(2);
+
+    const at = src.indexOf("await runNightlyPass({");
+    expect(at, "the production call was renamed or reshaped").toBeGreaterThan(0);
+    const thunks = src.slice(at, src.indexOf("\n    });", at));
+    for (const name of bounded) {
+      expect(thunks, `${name} takes a deadline and the production thunk does not pass one`)
+        .toMatch(new RegExp(`${name}: \\(deadlineAt\\)`));
+    }
+  });
+});
 
 describe("runNightlyPass", () => {
   it("hands each time-bounded fold an INSTANT, not a stopwatch of its own", async () => {
