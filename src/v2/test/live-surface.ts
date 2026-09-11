@@ -29,8 +29,12 @@ export const LIVE_MEMBERS = [
   "aggregated",
   // The core feed questions with aggregates, same view models — the
   // Patterns pool's other half (v28 §2). Core only, D161's sample-bias
-  // rule; two-option only, the fit's own encoding.
+  // rule; OPTION-SHAPED only since D461 (two or more): the Map draws a
   "coreFeedAggregated",
+  // The catalogue cards, as much of one as a Map bead needs (D461) — id,
+  // prompt, topic, domain. Not a view model: `buildS` maps `q.options`
+  // and a catalogue question has none.
+  "catalogCards",
   // The unanswered place questions for a scope (D307) — the Scores
   // lens's ask rows. From the bank, not the aggregates: an unanswered
   // rates question usually has no counts yet, which is the point.

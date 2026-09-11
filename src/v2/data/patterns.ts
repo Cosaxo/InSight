@@ -62,7 +62,9 @@ import LIVE from "./live";
 import { byOf, type CohortDim } from "./cohort";
 import { cohortPrior, type CohortPrior } from "./cohortPrior";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
-import { fetchVoterPicks, fetchVoterSample, VOTER_FETCH_CAP } from "./voters";
+import { fetchVoterPicks, VOTER_FETCH_CAP, worldSampleId } from "./voters";
+
+
 import type { LiveQuestion } from "./deck";
 import {
   DEFAULT_LAMBDA_U,
@@ -320,10 +322,40 @@ function sayRows(qid: string): Promise<SayRow[]> {
   if (!p) {
     p = (async () => {
       const db = await getDb();
+      const { doc, getDoc } = await getFirestoreApi();
       // The nightly sample first (D397): one document for the same rows the
       // live query would read two hundred documents for. The live query
       // stays as the fallback for a question no sample exists for yet.
-      return (await fetchVoterSample(db, qid)) ?? fetchVoterPicks(db, qid);
+      //
+      // READ HERE RATHER THAN THROUGH `fetchVoterSample`, which drops a row
+      // with no option index — a catalogue pick's row is exactly that
+      // (D456 puts the entity where the option would be). Teaching that
+      // parse to the shared reader was the first draft and it cost 86
+      // bytes in the FIRST-PAINT graph, because `data/live.ts` imports
+      // that module statically and the Patterns tab is the only caller
+      // that wants those rows. `check:bundle`'s eager ceiling refused it,
+      // and the ceiling is right: it is what keeps the Firestore SDK out
+      // of first paint, and the answer to growth there is to put the code
+      // where it is used. This is the same one `getDoc`, in the lazy
+      // chunk that needs it.
+      const snap = await getDoc(doc(db, "v2_patterns", worldSampleId(qid)));
+      if (snap.exists()) {
+        const raw = (snap.get("rows") as Record<string, { o?: unknown; e?: unknown; a?: unknown }> | undefined) ?? {};
+        const out: SayRow[] = [];
+        for (const [uid, r] of Object.entries(raw)) {
+          const entity = typeof r?.e === "string" && r.e ? r.e : null;
+          const optionIdx = typeof r?.o === "number" ? r.o : -1;
+          if (!uid || (optionIdx < 0 && !entity)) continue;
+          out.push({
+            uid,
+            optionIdx,
+            ...(entity ? { entity } : {}),
+            ...(r?.a && typeof r.a === "object" ? { anchors: r.a as Record<string, string> } : {}),
+          });
+        }
+        if (out.length) return out;
+      }
+      return fetchVoterPicks(db, qid);
     })();
     // a failed fetch must not be cached as the crowd — drop it so the next
     // open retries (the loadVoters absent-vs-empty rule, applied here)
@@ -495,7 +527,7 @@ export function ensureLive(force = false): Promise<void> {
 
 /** The viewer's encoded answer on a question, or null. myVotes carries
  * option IDS; the encoding needs the index. */
-function encodedMine(q: LiveQuestion, votes: Record<string, string>): number | null {
+function encodedMine(q: RowQuestion, votes: Record<string, string>): number | null {
   const optId = votes[q.id];
   if (optId == null) return null;
   const idx = q.options.findIndex((o) => o.id === optId);
@@ -603,9 +635,15 @@ function rows(): MapRow[] {
   if (!LIVE.enabled || !loadings) return [];
   const items = loadings.items;
   const votes = LIVE.myVotes();
-  const byQid = new Map<string, LiveQuestion>();
+  const byQid = new Map<string, RowQuestion>();
   for (const list of [LIVE.aggregated(), LIVE.coreFeedAggregated()]) {
     for (const q of list) if (!byQid.has(q.id)) byQid.set(q.id, q);
+  }
+  // …and the catalogue cards, which are not option-shaped and so are not
+  // in either list (D461). A bead needs the prompt, the topic and the
+  // domain its entity is named from; the board itself is the feed's.
+  for (const c of LIVE.catalogCards()) {
+    if (!byQid.has(c.id)) byQid.set(c.id, { ...c, options: [] });
   }
   const out: MapRow[] = [];
   for (const [key, row] of Object.entries(loadings.q)) {
@@ -670,6 +708,16 @@ function rows(): MapRow[] {
   return out;
 }
 
+/** What a row's join needs of a question. A `LiveQuestion` satisfies it;
+ * so does a catalogue card, which is not one. */
+type RowQuestion = {
+  id: string;
+  text: string;
+  cat: string | null;
+  domain?: string | null;
+  options: readonly { id: string; label: string }[];
+};
+
 /** The dim's noun, for the card's head on a You bead — the profile's own
  * words, not the cube's field names. */
 const ANCHOR_TITLES: Record<string, string> = {
@@ -685,7 +733,7 @@ const ANCHOR_TITLES: Record<string, string> = {
 
 /** The viewer's option INDEX on a question, or null — `myVotes` carries
  * option ids, and every kind but `bin` needs the index. */
-function optionIndexOf(q: LiveQuestion, votes: Record<string, string>): number | null {
+function optionIndexOf(q: RowQuestion, votes: Record<string, string>): number | null {
   const optId = votes[q.id];
   if (optId == null) return null;
   const i = q.options.findIndex((o) => o.id === optId);

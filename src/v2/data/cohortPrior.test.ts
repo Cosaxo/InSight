@@ -108,3 +108,4 @@ describe("the cohort prior", () => {
     expect(cohortPrior(undefined, {}, [0, 0]).world).toEqual([0.5, 0.5]);
   });
 });
+

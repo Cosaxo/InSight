@@ -35,7 +35,8 @@ export interface LiveQuestion {
   branch?: string;
   sub?: string;
   type?: string;
-  /** The catalogue a `catalog` question draws from (D14). */
+  /** The catalogue a `catalog` question draws from (D14) — what the
+   * Map's card names and pictures a bead from (D461). */
   domain?: string | null;
   // The bank's short label, and which place a question RATES (D187).
   // `rates` is what makes the Scores card a scorecard of its stop rather
@@ -527,9 +528,6 @@ export function buildS(
     branch: q.branch,
     sub: q.sub,
     type: q.type,
-    // the catalogue a pick question draws from (D14) — the Map's card
-    // needs it to name and picture a bead (D461), and it is bank data
-    // like `type` beside it
     domain: q.domain ?? null,
     tag: q.tag,
     rates: q.rates,

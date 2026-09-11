@@ -1,7 +1,17 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// THE STORE IS MOCKED PER FILE, never spied on. `vi.spyOn(LIVE, "enabled",
+// "get")` was the first draft and it reached other files: the suite runs
+// `pool: "threads"`, so the module singleton is shared across a worker's
+// files, and a getter spy on it outlives its own `mockRestore` — which
+// vite.config.ts's own note predicts word for word ("if a strange
+// cross-file failure ever appears, start here"). It appeared two files
+// away, as `vote.test.ts` finding a live store where it had left a dead
+// one, one run in three.
+const live = vi.hoisted(() => ({ enabled: true }));
+vi.mock("./live", () => ({ default: live }));
+
 import { parseWorldDoc, resetWorldPositions, worldDocId, worldPositions } from "./worldPeople";
-import LIVE from "./live";
 
 describe("the world map's document id (D459)", () => {
   it("names the world's own and one per country code", () => {
@@ -48,9 +58,9 @@ describe("the read", () => {
   beforeEach(() => { resetWorldPositions(); });
 
   it("reads nothing on a demo build — the fit has published no people", async () => {
-    const spy = vi.spyOn(LIVE, "enabled", "get").mockReturnValue(false);
+    live.enabled = false;
     expect(await worldPositions(null)).toBeNull();
     expect(await worldPositions("NO")).toBeNull();
-    spy.mockRestore();
+    live.enabled = true;
   });
 });

@@ -103,12 +103,7 @@ export interface ProfileCaches {
 
 export interface Voter {
   uid: string;
-  /** The option index picked; −1 on a catalogue pick's row (D456), which
-   * every fold that reads 0/1 skips as it skips any foreign index. */
   optionIdx: number;
-  /** A catalogue pick's canonical entity key (D456) — the row's answer
-   * where a vote has its option index. */
-  entity?: string;
   /** The cohort this answer was given from — frozen at vote time (D8). */
   anchors: Record<string, string>;
   /** Display name, or "" when the voter has not set one. */
@@ -351,18 +346,13 @@ export async function fetchSampleDoc(
   const snap = await getDoc(doc(db, "v2_patterns", city ? citySampleId(qid, city) : worldSampleId(qid)));
   if (!snap.exists()) return null;
   const rows = (snap.get("rows") as Record<string, {
-    o?: unknown; e?: unknown; a?: unknown; d?: unknown; n?: unknown; s?: unknown; l?: unknown;
+    o?: unknown; a?: unknown; d?: unknown; n?: unknown; s?: unknown; l?: unknown;
   }> | undefined) ?? {};
   const out: { v: Voter; d: string }[] = [];
   let newestDay = "";
   for (const [uid, r] of Object.entries(rows)) {
-    if (!uid) continue;
-    // a vote's row carries its option; a catalogue pick's carries the
-    // entity instead (D456) and no option at all
-    const vote = typeof r?.o === "number";
-    const pick = typeof r?.e === "string" && r.e !== "";
-    if (!vote && !pick) continue;
-    const d = typeof r?.d === "string" ? r.d : "";
+    if (!uid || typeof r?.o !== "number") continue;
+    const d = typeof r.d === "string" ? r.d : "";
     if (d > newestDay) newestDay = d;
     if (caches && typeof r.n === "string") {
       if (!(uid in caches.names)) caches.names[uid] = r.n.trim().slice(0, 60);
@@ -374,9 +364,8 @@ export async function fetchSampleDoc(
     out.push({
       v: {
         uid,
-        optionIdx: vote ? (r.o as number) : -1,
-        ...(pick ? { entity: r.e as string } : {}),
-        anchors: (r?.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
+        optionIdx: r.o,
+        anchors: (r.a && typeof r.a === "object" ? r.a : {}) as Record<string, string>,
         name: caches?.names[uid] ?? "",
         isMe: uid === myUid,
       },

@@ -50910,7 +50910,54 @@ gate for a number should not depend on every OTHER number agreeing.
 No new read on the device: the rows are the loadings document's own, the
 metadata is what the fit already publishes so a phone can encode its
 answers (D395), and both corpora are in hand. The eager graph grew 64
-bytes (the entry 43, `live` 21) — which rounds the bundle gate's eager
-figure from 551 KB to 552 against a ceiling of 552, so **the eager budget
-now has no headroom**: the next change that touches first paint has to
-find some rather than raise it.
+bytes — and that sentence, written this morning, was put to the test the
+same day by this branch's own CI, which refused the head.
+
+**What happened, recorded because the prediction was half right.** The
+eager graph came out 95 bytes over a ceiling set to main's exact
+measurement (main clears 552 KB by three bytes). Trimming came first, and
+one trim was real: teaching `data/voters`' sample parse to keep a
+catalogue pick's row cost 86 bytes in first paint for the benefit of one
+LAZY caller, so the Patterns tab now reads that document itself, in its
+own chunk — better placed as well as cheaper.
+
+**One trim was refused by another gate, and that is the part worth
+keeping.** Reading the feed's pool through `globalThis.WORLD_FEED_QS`
+would have saved 64 more — the pool is already published and already
+carries every field the join needs. `check:globals` rule 4 failed it:
+new cross-module coupling through global scope, on a count that only
+moves down. Two ratchets pulled opposite ways and the architectural one
+won. That is the right outcome, and the rule it leaves behind: bytes are
+recoverable, a convention going backwards is not.
+
+**What the 95 bytes buy**, since they stayed: `domain` on a live question
+and `coreFeedAggregated` no longer filtering to two options — the typed
+path by which a choice, a scale and a catalogue card reach the Map at all
+— plus one chunk name in the entry's preload manifest, because the card
+shows a bead's picture and that splits `data/catalogArt` out of the feed's
+chunk. Nothing new is fetched before paint. `MAX_EAGER_KB` went to 553
+with that arithmetic in `check-bundle.mjs`, and with what it concedes
+stated there: at the exact measurement the gate had stopped being a budget
+and become an alarm on every byte. The Firestore-SDK guarantee the
+constant actually defends is untouched at 553.
+
+**And one defect the trimming found, two files away.** With the branch's
+own test files in the suite, `vote.test.ts`'s "a wake while offline does
+not retry" failed about one run in three — and three in three on the
+head CI had just passed, while `main` was clean twice over. It was not
+scheduling: `worldPeople.test.ts` drove its demo case with
+`vi.spyOn(LIVE, "enabled", "get")`, and the suite runs `pool: "threads"`,
+so the store's module singleton is shared across a worker's files and a
+getter spy on it outlives its own `mockRestore`. `vite.config.ts` predicts
+this in words — *"a test that leaks a global leaks it further than it used
+to … if a strange cross-file failure ever appears, start here"* — and this
+is the first time anything has. The case now mocks `./live` per file, the
+way every other data test does, and the full suite is green three runs
+running.
+
+**The headroom is still owed, and where it is is measured**:
+`data/voters` is ~8 KB of the eager graph because `data/live.ts` imports
+it statically, while all ~30 of its uses are in methods that run long
+after first paint. Deferring it as D122's handles and invitations are
+deferred, one file over, is the next change to that graph — its own
+change, not a rider on a feature.

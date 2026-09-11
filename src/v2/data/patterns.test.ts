@@ -57,15 +57,24 @@ const remote = vi.hoisted(() => ({
     items?: Record<string, { kind: string; qid: string; opt?: number; nOptions: number; dim?: string; bucket?: string; entity?: string }>;
     q: Record<string, { v: number[]; n: number; sum: number; sd?: number }>;
   },
+  /** The voter samples by document id (D397) — the pair card reads them
+   *  itself since D461, so the mock answers per id rather than handing
+   *  every read the loadings document. */
+  samples: {} as Record<string, Record<string, { o?: number; e?: string; a?: Record<string, string> }>>,
 }));
 vi.mock("../../lib/firebase", () => ({
   getDb: async () => ({}),
   getFirestoreApi: async () => ({
     doc: (_db: unknown, col: string, id: string) => ({ col, id }),
-    getDoc: async () => ({
-      exists: () => remote.doc != null,
-      get: (k: string) => (remote.doc as unknown as Record<string, unknown>)?.[k],
-    }),
+    getDoc: async (ref: { id?: string }) => {
+      const sample = ref?.id && remote.samples[ref.id];
+      if (sample) return { exists: () => true, get: (k: string) => (k === "rows" ? sample : undefined) };
+      if (ref?.id && ref.id.startsWith("sample-")) return { exists: () => false, get: () => undefined };
+      return {
+        exists: () => remote.doc != null,
+        get: (k: string) => (remote.doc as unknown as Record<string, unknown>)?.[k],
+      };
+    },
   }),
 }));
 
@@ -88,6 +97,10 @@ vi.mock("./voters", () => ({
   fetchVoters: voters.fetchVoters,
   fetchVoterSample: voters.fetchVoterSample,
   VOTER_FETCH_CAP: 200,
+  // D461: the pair card reads the sample document itself now — the shared
+  // reader drops a catalogue pick's row, and teaching it to keep one put
+  // bytes in the first-paint graph for the benefit of one lazy caller.
+  worldSampleId: (qid: string) => `sample-${qid}`,
 }));
 
 import { PATTERNS, ensureLive } from "./patterns";
@@ -139,6 +152,7 @@ beforeEach(async () => {
   live.anchors.mockReturnValue({});
   live.aggFor.mockReturnValue(null);
   remote.doc = null;
+  remote.samples = {};
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -433,19 +447,19 @@ describe("the pair card reads the nightly sample first (D397)", () => {
     publishFixture();
     live.myVotes.mockReturnValue({ qa: "qa:0" });
     await ensureLive();
-    const crowd = (side: number) => Array.from({ length: 20 }, (_, i) => ({ uid: `s${i}`, optionIdx: i < 15 ? side : 1 - side }));
-    voters.fetchVoterSample.mockImplementation(async (_db, qid) => (qid === "qa" ? crowd(0) : crowd(0)));
+    const crowd = (side: number) => Object.fromEntries(
+      Array.from({ length: 20 }, (_, i) => [`s${i}`, { o: i < 15 ? side : 1 - side }]));
+    remote.samples["sample-qa"] = crowd(0);
+    remote.samples["sample-qb"] = crowd(0);
     const say = await PATTERNS.say("qa", "qb");
     expect(say?.both).toBe(20);
-    expect(voters.fetchVoterPicks).not.toHaveBeenCalled();
-    expect(voters.fetchVoterSample).toHaveBeenCalledTimes(2);
+    expect(voters.fetchVoterPicks, "the live query ran with a sample on disk").not.toHaveBeenCalled();
   });
 
   it("falls back to the live picks for a question with no sample yet", async () => {
     publishFixture();
     live.myVotes.mockReturnValue({ qa: "qa:0" });
     await ensureLive();
-    voters.fetchVoterSample.mockResolvedValue(null);
     voters.fetchVoterPicks.mockResolvedValue([]);
     await PATTERNS.say("qa", "qb");
     expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2);
