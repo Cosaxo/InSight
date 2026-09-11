@@ -95,6 +95,22 @@
 .qm-qhead{display:flex;align-items:center;gap:8px}
 .qm-yours{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qm-prompt{font-family:var(--serif);font-size:21px;font-weight:500;line-height:1.22;color:var(--ink);margin:9px 0 0;text-wrap:pretty}
+/* the chip row a bead group's card opens with (D464): which answer the
+   ties are about. A tab bar in everything but name — one is always on,
+   and tapping another re-reads the ties — so it is sized for a thumb
+   (check:tap-targets) and its pictures are the catalogue's own. */
+.qm-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.qm-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;border:1.3px solid var(--rule);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);cursor:pointer}
+.qm-chip img{border-radius:5px;object-fit:cover;flex:none}
+.qm-chip.is-on{border-color:var(--accent);background:color-mix(in oklch,var(--accent),transparent 88%);color:var(--ink)}
+/* the You toggle above the field — off by default (D464) */
+.qm-youbar{display:flex;justify-content:flex-end;padding:0 2px 6px}
+.qm-you{display:inline-flex;align-items:center;gap:7px;min-height:34px;border:1.3px solid var(--rule);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:750;color:var(--ink-3);cursor:pointer}
+.qm-you i{width:26px;height:15px;border-radius:999px;background:var(--surface-3);position:relative;transition:background .18s ease}
+.qm-you i::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:var(--surface);transition:transform .18s ease}
+.qm-you.is-on{color:var(--ink);border-color:var(--accent)}
+.qm-you.is-on i{background:var(--accent)}
+.qm-you.is-on i::after{transform:translateX(11px)}
 .qm-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .qm-opt{border:1.4px solid var(--rule);background:var(--surface);border-radius:12px;padding:11px 9px;font:inherit;font-size:14px;font-weight:650;color:var(--ink);min-height:46px;cursor:pointer;text-align:center;text-wrap:balance;transition:transform .18s var(--ease-spring),border-color .15s ease}
 .qm-opt:hover{border-color:var(--accent);transform:translateY(-1px)}
