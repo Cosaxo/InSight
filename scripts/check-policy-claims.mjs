@@ -115,6 +115,22 @@ export const CLAIMS = [
   // force.
   ["D317 · behaviour stays on the device — the profile is answers only",
     /scrolled past or skipped stays on your device and is not\s+collected/i],
+  // D456 · the whole-world People map. The fit has always held a vector
+  // per person that NOBODY could read (the rules comment: "a latent
+  // vector is a summary nobody signed up to be read AS"); the owner ruled
+  // 2026-09-10 that a coarsened position may be published so the map can
+  // draw the crowd instead of the dozen samples a viewer happens to
+  // overlap. Three tokens, because three separate promises are what makes
+  // it defensible: WHAT is published (two rounded numbers and a count),
+  // that it carries no answers, and that erasure reaches it at once. A
+  // page that kept the first and dropped either of the others would be
+  // describing a different feature.
+  ["D456 · a rounded position per account is published for the map, with the answer count",
+    /two rounded numbers[\s\S]{0,240}?number of questions that account has\s+answered/i],
+  ["D456 · the position carries no answers and no profile",
+    /carries no answers and no\s+profile/i],
+  ["D456 · deleting the account removes the published position at once",
+    /Deleting your account removes\s+it at once/i],
   ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   // D378 · the one way off-app: after the answer, and counted by nobody.

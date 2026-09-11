@@ -228,7 +228,23 @@ a phone. So:
   is a costume over the same vectors — possible any time, decided at a
   screen like every other visual judgement here (D189), never in prose.
 
-## 7 · Deferred — the whole-world map, with the arithmetic
+## 7 · BUILT 2026-09-11 (D457) — the whole-world map
+
+**The owner ruled the ask 2026-09-10** (*"i dont see why thats a privacy
+concern"*) and told the session to build it the next day. What shipped is
+the *coarsen* shape this section's own ask offered: a position rounded to
+two decimals and the account's answer count, one document per country
+plus the world's, capped at 600 rows with the population they were drawn
+from stated beside them. D457 has the arithmetic, what the lens may say
+about a dot it did not solve, and what the build cost. The three grounds
+below that were about the SHAPE are answered there; the fourth, rotation,
+is answered by solving positions against the published rows, which are
+already aligned night to night.
+
+**The reasoning that deferred it, kept as written** — it is why the
+shape is what it is:
+
+## 7′ · The deferral, as it stood
 
 Phases 1–2 draw *your orbit*: the people reachable through bounded
 samples of the questions you answered. A map of **everyone** needs the

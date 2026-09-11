@@ -370,11 +370,11 @@ export const deleteAccount = onCall(
       if (ops) await batch.commit();
     };
     try {
-      const world = await db.collection("v2_patterns")
+      const worldSamples = await db.collection("v2_patterns")
         .where(FieldPath.documentId(), ">=", "sample-")
         .where(FieldPath.documentId(), "<", "sample.")
         .get();
-      await scrub(world.docs);
+      await scrub(worldSamples.docs);
       // The city samples this account can be in are named by its OWN
       // answers — the frozen `anchors.city` on each (D8), which is the
       // same chip the nightly keyed the row under — so the reach is
@@ -398,6 +398,25 @@ export const deleteAccount = onCall(
       for (let i = 0; i < ids.length; i += 300) {
         await scrub(await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id))));
       }
+      // 1a″. THE WORLD MAP'S POSITIONS (D456) — `people-{country}` and
+      //      `people-world`, the same `rows` shape keyed by uid, so the
+      //      same field delete reaches them. The privacy page promises
+      //      this account's position is removed AT ONCE, not merely that
+      //      tonight's rebuild will drop it, and the two are different
+      //      promises to someone deleting at 09:00.
+      //
+      //      Enumerated by ID RANGE like the world samples above rather
+      //      than from this account's own country chip: a person whose
+      //      chip changed still has a row under the old country until the
+      //      next rebuild, and a scrub that trusted the current chip
+      //      would walk past it. The range is bounded by the country
+      //      catalogue plus one ('.' follows '-'), which is ~245
+      //      documents at the very most and one query.
+      const world = await db.collection("v2_patterns")
+        .where(FieldPath.documentId(), ">=", "people-")
+        .where(FieldPath.documentId(), "<", "people.")
+        .get();
+      await scrub(world.docs);
       counts.patternSamples = scrubbed;
     } catch (err) {
       logger.error("[deleteAccount] voter sample scrub failed:", err);

@@ -137,6 +137,8 @@ import {
   alsFitStreamed,
   alsScoreDay,
   anchorSpecsOf,
+  observationsOf,
+  ridgeTheta,
   binRows,
   pickSpecsOf,
   candidateWon,
@@ -296,12 +298,24 @@ export interface PatternsStore {
    *  (`citySampleId`), where one exists; and their writes. */
   getCitySamples(ids: string[]): Promise<Map<string, SampleDoc>>;
   putCitySamples(samples: Map<string, SampleDoc>): Promise<void>;
+  /** The world map's position documents (D456): one per country plus the
+   *  world's own, keyed by document id. A set, like the samples — the
+   *  document is rebuilt whole every night. */
+  putWorldMaps(docs: Map<string, WorldMapDoc>): Promise<void>;
   /** The newest PATTERNS_SAMPLE_CAP world answers to one question, as
    * sample additions — the who-voted sheet's own query, run once per
    * question ever, to seed its sample (D442). Up to the cap in billed
    * reads, which is why the run bounds how often it asks. */
   seedRows(qid: string): Promise<SampleAddition[]>;
 }
+
+import {
+  WORLD_MAP_MIN_ANSWERS,
+  WorldMapBuilder,
+  positionModel,
+  roundPos,
+  type WorldMapDoc,
+} from "./patternsWorld";
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
 // because this module's own test imports it from here, and because the
@@ -339,6 +353,11 @@ export interface PatternsRunSummary {
   samples: number;
   /** Per-city samples merged (runbook 2.5). */
   citySamples: number;
+  /** World-map documents written — one per country with anyone placed,
+   *  plus the world's own (D456). */
+  worldMaps: number;
+  /** People a position was published for. */
+  worldPlaced: number;
   /** Of those, seeded from the answers tonight — their one bounded
    * query each (D442). Zero on every night after the corpus is met. */
   seeded: number;
@@ -434,7 +453,7 @@ export async function runPatternsFit(
   }
   if (!days.length || yesterday <= lastDay) {
     return {
-      days: 0, folded: 0, compacted: 0, samples: 0, citySamples: 0, seeded: 0, users: 0, questions: Object.keys(model.q).length,
+      days: 0, folded: 0, compacted: 0, samples: 0, citySamples: 0, worldMaps: 0, worldPlaced: 0, seeded: 0, users: 0, questions: Object.keys(model.q).length,
       bits: 0, skill: 0, seedCos: 0, engine, candidateSkill: 0, streak: engine === "sgd" ? alsStreakPrev : sgdStreakPrev, crossed: false,
     };
   }
@@ -980,6 +999,66 @@ export async function runPatternsFit(
     candidates: nextEngine === "als" ? { sgd: sgdCandidate } : { als: alsCandidate },
     ...(crossed ? { crossedAt: yesterday } : prev?.crossedAt ? { crossedAt: prev.crossedAt } : {}),
   };
+  // ── the world map's positions (D456) ──────────────────────────
+  //
+  // One more scan, and the only one that reads the people AFTER the rows
+  // are final: every person is solved against the rows this publication
+  // is about to hand the devices, so the dots and the viewer's own dot —
+  // which the phone solves from those same rows — are in one space. A
+  // position solved against any other frame is a dot in the wrong place.
+  //
+  // THIS IS WHAT ANSWERS THE ROTATION GROUND `PEOPLE-MAP.md` §7 deferred
+  // on. The worry was that the fit's axes drift night to night, so a
+  // published position would reshuffle the world without anyone changing
+  // their mind. They do not drift any more than the rows do: the ALS rows
+  // are rotated onto last night's published rows before they are
+  // published (the procrustes block above), and the online engine's rows
+  // move by a step size. Solving from the published rows inherits that
+  // alignment exactly — the map moves as little as the rows do, which is
+  // the most any lens over them can promise.
+  //
+  // What it costs: one scan of the fitted people per night, on top of the
+  // fit's own 1 + ALS_SWEEPS (DATA-EFFICIENCY-RUNBOOK 4.3), and one write
+  // per country plus one. The scan holds nothing per person — the builder
+  // is bounded at countries × cap — for the reason the streamed fit is.
+  const posModel = positionModel(k, engineRows, engineItems);
+  const posIndex: ItemIndex = indexItems([
+    ...items,
+    ...anchorSpecsOf(engineItems),
+    ...pickSpecsOf(engineItems),
+  ]);
+  const posLambda = pub.lambdaU;
+  const world = new WorldMapBuilder();
+  let placed = 0;
+  await store.scanUsers((uid, st) => {
+    const answers = st.a ?? {};
+    const n = Object.keys(answers).length;
+    // ANSWERS, not observations: a profile alone must not buy a dot, for
+    // the reason patternsReady's own floor counts answers (§7.5).
+    if (n < WORLD_MAP_MIN_ANSWERS) return;
+    const obs = observationsOf(posModel, {
+      a: answers,
+      ...(st.an ? { an: st.an } : {}),
+      ...(st.p ? { p: st.p } : {}),
+    }, posIndex);
+    if (!obs.length) return;
+    const theta = ridgeTheta(obs, k, posLambda * obs.length + 0.5);
+    let norm = 0;
+    for (const x of theta) norm += x * x;
+    norm = Math.sqrt(norm);
+    if (!(norm > 0)) return;
+    placed += 1;
+    world.add({
+      uid,
+      x: roundPos((theta[0] ?? 0) / norm),
+      y: roundPos((theta[1] ?? 0) / norm),
+      n,
+      ...(typeof st.an?.country === "string" && st.an.country ? { country: st.an.country } : {}),
+    });
+  });
+  const worldDocs = world.docs(yesterday);
+  await store.putWorldMaps(worldDocs);
+
   await store.putModel(pub);
   if (crossed) {
     logger.info("patterns crossover", { metric: "patterns_crossover", from: engine, to: nextEngine, streak, day: yesterday });
@@ -990,6 +1069,8 @@ export async function runPatternsFit(
     compacted,
     samples: samplesWritten,
     citySamples: citySamplesWritten,
+    worldMaps: worldDocs.size,
+    worldPlaced: placed,
     seeded,
     users: touched.size,
     questions: Object.keys(engineRows).length,
@@ -1193,6 +1274,22 @@ export function firestorePatternsStore(
         });
       }
       return out;
+    },
+    async putWorldMaps(docs) {
+      // `v2_patterns/{docId}` again: signed-in reads, nobody writes — the
+      // loadings document's own rule, so this family needs no rules change
+      // and none can get it wrong. `set` with no merge: the document is
+      // rebuilt whole, so a person who stopped clearing the cap leaves it
+      // the same night, and `deleteAccount`'s field delete is the only
+      // thing that has to reach in between two nights.
+      const entries = [...docs.entries()];
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        for (const [id, doc] of entries.slice(i, i + 400)) {
+          batch.set(db.collection("v2_patterns").doc(id), doc);
+        }
+        await batch.commit();
+      }
     },
     async putCitySamples(samples) {
       // Same collection, same rule, a different prefix (`city-`): the

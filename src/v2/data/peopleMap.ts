@@ -127,9 +127,19 @@ export interface PlacedPerson {
    * Two steps, not a continuum: a 4px ramp read as jitter, and the size
    * is a rank, not a measurement. */
   many: boolean;
-  /** Shared answers seen in the fetched samples — the stated basis. */
+  /** Shared answers seen in the fetched samples — the stated basis.
+   * Zero on a person placed from the published position alone (D456),
+   * whose card states their answer count and claims no agreement. */
   shared: number;
   agree: number;
+  /** How this dot was placed: `solved` from the answers you share,
+   * `published` from the nightly position. The card reads it, because
+   * the two support different sentences (D146). */
+  from: "solved" | "published";
+  /** The person's own answer count, where it is known — published with
+   * the position. Null for a sample-placed person: the samples carry the
+   * answers you share, not how many they have given. */
+  answers: number | null;
   /** The rarest answer you share: label and its crowd share, from the
    * fit's own marginal. Null when you split on everything you share. */
   tie: { label: string; share: number } | null;
@@ -244,6 +254,30 @@ export interface PeopleFoldOpts {
    * beside a name stays an answer count.
    */
   anchorRows?: readonly PeopleAnchorRow[];
+  /**
+   * The nightly published positions for this population (D456) — every
+   * person the fit placed, not only the ones whose answers you share.
+   *
+   * They are placed WHERE THE SERVER PUT THEM: the fit solved each person
+   * against the rows this device is drawing, so the coordinates are
+   * already in the plane the fold frames. What they are not is evidence —
+   * a position carries no answers, so a person drawn from one has
+   * `shared: 0` and no tie, and the card says their answer count instead
+   * of an agreement it cannot count.
+   *
+   * A person who is BOTH published and in the fetched samples is drawn
+   * from the samples: those rows carry the exact shared-answer numbers
+   * the lens exists to state, and the position would only round them
+   * away. The published row still contributes its answer count.
+   *
+   * THE LIST IS ALREADY THE POPULATION'S. `keep` is not applied to it,
+   * because a published row carries no anchors to filter ON — the
+   * population IS which document was read (the world's, or one country's),
+   * which is the same cut one shelf up. A caller that passes the world's
+   * rows under a circle filter gets the world, and that is a bug in the
+   * caller, not a filter this fold can make for it.
+   */
+  world?: readonly { uid: string; x: number; y: number; n: number }[];
 }
 
 export function foldPeople(
@@ -267,6 +301,13 @@ export function foldPeople(
     tie: { label: string; share: number } | null;
   }
   const acc = new Map<string, Acc>();
+  // The viewer's own uid, learned from the rows that say so — the fold
+  // has never needed it before (the viewer is `isMe`, not a uid), and the
+  // published crowd below does: a position is published for everyone,
+  // including you, and drawing it would put a second dot where your own
+  // already is.
+  let myUid: string | null = null;
+  const byUidWorld = new Map((opts.world ?? []).map((w) => [w.uid, w]));
   for (const qid of fetched) {
     const item = byQid.get(qid);
     const rows = item && item.mine != null ? rowsOf(qid) : null;
@@ -275,7 +316,8 @@ export function foldPeople(
       // The viewer is their own dot, solved from ALL their answers below;
       // out-of-range option indices are another surface's rows (catalog,
       // scale) and fold to nothing rather than to a wrong ±1.
-      if (row.isMe || (row.optionIdx !== 0 && row.optionIdx !== 1)) continue;
+      if (row.isMe) { myUid = row.uid; continue; }
+      if (row.optionIdx !== 0 && row.optionIdx !== 1) continue;
       const enc = row.optionIdx === 0 ? 1 : -1;
       let a = acc.get(row.uid);
       if (!a) {
@@ -331,6 +373,42 @@ export function foldPeople(
       shared: a.shared,
       agree: a.agree,
       tie: a.tie,
+      from: "solved",
+      answers: byUidWorld.get(a.uid)?.n ?? null,
+    });
+  }
+
+  // ── the published crowd (D456) ──────────────────────────────────
+  //
+  // Everyone the nightly fit placed, minus the people the samples already
+  // put on the field: a sample row carries the shared-answer count and the
+  // tie, which a position cannot, so where both exist the solved one wins
+  // and the published row only lends its answer count (above).
+  //
+  // No floor here, and that is the point of the whole feature: `minShared`
+  // exists because a dot solved from two shared answers is noise, and a
+  // published position is not solved from your overlap at all — it is the
+  // fit's own reading of that person over everything they have answered.
+  // The floor that does apply is the server's (WORLD_MAP_MIN_ANSWERS): a
+  // person under it has no published row to read.
+  const drawn = new Set(placed.map((p) => p.uid));
+  for (const w of opts.world ?? []) {
+    if (drawn.has(w.uid) || w.uid === myUid) continue;
+    placed.push({
+      uid: w.uid,
+      name: "",
+      chips: opts.circle?.has(w.uid) ? ["your circle"] : [],
+      px: w.x,
+      py: w.y,
+      x: 0,
+      y: 0,
+      r: 3.4,
+      many: false,
+      shared: 0,
+      agree: 0,
+      tie: null,
+      from: "published",
+      answers: w.n,
     });
   }
 

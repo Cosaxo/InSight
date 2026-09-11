@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 486 lines instead of
-50,317. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 487 lines instead of
+50,396. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -165,7 +165,7 @@ detect it.
 | **D143** | [Build 14's pre-flight: the status line failed a third time, and the bundle gate was already red](DECISIONS.md#d143--build-14s-pre-flight-the-status-line-failed-a-third-time-and-the-bundle-gate-was-already-red) | D381 (+9) | 14169 |
 | **D144** | [The bundle gate weighs the bundle that ships, and refuses to weigh any other](DECISIONS.md#d144--the-bundle-gate-weighs-the-bundle-that-ships-and-refuses-to-weigh-any-other) | D400 (+7) | 14292 |
 | **D145** | [Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues](DECISIONS.md#d145--four-question-lanes-two-of-which-had-never-run-the-learn-and-feed-routines-a-feed-regulator-and-a-weekday-for-catalogues) | D424 (+6) | 14389 |
-| **D146** | [The type cut — how each type answered, folded on the client, retroactive by construction](DECISIONS.md#d146--the-type-cut--how-each-type-answered-folded-on-the-client-retroactive-by-construction) | D451 (+11) | 14503 |
+| **D146** | [The type cut — how each type answered, folded on the client, retroactive by construction](DECISIONS.md#d146--the-type-cut--how-each-type-answered-folded-on-the-client-retroactive-by-construction) | D457 (+12) | 14503 |
 | **D147** | [The functions tsconfig moves to `node16`, and the emit format is the part that mattered](DECISIONS.md#d147--the-functions-tsconfig-moves-to-node16-and-the-emit-format-is-the-part-that-mattered) | D153 | 14629 |
 | **D148** | [The Routine prompts catch up with their contracts, by the only mechanism that works](DECISIONS.md#d148--the-routine-prompts-catch-up-with-their-contracts-by-the-only-mechanism-that-works) | D428 (+5) | 14679 |
 | **D149** | [Sides, friends and real counts: three surfaces stop guessing](DECISIONS.md#d149--sides-friends-and-real-counts-three-surfaces-stop-guessing) | D389 (+5) | 14753 |
@@ -202,7 +202,7 @@ detect it.
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17883 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18113 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18218 |
-| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D456 (+19) | 18316 |
+| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D457 (+20) | 18316 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18475 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18626 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18800 |
@@ -358,7 +358,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D448 (+1) | 33547 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33712 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33741 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D456 (+35) | 33897 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D457 (+36) | 33897 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 34012 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34181 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D388 (+4) | 34312 |
@@ -499,4 +499,5 @@ detect it.
 |  | ↳ *amendment 2026-09-11* — [The items are compiled inside the streamed fit](DECISIONS.md#d453-amendment-2026-09-11--the-items-are-compiled-inside-the-streamed-fit) | — | 50059 |
 | **D454** | [Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls](DECISIONS.md#d454--calibration-and-the-meter-the-links-slope-is-swept-beside-the-ridge-the-record-says-skill-against-plain-guessing-and-the-question-rule-learns-first-and-then-calls) | D456 | 50096 |
 | **D455** | [The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map](DECISIONS.md#d455--the-walls-measured-and-moved-the-loadings-document-exempt-from-indexing-the-ring-the-topics-own-the-dailys-lists-first-for-the-people-map) | — | 50165 |
-| **D456** | [The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot](DECISIONS.md#d456--the-owners-five-answers-on-the-patterns-plans-rows-the-you-arc-the-whole-world-map-ruled-the-question-rule-kept-the-pick-cards-core-and-one-rule-for-every-kind-of-dot) | — | 50233 |
+| **D456** | [The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot](DECISIONS.md#d456--the-owners-five-answers-on-the-patterns-plans-rows-the-you-arc-the-whole-world-map-ruled-the-question-rule-kept-the-pick-cards-core-and-one-rule-for-every-kind-of-dot) | D457 | 50233 |
+| **D457** | [The whole-world People map is built: a rounded position per account, one document per country](DECISIONS.md#d457--the-whole-world-people-map-is-built-a-rounded-position-per-account-one-document-per-country) | — | 50318 |

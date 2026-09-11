@@ -36,6 +36,7 @@ import {
 } from "./patternsFit";
 import { ALS_LAMBDAS_U, ALS_TAUS, PATTERNS_CROSSOVER_NIGHTS, procrustes, symmetricEigen } from "./patternsAls";
 import { PATTERNS_SAMPLE_CAP, PATTERNS_SEED_PER_RUN, type SampleAddition, type SampleDoc } from "./patternsSamples";
+import { WORLD_MAP_ID, WORLD_MAP_MIN_ANSWERS, worldMapId, type WorldMapDoc } from "./patternsWorld";
 import { WORLD_ANSWER_SURFACES } from "./answerSurfaces";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
@@ -54,11 +55,14 @@ function memoryStore(
   const users = new Map<string, PatternsUserState>();
   const samples = new Map<string, SampleDoc>();
   const citySamples = new Map<string, SampleDoc>();
+  const worldMaps = new Map<string, WorldMapDoc>();
   const state = {
     /** The voter samples as the last putSamples left them (D397). */
     samples,
     /** The per-city samples, by document id (runbook 2.5). */
     citySamples,
+    /** The world map's position documents, by id (D456). */
+    worldMaps,
     /** Every seed query the run paid for, in order (D442). */
     seedCalls: [] as string[],
     /** The publication as the last putModel left it — whole, cloned, the
@@ -140,6 +144,11 @@ function memoryStore(
     },
     async putCitySamples(next) {
       for (const [id, d] of next) citySamples.set(id, clone(d));
+    },
+    async putWorldMaps(next) {
+      // a set, not a merge — the run rebuilds each document whole
+      worldMaps.clear();
+      for (const [id, d] of next) worldMaps.set(id, clone(d));
     },
     async seedRows(qid) {
       state.seedCalls.push(qid);
@@ -1301,6 +1310,87 @@ describe("anchors as items (D452)", () => {
     // and their state carries the anchors for the nights to come
     expect(state.users.get(pad(200))?.an).toEqual({ gender: "Woman", ageBand: "25-34" });
     expect(state.users.get(pad(200))?.a).toEqual({ [CORE_A]: 0, [CORE_B]: 0 });
+  });
+});
+
+describe("the whole-world map's positions (D456)", () => {
+  const pad = (i: number) => `u${String(i).padStart(3, "0")}`;
+
+  it("publishes a rounded position and an answer count per person, by country", async () => {
+    const rows: PatternsLedgerEntry[] = [];
+    // twenty people, ten Norwegian and ten Swedish, whose country decides
+    // how they answer — so the two groups solve to opposite sides
+    for (let i = 0; i < 20; i++) {
+      const no = i % 2 === 0;
+      const anchors = { country: no ? "NO" : "SE", gender: no ? "Woman" : "Man" };
+      for (const [qid, opt] of [[CORE_A, no ? 0 : 1], [CORE_B, no ? 0 : 1]] as [string, number][]) {
+        rows.push({ uid: pad(i), qid, optionIdx: opt, anchors });
+      }
+    }
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    const r = await runPatternsFit(store, NOW);
+    // two answers each is under the floor: nobody is placed, and the
+    // world document is still written (empty) rather than left stale
+    expect(r.worldPlaced).toBe(0);
+    expect(state.worldMaps.get(WORLD_MAP_ID)!.n).toBe(0);
+    expect([...state.worldMaps.keys()]).toEqual([WORLD_MAP_ID]);
+  });
+
+  it("places everyone over the floor, in the same space the devices draw", async () => {
+    const qids = [...PATTERNS_ITEM_QIDS].slice(0, WORLD_MAP_MIN_ANSWERS + 2);
+    const rows: PatternsLedgerEntry[] = [];
+    for (let i = 0; i < 12; i++) {
+      const no = i % 2 === 0;
+      // the country anchor is the two-letter code the cube counts
+        const anchors = { country: no ? "NO" : "SE" };
+      qids.forEach((qid, j) => {
+        // the two countries answer oppositely on all but the last card
+        const opt = j === qids.length - 1 ? i % 2 : no ? 0 : 1;
+        rows.push({ uid: pad(i), qid, optionIdx: opt, anchors });
+      });
+    }
+    const { store, state } = memoryStore({ [yesterday]: rows });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.worldPlaced).toBe(12);
+    expect(r.worldMaps).toBe(3); // Norway, Sweden, and the world
+    const no = state.worldMaps.get(worldMapId("NO"))!;
+    expect(no.country).toBe("NO");
+    expect(no.n).toBe(6);
+    expect(no.total).toBe(6);
+    expect(no.day).toBe(yesterday);
+    const row = no.rows[pad(0)];
+    expect(row.n, "the answer count, not the observation count").toBe(qids.length);
+    // a POSITION: two rounded numbers on the unit circle, nothing else
+    expect(Object.keys(row).sort()).toEqual(["n", "x", "y"]);
+    expect(row.x).toBe(Math.round(row.x * 100) / 100);
+    expect(Math.hypot(row.x, row.y)).toBeLessThanOrEqual(1.02);
+    // and the two countries are on opposite sides of the space, which is
+    // the whole claim of the lens: position carries the answers
+    const se = state.worldMaps.get(worldMapId("SE"))!;
+    const dot = (a: { x: number; y: number }, b: { x: number; y: number }) => a.x * b.x + a.y * b.y;
+    expect(dot(no.rows[pad(0)], no.rows[pad(2)]), "two Norwegians agree").toBeGreaterThan(0);
+    expect(dot(no.rows[pad(0)], se.rows[pad(1)]), "a Norwegian and a Swede do not").toBeLessThan(0);
+    // the world document holds them all, and says so
+    const world = state.worldMaps.get(WORLD_MAP_ID)!;
+    expect(world.n).toBe(12);
+    expect(world.total).toBe(12);
+    expect(world.country).toBeUndefined();
+    // nothing about a position reaches the loadings document itself
+    expect(JSON.stringify(state.pub).includes(pad(0))).toBe(false);
+  });
+
+  it("a night with nothing owed does not touch them", async () => {
+    const { store, state } = memoryStore({ [yesterday]: [{ uid: pad(0), qid: CORE_A, optionIdx: 0 }] });
+    await runPatternsFit(store, NOW);
+    const first = state.worldMaps.size;
+    expect(first).toBe(1); // the world document, empty — one answer is under the floor
+    state.worldMaps.clear();
+    // the same run again: the day is already folded, so it returns before
+    // the fit and writes nothing at all
+    const again = await runPatternsFit(store, NOW);
+    expect(again.worldMaps).toBe(0);
+    expect(again.worldPlaced).toBe(0);
+    expect(state.worldMaps.size).toBe(0);
   });
 });
 

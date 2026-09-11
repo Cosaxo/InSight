@@ -50314,3 +50314,82 @@ held — with what the draft chose where the plan left the choice to the
 canvas: the You arc inside the rim, pictures on the tapped card's chips
 and not on the rim, a trimmed group folded into a* +n *at its place,
 groups parted by a hairline tick. The owner refines it there.*
+
+## D457 · The whole-world People map is built: a rounded position per account, one document per country
+
+**Decided and built 2026-09-11**, on the owner's ruling of 2026-09-10
+(*"i dont see why thats a privacy concern"*, D456 §2) and their
+instruction to build it. The ask was `PEOPLE-MAP.md` §7's, filed as a
+D334 privacy ask on `OWNER-LIST.md`; this is the build.
+
+### What was true
+
+The People lens places a stranger from the answers **you and they have
+both given** — twelve bounded voter lists, and a floor of four shared
+answers. That is bounded by OVERLAP, which shrinks as the bank grows:
+1,536 questions today, unbounded by decision (`SCALE-PLAN.md`), so two
+random people share fewer and fewer and the crowd thins by construction.
+The fit has always held every person's vector (`v2_users/{uid}/patterns/
+state`), readable by nobody — the rules comment is *"a latent vector is a
+summary nobody signed up to be read AS"*.
+
+### What is published
+
+One row per account, in a family beside the samples: **two numbers
+rounded to 1/100 and the account's answer count**, keyed by uid.
+`people-{country}` (the two-letter anchor the cube counts) and
+`people-world`. Not the vector — the 8-number original is still published
+for nobody, and rounding is what makes the published number a position
+rather than the thing it came from (201 × 201 over the disc, ~1.5 px at
+the lens's own radius).
+
+- **Solved against the PUBLISHED rows**, in one extra scan after the
+  fit — so a dot and the viewer's own dot, which the phone solves from
+  those same rows, are in one space. A position solved in any other frame
+  is a dot in the wrong place.
+- **The rotation ground is answered by that same choice.** §7's fourth
+  reason to defer was that the fit's axes drift, so a published position
+  would reshuffle the world nightly. They drift no more than the ROWS do:
+  the ALS rows are rotated onto last night's before they publish, and the
+  online engine's move by a step size. Solving from the published rows
+  inherits that alignment exactly.
+- **Capped at 600 rows per document**, which is a drawing bound and not a
+  privacy one — a disc of 352 px holds a few hundred dots before it is
+  ink. `total` states the population the rows were drawn from and the
+  lens says *"600 of 18,400"*. The world document is a ROUND-ROBIN over
+  countries, not the global top: taking the 600 most-answered accounts
+  would draw whichever country signed up first and call it the world.
+- **A floor of 8 answers**, for `patternsReady`'s reason: below it the
+  solve is mostly the prior, and answers are counted rather than
+  observations so a filled-in profile cannot buy a dot (§7.5).
+
+### What it costs
+
+One scan of the fitted people per night on top of the fit's own
+1 + `ALS_SWEEPS` (DATA-EFFICIENCY-RUNBOOK 4.3), and one write per country
+plus one. The builder holds countries × cap rows at worst, never the
+population — the streamed fit exists for that reason and a buffered
+builder would put back what it bought. On the device: one read per
+population per session, cached like the loadings document, and a null
+answer (no fit yet, a demo build, a refused read) leaves the lens exactly
+as it was — the sample-placed crowd.
+
+### What the lens may say about a published dot
+
+Nothing it cannot count. A position is not evidence: a person drawn from
+one has `shared: 0`, no tie, the split ink, and a card that reads *"Placed
+by 31 answers — none of them yours"*. Where a person is in BOTH the
+samples and the document the samples win, because their rows carry the
+exact shared-answer counts the lens exists to state (D146); the published
+row still lends its answer count. The legend names both crowds.
+
+### The two things that had to move first
+
+`web/privacy.html` gained the bullet BEFORE the feature (D183), with
+three claims pinned in `check:policy-claims`: what is published, that it
+carries no answers, and that deleting the account removes it **at once**.
+`deleteAccount` phase 1a″ makes the third true rather than waiting for the
+next rebuild — the same field delete the voter samples take, over an id
+range (`people-` ≤ id < `people.`) rather than the account's own country
+chip, because a chip that changed would leave a row under the old one.
+The erasure e2e asserts the row is gone and the other person's stands.
