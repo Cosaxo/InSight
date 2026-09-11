@@ -107,6 +107,48 @@ describe("every path asks for a lever that exists", () => {
   });
 });
 
+describe("the slope paragraph is about the path it names", () => {
+  // It was about PATHS[0] — "R · Region only" — while every sentence in it
+  // said "path A". The four figures were computed rather than typed, which
+  // is what the note above them promises, and computed off the wrong row,
+  // which the note could not see. So the cross-check is against section 3's
+  // own table for path A: two places printing the same two numbers cannot
+  // disagree silently.
+  const savedAt = (path, dau) => {
+    const block = out.slice(out.indexOf(path));
+    const row = new RegExp(`^\\s*${dau.replace(/,/g, ",")}\\s.*$`, "m").exec(block);
+    expect(row, `no ${dau} row under "${path}"`).toBeTruthy();
+    // The table writes the cut as "-10%" and the paragraph strips the sign
+    // (`cut(...).slice(1)`), so compare the magnitudes.
+    return /-?([\d.]+)%/.exec(row[0])?.[1];
+  };
+
+  it("quotes path A's own cuts, not the first path's", () => {
+    const para = /Path A cuts every absolute figure — (-?[\d.]+)% at 500 DAU, (-?[\d.]+)% at 500,000/.exec(out);
+    expect(para, `the slope paragraph did not print its two cuts:\n${out.slice(-1500)}`).toBeTruthy();
+    expect(para[1], "the 500-DAU cut is not path A's").toBe(savedAt("A · Keep it live", "500"));
+    expect(para[2], "the 500,000-DAU cut is not path A's").toBe(savedAt("A · Keep it live", "500,000"));
+  });
+
+  it("says the slope got worse only when the two figures it prints say so", () => {
+    const m = /SLOPE (worse|where it was) \(([\d.]+)x -> ([\d.]+)x\)|flattens the curve with it \(([\d.]+)x -> ([\d.]+)x\)/.exec(out);
+    expect(m, `no slope sentence in the output:\n${out.slice(-1500)}`).toBeTruthy();
+    const [a, b] = m[1] ? [Number(m[2]), Number(m[3])] : [Number(m[4]), Number(m[5])];
+    if (m[1] === "worse") expect(b).toBeGreaterThan(a);
+    else if (m[1] === "where it was") expect(b).toBe(a);
+    else expect(b).toBeLessThan(a);
+  });
+
+  it("does not round the slope column until every path says the same thing", () => {
+    // Whole numbers put "1x" on all six rows, including the rows that
+    // differ from each other — a column that cannot disagree with itself
+    // is not a reading.
+    const col = [...out.matchAll(/^\S.*?\s([\d.]+)x\s*$/gm)].map((x) => x[1]);
+    expect(col.length, "the 500->500k column disappeared").toBeGreaterThan(3);
+    for (const v of col) expect(v, `a whole-number multiple: ${v}x`).toMatch(/\./);
+  });
+});
+
 describe("no lever is quietly worth nothing", () => {
   it("every unmarked lever moves the bill at some modelled size", () => {
     const marked = new Set();
