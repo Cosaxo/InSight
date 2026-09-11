@@ -125,8 +125,11 @@ Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
-Duel answers stay sealed until the next-day reveal, enforced as a
-`surface` test: that is game timing, not privacy.
+Duel answers stay sealed until their ROUND's reveal — everyone played,
+or the round's 48-hour deadline — enforced as a `surface` test: that is
+game timing, not privacy. Not "the next day": D426 moved duels off day
+keys onto rounds, and a member who missed a revealed round may still
+answer it, flagged `late` because their answer is no longer blind.
 
 **A privacy constraint is an ASK, not a stop (D334).** Where a privacy
 argument is the only thing standing between a proposal and the tree — a

@@ -96,9 +96,14 @@ enforces is the opposite of what it used to (decision **D98**):
 - **Every question slices, including the political ones.** D44's
   special-category carve-out is gone; there is no category held back.
 - **Reveals are materialized server-side.** Group/duo answers stay sealed
-  until a Cloud Function writes the reveal doc the next day — that is the
-  *game*, not a privacy promise, and rules deny answering a day that is
-  already revealed so nobody peeks then plays.
+  until a Cloud Function writes the reveal doc for that ROUND — when
+  everyone has played, or at the round's 48-hour deadline, whichever
+  comes first (D426 moved duels off day keys; the scheduled sweep runs
+  every two hours). That is the *game*, not a privacy promise. What the
+  rules enforce is that a BLIND answer cannot be written to a round that
+  has revealed: a member who missed it may still answer, but only flagged
+  `late`, because the table is world-readable and their answer is not
+  blind (ROUNDS-PLAN §4).
 - **No fake anything.** Still binding, and now the only reason anything
   is ever hidden: no seeded comments, no synthetic users, no demo
   progress in live mode (decision D1). Passive tests start at zero. Where
