@@ -109,6 +109,17 @@ export default defineConfig(({ mode }) => {
       // section of that README records three first drafts already doing.
       // A metric you cannot act on honestly is worse than no metric.
       //
+      // ui/ IS INCLUDED, and that same argument does not reach it. Those
+      // panels are hand-written TSX rather than ported JSX, and every one
+      // of them carries a suite somebody wrote on purpose — which is what
+      // makes the number actionable here in exactly the way it is not for
+      // spec/: it names the branch of a panel no assertion reaches. It was
+      // excluded until 2026-09-11, for no reason anyone had written down,
+      // and the gap it left is the shape of `check:panel-suites` itself:
+      // that gate proves a suite EXISTS for every panel, which is not the
+      // same claim as the suite reaching anything. One ratchet counts the
+      // files; this report is the only thing that reads inside them.
+      //
       // No thresholds. A threshold turns a report into a gate, and a gate
       // on a number nobody has calibrated fails a legitimate PR before it
       // catches a real gap. Read `npm run test:coverage` when changing the
@@ -134,7 +145,7 @@ export default defineConfig(({ mode }) => {
       // person to write a test for code that already has one.
       coverage: {
         provider: 'v8',
-        include: ['src/v2/data/**/*.ts'],
+        include: ['src/v2/data/**/*.ts', 'src/v2/ui/**/*.{ts,tsx}'],
         reporter: ['text', 'html'],
       },
     },

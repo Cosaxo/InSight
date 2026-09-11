@@ -52,10 +52,13 @@ who decides:
 
 - **Answers are public** (D98). Any signed-in user may read any other
   user's answers and profile; counts are exact from the first answer.
-  Three things stay closed, none of them answers: the unscored logic
-  answer key, flag authorship, and the presence cell. If the UI says
-  something about who can see what, `firestore.rules` or a Cloud Function
-  has to make it true and a test has to prove it.
+  Three things carve out of that model, none of them answers: the
+  unscored logic answer key, flag authorship, and the presence cell —
+  not everything the rules close, only the three that are about what a
+  person answered. [`data-inventory.md`](data-inventory.md) is the whole
+  list, a row per path with its reader. If the UI says something about
+  who can see what, `firestore.rules` or a Cloud Function has to make it
+  true and a test has to prove it.
 - **No fake anything** (D1). Where a live surface shows nothing, the data
   is absent — never withheld, never seeded.
 - **A privacy constraint is an ask, not a stop** (D334). Where a privacy

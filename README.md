@@ -205,13 +205,16 @@ Local:
   the admin SDK (rules bypassed, so "gone" means gone).
 - `npm run test:coverage` (and `--prefix functions`) — **report only, never a
   gate.** Runs the whole suite and REPORTS on the typed layers where an
-  untested branch is where a wrong number reaches a screen: `src/v2/data` on
-  the client, `pure.ts` + `deviceBind.ts` on the backend. `spec/` is excluded
-  on purpose — its only tests are mount smoke tests, so a coverage number
-  there would be both meaningless and an invitation to raise it without
-  asserting anything. It ran only the data tests until 2026-08-24, which
-  scored a module by what its OWN tests reached and so read 11 of 45 modules
-  5+ points low — `mutes.ts` at 0% against a real 81.5%.
+  untested branch is where a wrong number reaches a screen: `src/v2/data` and
+  `src/v2/ui` on the client, `pure.ts` + `deviceBind.ts` on the backend.
+  `spec/` is excluded on purpose — its only tests are mount smoke tests, so a
+  coverage number there would be both meaningless and an invitation to raise
+  it without asserting anything. `ui/` is NOT that case and was excluded
+  anyway until 2026-09-11: those panels are hand-written, every one carries a
+  suite `check:panel-suites` counts, and a gate that proves a suite exists
+  says nothing about what the suite reaches. It ran only the data tests until
+  2026-08-24, which scored a module by what its OWN tests reached and so read
+  11 of 45 modules 5+ points low — `mutes.ts` at 0% against a real 81.5%.
   What it says today: `pure.ts` 98% statements / 96% branches and `deck.ts`
   / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
   covered — against `deviceBind.ts`'s Apple/Google verification at 27%,

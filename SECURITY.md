@@ -32,8 +32,14 @@ In scope, and most interesting:
   belonging to another user. Reads are open by design since D98; writes
   are not, and a client that can author, edit or delete under someone
   else's uid is a real finding.
-- **The four things that are still closed**, because each is closed for a
-  reason that survived D98:
+- **The paths that are still closed**, because each is closed for a
+  reason that survived D98. `docs/data-inventory.md` names every one of
+  them, a row each with its reader; anything marked **nobody** there is
+  in scope on these terms, and that page is the list rather than this
+  one — it is held to `firestore.rules` by `check:data-inventory`, and
+  this section said "the four things" until 2026-09-11 while `CLAUDE.md`
+  said three of the same subject. The ones a report is most likely to be
+  about:
   - `v2_logic_attempts` — the unscored answer key (anti-cheat).
   - `v2_flags` — who reported a comment (anti-retaliation).
   - `v2_presence` — the uid → ~200 m cell pair (0.01° ≈ 1.1 km until
@@ -45,6 +51,16 @@ In scope, and most interesting:
     answered, not where they are standing.
   - Push tokens at `v2_users/{uid}/push/tokens` — a credential. Anything
     that reads one is in scope.
+  - `v2_presence_room/{cell}` — the one derived document that holds
+    uids: a sampled roster paired with a NAMED cell, which is the
+    "who is standing where" `v2_presence`'s own deny exists to prevent.
+    `nearbyRoomV2` is the only path to it, and anything that reads the
+    collection directly skips that gate and can sweep the grid.
+  - `v2_users/{uid}/patterns` — the latent vector the nightly fit
+    carries a person's answers as. Derived from nothing that is not
+    already public, and closed both ways anyway on the push/ principle:
+    a path with no read grant cannot be opened by accident, and a
+    summary is not something anyone signed up to be read AS.
 - **Duel answers before their reveal.** Sealed until that ROUND's reveal
   doc exists — written when everyone has played, or at the round's
   48-hour deadline for whoever did (D426/D437; not a calendar day, which

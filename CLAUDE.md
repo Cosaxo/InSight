@@ -121,10 +121,19 @@ script before editing the page: three of its claims were already stale
 when D183 opened it, because D174, D175 and D177 each updated the app and
 not the policy.
 
-Three denies remain, none about answers, each labelled at its own path in
-`firestore.rules`: the unscored logic answer key (anti-cheat), flag
-authorship (anti-retaliation) and the presence cell (physical safety —
-D98 published what people answered, not where their phone is standing).
+Three denies carve out of the ANSWER model, none of them about answers,
+each labelled at its own path in `firestore.rules`: the unscored logic
+answer key (anti-cheat), flag authorship (anti-retaliation) and the
+presence cell (physical safety — D98 published what people answered, not
+where their phone is standing). Those three are not everything the rules
+close — credentials, derived per-person state and the server's own
+ledgers are denied too — and
+[`docs/data-inventory.md`](docs/data-inventory.md) is the list, a row per
+path with its reader, held to the rules by `check:data-inventory`. Count
+it there and never here: this sentence said "three denies remain" until
+2026-09-11 and `SECURITY.md` said four of the same subject, while the
+file both were summarising had every path right. A count kept in prose is
+the documentation error `check:figures` exists for (D39).
 Duel answers stay sealed until their ROUND reveals — everyone played,
 or the round's 48-hour deadline — enforced as a `surface` test: that is
 game timing, not privacy. Not "the next day": D426 replaced the calendar
