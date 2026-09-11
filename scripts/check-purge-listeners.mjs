@@ -186,8 +186,14 @@ for (const file of files) {
     .filter((rel, i, a) => a.indexOf(rel) === i)
     .filter((rel) => {
       try {
+        // stripComments, like every other read in this file — the header's
+        // "comments do not count" rule applied to the one read that was
+        // missing it. This rule hunts for text that must be PRESENT, so an
+        // unstripped read is the permissive direction: comment the dispatch
+        // out and the gate still finds it and still prints OK, with every
+        // listener below wired to nothing.
         return new RegExp(`dispatchEvent\\(\\s*new Event\\(\\s*["']${EVENT}["']`)
-          .test(readFileSync(join(root, rel), "utf8"));
+          .test(stripComments(readFileSync(join(root, rel), "utf8")));
       } catch { return false; }
     });
   if (dispatchers.length !== 1) {

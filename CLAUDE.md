@@ -244,7 +244,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-56 modules are already off the bridge — they export and publish nothing,
+57 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -525,7 +525,13 @@ an emergency rules fix.
   server's ack is NOT in the answers cache on purpose (D312) — it lives
   in `insight.pendingAnswers.v1` until the queue drains (D357), so a new
   optimistic write path marks and clears that mirror or its offline
-  answer is re-offered after a relaunch.
+  answer is re-offered after a relaunch. **The same trap runs one flag
+  over**: `linked` and `needsEmailVerify` are false until the auth
+  observer speaks, which is after the SDK import AND the auth restore —
+  so the account wall read a signed-in user as a stranger on every warm
+  launch and flashed the sign-in screen at them. It asks `LIVE.wallPass`
+  since D453, which answers off a device mirror until auth has a word.
+  A store flag that has not been written yet is not a fact.
 
 ## House style
 

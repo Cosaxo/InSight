@@ -152,7 +152,7 @@
     "@firebase/rules-unit-testing": "5.0.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^24.12.2",
+    "@types/node": "^22.20.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.5",
@@ -172,6 +172,43 @@
     "vite": "^8.0.4",
     "vitest": "^4.1.10"
   },
+  "//sentry": [
+    "@sentry/browser is EXACT and must stay equal to whatever",
+    "@sentry/capacitor declares — 4.2.0 asks for exactly 10.60.0, and its",
+    "postinstall (scripts/check-siblings.js) hard-fails npm ci when the two",
+    "disagree. So neither half can move on its own, and a dependabot PR that",
+    "bumps one is a PR that can never go green: #213 sat red for 23 days.",
+    "Both are ignored in .github/dependabot.yml for that reason. Move the",
+    "pair by hand, in one commit — npm view @sentry/capacitor@<target>",
+    "dependencies gives the browser version to write here."
+  ],
+  "//@types/node": [
+    "THE NODE 22 LINE, deliberately. It was ^24.12.2 while .nvmrc says 22,",
+    "engines above says >=22, firebase.json runs the functions on nodejs22 and",
+    "ci.yml's setup-node says 22 — a major ahead of every runtime pin in the",
+    "repo. What that costs is silence: a Node-24-only declaration typechecks",
+    "clean here and is undefined at runtime, and nothing sits between the two.",
+    "A top-level key rather than a comment inside devDependencies, because npm",
+    "validates package names there and refuses a // entry.",
+    "Move this major only when all four move together."
+  ],
+  "//overrides": [
+    "tar is a FLOOR, and today it forces nothing. Measured 2026-09-09: its",
+    "three dependents ask for ^7.5.3 (@capacitor/cli), ^7.5.4 (node-gyp) and",
+    "^7.5.11 (firebase-tools), and normal resolution already picks 7.5.22 —",
+    "so removing this line would change no installed version today.",
+    "",
+    "It is kept as the floor rather than deleted because that is exactly what",
+    "expires: a dependent narrowing its range, or a major moving one of them",
+    "back, would silently drag tar under the advisory this was added for, and",
+    "nothing else in the tree is watching that. Documented rather than",
+    "removed, with the arithmetic, so the next reader does not have to",
+    "re-derive whether it is load-bearing.",
+    "",
+    "Unlike functions/package.json's overrides block, this one forces no",
+    "version on a package that declared a different range, so it carries none",
+    "of that block's compatibility-assertion risk."
+  ],
   "overrides": {
     "tar": "^7.5.22"
   },

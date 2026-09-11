@@ -92,7 +92,22 @@
     "Note also that ci.yml's audit job is `continue-on-error: true` on purpose",
     "— advisory only, so an advisory published overnight cannot block an",
     "emergency rules deploy. The weekly security-audit workflow is the one that",
-    "fails loudly. Neither of them was what refused this bump; a comment was."
+    "fails loudly. Neither of them was what refused this bump; a comment was.",
+    "",
+    "RE-MEASURED 2026-09-09, taking this block's own closing instruction. The",
+    "runtime audit was NOT 0: `npm audit --prefix functions --omit=dev` reported",
+    "one moderate, qs 6.15.3 (GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g). Both",
+    "gates missed it and neither was broken — both run --audit-level=high, so a",
+    "moderate on the deployed runtime is invisible to them by design, and the",
+    "claim above says 0 without qualifying which level it means.",
+    "",
+    "Cleared by a lockfile bump alone (`npm audit fix --omit=dev`): qs 6.15.3 ->",
+    "6.16.0, three lines, no package.json change and NO new override — 6.16.0",
+    "is inside every dependent's declared range, so the compatibility-assertion",
+    "warning above does not apply here. Runtime audit is 0 again, at any level.",
+    "",
+    "The lesson is this block's own, one turn later: `0` is a figure with no",
+    "gate behind it unless the level it was measured at is written beside it."
   ],
   "overrides": {
     "uuid": "^11.1.0",

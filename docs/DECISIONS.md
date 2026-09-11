@@ -49875,3 +49875,314 @@ same commit that caused it. Fixing it found that the table under that
 sentence had been missing `apply-bigquery.yml` and `backfill-log.yml`
 since the day they were counted — the gate holds the COUNT, and nothing
 holds the ROWS.
+
+## D452 · A whole-app audit, adversarially verified — and the half of it main reached first
+
+**2026-09-09, merged forward 2026-09-11.** **Status: Proposed** — the
+owner's tick on `MERGE-LIST.md` is the decision. Numbered D452 because
+D440–D451 were taken on `main` in the two days this branch sat. Asked for in one sentence (*"go through
+this app and look for improvments optemzations and clean up and
+maitance"*), so the subject is the whole tree rather than one surface.
+
+**How it was run, because the method is the reason to believe the
+findings.** Fourteen dimensions — dead code, `live.ts`, client render
+performance, Cloud Functions, rules and security, the gates themselves,
+the test suites, dependencies and build, documentation drift, type
+safety, duplication, UX and accessibility, robustness, cost and scale —
+each surveyed by an agent that had to quote what it actually read or ran,
+and each survey then handed to a SECOND agent whose instruction was to
+REFUTE it and to default to rejected when it could not reproduce the
+claim. 76 findings went into that second stage; 42 came out CONFIRMED, 29
+RESCOPED (the observation real, the finding overstated or the fix wrong)
+and 5 REJECTED outright.
+
+The rescopes are the part worth keeping. Three examples of what the
+verify stage caught, each of which would have shipped a wrong change: a
+"delete this dead module" finding whose module is named as live by two
+open plans (`reveal-clock.js`); a "the handles deny is defeated" finding
+whose remedy would have proposed shrinking D98's central grant, when the
+tree already says the exposure delta is nil in two places thirty lines
+apart; and a fix that would not have compiled, because it declared a
+variable inside a branch the arm it was fixing had already returned from.
+
+**The baseline was green, and stayed green at every commit.** lint,
+`tsc -b`, 3016 unit tests, 1286 script tests, 837 functions tests, 214
+rules tests with both ratchets, the three e2e suites, and every static
+gate. That is the starting state this repo's rules require and the state
+each of the seven commits below was measured against.
+
+**WHAT MAIN REACHED FIRST, and this is the most useful thing the record
+can say.** `main` moved 94 commits while this branch sat, and eight of
+its findings are the same findings — found independently, fixed
+independently, and in every case with a better record than this branch
+wrote. The merge takes main's side on all of them:
+
+- the `check:figures` bank count (main's **D444**, which also caught that
+  a sixth pack had pushed the over-count from 44 to 52 — this branch only
+  saw 44);
+- the D410 guard missing from the catalog fold, fixed on main 2026-09-10
+  with the `rebuildAggregateV2` consequence this branch did not name;
+- the backend's untypechecked test files — main built the same
+  `functions/tsconfig.test.json`, wired it as `check:fn-types`, and fixed
+  the same `PricingCard` and `AttnCounter` fixture drifts;
+- the duel seal's missing disk mirror, where main's fix also marks
+  `state.inflight`, which this branch's did not;
+- the `v2social.ts` reveal header, the CLAUDE.md/README/MIRROR row and
+  reveal paragraphs, the `duels-rounds` dead guard, and the
+  `cost-arith`/`pulse.test` read arithmetic.
+
+Two agents finding the same defect independently is the strongest
+evidence available that it was real, so this is a confirmation rather
+than a loss. What survives from this branch is what main did not reach:
+the `check:purge` unstripped read, the four accessibility holes, the five
+dead publications and the conversion residue, four of the five
+repeated-work loops, the offline profile-screen deadlock, the dependency
+and config maintenance, and the 27 findings written onto `WORKLIST.md`.
+
+**What was taken, in seven commits.**
+
+1. **Two gates that could not see what they were guarding.**
+   `check:figures` counted the question bank with an ad-hoc `"id":` regex
+   two lines from the shared parser it already imports. D434 made the
+   group a cast, a role vote grew `scen: { id … }` and `role: { id … }`,
+   and the scan began reporting 1342 for a bank of 1298 — then ENFORCED
+   1342 into ten sentences across five files while `check:content`
+   printed the true 1298 three steps later in the same CI job. Nothing
+   went red, because this gate is the thing that decides what the number
+   is. That is D179, D197 and D275's class exactly, for the fourth time.
+   The joint that was missing is now a test, and it pins the PROPERTY —
+   a nested id is not an entry — rather than the number, because pinning
+   1298 would recreate the drift trap the suite's own header is about.
+   `check:purge` had the same shape pointed the permissive way: every
+   read in it strips comments except the one that finds the single purge
+   dispatcher, so a commented-out dispatch passed with all 29 listeners
+   wired to nothing.
+
+2. **Six documentation claims the tree stopped making true**, none of
+   which any gate can read: the Groups Mirror row (`Answers · People ·
+   Compare` in three files, where `GROUP_TABS` has been `Votes · People ·
+   Scores · Compare` since D437), the "next-day reveal" in CLAUDE.md,
+   README.md and `v2social.ts`'s own header (D426 replaced the calendar
+   with the round and `roundReveals()` reads no clock — CLAUDE.md
+   contradicting its own standing instruction to say *until the reveal*),
+   `loadOverlays()` naming two modules deleted at D121, ORIENTATION's
+   "Four of these files declare plan only" where the gate's own regex
+   finds sixteen, `main.jsx` "renders `globalThis.App`" after D354 made
+   it an import, and LiveSignInGate's header saying the account wall is
+   off for the public build when both release workflows default it on and
+   refuse to upload without it. Three hand-maintained counts were deleted
+   rather than corrected.
+
+3. **D410 reaches the catalog fold.** The one production-data finding.
+   D410 made the answer trigger read the author's profile and fold the
+   honest cohort rather than the claimed one, because rules can
+   shape-check an answer's anchors but cannot check whose they are. It
+   was applied to one of the two published folds: the catalog arm read
+   `[eventRef, qRef, privRef]`, never the profile, and folded the raw
+   claim into the published `by` map for 24 shipped pick questions —
+   which `pickSegs`/`pickSeg` read straight onto the pick card as a
+   segment chip and a segment ordering. Fixed the vote arm's way, on the
+   existing `tx.getAll` so the lock window is unchanged, with the row
+   corrected only when it differs. The read-count tripwire caught the
+   change exactly as designed (12 → 13) and moved with it.
+
+4. **Four accessibility holes no ratchet here can see.** D86's
+   change-your-vote was POINTER-ONLY — no role, no tabIndex, no key
+   handler on either twin, so a keyboard or switch user could not reach
+   the feature at all, and jsx-a11y has no rule for a pointer-only
+   handler. Six full-screen overlays closed through an unnamed glyph, and
+   in five of them that button is where `useDialog` puts focus on open.
+   `AskedByYouOverlay` was a ninth overlay with no dialog semantics at
+   all. And the person map opened as a nested overlay with no layer of
+   its own, so one Escape peeled two.
+
+5. **Five loops and round trips doing the same work repeatedly**: a
+   defensive copy of the whole vote map per comparison inside a sort
+   comparator, per keystroke; the profile cache parsed twice on every
+   warm boot; the last serial `in`-chunk read, on the path a `contentRev`
+   bump makes longest; two independent reads serialised in the app's most
+   frequent callable; a denominator recomputed once per field.
+
+6. **Two ways to lose work offline.** `voteDuel` and `voteLate` never
+   marked D357's disk mirror, so an unacknowledged duel seal lived in one
+   process's memory — and on relaunch the round was offered again, where
+   the second seal is a `setDoc` onto an existing document that
+   `firestore.rules` refuses (`allow update` is daily/feed/test only).
+   The round was spent, unanswerable, and the partner's table had a hole
+   in it. Separately the first-run profile screen awaited a raw `setDoc`,
+   which offline PARKS rather than rejecting: the catch could not run,
+   `busy` stayed true, and that screen has no close control, no Escape
+   and no back layer.
+
+7. **The backend's 39 test files were typechecked by nothing** — the
+   build config excludes them correctly and no other config reached them,
+   so ~14k lines were compiled by nobody. A config that reaches them
+   found 27 real errors, including a `PricingCard` fixture carrying a
+   retired field and missing three required ones: the money path was
+   asserting about a shape the server cannot be handed. Four assertions
+   that could not fail were found in the same pass, including one whose
+   guard had never once executed (measured) and one whose verdict changed
+   with the day of the week.
+
+8. **Dependency and config maintenance**: a moderate advisory live on the
+   deployed runtime and invisible to both audit gates because they run
+   `--audit-level=high`; `@types/node` a major ahead of all four runtime
+   pins; the Sentry pair, which cannot move one at a time and had no
+   dependabot rule saying so (#213 red for 23 days); `MAX_CHUNK_KB` 438 KB
+   above anything it measured, so it had stopped being a ratchet; the
+   Stripe wire version inherited from the package rather than pinned at
+   the call site; four strictness flags spread across three configs in
+   three different subsets, all free.
+
+**The arithmetic.** No new Firestore read on any client path. One extra
+billed read per CATALOG answer (24 of 1,298 questions), on the existing
+batched read, so no extra round trip and no change to the lock window —
+`cost-arith.mjs`'s stated approximation widens from one read to two on
+that slice and the constant does not move. One read REMOVED per settled
+duel answer (a duel aid no longer schedules an aggregate refresh for a
+document that cannot exist). `nearbyCountV2` loses one serialized round
+trip at the same billed cost. The shipping bundle is unchanged at
+2,304 KB total and 548 KB eager; `check:globals`' coupling baseline is
+unchanged at 28 (what went were publications, not cross-module reads),
+while published globals fell 44 → 39 and the off-the-bridge count rose
+55 → 56.
+
+**What was NOT taken, and why that is the honest half.** 27 verified
+findings are written onto `WORKLIST.md` § Open rather than fixed here,
+each with its reason. The largest is the feed's per-render derivation and
+its undebounced scroll growth: real, measured, and a restructure of a
+4,600-line pipeline rather than a hoist, which is not a thing to do
+inside an audit sweep. Two scale walls with no alert
+(`ROLLUP_FOLD_CAP` at ~10k DAU, `SHARD_FOLD_CAP` at ~20k) want monitoring
+policies rather than raised caps. Three real duplications each need a
+judgement about which copy wins. `COSTS.md`'s headline tables are one
+model run stale. And `noUncheckedIndexedAccess` was measured rather than
+argued about: ~1,795 errors on the app project and ~690 on functions, so
+it is a project, not a flag.
+
+**One finding is a documentation change and deliberately NOT an owner
+ask.** `v2_handles` refuses `list`, and the audit's first pass read that
+as an anti-enumeration control defeated by the people directory. The
+verify stage refuted the remedy: `v2_users` is world-read and carries
+`handle`, so (uid, handle) is already enumerable — which the ruleset says
+thirty lines below and `data-inventory.md` states as an exposure delta of
+nil. Under D334 a privacy constraint goes to the owner when it BLOCKS
+something; volunteering a new restriction on D98's central grant is the
+opposite, and D352 is explicit that a limit is a design problem to solve
+around. So the deny stays, for the reason it was written — nothing in the
+app wants the list — and the comment now says it is least privilege on
+that collection rather than a barrier for the app, so the next reader does
+not go looking for one that is not there.
+
+**Measured before the push:** `lint`, `tsc -b`,
+`functions/tsconfig.test.json`, `test:unit` (207 files / 3,021 tests, up
+from 3,016 — five new cases, every one mutation-checked red against the
+code it pins), `test:scripts` (74 / 1,288), `test --prefix functions`
+(39 / 839), `test:rules` (214, coverage and budget ratchets at baseline),
+`test:e2e:all`, `build` + `check:bundle`, and every static gate the
+changed files touch. The counts are in the PR body.
+
+## D453 · The sign-in wall stopped waiting for auth to speak: the warm boot's own treatment, one surface over
+
+**2026-09-11.** **Status: Proposed** — the owner's tick on
+`MERGE-LIST.md` is the decision. Reported from a device by the owner,
+in one sentence: *"even when you are signed in the sign in page will
+show for a brief while before it relises you are signed in"*.
+
+**What was wrong, and it was structural rather than a race.**
+`ui/SignInGate.tsx` composed the wall's verdict itself —
+`!(LIVE.linked && !LIVE.needsEmailVerify)` — and BOTH of those flags
+are initialised to false and moved only by live.ts's auth observer.
+That observer cannot fire until the Firebase Auth SDK has been imported
+(~400 KB of Auth and Firestore to fetch and parse) and the auth
+restore's own IndexedDB read has come back. D356 named that pair "the
+longest LOCAL wait a warm boot has left" and took the DECK out from
+behind it: a returning device paints its real deck, answers, aggregates
+and anchors off its own caches, and `initLive`'s race releases the
+render at that point. The wall never got the same treatment, so the
+render D356 releases early is a render in which a signed-in user is
+indistinguishable from a stranger — the screen goes up, the restore
+lands, the screen comes down. Not a rare interleaving: it is every
+launch of every walled build with a linked account, which since D414 is
+every install.
+
+**The fix is D356's own shape, one surface over.** The wall now reads
+what auth last told THIS DEVICE until auth tells it something this
+session:
+
+- `data/live.ts` keeps `insight.authMirror.v1` — the verdict, written
+  whenever it moves and read while it is unknown. A new `state.authKnown`
+  says whether the observer has spoken; `LIVE.wallPass` is
+  `linked && !needsEmailVerify` once it has and the mirror until then.
+- `ui/SignInGate.tsx` asks that one question instead of composing two
+  flags. The two-condition rule it used to state — an unverified
+  password address is not a passed wall, because the mail that is the
+  only way back into a typo'd account goes to the wrong inbox — moved
+  to the getter with the composition, since it is a fact about the
+  account rather than about the component.
+- The observer writes the mirror and announces the FIRST observation
+  even when neither flag moved. That arm is the whole of the correction
+  path: a device whose mirror opened the wall, for a session auth then
+  reports as anonymous, moves nothing — so without it the app would
+  stay open behind a wall that could never close.
+- `LIVE.refreshVerification` writes it too. That path clears
+  `needsEmailVerify` without the observer (its own comment says why:
+  `reload()` notifying is an SDK implementation detail), and missing it
+  would have flashed the wall at exactly the person who had just
+  confirmed their address.
+- The account-switch arm writes it AFTER `resetForNewUid`, because that
+  is what purges the `insight.` namespace the write lands in. Nothing in
+  the reset touches the two flags, so the verdict there is already the
+  new account's — and without the second write, switching INTO a linked
+  account cost that account a flash on its next launch.
+- `initLive`'s early return sets `authKnown` as well: in a build with no
+  Firebase behind it nothing will ever observe auth, so the wall must
+  not wait for a word that is not coming — and a mirror left by a build
+  that DID have Firebase cannot open it.
+
+**What it costs, stated rather than assumed.** The wall can now be down
+for one auth restore over a session that has really ended — revoked,
+deleted from another device, or auth storage cleared without
+localStorage. What is on screen in that window is this device's own
+cached deck for the account the mirror names, which is the account
+whose session was lost; nothing of anyone else's is on disk to draw,
+and no write can reach Firestore in it (getDb parks every mutator
+behind `authSettled` while the uid is provisional — D356). The key
+lives in the `insight.` namespace `purgeLocalTrace` sweeps, so a
+deleted account leaves no open door for the next one, and an absent,
+unreadable or unrecognised value reads as WALLED — a device that has
+never passed the wall waits for auth exactly as it did before.
+
+That last property has a consequence worth stating rather than
+discovering: an account signed in BEFORE this shipped has no mirror on
+disk, so the first launch after the update still flashes, once, and
+writes the mirror on the way past. Every launch after it is clean. The
+alternative — seeding the key from something already on disk, the
+profile mirror say — would be inferring a verdict auth never gave, on
+the one surface where a wrong guess opens the wall.
+
+**Why the mirror and not a hold.** The obvious alternative is to render
+nothing until auth speaks. It pays the same wait D356 removed, and pays
+it on the signed-OUT path too (a first launch would sit on a blank
+background for the restore instead of showing the door); it needs a
+timeout, because `subscribeToAuth` gives up after one retry and a
+failed chunk would otherwise leave `#root` blank for the session — the
+exact failure `SignInGate`'s slot exists to prevent; and at the end of
+that timeout it puts the wall up anyway. The mirror adds no wait in
+either direction and has no blank-forever state.
+
+**Measured, and every case mutation-checked red first.** Six cases in
+`data/warm-boot.test.ts` over real store state (the mirror before auth
+speaks and auth's word after; the contradiction closing the wall again
+AND announcing it; the write that opens the next launch; the inbox
+poll's own write; the sweep on an account switch, and the re-write that
+survives it), and the gate's own suite gains the first-frame pin plus
+the correction — with the store mock offering `wallPass` and nothing
+else, so a component that goes back to composing the flags walls every
+case in the file. Dropping the mirror read fails four; dropping the
+first-observation notify fails the one it exists for; dropping the
+verify-path write fails the inbox case; moving the switch's write back
+before the reset fails the sixth.
+`lint`, `tsc -b`, `test:unit`, `test:scripts`, `build` +
+`check:bundle` (eager graph unmoved at its ceiling), `check:globals`,
+`check:purge`, `check:figures`.
