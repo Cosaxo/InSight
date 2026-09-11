@@ -50670,8 +50670,10 @@ every question dirtied in the last fifteen minutes and writes
 `v2_question_aggs/{qid}` in exactly the shape the trigger wrote —
 `counts`, `total`, `by`, `edits` — with the union re-capped: the
 `BREAKDOWN_MAX_BUCKETS` biggest buckets a dimension stay hot, ties by
-name, the rest to D400's tail, the eight tail documents written whole
-once any dimension is past the cap. Every client keeps reading the one
+name, the rest to D400's tail, each tail shard written where it has
+cells and deleted where it has none (the replay's rule, so the two
+writers agree; the rebuild publishes a sharded question through this
+same cap). Every client keeps reading the one
 document it reads today at the poll it already polls, which is D447's
 amendment of D98 made literal: exact, and never more than a poll behind.
 

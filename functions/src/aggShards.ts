@@ -36,7 +36,8 @@
 // the read this design removes — and the compactor applies the cap over
 // the union: the top BREAKDOWN_MAX_BUCKETS buckets a dimension by count,
 // the rest to D400's overflow tail, sharded by bucket hash as the trigger
-// did. That is a better cap than the trigger's — the hot set is the
+// did — each tail shard written where it has cells and deleted where it
+// does not, the replay's rule, so the two writers agree. That is a better cap than the trigger's — the hot set is the
 // biggest buckets rather than the earliest — and a deterministic one, so
 // `replay.ts`'s "arrival order decides the hot map" caveat is gone for a
 // sharded question. Per-shard growth is bounded by AGG_SHARDS: a city
@@ -69,8 +70,9 @@
 // and the profile) where there were three, and one uncontended write
 // where there was one contended one. The compactor: one query and
 // AGG_SHARDS + 1 reads a minute per question dirtied in the lookback,
-// one write of the published document, and the eight tail documents
-// whole once a dimension is past the cap — cents a day for the daily,
+// one write of the published document, and past the cap the eight tail
+// shards — a write where one has cells, a delete where it does not —
+// cents a day for the daily,
 // `npm run costs` prints the line. No fixed monthly line: Redis, the
 // counter store SCALE-ARCHITECTURE.md §3.2 sizes, bills its instance from
 // the hour it exists and would be the whole bill many times over at
@@ -433,13 +435,19 @@ export function firestoreAggCompactStore(db: Firestore): AggCompactStore {
     async publish(qid, out) {
       const batch = db.batch();
       batch.set(db.collection("v2_question_aggs").doc(qid), out.pub, { merge: false });
-      // The tail, whole, the moment any dimension is past the cap — the
-      // eight documents, empty ones included, so a bucket that moved from
-      // the tail to the hot map is not still found in a stale shard by a
-      // reader who looks (replay.ts writes the tail the same way).
+      // The tail, the moment any dimension is past the cap: each of the
+      // eight shards written whole where it has cells and DELETED where
+      // it has none — the replay's own rule (replay.ts), so the two
+      // writers leave the same documents, and a bucket that climbed back
+      // into the hot map is not still found in a stale shard by a reader
+      // who looks. A delete is the cheapest operation on the sheet, and a
+      // delete of a document that is not there is a no-op.
       if (out.overCap) {
         for (let s = 0; s < OVERFLOW_SHARDS; s++) {
-          batch.set(db.collection("v2_agg_overflow").doc(overflowDocId(qid, s)), out.tails[String(s)] ?? {}, { merge: false });
+          const ref = db.collection("v2_agg_overflow").doc(overflowDocId(qid, s));
+          const cells = out.tails[String(s)];
+          if (cells) batch.set(ref, cells, { merge: false });
+          else batch.delete(ref);
         }
       }
       await batch.commit();

@@ -239,9 +239,12 @@ the console, because the emulator has no BigQuery to prove it against.
       lookback leaves a quiet question stale until its next answer or the
       lever). The union is re-capped as DATA-EFFICIENCY §3 corrected: the
       `BREAKDOWN_MAX_BUCKETS` biggest buckets a dimension stay hot, ties
-      by name, the rest to D400's tail — the eight tail documents written
-      WHOLE once any dimension is past the cap, so a bucket that climbed
-      back is not still found in a stale shard. Better than the trigger's
+      by name, the rest to D400's tail — each of the eight tail shards
+      written whole where it has cells and deleted where it has none, the
+      replay's own rule, so a bucket that climbed back is not still found
+      in a stale shard and the two writers leave the same documents.
+      `rebuildAggregateV2` publishes a sharded question through this same
+      cap and reports the tail it yields. Better than the trigger's
       cap, and deterministic. THE BASE SHARD is the migration: the first
       time the compactor meets a question with no `{qid}-base`, it moves
       the published document and its tail into one, in a transaction.

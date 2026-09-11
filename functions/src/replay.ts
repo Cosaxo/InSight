@@ -108,7 +108,7 @@ import {
   type CanonCounts,
   type EditFlow,
 } from "./pure";
-import { AGG_SHARDS_COLLECTION, BASE_SHARD, baseFrom, isShardedQid, shardDocId, shardRef, shardsStamp } from "./aggShards";
+import { AGG_SHARDS_COLLECTION, BASE_SHARD, baseFrom, isShardedQid, publishedFrom, shardDocId, shardRef, shardsStamp } from "./aggShards";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -646,6 +646,18 @@ export async function runRebuild(
 
   // One shape for the report, whichever arm produced it.
   const out = arm === "vote" ? finishFold(vote) : null;
+  // A SHARDED question (aggShards.ts, phase B) is published by the
+  // compactor's cap — the biggest buckets stay hot, ties by name — and
+  // not by the fold's arrival-order one, so what this rebuild writes AND
+  // reports is the compactor's reading of the exact fold: the base shard
+  // is the uncapped union of hot map and tail, and the published document
+  // and its tail are what one compaction of that base yields. Computed on
+  // the dry run too, so `tailShards` and `cappedDims` describe what an
+  // apply would leave rather than what the hot path would have written.
+  const shardedBase = sharded && out
+    ? baseFrom(qid, { counts: vote.counts, total: vote.total, by: vote.by, ...(edits ? { edits: edits as EditFlow } : {}) }, Object.values(vote.tail), Date.now())
+    : null;
+  const compacted = shardedBase ? publishedFrom([shardedBase]) : null;
   const total = arm === "vote" ? vote.total : arm === "rank" ? rank.total : canon.total;
   const folded = arm === "vote" ? vote.folded : arm === "rank" ? rank.folded : canon.folded;
   const skipped = (arm === "vote" ? vote.skipped : arm === "rank" ? rank.skipped : canon.skipped)
@@ -754,26 +766,35 @@ export async function runRebuild(
       // one transaction, and a fold landing between two separate writes
       // would leave them disagreeing.
       const batch = db.batch();
-      batch.set(
-        pubRef,
-        { counts: vote.counts, total: vote.total, by: vote.by, ...(edits ? { edits } : {}) },
-        { merge: false },
-      );
-      for (let s = 0; s < OVERFLOW_SHARDS; s++) {
-        const cells = vote.tail[String(s)];
-        if (cells) batch.set(overflowRef(db, qid, s), cells, { merge: false });
-        else batch.delete(overflowRef(db, qid, s));
-      }
-      if (sharded) {
-        // …and the shards, which are what the next compaction publishes
-        // from: the exact fold becomes the base — hot map and tail as one
-        // uncapped map — and every other shard goes, so a count the base
-        // now holds is not summed twice a minute later. The stamp check
-        // above covers the scan; the window between it and this commit is
-        // the same one the catalog arm's comment accepts, and an answer
-        // folded inside it is in the answers for the next rebuild.
-        batch.set(shardRef(db, qid, BASE_SHARD), baseFrom(qid, { counts: vote.counts, total: vote.total, by: vote.by, ...(edits ? { edits: edits as EditFlow } : {}) }, Object.values(vote.tail), Date.now()), { merge: false });
+      if (shardedBase && compacted) {
+        // The sharded question: the published document and its tail as
+        // the compactor would write them from this fold, and the shards,
+        // which are what the next compaction publishes from — the exact
+        // fold becomes the base, hot map and tail as one uncapped map,
+        // and every other shard goes, so a count the base now holds is
+        // not summed twice a minute later. The stamp check above covers
+        // the scan; the window between it and this commit is the same
+        // one the catalog arm's comment accepts, and an answer folded
+        // inside it is in the answers for the next rebuild.
+        batch.set(pubRef, compacted.pub, { merge: false });
+        for (let s = 0; s < OVERFLOW_SHARDS; s++) {
+          const cells = compacted.tails[String(s)];
+          if (cells) batch.set(overflowRef(db, qid, s), cells, { merge: false });
+          else batch.delete(overflowRef(db, qid, s));
+        }
+        batch.set(shardRef(db, qid, BASE_SHARD), shardedBase, { merge: false });
         for (const d of beforeShards) if (d.id !== shardDocId(qid, BASE_SHARD)) batch.delete(d.ref);
+      } else {
+        batch.set(
+          pubRef,
+          { counts: vote.counts, total: vote.total, by: vote.by, ...(edits ? { edits } : {}) },
+          { merge: false },
+        );
+        for (let s = 0; s < OVERFLOW_SHARDS; s++) {
+          const cells = vote.tail[String(s)];
+          if (cells) batch.set(overflowRef(db, qid, s), cells, { merge: false });
+          else batch.delete(overflowRef(db, qid, s));
+        }
       }
       await batch.commit();
     }
@@ -800,8 +821,10 @@ export async function runRebuild(
     // Only the vote arm's `by` saturates in a way a reader must be warned
     // about; the canon arm's per-segment map has the same caps, so it is
     // reported too. Rank has no breakdown at all and always reports none.
-    cappedDims: arm === "vote" ? out!.cappedDims : arm === "catalog" ? cappedDims(canon.entBy) : [],
-    tailShards: arm === "vote" ? Object.keys(out!.tail).length : 0,
+    // …and for a sharded question, the compactor's cap over the union:
+    // the dimensions past it, and the tail shards that cap would leave.
+    cappedDims: arm === "vote" ? (shardedBase ? cappedDims(shardedBase.by ?? {}) : out!.cappedDims) : arm === "catalog" ? cappedDims(canon.entBy) : [],
+    tailShards: arm === "vote" ? (compacted ? Object.keys(compacted.tails).length : Object.keys(out!.tail).length) : 0,
     published: before.exists ? { total: beforeTotal, counts: publishedCounts } : null,
     drift: { total: total - beforeTotal, counts: drift },
     carriedEdits: edits !== undefined,
