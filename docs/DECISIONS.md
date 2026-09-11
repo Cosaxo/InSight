@@ -49613,10 +49613,10 @@ pointer folded in.
 `docs/SCHEMA-V2.md`** are the same defect as 3, in the three other files
 that quote the count.
 
-### The sentence the merge had nothing to stop on
+### The sentence the merge had nothing to stop on — in two files
 
-**`storage.rules` — A's note said the privacy page needed no change, and
-it was true when A wrote it.** A's new argument ends: *"`web/privacy.html`
+**`storage.rules` and `docs/data-inventory.md` — A's note said the privacy
+page needed no change, and it was true when A wrote it.** A's new argument ends: *"`web/privacy.html`
 promises no signed-in floor for photos … so the page is not falsified by
 this — the two comments and the inventory row were."* B spent the same
 night giving the photo its own **who can see what** row on that page —
@@ -49624,9 +49624,16 @@ night giving the photo its own **who can see what** row on that page —
 account, no sign-in"* — and pinning it with a new `check:policy-claims`
 token. So by morning the file that explains the token said the page leaves
 the point implied, and the page stated it outright under a gate. A's
-sentence now carries B's row. Nothing about it fails a gate, and no gate
-reads it: this is D449's class exactly, and it is the only one tonight
-that git could not stop on, because the two shifts wrote in two files.
+sentence now carries B's row — in **both** files, because A wrote the same
+clause twice, once in `storage.rules` and once in the inventory's photo
+cell, and only the first was found on the first pass of this review.
+Nothing about either fails a gate, and no gate reads them: `check:docs`
+and `check:data-inventory` are both green with the stale clause in place,
+and the inventory's own cell says why one aisle over — "no gate can see
+it … `check:data-inventory` reads collection names and the reader column,
+never this cell". This is D449's class exactly, and it is the one thing
+tonight that git could not stop on, because the two shifts wrote in
+different files.
 
 ### The sweep both shifts ran, and neither finished
 
