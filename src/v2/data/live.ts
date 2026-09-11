@@ -1723,13 +1723,26 @@ function computeDeck(): void {
   // failure with no symptom.
   if (dailyBankN != null && dailyBankN > 0) {
     const bySeq = new Map(state.questions.map((q) => [q.seq, q.id]));
-    const ids = computeDeckSeqs(dailyBankN, today)
+    const want = computeDeckSeqs(dailyBankN, today);
+    const ids = want
       .map((seq) => bySeq.get(seq))
       .filter((id): id is string => !!id);
     // A miss means the rollover outran the fetch (tomorrow's card is in
     // hand, the day after is not). Keep the standing deck rather than
     // publishing a short one; the wake handler's refetch fills it.
-    if (!ids.length) return;
+    //
+    // ANY MISS, not only a total one. This read `if (!ids.length)`, which
+    // can fire only when EVERY position is absent — and the case it was
+    // written for is exactly one: the boot fetches DECK_DAYS + 1
+    // positions, so a second midnight crossed without a refetch leaves
+    // today's unheld and the others in hand. The filter then drops it and
+    // every card SHIFTS DOWN ONE, publishing yesterday's question at
+    // back=0 — served as today's card and answered as today's card, with
+    // the poll (`deckIds[0] is back=0 by construction`) reading the wrong
+    // aggregate to match. And `deckDay` was stamped anyway, so the
+    // shifted deck was frozen for the rest of the day: the refetch that
+    // lands the missing row could not recompute it.
+    if (ids.length !== want.length) return;
     state.deckDay = today;
     state.deckIds = ids;
     return;
