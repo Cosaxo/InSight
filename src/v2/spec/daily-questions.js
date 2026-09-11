@@ -485,6 +485,22 @@ export let DAILYQ;
       cat: ['Interests', 'Collecting'], alts: [['Mind', 'Desire'], ['Home', 'Shelves']] },
     { type: 'binary', prompt: 'Overthinking: mostly a curse, or secretly a gift?', tag: 'The spiral', options: ['A curse', 'Secretly a gift'], tone: 'deep',
       cat: ['Mind', 'Overthinking'], alts: [['Story', 'How you narrate'], ['Goals', 'Deciding']] },
+    { type: 'binary', prompt: 'Holding a queue spot for a late friend: fair, or a soft cut?', tag: 'The held spot', options: ['Fair', 'A soft cut'], tone: 'light',
+      cat: ['Morals', 'Small justice'], alts: [['Values', 'Fairness'], ['Mind', 'Social math']] },
+    { type: 'binary', prompt: 'Sad songs when you’re sad: medicine, or wallowing?', tag: 'Sad songs', options: ['Medicine', 'Wallowing'], tone: 'deep',
+      cat: ['Music', 'What it’s for'], alts: [['Mind', 'Feelings'], ['Body', 'Healing']] },
+    { type: 'binary', prompt: 'Could you still navigate by paper map?', tag: 'The paper map', options: ['Easily', 'We’d be lost'], tone: 'light',
+      cat: ['Skills', 'Old skills'], alts: [['Travel', 'Wayfinding'], ['Mind', 'Self-reliance']] },
+    { type: 'binary', prompt: 'A bad loss for your team: ruins the day, or gone by dinner?', tag: 'The bad loss', options: ['Ruins the day', 'Gone by dinner'], tone: 'blend',
+      cat: ['Sport', 'How deep it goes'], alts: [['Mind', 'Letting go'], ['Story', 'Allegiance']] },
+    { type: 'scale', prompt: 'A story improves with every telling.', tag: 'The polish', axis: 'polish it', tone: 'blend',
+      cat: ['Story', 'The telling'], alts: [['Morals', 'Honesty'], ['Mind', 'Memory']] },
+    { type: 'choice', prompt: 'Packing happens…', tag: 'The suitcase', options: ['Days ahead, list in hand', 'The night before', 'At dawn, in a panic', 'Someone else packs'], tone: 'light',
+      cat: ['Travel', 'The ritual'], alts: [['Mind', 'Planning'], ['Skills', 'Logistics']] },
+    { type: 'binary', prompt: 'When they clash: loyal to the person, or to the principle?', tag: 'The clash', options: ['The person', 'The principle'], tone: 'deep',
+      cat: ['Values', 'Loyalty'], alts: [['Morals', 'Lines'], ['Mind', 'Conviction']] },
+    { type: 'choice', prompt: 'Your running temperature:', tag: 'Running temp', options: ['Always hot — windows open', 'Always cold — socks in July', 'Season-dependent', 'Whatever the room says'], tone: 'light',
+      cat: ['Body', 'Thermostat'], alts: [['Home', 'The window war'], ['Travel', 'Climates']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer

@@ -143,13 +143,13 @@ const EXEMPT = {
       "moderator callable, invoked by the out-of-app moderation Routine; "
       + "gated on MOD_UIDS",
   },
-  // ── The web buy door (D451, re-gated at D452) ────────────────────────
+  // ── The web buy door (D453, re-gated at D454) ────────────────────────
   //
   // A browser cannot produce App Check attestation without a provider, so
   // these two cannot enforce it. What they are gated on is
   // `assertBookingBudget` — five bookings a rolling day per account.
   //
-  // D451 put a server-verified reCAPTCHA in front of that, and D452 took
+  // D453 put a server-verified reCAPTCHA in front of that, and D454 took
   // it back out on the owner's ruling. The reasoning is worth keeping
   // because it is about what a gate is FOR: reCAPTCHA was protecting the
   // per-review Anthropic spend, and once the review moved to a Routine
@@ -170,14 +170,14 @@ const EXEMPT = {
     reason:
       "the web buy door (web/ask.html) — a browser cannot produce App Check "
       + "attestation without a provider; gated on the per-account booking "
-      + "budget, with payment as the real filter (D451, D452)",
+      + "budget, with payment as the real filter (D453, D454)",
   },
   createPaidCheckoutV2: {
     gate: "assertOwnApprovedBooking",
     reason:
       "the web buy door's second hop — acts only on a booking that is "
       + "already the caller's own and already approved, which it checks "
-      + "before opening any Stripe session (D451, D452)",
+      + "before opening any Stripe session (D453, D454)",
   },
 };
 

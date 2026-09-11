@@ -41,6 +41,34 @@ service firebase.storage {
     // person who was already identified, on screens whose whole subject
     // is who people are.
     //
+    // AND IT IS NOT THE PATH THE APP DRAWS THROUGH, which this comment
+    // and its test both used to state as if it were. A face is an `<img>`
+    // and a URL (src/v2/data/avatar.ts's own header): the app builds
+    // `…/o/avatars%2F{uid}?alt=media&token=…`, the Storage DOWNLOAD-TOKEN
+    // endpoint, which serves the bytes without evaluating these rules at
+    // all. The rule below governs the SDK route — `getBytes` and friends
+    // — which no surface in this app uses to show a photo.
+    //
+    // So the served audience is ANYONE HOLDING THE LINK, and the token is
+    // a bearer credential that every signed-in user can read out of
+    // `v2_avatars/{uid}` (firestore.rules) and hand to the signed-out
+    // web. The delta is not who can see the face in the app — that is
+    // already every signed-in user, by the paragraph above — it is that
+    // one of them can republish a permanent link to it. Written down
+    // rather than fixed here, because the fix is a mechanism choice, not
+    // a rule: rotating the token on report, or serving faces through the
+    // SDK and paying for it. `web/privacy.html` never promised a
+    // signed-in floor for photos (it says the photo is "shown anywhere
+    // your name is shown"), so the page was not falsified by this — the
+    // two comments and the inventory row were. It no longer leaves the
+    // point implied either: the same night gave the photo its own
+    // "who can see what" row, naming the link and whoever holds it, and
+    // `check:policy-claims` pins that sentence (D178).
+    //
+    // What the token DOES still buy, and D223's control is unaffected: a
+    // removed face is deleted rather than flagged, so no link survives a
+    // remove verdict.
+    //
     // 256 KB is roughly ten times what the uploader produces: it
     // downscales to AVATAR_PX and re-encodes before it ever reaches here
     // (src/v2/data/avatar.ts), so this cap is the backstop for a modified

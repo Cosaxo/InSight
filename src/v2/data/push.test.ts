@@ -22,6 +22,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // its way onto window when app-shell's cross-links became a registry, so
 // a test that stubs the global now stubs a door nothing opens.
 import { registerNav } from "./nav";
+import { _forgetPushListenersForTest } from "./push";
 
 // Held so beforeEach can drop exactly what the last tap registered —
 // registerNav's teardown is identity-checked, so `delete`-ing by key is
@@ -89,6 +90,52 @@ beforeEach(() => {
   sessionStorage.clear();
   dropNav();
   dropNav = () => {};
+  // The listener set is attached ONCE PER ACCOUNT and that state is
+  // module-level, so without this every case after the first would find
+  // the handlers already attached — to a fake the `h.handlers` reset above
+  // has just emptied. Each case is a fresh boot.
+  _forgetPushListenersForTest();
+});
+
+describe("the listener set is attached once, not once per call", () => {
+  // `registerPush` runs more than once per session BY DESIGN: boot calls
+  // it per uid, and `pushEarned` (live.ts) calls it again on every
+  // createGroup / requestJoin / acceptInvite, deliberately without
+  // consulting the boot's memo — the point of that call is to ASK at the
+  // moment the permission is worth something. On a returning device that
+  // already granted it, both get past the permission gate.
+  //
+  // Each call used to attach a full new set of three. One tap then ran the
+  // handler N times: `note("notifOpen")` counted N — the sent→opened half
+  // of D270's funnel, the only half the client owns — and
+  // `insight-live-update` fired N times. `register()` re-firing
+  // `registration` into every attached listener also raced several
+  // `registerPushToken` callables per token, because the memo they dedupe
+  // against is written only after the first returns.
+  it("does not stack a second set when the same account registers again", async () => {
+    h.permission = "granted";
+    const { registerPush } = await import("./push");
+    await registerPush("u1");
+    expect(h.listeners.length, "the first registration attached nothing").toBe(3);
+    await registerPush("u1", { ask: true });
+    expect(h.listeners.length, "a second call attached a second set").toBe(3);
+    // …and it still asks the platform for a token, which is what the
+    // second call is FOR. Only the handlers are once.
+    expect(h.registered).toBe(true);
+  });
+
+  it("…and does swap the set when the ACCOUNT changes", async () => {
+    // Keyed by uid rather than a bare flag, because the handlers close over
+    // `uid`: the registration handler writes `{uid, token}` and returns
+    // early on a match, so a set left attached from a previous account
+    // would file the new account's token under the old uid.
+    h.permission = "granted";
+    const { registerPush } = await import("./push");
+    await registerPush("u1");
+    h.listeners = [];
+    await registerPush("u2");
+    expect(h.listeners.length, "a new account inherited the old account's handlers").toBe(3);
+  });
 });
 
 describe("registerPush — the prompt is asked for, not assumed", () => {

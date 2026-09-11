@@ -26,6 +26,7 @@ import {
   SWEEP_PAGE,
   WINDOW_DAYS,
   runReviewSweep,
+  type ReviewSweepStore,
   paidPurchaseDoc,
   paidQuestionDoc,
   parseVerdict,
@@ -48,7 +49,7 @@ import {
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
-import { PRICING_CARD } from "./pricing";
+import { PRICING_CARD, type PricingCard } from "./pricing";
 
 const BOOKING: PaidBookingPayload = {
   kind: "question",
@@ -245,9 +246,19 @@ describe("validatePaidBooking", () => {
 });
 
 describe("priceQuote", () => {
+  // A CARD BUILT FROM THE COMMITTED ONE, not written out from memory.
+  // The three literals below drifted from `PricingCard` and no gate could
+  // see it: they carried an `adBase` the type has never had and omitted
+  // `crowdFree`, `windowDays` and `menu`, which it gained. None of the
+  // three is read by `priceQuote`, so the arithmetic these cases pin is
+  // unaffected — but a fixture describing a card shape that cannot exist
+  // is how the next field goes unnoticed, and starting from the real card
+  // means the next one is inherited rather than missed.
+  const cardOf = (over: Partial<PricingCard>): PricingCard => ({ ...PRICING_CARD, ...over });
+
   it("prices off the committed card and locks the arithmetic", () => {
-    const q = priceQuote("city", {
-      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+    const q = priceQuote("city", cardOf({
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], floorWeek: 500,
       generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 0.9, booked: [], nextOpen: null },
@@ -255,7 +266,7 @@ describe("priceQuote", () => {
         world: { idx: 0.9, booked: [], nextOpen: null },
       },
       estimates: {},
-    });
+    }));
     expect(q.ratePerAnswer).toBe(0.144);
     expect(q.capEur).toBe(320);
     expect(q.cap).toBe(Math.floor(320 / 0.144)); // 2222
@@ -263,16 +274,16 @@ describe("priceQuote", () => {
   });
 
   it("makes the buyer's budget the cap, and holds it to the card's range (D372)", () => {
-    const card = {
+    const card = cardOf({
       base: 0.1, floorX: 1, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 100, 200, 320], floorWeek: 500,
-      generated: "2026-09-05", currency: "EUR", fx: {}, adBase: 320,
+      generated: "2026-09-05", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 1, booked: [], nextOpen: null },
         country: { idx: 1.5, booked: [], nextOpen: null },
         world: { idx: 1, booked: [], nextOpen: null },
       },
       estimates: {},
-    };
+    });
     const q = priceQuote("city", card, 100);
     expect(q.ratePerAnswer).toBe(0.1);
     expect(q.capEur).toBe(100);
@@ -288,8 +299,8 @@ describe("priceQuote", () => {
   });
 
   it("holds a card idx to the floor, and to nothing above it (D373)", () => {
-    const card = {
-      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], adBase: 320, floorWeek: 500,
+    const card = cardOf({
+      base: 0.16, floorX: 0.9, crowdStep: 0.5, capEur: 320, minEur: 20, budgets: [50, 320], floorWeek: 500,
       generated: "2026-08-24", currency: "EUR", fx: {},
       cohorts: {
         city: { idx: 9, booked: [], nextOpen: null },
@@ -297,7 +308,7 @@ describe("priceQuote", () => {
         world: { idx: 1, booked: [], nextOpen: null },
       },
       estimates: {},
-    };
+    });
     expect(priceQuote("city", card).ratePerAnswer).toBe(1.44); // 0.16 × 9 — crowding has no ceiling
     expect(priceQuote("country", card).ratePerAnswer).toBe(0.144); // 0.16 × 0.9 floor
   });
@@ -641,29 +652,34 @@ describe("the ad lane is retired (D375)", () => {
 });
 
 describe("runReviewSweep", () => {
-  const store = (rows, throwsFor = new Set()) => {
-    const state = { reviewed: [], pages: [] };
-    return {
-      state,
-      store: {
-        async heldPage(after, limit) {
-          const from = after ? rows.findIndex((r) => r.id === after) + 1 : 0;
-          const page = rows.slice(from, from + limit);
-          state.pages.push({ after, size: page.length });
-          return page;
-        },
-        // CAN THROW, which the real one plainly can: `reviewBooking`
-        // catches the model call and not the write that records the
-        // attempt nor the settling transaction. A fake that never throws
-        // is a fake that cannot ask what the loop does when one does.
-        async review(bid) {
-          if (throwsFor.has(bid)) throw new Error(`boom ${bid}`);
-          state.reviewed.push(bid);
-        },
+  // TYPED AGAINST `ReviewSweepStore`, not inferred. Untyped, every
+  // parameter here was `any` and `state` inferred `never[]` members, so
+  // the fake could return a page of the wrong shape, or take arguments in
+  // the wrong order, and nothing would say so — the loop these cases
+  // exist to prove would be proving itself against a stand-in that had
+  // quietly stopped standing for anything.
+  type HeldRow = { id: string; attempts: number };
+  const store = (rows: HeldRow[], throwsFor: Set<string> = new Set()) => {
+    const state: { reviewed: string[]; pages: Array<{ after: string | null; size: number }> } = { reviewed: [], pages: [] };
+    const store: ReviewSweepStore = {
+      async heldPage(after: string | null, limit: number) {
+        const from = after ? rows.findIndex((r) => r.id === after) + 1 : 0;
+        const page = rows.slice(from, from + limit);
+        state.pages.push({ after, size: page.length });
+        return page;
+      },
+      // CAN THROW, which the real one plainly can: `reviewBooking`
+      // catches the model call and not the write that records the
+      // attempt nor the settling transaction. A fake that never throws
+      // is a fake that cannot ask what the loop does when one does.
+      async review(bid: string) {
+        if (throwsFor.has(bid)) throw new Error(`boom ${bid}`);
+        state.reviewed.push(bid);
       },
     };
+    return { state, store };
   };
-  const held = (n, attempts) =>
+  const held = (n: number, attempts: number): HeldRow[] =>
     Array.from({ length: n }, (_, i) => ({ id: `b${String(i).padStart(4, "0")}`, attempts }));
 
   it("retries a booking under the ceiling", async () => {
@@ -847,7 +863,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
     // has to show is that a review-status booking is written something.
     //
     // It used to take the no-key path and assert an APPROVE. That stopped
-    // being available at D452, for the reason the two cases below give:
+    // being available at D454, for the reason the two cases below give:
     // no reviewer now means HOLD, so a control resting on it would have
     // been asserting that a deployment without a reviewer approves.
     const f = fakeDb(["review", "review"], { ...BOOKING, prompt: "???" });
@@ -857,7 +873,7 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
   });
 
   it("HOLDS rather than approves when no reviewer is configured", async () => {
-    // The line D452 changed, and the most dangerous one this file has
+    // The line D454 changed, and the most dangerous one this file has
     // carried. reviewGates reads the SHAPE — payload parses, no duplicate
     // options, two alphanumerics — and never the words. So "no key →
     // approve" meant a submission naming a private person or carrying a
@@ -1091,7 +1107,7 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
     let taken = 0;
     const refuse = async () => { taken += 1; throw new ReviewBudgetHeld(REVIEW_CALLS_PER_DAY); };
     try {
-      // No key: DEFERRED to the review Routine since D452, and the budget
+      // No key: DEFERRED to the review Routine since D454, and the budget
       // is untouched. This read `gates-only` and asserted an APPROVE until
       // then — the budget half was right and the verdict half was the bug.
       delete process.env.ANTHROPIC_API_KEY;
@@ -1129,4 +1145,4 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
   });
 });
 
-// ── D451's gate, appended after main's review-budget suite ──────────
+// ── D453's gate, appended after main's review-budget suite ──────────

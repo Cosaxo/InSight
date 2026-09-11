@@ -25,8 +25,8 @@ still excuses it for an iOS build. **For an iOS launch the count is
 zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 140
-questions of 1417 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 142
+questions of 1536 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1417 questions land in `v2_questions` — idempotent and, since D34,
+      1536 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1417** after the K=5 test expansion, D103's
+      and the bank is **1536** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1106,7 +1106,9 @@ start.
       Test **duels first**: they work at N=2, need no crowd, and are the
       most distinctive surface in the product. Two phones exercise
       everything that needs more than one person — the sealed duel and
-      its next-day reveal, cross-device push, a second name in the
+      its round reveal, which on a 1v1 lands the moment the second phone
+      answers rather than the next day (D426/D437), cross-device push, a
+      second name in the
       who-voted sheet. Add testers to widen device and iOS coverage,
       which is a real reason; do not wait on a headcount to start.
       `SHIP-CHECKLIST §3`.
@@ -1144,7 +1146,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1417 seeded questions are live regardless.
+      working, not a leak — the 1536 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1554,7 +1556,7 @@ That is a tester-count problem, not a workflow problem.
       rather than in a gate.
 
 - [ ] **5.1b A FOURTH collection group stamps `expireAt` — `v2_paid_bookings`
-      (D452).** One command, the same shape as 5.1's, and it is not
+      (D454).** One command, the same shape as 5.1's, and it is not
       covered by that ticked box: a TTL policy is per collection group, so
       the three that are `ACTIVE` say nothing about this one.
 
@@ -1565,8 +1567,8 @@ That is a tester-count problem, not a workflow problem.
       ```
 
       **Why it appeared.** A booking never expired. That was survivable
-      while the door demanded App Check from an attested app; D451 opened
-      it to a browser and D452 removed the reCAPTCHA in front of it, so an
+      while the door demanded App Check from an attested app; D453 opened
+      it to a browser and D454 removed the reCAPTCHA in front of it, so an
       unpaid booking is now the only thing an unguarded caller can leave
       behind. `bookPaidQuestionV2` stamps 60 days, and `goLive` DELETES the
       field on the paying webhook so a sold campaign is never swept — the
@@ -2339,12 +2341,12 @@ That is a tester-count problem, not a workflow problem.
       **THE APP CHECK BLOCKER IS GONE, and it was the bigger half.**
       This step used to end by saying the secrets alone would not produce
       a sale, because both callables demanded App Check and a browser
-      cannot produce it. D451 opened the door and wired the page; D452
+      cannot produce it. D453 opened the door and wired the page; D454
       settled what guards it — the per-account booking budget, owning the
       booking, and the payment itself — on the owner's ruling that a
       BUYER's humanity needs no proving where a VOTER's does.
 
-      **It is TWO keys now, not five.** D452 removed the reCAPTCHA pair
+      **It is TWO keys now, not five.** D454 removed the reCAPTCHA pair
       and moved the question review to a Claude Code Routine, which is
       what retires `ANTHROPIC_API_KEY`.
 

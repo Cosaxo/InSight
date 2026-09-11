@@ -24,8 +24,9 @@
 //   3. It makes no promise the app does not keep. Its one claim about who
 //      can see what — answers are public, under your name — is the
 //      account panel's sentence (D183) and web/privacy.html's
-//      (check:policy-claims); "sealed until tomorrow" is that page's D5
-//      row. No new sentence about the data, so no page moves.
+//      (check:policy-claims); the sealing until the round reveals is that
+//      page's D5 row, which stopped naming a day when the rounds did
+//      (D426/D437). No new sentence about the data, so no page moves.
 //   4. It reads nothing and writes nothing. The pages are the same for
 //      every account, drawn here in the tree's own tokens; the seen flag
 //      is walkthrough.tsx's, written by whoever closed this, on both

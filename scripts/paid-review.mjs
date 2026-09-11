@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // paid-review.mjs — the paid-question review queue, for the Routine that
-// settles it (D452).
+// settles it (D454).
 //
 //   node scripts/paid-review.mjs --list
 //   node scripts/paid-review.mjs --verdict <bid> approve

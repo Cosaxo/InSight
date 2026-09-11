@@ -19,7 +19,7 @@ import { ROOT, TARGET } from "./build-ask-pricing.mjs";
 const html = readFileSync(join(ROOT, "web/ask.html"), "utf8");
 const pricing = JSON.parse(readFileSync(join(ROOT, TARGET), "utf8"));
 
-// The page reads THREE resources now (D451): the price card, the buy
+// The page reads THREE resources now (D453): the price card, the buy
 // door's config, and — only on a place scope — the city list. Answered by
 // URL rather than by one catch-all body: a stub that hands the pricing
 // object to every caller made `st.cfg` a pricing card, which happens to
@@ -146,6 +146,64 @@ describe("the link (D378) and the quote", () => {
 //
 // Nothing pinned any of it: erasing the notice outright left all of
 // test:scripts green, because no case here had ever tapped Pay.
+describe("the currency switch and the amount actually charged", () => {
+  const toNOK = () => {
+    const chips = [...document.querySelectorAll("#currencies button")];
+    const nok = chips.find((b) => b.textContent === "NOK");
+    expect(nok, "the page offers no NOK chip — the fixture, not the subject").toBeTruthy();
+    nok.click();
+  };
+
+  const quoteIt = () => {
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+  };
+
+  it("names the charge in euro, exactly, whatever currency the page is showing", () => {
+    // Stripe charges `Math.round(capEur * 100)` cents in EUR whatever this
+    // page displays (paid.ts's checkoutLineItem), so the two sites that
+    // name the CHARGE are not conversions. They printed one: with the €5
+    // budget in NOK the cap read "58 kr" above a debit of €5.00.
+    //
+    // 58 IS the true conversion, and saying so matters — the first version of
+    // this comment claimed "60 kr", which is wrong: fmtWhole's
+    // round-to-ten band starts at 100, so a €5 budget is not rounded at
+    // all. The defect is not the rounding. It is that the page named a
+    // kroner figure for money debited in euro, which is true at every
+    // budget. The rounding is a SECOND error on top of it and shows up
+    // higher: €10 is 116 and printed 120 (overstated), €320 is 3712 and
+    // printed 3700 (understated) — the same two directions
+    // `data/pricing.ts` records for the in-app control.
+    //
+    // The app settled this one surface over and said why: "converting here
+    // would put an approximation on the one number that is exact"
+    // (data/pricing.ts's fmtExact). quote-copy.test.mjs pins that for the
+    // in-app control and lists no page under web/, which is how the page
+    // that takes the money became the one surface not held to the rule.
+    toNOK();
+    quoteIt();
+    expect(sp($("qCap").textContent), "the charge was converted").toBe("€5");
+    expect(sp($("refundLine").textContent)).toMatch(/charged €5 now/);
+  });
+
+  it("marks every figure the fx table converted, and marks none in euro", () => {
+    // The table is committed and dated — a convenience, not the contract —
+    // and the page printed converted figures as if they were exact.
+    toNOK();
+    expect(sp($("scopeRate").textContent), "a converted rate was printed as exact").toMatch(/^≈ /);
+    quoteIt();
+    expect(sp($("qRate").textContent)).toMatch(/^≈ /);
+    // …and the euro path carries no mark at all.
+    const eur = [...document.querySelectorAll("#currencies button")].find((b) => b.textContent === "EUR");
+    eur.click();
+    expect(sp($("scopeRate").textContent), "euro was marked as an approximation").not.toMatch(/≈/);
+  });
+});
+
 describe("what the quote promises about its own price", () => {
   it("does not call the quote locked before the question is approved", () => {
     // The page prices off the COMMITTED card; the server re-reads demand
@@ -173,7 +231,7 @@ describe("what the quote promises about its own price", () => {
 describe("the pay tap on a deployment with NO keys", () => {
   // Still the honest closed door, and it has to stay reachable: a local
   // checkout, a preview and production-before-runbook-5.14 all land here.
-  // What changed at D451 is that "closed" is now a property of the
+  // What changed at D453 is that "closed" is now a property of the
   // DEPLOYMENT (no ask-config.json) rather than of the code.
   // The options matter: the quote button is disabled until a binary
   // question has two of them, so a case that skipped them would be
@@ -215,7 +273,7 @@ describe("the pay tap on a deployment with NO keys", () => {
   });
 });
 
-// ── the door with keys (D451) ──────────────────────────────────────────
+// ── the door with keys (D453) ──────────────────────────────────────────
 //
 // The other half of the describe above. Everything here is what a buyer
 // on production meets once runbook 5.14 is done, and the assertions are
@@ -224,7 +282,7 @@ describe("the pay tap on a deployment with NO keys", () => {
 // catalogue key an answer's anchor holds is a campaign that charges €320
 // and reaches nobody.
 //
-// D452 took the reCAPTCHA hop out of all of this — the page loads no
+// D454 took the reCAPTCHA hop out of all of this — the page loads no
 // external script at all now, and the two callables are gated on the
 // per-account booking budget with the payment as the real filter.
 describe("the pay tap with keys", () => {

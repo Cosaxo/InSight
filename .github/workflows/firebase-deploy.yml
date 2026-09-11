@@ -134,11 +134,18 @@ jobs:
           printf 'DC_PRIVATE_KEY="%s"\n' "$(printf '%s' "$DC_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')" >> functions/.env.prvfire33
           # The paid-question loop (D313). Each missing credential turns
           # one hop off, loudly, and the rest of the loop keeps its shape:
-          # no ANTHROPIC_API_KEY → reviews pass on deterministic gates
-          # alone; no STRIPE keys → approved bookings cannot be paid and
-          # closed campaigns cannot refund.
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::warning::ANTHROPIC_API_KEY is empty — paid-question reviews run on gates alone (paid.ts logs paid_review_gates_only)."
+          # no STRIPE keys → approved bookings cannot be paid and closed
+          # campaigns cannot refund.
+          #
+          # ANTHROPIC_API_KEY is EXPECTED to be empty since D454 — the
+          # owner moved the review to a Claude Code Routine. Empty is no
+          # longer a degradation and no longer a warning; what it means is
+          # that a booking stays in `review` for the Routine to settle.
+          # Until D454 this line said reviews "run on gates alone", which
+          # was true and was the dangerous half: the gates never read the
+          # words, so that path APPROVED whatever it was given.
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY is set — paid-question reviews run in-request rather than through the review Routine (docs/ROUTINES.md §10)."
           fi
           if [ -z "$STRIPE_SECRET_KEY" ] || [ -z "$STRIPE_WEBHOOK_SECRET" ]; then
             echo "::warning::STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET incomplete — createPaidCheckoutV2 refuses, stripeWebhookV2 answers 503, and the closer records refunds without executing them."
@@ -217,8 +224,8 @@ jobs:
       # is: nothing about static HTML should be able to abort — or worse,
       # half-abort — a Firestore-rules or functions deploy. Check this
       # step's outcome before assuming the policy URL is live.
-      # THE BUY PAGE'S PUBLIC CONFIG (D451; the reCAPTCHA half removed at
-      # D452). The Firebase web API key is public by design — it ships in
+      # THE BUY PAGE'S PUBLIC CONFIG (D453; the reCAPTCHA half removed at
+      # D454). The Firebase web API key is public by design — it ships in
       # every app build — so it is a VARIABLE, written here rather than
       # committed so a fork or a preview deploy does not inherit
       # production's project.

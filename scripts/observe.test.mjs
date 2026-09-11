@@ -45,13 +45,16 @@ beforeAll(async () => {
       // returns a different shape, so it is keyed separately. Keying the
       // whole host would make one of the two readings answer the other's
       // body — which is how a stub agrees with itself and proves nothing.
+      // Three same-host pairs now, each for one reason: two readings on
+      // one host returning different shapes would let a stub answer one
+      // with the other's body, which is how it agrees with itself and
+      // proves nothing. entries:list vs the metrics list; the BigQuery
+      // datasets list vs a dataset's tables; the Firestore database vs its
+      // backup schedules.
       const key = req.url.includes("entries:list") ? "logging:entries"
-        // Same host, different shape, same reason: the datasets list and a
-        // dataset's tables list both live on bigquery.googleapis.com, and a
-        // stub that answered one with the other's body would agree with
-        // itself and prove nothing.
         : req.url.includes("/tables") ? "bigquery:tables"
-          : host;
+          : req.url.includes("/backupSchedules") ? "firestore:schedules"
+            : host;
       const r = reply[key] || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
@@ -70,6 +73,8 @@ beforeEach(() => {
     "cloudbilling.googleapis.com": { status: 200, body: { billingEnabled: true, billingAccountName: "billingAccounts/X" } },
     "bigquery.googleapis.com": { status: 200, body: { datasets: [] } },
     "bigquery:tables": { status: 200, body: { tables: [] } },
+    "firestore.googleapis.com": { status: 200, body: { name: "projects/prvfire33/databases/insight", pointInTimeRecoveryEnablement: "POINT_IN_TIME_RECOVERY_DISABLED" } },
+    "firestore:schedules": { status: 200, body: {} },
     "logging:entries": {
       status: 200,
       body: { entries: [{ resource: { type: "cloud_run_revision", labels: { service_name: "onv2answercreated", project_id: "p" } }, timestamp: "2026-08-26T00:00:00Z" }] },
@@ -102,7 +107,10 @@ describe("a refusal is a result, not a crash", () => {
   it("reports EVERY refusal in one run, not just the first", async () => {
     for (const h of Object.keys(reply)) reply[h] = { status: 403, body: { error: { message: "denied" } } };
     const j = await asJson();
-    expect(j.blocked).toHaveLength(5);
+    // Seven probes now: the original four, D452's bigquery and D453's two
+    // backup readings. The count is the assertion — a run that quietly
+    // stopped making one would otherwise still look green here.
+    expect(j.blocked).toHaveLength(7);
     expect(j.reachable).toEqual([]);
   });
 
@@ -133,6 +141,45 @@ describe("a refusal is a result, not a crash", () => {
   it("exits 0 when a reading is refused — a missing role is the answer", async () => {
     reply["monitoring.googleapis.com"] = { status: 403, body: { error: { message: "denied" } } };
     await expect(observe()).resolves.toBeTruthy();
+  });
+});
+
+describe("the backup reading, which nothing could answer before D451", () => {
+  it("reports PITR off and no schedules when there are none — the tree's own state", async () => {
+    const j = await asJson();
+    expect(j.readings.backups.pitr).toBe(false);
+    expect(j.readings.backupSchedules).toMatchObject({ count: 0, daily: false, weekly: false });
+  });
+
+  it("reads PITR and both schedules back once they are armed", async () => {
+    reply["firestore.googleapis.com"] = {
+      status: 200,
+      body: { name: "projects/prvfire33/databases/insight", pointInTimeRecoveryEnablement: "POINT_IN_TIME_RECOVERY_ENABLED" },
+    };
+    reply["firestore:schedules"] = {
+      status: 200,
+      body: {
+        backupSchedules: [
+          { retention: "604800s", dailyRecurrence: {} },
+          { retention: "8467200s", weeklyRecurrence: { day: "SUNDAY" } },
+        ],
+      },
+    };
+    const j = await asJson();
+    expect(j.readings.backups.pitr).toBe(true);
+    expect(j.readings.backupSchedules).toMatchObject({ count: 2, daily: true, weekly: true });
+    // Retention read BACK, not assumed: a schedule created with the wrong
+    // duration is accepted, listed, and quietly keeps three hours.
+    expect(j.readings.backupSchedules.retention).toEqual(["604800s", "8467200s"]);
+  });
+
+  it("does not read a weekly-only project as covered", async () => {
+    reply["firestore:schedules"] = {
+      status: 200,
+      body: { backupSchedules: [{ retention: "8467200s", weeklyRecurrence: { day: "SUNDAY" } }] },
+    };
+    const j = await asJson();
+    expect(j.readings.backupSchedules).toMatchObject({ count: 1, daily: false, weekly: true });
   });
 });
 
@@ -298,7 +345,7 @@ describe("--json-out, for the workflow reader", () => {
 });
 
 // The paid loop's three secrets, the webhook's URL, and the two BigQuery
-// steps — the readings D450 added, and the reason they were added:
+// steps — the readings D452 added, and the reason they were added:
 // `OWNER-LIST.md` carried "a session cannot read the deployed environment,
 // so whether a sale can go through TODAY is a fact only you can check".
 // It was an ordinary API call the whole time.

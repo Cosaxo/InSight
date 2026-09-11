@@ -2978,6 +2978,42 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-140",
+  "surface": "daily",
+  "seq": 140,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Naps: a superpower, or a trap?",
+  "options": [
+   "A superpower",
+   "A trap"
+  ],
+  "topic": "light",
+  "branch": "Body",
+  "sub": "Sleep",
+  "tag": "Naps",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-141",
+  "surface": "daily",
+  "seq": 141,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Showing someone your favourite film: the joy, or the pressure?",
+  "options": [
+   "The joy",
+   "The pressure"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "Sharing",
+  "tag": "The screening",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3975,7 +4011,9 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s03",
   "surface": "feed",
@@ -4009,9 +4047,7 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null,
   "bg": "Open-water rules commonly mandate wetsuits in cold water and forbid them in warm — World Triathlon draws its lines around 16°C and the low twenties. Ice swimmers race skin in water near freezing.",
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s05",
   "surface": "feed",
@@ -7857,6 +7893,7 @@ const BANK_1: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "sub": "sub_cooking",
   "ax": [
    "a chore",
    "therapy"
@@ -8159,7 +8196,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "books"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl37",
   "surface": "feed",
@@ -8215,9 +8254,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 5,
   "hi": 50,
   "unit": "yrs"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl39",
   "surface": "feed",
@@ -10179,7 +10216,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_cooking"
  },
  {
   "id": "feed-f267",
@@ -12514,7 +12552,9 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "feed-f320",
   "surface": "feed",
@@ -12560,9 +12600,7 @@ const BANK_2: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 24,
   "unit": "creators"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-fd26",
   "surface": "feed",
@@ -13477,7 +13515,8 @@ const BANK_3: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_cooking"
  },
  {
   "id": "feed-f357",
@@ -13725,6 +13764,1471 @@ const BANK_3: V2SeedQuestion[] = [
   "from": "2026-09-10",
   "until": "2026-09-18",
   "bg": "An analysis of over 1,700 supernovae, from the Tata Institute and Oxford, suggests cosmic expansion may be slowing — challenging the dark-energy consensus. Most cosmologists are unconvinced; the Rubin Observatory’s coming survey of hundreds of thousands of supernovae is expected to settle it."
+ },
+ {
+  "id": "feed-f362",
+  "surface": "feed",
+  "seq": 517,
+  "type": "vote",
+  "domain": null,
+  "prompt": "If you were famous, would you read the comments?",
+  "options": [
+   "Every single one",
+   "Never — assistants exist",
+   "Only the nice ones, curated"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators"
+ },
+ {
+  "id": "feed-f363",
+  "surface": "feed",
+  "seq": 518,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fan mail: have you ever actually sent any?",
+  "options": [
+   "Yes, and got a reply",
+   "Yes, into the void",
+   "Written, never sent",
+   "Never"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f364",
+  "surface": "feed",
+  "seq": 519,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your favourite creator goes full ads. Forgiven?",
+  "options": [
+   "Instantly — get the bag",
+   "Depends on the product",
+   "Never quite the same"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators"
+ },
+ {
+  "id": "feed-f365",
+  "surface": "feed",
+  "seq": 520,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Meeting a celebrity you admire: play it cool, or say the thing?",
+  "options": [
+   "Cool, then regret",
+   "Say the thing",
+   "Pretend not to notice them"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f366",
+  "surface": "feed",
+  "seq": 521,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Podcasts by the already-famous: insight, or two friends laughing?",
+  "options": [
+   "Real insight",
+   "Two friends laughing",
+   "Both — that’s the charm"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators"
+ },
+ {
+  "id": "feed-dl83",
+  "surface": "feed",
+  "seq": 522,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years behind is your celebrity knowledge?",
+  "options": [
+   "0–2 years",
+   "2–3 years",
+   "3–5 years",
+   "5–7 years",
+   "7–8 years",
+   "8–10 years",
+   "10–12 years",
+   "12–13 years",
+   "13–15 years",
+   "15–17 years",
+   "17–18 years",
+   "18–20 years"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators",
+  "lo": 0,
+  "hi": 20,
+  "unit": "years"
+ },
+ {
+  "id": "feed-f367",
+  "surface": "feed",
+  "seq": 523,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A friend’s terrible haircut, and they love it. Truth?",
+  "options": [
+   "Truth, gently",
+   "Lie happily",
+   "Change the subject"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-f368",
+  "surface": "feed",
+  "seq": 524,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An open diary, alone in the room. Do your eyes obey?",
+  "options": [
+   "They obey",
+   "One line wouldn’t hurt",
+   "I’d read it all, ashamed"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-f369",
+  "surface": "feed",
+  "seq": 525,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The cashier undercharges you, badly. Say something?",
+  "options": [
+   "Always",
+   "Depends how much",
+   "Their mistake, my luck"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-f370",
+  "surface": "feed",
+  "seq": 526,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Compliments you don’t quite mean: social glue, or tiny lies?",
+  "options": [
+   "Glue — keep them coming",
+   "Tiny lies that add up",
+   "Both, and that’s fine"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-dl84",
+  "surface": "feed",
+  "seq": 527,
+  "type": "dial",
+  "domain": null,
+  "prompt": "White lies this week, at an honest count?",
+  "options": [
+   "0–2 lies",
+   "2–3 lies",
+   "3–5 lies",
+   "5–7 lies",
+   "7–8 lies",
+   "8–10 lies",
+   "10–12 lies",
+   "12–13 lies",
+   "13–15 lies",
+   "15–17 lies",
+   "17–18 lies",
+   "18–20 lies"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty",
+  "lo": 0,
+  "hi": 20,
+  "unit": "lies"
+ },
+ {
+  "id": "feed-pt8",
+  "surface": "feed",
+  "seq": 528,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Reference — a friend, a job, and your name on the line",
+  "options": [
+   "The Accomplice Tutor",
+   "The Reckoning’s Friend",
+   "The Mid-Call Convert",
+   "The Fog Machine",
+   "The Loud Celebrant",
+   "The Quiet Auditor",
+   "The Corner Coach",
+   "The Perfectionist’s Shadow"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty",
+  "title": "The Reference",
+  "intro": "A close friend is one call away from a job they badly need. They ask you to be the reference — and to say they ran projects you know they only watched.",
+  "hue": 30,
+  "nodes": {
+   "_": {
+    "q": "The recruiter’s email arrives that evening: fifteen minutes, tomorrow at ten.",
+    "a": [
+     {
+      "t": "Agree — and plan to embellish"
+     },
+     {
+      "t": "Agree — but only to the truth"
+     }
+    ]
+   },
+   "A": {
+    "q": "On the call, the recruiter asks point-blank: “Did they lead the rollout?”",
+    "a": [
+     {
+      "t": "“Yes.” Say it steady"
+     },
+     {
+      "t": "Swerve — “they were central to it”"
+     }
+    ]
+   },
+   "B": {
+    "q": "You tell your friend the plan: truth, warmly framed. They go quiet, then say “so you won’t help.”",
+    "a": [
+     {
+      "t": "Hold the line — “this IS help”"
+     },
+     {
+      "t": "Offer to coach them instead"
+     }
+    ]
+   },
+   "AA": {
+    "q": "They get the job. Three weeks in, they call you at midnight, drowning in exactly what you said they could do.",
+    "a": [
+     {
+      "t": "Help them learn it, quietly"
+     },
+     {
+      "t": "Tell them to come clean at work"
+     }
+    ]
+   },
+   "AB": {
+    "q": "The recruiter pauses. “Central how, exactly?” The silence has edges.",
+    "a": [
+     {
+      "t": "Come clean, mid-call"
+     },
+     {
+      "t": "Talk fast, stay vague"
+     }
+    ]
+   },
+   "BA": {
+    "q": "They interview on the honest reference. A week later: they got it — the junior version of the role.",
+    "a": [
+     {
+      "t": "Celebrate it loudly"
+     },
+     {
+      "t": "Privately think they lost out"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Three evenings of coaching in, they’re actually good at this. The interview is Friday.",
+    "a": [
+     {
+      "t": "Tell them they’re ready"
+     },
+     {
+      "t": "One more evening, to be sure"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Accomplice Tutor",
+    "line": "You lied them in, then taught them true. Nobody ever knew — except both of you."
+   },
+   "AAB": {
+    "name": "The Reckoning’s Friend",
+    "line": "You pushed them to confess. It cost a job and saved a friendship — you still think in that order."
+   },
+   "ABA": {
+    "name": "The Mid-Call Convert",
+    "line": "The truth arrived late but it arrived. The recruiter thanked you; your friend, eventually, did too."
+   },
+   "ABB": {
+    "name": "The Fog Machine",
+    "line": "Vague enough to pass, clear enough to sleep — you tell yourself. Mostly it works."
+   },
+   "BAA": {
+    "name": "The Loud Celebrant",
+    "line": "Junior role, honest start. You cheered like it was the senior one, and meant it."
+   },
+   "BAB": {
+    "name": "The Quiet Auditor",
+    "line": "You did the right thing and kept a small ledger of what it cost. You check it sometimes."
+   },
+   "BBA": {
+    "name": "The Corner Coach",
+    "line": "You wouldn’t lie for them, so you made the lie unnecessary. The best reference is a ready friend."
+   },
+   "BBB": {
+    "name": "The Perfectionist’s Shadow",
+    "line": "One more evening, then another. They were ready before you were."
+   }
+  }
+ },
+ {
+  "id": "feed-f371",
+  "surface": "feed",
+  "seq": 529,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Festive shelves in October: cosy, or an ambush?",
+  "options": [
+   "Cosy — start the season",
+   "An ambush",
+   "Invisible until December"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons"
+ },
+ {
+  "id": "feed-f372",
+  "surface": "feed",
+  "seq": 530,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The first day that smells like spring: does it change you?",
+  "options": [
+   "Completely",
+   "A little lighter",
+   "Weather is weather"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons"
+ },
+ {
+  "id": "feed-f373",
+  "surface": "feed",
+  "seq": 531,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Decorations down: January 2nd, or when they fall?",
+  "options": [
+   "The 2nd, sharp",
+   "Twelfth Night, properly",
+   "When they fall"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons"
+ },
+ {
+  "id": "feed-f374",
+  "surface": "feed",
+  "seq": 532,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The out-of-office reply: honest dates, or a little padding?",
+  "options": [
+   "Honest to the hour",
+   "A day of padding",
+   "I answer anyway, sadly"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work"
+ },
+ {
+  "id": "feed-dl85",
+  "surface": "feed",
+  "seq": 533,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Weeks ahead you start looking forward to your favourite season?",
+  "options": [
+   "0–2 weeks",
+   "2–4 weeks",
+   "4–7 weeks",
+   "7–9 weeks",
+   "9–11 weeks",
+   "11–13 weeks",
+   "13–15 weeks",
+   "15–17 weeks",
+   "17–20 weeks",
+   "20–22 weeks",
+   "22–24 weeks",
+   "24–26 weeks"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons",
+  "lo": 0,
+  "hi": 26,
+  "unit": "weeks"
+ },
+ {
+  "id": "feed-fd31",
+  "surface": "feed",
+  "seq": 534,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your year — place it",
+  "options": [
+   "planned · crawled",
+   "lean planned · crawled",
+   "lean improvised · crawled",
+   "improvised · crawled",
+   "planned · middle",
+   "lean planned · middle",
+   "lean improvised · middle",
+   "improvised · middle",
+   "planned · flew by",
+   "lean planned · flew by",
+   "lean improvised · flew by",
+   "improvised · flew by"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons",
+  "ax": [
+   "planned",
+   "improvised"
+  ],
+  "ay": [
+   "flew by",
+   "crawled"
+  ]
+ },
+ {
+  "id": "feed-f375",
+  "surface": "feed",
+  "seq": 535,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Weekly episodes, or the full-season drop?",
+  "options": [
+   "Weekly — let it breathe",
+   "Full drop — my pace",
+   "Wait, then binge weekly shows"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-f376",
+  "surface": "feed",
+  "seq": 536,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A beloved series past its best: ride it down, or leave early?",
+  "options": [
+   "Ride it to the end",
+   "Leave while it’s good",
+   "Skim the finale only"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-f377",
+  "surface": "feed",
+  "seq": 537,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watching ahead of your watch-partner: betrayal?",
+  "options": [
+   "High treason",
+   "One episode is fine",
+   "We watch apart, we live"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-f378",
+  "surface": "feed",
+  "seq": 538,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The “previously on” recap: skip, or savour?",
+  "options": [
+   "Skip — I remember",
+   "Savour — I do not",
+   "Depends how long it’s been"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-dl86",
+  "surface": "feed",
+  "seq": 539,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Series you’re “currently watching”, honestly?",
+  "options": [
+   "0–1 shows",
+   "1–2 shows",
+   "2–3 shows",
+   "3–4 shows",
+   "4–5 shows",
+   "5–6 shows",
+   "6–7 shows",
+   "7–8 shows",
+   "8–9 shows",
+   "9–10 shows",
+   "10–11 shows",
+   "11–12 shows"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series",
+  "lo": 0,
+  "hi": 12,
+  "unit": "shows"
+ },
+ {
+  "id": "feed-fd32",
+  "surface": "feed",
+  "seq": 540,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your watching — place it",
+  "options": [
+   "films · alone",
+   "lean films · alone",
+   "lean series · alone",
+   "series · alone",
+   "films · middle",
+   "lean films · middle",
+   "lean series · middle",
+   "series · middle",
+   "films · together",
+   "lean films · together",
+   "lean series · together",
+   "series · together"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series",
+  "ax": [
+   "films",
+   "series"
+  ],
+  "ay": [
+   "together",
+   "alone"
+  ]
+ },
+ {
+  "id": "feed-f379",
+  "surface": "feed",
+  "seq": 541,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Saying please to an assistant: habit, or wasted breath?",
+  "options": [
+   "Always — costs nothing",
+   "It’s a toaster",
+   "Polite, just in case"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "sub": "sub_ai"
+ },
+ {
+  "id": "feed-f380",
+  "surface": "feed",
+  "seq": 542,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A gadget breaks out of warranty. First instinct?",
+  "options": [
+   "Repair it, on principle",
+   "Replace — time is money",
+   "YouTube surgery first"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f381",
+  "surface": "feed",
+  "seq": 543,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Muting a group chat: self-care, or a silent exit?",
+  "options": [
+   "Self-care",
+   "A silent exit",
+   "I mute nothing, I suffer"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f382",
+  "surface": "feed",
+  "seq": 544,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An AI wrote this question. Does that change your answer?",
+  "options": [
+   "Yes — I answer differently now",
+   "No — a question’s a question",
+   "I suspected anyway"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "sub": "sub_ai"
+ },
+ {
+  "id": "feed-f383",
+  "surface": "feed",
+  "seq": 545,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Wired headphones are back:",
+  "options": [
+   "They never left",
+   "Style — the cable is the point",
+   "Bluetooth won, move on"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl87",
+  "surface": "feed",
+  "seq": 546,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Times you used an AI yesterday, roughly?",
+  "options": [
+   "0–4 times",
+   "4–8 times",
+   "8–13 times",
+   "13–17 times",
+   "17–21 times",
+   "21–25 times",
+   "25–29 times",
+   "29–33 times",
+   "33–38 times",
+   "38–42 times",
+   "42–46 times",
+   "46–50 times"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "sub": "sub_ai",
+  "lo": 0,
+  "hi": 50,
+  "unit": "times"
+ },
+ {
+  "id": "feed-f384",
+  "surface": "feed",
+  "seq": 547,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Dog-earing pages: barbarism, or a book well loved?",
+  "options": [
+   "Barbarism",
+   "A book well loved",
+   "Bookmarks exist, people"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books"
+ },
+ {
+  "id": "feed-f385",
+  "surface": "feed",
+  "seq": 548,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Abandoning a book halfway: freedom, or failure?",
+  "options": [
+   "Freedom — life is short",
+   "Failure — finish what you start",
+   "It goes back on the pile"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books"
+ },
+ {
+  "id": "feed-f386",
+  "surface": "feed",
+  "seq": 549,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Judging a book by its cover: we all do. What actually sells you?",
+  "options": [
+   "The cover, fine",
+   "The first page",
+   "The back blurb",
+   "A friend’s face saying it"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books"
+ },
+ {
+  "id": "feed-f387",
+  "surface": "feed",
+  "seq": 550,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Museums gift shops: the real exhibition?",
+  "options": [
+   "Straight there",
+   "A polite loop at the end",
+   "I leave with postcards, always"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-fd33",
+  "surface": "feed",
+  "seq": 551,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your bookshelf — place it",
+  "options": [
+   "all read · boxed away",
+   "lean all read · boxed away",
+   "lean aspirational · boxed away",
+   "aspirational · boxed away",
+   "all read · middle",
+   "lean all read · middle",
+   "lean aspirational · middle",
+   "aspirational · middle",
+   "all read · on display",
+   "lean all read · on display",
+   "lean aspirational · on display",
+   "aspirational · on display"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books",
+  "ax": [
+   "all read",
+   "aspirational"
+  ],
+  "ay": [
+   "on display",
+   "boxed away"
+  ]
+ },
+ {
+  "id": "feed-pt9",
+  "surface": "feed",
+  "seq": 552,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Borrowed Book — a favourite, lent a year ago",
+  "options": [
+   "The Margin Correspondent",
+   "The Open Library",
+   "The Complete Collector",
+   "The Fresh Start",
+   "The Delighted Lender",
+   "The Gentle Exposé",
+   "The Matchmaker",
+   "The Quiet Smiler"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books",
+  "title": "The Borrowed Book",
+  "intro": "Your favourite book — the one with your notes in the margins — went to a friend a year ago. Tonight you spot it at their place: spine cracked, coffee ring on the cover, doing duty as a coaster.",
+  "hue": 200,
+  "nodes": {
+   "_": {
+    "q": "They catch you looking at it. “Oh — I still have that, don’t I.”",
+    "a": [
+     {
+      "t": "“I’d love it back, actually.”"
+     },
+     {
+      "t": "“Keep it — clearly it lives here.”"
+     }
+    ]
+   },
+   "A": {
+    "q": "They hand it over with a wince at the coffee ring. “I’m so sorry — I’ll replace it.”",
+    "a": [
+     {
+      "t": "“It’s fine. Books get lived in.”"
+     },
+     {
+      "t": "Accept the new copy"
+     }
+    ]
+   },
+   "B": {
+    "q": "A month later they mention they finally read it — and loved it enough to buy their own.",
+    "a": [
+     {
+      "t": "Ask for the old one back now"
+     },
+     {
+      "t": "Let the old copy go for good"
+     }
+    ]
+   },
+   "AA": {
+    "q": "Home again, you flip through. Their pencil notes sit next to yours — arguing with you in the margins.",
+    "a": [
+     {
+      "t": "Read the whole thing again, replying"
+     },
+     {
+      "t": "Rub nothing out, lend it onward"
+     }
+    ]
+   },
+   "AB": {
+    "q": "The new copy arrives, pristine. Your margins are still in their house.",
+    "a": [
+     {
+      "t": "Ask for the old one too"
+     },
+     {
+      "t": "Start new margins from scratch"
+     }
+    ]
+   },
+   "BA": {
+    "q": "It comes home a wreck and a veteran. They kept a page of your notes photographed “for reference.”",
+    "a": [
+     {
+      "t": "Be quietly delighted"
+     },
+     {
+      "t": "Feel oddly exposed"
+     }
+    ]
+   },
+   "BB": {
+    "q": "At their place months on, your old copy sits shelved beside their new one — a matching pair.",
+    "a": [
+     {
+      "t": "Point it out, touched"
+     },
+     {
+      "t": "Say nothing, smile at it"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Margin Correspondent",
+    "line": "Two sets of notes, one long conversation. The coffee ring marks where it got good."
+   },
+   "AAB": {
+    "name": "The Open Library",
+    "line": "You rubbed nothing out and lent it onward. Somewhere it’s three sets of margins now."
+   },
+   "ABA": {
+    "name": "The Complete Collector",
+    "line": "Both copies home: the pristine one for the shelf, the wrecked one for reading."
+   },
+   "ABB": {
+    "name": "The Fresh Start",
+    "line": "New copy, new margins. The old notes live at their house, like a letter you don’t need back."
+   },
+   "BAA": {
+    "name": "The Delighted Lender",
+    "line": "They photographed your notes. A book can be returned; apparently a margin cannot."
+   },
+   "BAB": {
+    "name": "The Gentle Exposé",
+    "line": "Your pencil thoughts, photographed. Lovely, and a little like being read yourself."
+   },
+   "BBA": {
+    "name": "The Matchmaker",
+    "line": "You pointed at the pair on their shelf and both of you grinned. Best loan you ever made."
+   },
+   "BBB": {
+    "name": "The Quiet Smiler",
+    "line": "Some things you don’t say out loud. The two spines say it fine."
+   }
+  }
+ },
+ {
+  "id": "feed-f388",
+  "surface": "feed",
+  "seq": 553,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Penalty shootouts: the fairest end, or a coin flip in boots?",
+  "options": [
+   "Fair — nerve is skill",
+   "A coin flip in boots",
+   "Cruel and perfect TV"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_football"
+ },
+ {
+  "id": "feed-f389",
+  "surface": "feed",
+  "seq": 554,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The tennis grunt: part of the game, or mute-button material?",
+  "options": [
+   "Part of the game",
+   "Mute-button material",
+   "I stopped hearing it years ago"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_tennis"
+ },
+ {
+  "id": "feed-f390",
+  "surface": "feed",
+  "seq": 555,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Finisher medals: earned, or participation trophies?",
+  "options": [
+   "Earned — the distance is real",
+   "A bit soft",
+   "Who cares — shiny"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_running"
+ },
+ {
+  "id": "feed-f391",
+  "surface": "feed",
+  "seq": 556,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sports documentaries: better than the season itself?",
+  "options": [
+   "Often better",
+   "Never — live or nothing",
+   "They make me care, then I stay"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f392",
+  "surface": "feed",
+  "seq": 557,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your kit: performance gear, or whatever’s clean?",
+  "options": [
+   "Proper kit — it helps",
+   "Whatever’s clean",
+   "The gear IS the motivation"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl88",
+  "surface": "feed",
+  "seq": 558,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The longest you’ve ever run, ever?",
+  "options": [
+   "0–4 km",
+   "4–8 km",
+   "8–13 km",
+   "13–17 km",
+   "17–21 km",
+   "21–25 km",
+   "25–29 km",
+   "29–33 km",
+   "33–38 km",
+   "38–42 km",
+   "42–46 km",
+   "46–50 km"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_running",
+  "lo": 0,
+  "hi": 50,
+  "unit": "km"
+ },
+ {
+  "id": "feed-f393",
+  "surface": "feed",
+  "seq": 559,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your inner clock: do you know the time without looking?",
+  "options": [
+   "Within minutes",
+   "Within an hour",
+   "No idea, ever"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-f394",
+  "surface": "feed",
+  "seq": 560,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Thinking about infinity: a thrill, or a headache?",
+  "options": [
+   "A thrill",
+   "A headache",
+   "Both, at 2am"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f395",
+  "surface": "feed",
+  "seq": 561,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Microbes found on Mars tomorrow. Does your day change?",
+  "options": [
+   "Everything changes",
+   "A toast, then Tuesday",
+   "Not really"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_aliens"
+ },
+ {
+  "id": "feed-f396",
+  "surface": "feed",
+  "seq": 562,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Déjà vu: a glitch, a memory hiccup, or something more?",
+  "options": [
+   "A glitch",
+   "A memory hiccup",
+   "Something more"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-dl89",
+  "surface": "feed",
+  "seq": 563,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes you can sit doing absolutely nothing?",
+  "options": [
+   "0–5 min",
+   "5–10 min",
+   "10–15 min",
+   "15–20 min",
+   "20–25 min",
+   "25–30 min",
+   "30–35 min",
+   "35–40 min",
+   "40–45 min",
+   "45–50 min",
+   "50–55 min",
+   "55–60 min"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind",
+  "lo": 0,
+  "hi": 60,
+  "unit": "min"
+ },
+ {
+  "id": "feed-fd34",
+  "surface": "feed",
+  "seq": 564,
+  "type": "field",
+  "domain": null,
+  "prompt": "Time — place it",
+  "options": [
+   "friend · never enough",
+   "lean friend · never enough",
+   "lean enemy · never enough",
+   "enemy · never enough",
+   "friend · middle",
+   "lean friend · middle",
+   "lean enemy · middle",
+   "enemy · middle",
+   "friend · too much",
+   "lean friend · too much",
+   "lean enemy · too much",
+   "enemy · too much"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "friend",
+   "enemy"
+  ],
+  "ay": [
+   "too much",
+   "never enough"
+  ]
+ },
+ {
+  "id": "feed-f397",
+  "surface": "feed",
+  "seq": 565,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cooking for guests: crowd-pleasers, or the experiment?",
+  "options": [
+   "Crowd-pleasers",
+   "The experiment",
+   "Order in, plate nicely"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking"
+ },
+ {
+  "id": "feed-f398",
+  "surface": "feed",
+  "seq": 566,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sharpening your own knives: yes, or “they’re fine”?",
+  "options": [
+   "Yes — it changes everything",
+   "They’re fine",
+   "I own a sharpener, unused"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking"
+ },
+ {
+  "id": "feed-f399",
+  "surface": "feed",
+  "seq": 567,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The one pan you’d save from a fire:",
+  "options": [
+   "The cast iron",
+   "The nonstick",
+   "Grandma’s pot",
+   "The air fryer"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking"
+ },
+ {
+  "id": "feed-f400",
+  "surface": "feed",
+  "seq": 568,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The weirdest thing on the menu: always, sometimes, never?",
+  "options": [
+   "Always — that’s the point",
+   "Sometimes, feeling brave",
+   "Never — I know what I like"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_eatingout"
+ },
+ {
+  "id": "feed-f401",
+  "surface": "feed",
+  "seq": 569,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Salt: taste first, or shake on sight?",
+  "options": [
+   "Taste first, always",
+   "Shake on sight",
+   "The cook already salted it"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl90",
+  "surface": "feed",
+  "seq": 570,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Weeknight dinner, hob to table — minutes?",
+  "options": [
+   "5–12 min",
+   "12–19 min",
+   "19–26 min",
+   "26–33 min",
+   "33–40 min",
+   "40–48 min",
+   "48–55 min",
+   "55–62 min",
+   "62–69 min",
+   "69–76 min",
+   "76–83 min",
+   "83–90 min"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking",
+  "lo": 5,
+  "hi": 90,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f402",
+  "surface": "feed",
+  "seq": 571,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Festival camping: the point, or the price?",
+  "options": [
+   "The whole point",
+   "The price you pay",
+   "Day tickets exist"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "sub": "sub_gigs"
+ },
+ {
+  "id": "feed-f403",
+  "surface": "feed",
+  "seq": 572,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The song you always skip on a beloved album:",
+  "options": [
+   "Every album has one",
+   "Skipping is sacrilege",
+   "I shuffle anyway"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f404",
+  "surface": "feed",
+  "seq": 573,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Music while reading: enhances, or impossible?",
+  "options": [
+   "Enhances — the right album",
+   "Impossible — words fight words",
+   "Instrumental only"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f405",
+  "surface": "feed",
+  "seq": 574,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Seated gigs: civilised, or a contradiction?",
+  "options": [
+   "Civilised — my knees agree",
+   "A contradiction",
+   "Depends on the band"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "sub": "sub_gigs"
+ },
+ {
+  "id": "feed-f406",
+  "surface": "feed",
+  "seq": 575,
+  "type": "vote",
+  "domain": null,
+  "prompt": "New music: still hunting, or is the archive enough?",
+  "options": [
+   "Hunting weekly",
+   "Friends feed me",
+   "The archive is enough"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl91",
+  "surface": "feed",
+  "seq": 576,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The perfect gig crowd, roughly?",
+  "options": [
+   "20–185 people",
+   "185–350 people",
+   "350–515 people",
+   "515–680 people",
+   "680–845 people",
+   "845–1010 people",
+   "1010–1175 people",
+   "1175–1340 people",
+   "1340–1505 people",
+   "1505–1670 people",
+   "1670–1835 people",
+   "1835–2000 people"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "sub": "sub_gigs",
+  "lo": 20,
+  "hi": 2000,
+  "unit": "people"
+ },
+ {
+  "id": "feed-n22",
+  "surface": "feed",
+  "seq": 577,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The new No. 1 meets the rival she just displaced in the US Open final. The real crown: the ranking, or the trophy?",
+  "options": [
+   "The ranking — the whole year",
+   "The trophy — the one day",
+   "The rivalry itself"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-11",
+  "until": "2026-09-19",
+  "bg": "Elena Rybakina took the WTA No. 1 ranking from Aryna Sabalenka after her US Open quarterfinal, then reached Saturday’s final — her first there, Sabalenka’s fourth in a row. It is the pair’s 18th meeting; Sabalenka leads 10–7."
+ },
+ {
+  "id": "feed-n23",
+  "surface": "feed",
+  "seq": 578,
+  "type": "vote",
+  "domain": null,
+  "prompt": "For the first time, a rocket reached orbit from Western European soil. Does it matter where a launch leaves from?",
+  "options": [
+   "Yes — home soil hits different",
+   "Orbit is orbit",
+   "I just want to see one go up"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-11",
+  "until": "2026-09-20",
+  "bg": "Isar Aerospace’s Spectrum reached orbit from Andøya in Arctic Norway on 5 September, deploying five small satellites — the first orbital launch from Western European soil and the first by a privately built European rocket, on the vehicle’s second flight after a 2025 failure."
  },
  {
   "id": "pick-pk04",
@@ -15096,7 +16600,9 @@ const BANK_3: V2SeedQuestion[] = [
    "One house",
    "Rooms apart"
   ]
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gs9",
   "surface": "group",
@@ -15459,6 +16965,226 @@ const BANK_3: V2SeedQuestion[] = [
   "poles": [
    "The same five",
    "Always new"
+  ]
+ },
+ {
+  "id": "group-gr26",
+  "surface": "group",
+  "seq": 74,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who has the day planned to the minute?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "wedding",
+   "label": "The Wedding",
+   "hue": 105
+  },
+  "role": {
+   "id": "planner",
+   "label": "the planner",
+   "seat": "engine"
+  }
+ },
+ {
+  "id": "group-gr27",
+  "surface": "group",
+  "seq": 75,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who handles the cake disaster?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "wedding",
+   "label": "The Wedding",
+   "hue": 105
+  },
+  "role": {
+   "id": "fixer",
+   "label": "the crisis fixer",
+   "seat": "hands"
+  }
+ },
+ {
+  "id": "group-gr28",
+  "surface": "group",
+  "seq": 76,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Whose speech has everyone in tears?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "wedding",
+   "label": "The Wedding",
+   "hue": 105
+  },
+  "role": {
+   "id": "speech",
+   "label": "the tearful speech",
+   "seat": "heart"
+  }
+ },
+ {
+  "id": "group-gr29",
+  "surface": "group",
+  "seq": 77,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who is first on the dancefloor?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "wedding",
+   "label": "The Wedding",
+   "hue": 105
+  },
+  "role": {
+   "id": "dancefloor",
+   "label": "first on the dancefloor",
+   "seat": "wild"
+  }
+ },
+ {
+  "id": "group-gr30",
+  "surface": "group",
+  "seq": 78,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Whose orders would you actually follow?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "crew",
+   "label": "The Space Crew",
+   "hue": 255
+  },
+  "role": {
+   "id": "captain",
+   "label": "the captain",
+   "seat": "engine"
+  }
+ },
+ {
+  "id": "group-gr31",
+  "surface": "group",
+  "seq": 79,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who fixes it with tape and nerve?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "crew",
+   "label": "The Space Crew",
+   "hue": 255
+  },
+  "role": {
+   "id": "engineer",
+   "label": "the engineer",
+   "seat": "hands"
+  }
+ },
+ {
+  "id": "group-gr32",
+  "surface": "group",
+  "seq": 80,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who stays calm when the alarms go off?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "crew",
+   "label": "The Space Crew",
+   "hue": 255
+  },
+  "role": {
+   "id": "steady",
+   "label": "the steady voice",
+   "seat": "heart"
+  }
+ },
+ {
+  "id": "group-gr33",
+  "surface": "group",
+  "seq": 81,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who presses the big red button?",
+  "options": [],
+  "topic": "pick",
+  "axis": null,
+  "test": null,
+  "scen": {
+   "id": "crew",
+   "label": "The Space Crew",
+   "hue": 255
+  },
+  "role": {
+   "id": "button",
+   "label": "the big red button",
+   "seat": "wild"
+  }
+ },
+ {
+  "id": "group-gs14",
+  "surface": "group",
+  "seq": 82,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The luck we carry is…",
+  "options": [
+   "Cursed",
+   "mostly Cursed",
+   "in between",
+   "mostly Charmed",
+   "Charmed"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Cursed",
+   "Charmed"
+  ]
+ },
+ {
+  "id": "group-gs15",
+  "surface": "group",
+  "seq": 83,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The photos of this group are…",
+  "options": [
+   "Posed",
+   "mostly Posed",
+   "in between",
+   "mostly Blurry",
+   "Blurry"
+  ],
+  "topic": "rate",
+  "axis": null,
+  "test": null,
+  "poles": [
+   "Posed",
+   "Blurry"
   ]
  },
  {
@@ -16196,9 +17922,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "mirror",
   "axis": null,
   "test": null
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-079",
   "surface": "duo",
@@ -16266,9 +17990,173 @@ const BANK_4: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-020",
+  "id": "duo-092",
   "surface": "duo",
   "seq": 49,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Umbrella, or hood up and run?",
+  "options": [
+   "Umbrella",
+   "Hood up and run",
+   "Neither — wait it out"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-093",
+  "surface": "duo",
+  "seq": 50,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Hotel, or tent?",
+  "options": [
+   "Hotel",
+   "Tent",
+   "Cabin — split the difference"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-094",
+  "surface": "duo",
+  "seq": 51,
+  "type": "binary",
+  "domain": null,
+  "prompt": "New phone: day one, or when the old one dies?",
+  "options": [
+   "Day one",
+   "When it dies",
+   "When it embarrasses me"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-095",
+  "surface": "duo",
+  "seq": 52,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A spider appears. They…",
+  "options": [
+   "Rescue it, cup and paper",
+   "No survivors",
+   "Call for backup",
+   "Name it"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-096",
+  "surface": "duo",
+  "seq": 53,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their driving is…",
+  "options": [
+   "Serene",
+   "Spirited",
+   "A running commentary",
+   "Backseat only"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-097",
+  "surface": "duo",
+  "seq": 54,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their signature dish:",
+  "options": [
+   "One perfect thing",
+   "Fridge roulette",
+   "A rotation of three",
+   "Toast"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-098",
+  "surface": "duo",
+  "seq": 55,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their pub-quiz round:",
+  "options": [
+   "Sport",
+   "Music",
+   "Maps and flags",
+   "The picture round"
+  ],
+  "topic": "mirror",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-099",
+  "surface": "duo",
+  "seq": 56,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Reclining your plane seat: your right, or just rude?",
+  "options": [
+   "My right",
+   "Just rude",
+   "Night flights only"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-100",
+  "surface": "duo",
+  "seq": 57,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Re-gifting: fair game, or never?",
+  "options": [
+   "Fair game",
+   "Never",
+   "Only across friend groups"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-101",
+  "surface": "duo",
+  "seq": 58,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Being a regular somewhere: the dream, or a rut?",
+  "options": [
+   "The dream",
+   "A rut",
+   "Both, happily"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 59,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -16286,7 +18174,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 50,
+  "seq": 60,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -16304,7 +18192,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 51,
+  "seq": 61,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -16322,7 +18210,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 52,
+  "seq": 62,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -16339,7 +18227,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 53,
+  "seq": 63,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -16358,7 +18246,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 54,
+  "seq": 64,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -16376,7 +18264,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 55,
+  "seq": 65,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -16393,7 +18281,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 56,
+  "seq": 66,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -16411,7 +18299,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 57,
+  "seq": 67,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -16430,7 +18318,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 58,
+  "seq": 68,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -16447,7 +18335,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 59,
+  "seq": 69,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -16465,7 +18353,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 60,
+  "seq": 70,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -16483,7 +18371,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 61,
+  "seq": 71,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -16501,7 +18389,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 62,
+  "seq": 72,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -16519,7 +18407,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 63,
+  "seq": 73,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -16538,7 +18426,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 64,
+  "seq": 74,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -16556,7 +18444,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 65,
+  "seq": 75,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -16575,7 +18463,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 66,
+  "seq": 76,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -16593,7 +18481,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 67,
+  "seq": 77,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -16612,7 +18500,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 68,
+  "seq": 78,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
@@ -16629,7 +18517,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-051",
   "surface": "duo",
-  "seq": 69,
+  "seq": 79,
   "type": "binary",
   "domain": null,
   "prompt": "After a fight, the first move back is usually…",
@@ -16648,7 +18536,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-052",
   "surface": "duo",
-  "seq": 70,
+  "seq": 80,
   "type": "binary",
   "domain": null,
   "prompt": "The retirement dream: settled deep somewhere, or still moving?",
@@ -16665,7 +18553,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-054",
   "surface": "duo",
-  "seq": 71,
+  "seq": 81,
   "type": "binary",
   "domain": null,
   "prompt": "When they need help, they…",
@@ -16683,7 +18571,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-055",
   "surface": "duo",
-  "seq": 72,
+  "seq": 82,
   "type": "binary",
   "domain": null,
   "prompt": "Ten years on, the two of you are known for…",
@@ -16702,7 +18590,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-064",
   "surface": "duo",
-  "seq": 73,
+  "seq": 83,
   "type": "binary",
   "domain": null,
   "prompt": "Sunday morning, no plans:",
@@ -16721,7 +18609,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-065",
   "surface": "duo",
-  "seq": 74,
+  "seq": 84,
   "type": "binary",
   "domain": null,
   "prompt": "Cooking together: romance, or chaos?",
@@ -16739,7 +18627,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-066",
   "surface": "duo",
-  "seq": 75,
+  "seq": 85,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy: a little is healthy, or none ever?",
@@ -16756,7 +18644,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-067",
   "surface": "duo",
-  "seq": 76,
+  "seq": 86,
   "type": "binary",
   "domain": null,
   "prompt": "An argument at midnight: settle it now, or sleep on it?",
@@ -16773,7 +18661,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-068",
   "surface": "duo",
-  "seq": 77,
+  "seq": 87,
   "type": "binary",
   "domain": null,
   "prompt": "Who says sorry first?",
@@ -16792,7 +18680,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-069",
   "surface": "duo",
-  "seq": 78,
+  "seq": 88,
   "type": "binary",
   "domain": null,
   "prompt": "The dream kitchen table seats…",
@@ -16811,7 +18699,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-070",
   "surface": "duo",
-  "seq": 79,
+  "seq": 89,
   "type": "binary",
   "domain": null,
   "prompt": "Growing old together looks like…",
@@ -16830,7 +18718,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-071",
   "surface": "duo",
-  "seq": 80,
+  "seq": 90,
   "type": "binary",
   "domain": null,
   "prompt": "In twenty years we’ll still argue about…",
@@ -16849,7 +18737,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-072",
   "surface": "duo",
-  "seq": 81,
+  "seq": 91,
   "type": "binary",
   "domain": null,
   "prompt": "The thing we’ll be glad we started early:",
@@ -16868,7 +18756,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-074",
   "surface": "duo",
-  "seq": 82,
+  "seq": 92,
   "type": "binary",
   "domain": null,
   "prompt": "Most days, {name} is…",
@@ -16899,7 +18787,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-083",
   "surface": "duo",
-  "seq": 83,
+  "seq": 93,
   "type": "binary",
   "domain": null,
   "prompt": "The last five minutes before sleep are for:",
@@ -16918,7 +18806,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-084",
   "surface": "duo",
-  "seq": 84,
+  "seq": 94,
   "type": "binary",
   "domain": null,
   "prompt": "Grocery runs together: a date, or a chore with company?",
@@ -16936,7 +18824,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-085",
   "surface": "duo",
-  "seq": 85,
+  "seq": 95,
   "type": "binary",
   "domain": null,
   "prompt": "Who controls the thermostat, really?",
@@ -16954,7 +18842,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-086",
   "surface": "duo",
-  "seq": 86,
+  "seq": 96,
   "type": "binary",
   "domain": null,
   "prompt": "Flirting: does harmless exist?",
@@ -16972,7 +18860,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-087",
   "surface": "duo",
-  "seq": 87,
+  "seq": 97,
   "type": "binary",
   "domain": null,
   "prompt": "Exes as friends: mature, or embers?",
@@ -16990,7 +18878,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-088",
   "surface": "duo",
-  "seq": 88,
+  "seq": 98,
   "type": "binary",
   "domain": null,
   "prompt": "Separate holidays sometimes: healthy, or a warning?",
@@ -17008,7 +18896,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-089",
   "surface": "duo",
-  "seq": 89,
+  "seq": 99,
   "type": "binary",
   "domain": null,
   "prompt": "The house we end up in:",
@@ -17027,7 +18915,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-090",
   "surface": "duo",
-  "seq": 90,
+  "seq": 100,
   "type": "binary",
   "domain": null,
   "prompt": "The tradition we’ll invent:",
@@ -17046,7 +18934,7 @@ const BANK_4: V2SeedQuestion[] = [
  {
   "id": "duo-091",
   "surface": "duo",
-  "seq": 91,
+  "seq": 101,
   "type": "binary",
   "domain": null,
   "prompt": "At eighty, we’re the couple that:",
@@ -17055,6 +18943,97 @@ const BANK_4: V2SeedQuestion[] = [
    "Holds hands in queues",
    "Runs the garden",
    "Knows everyone’s news"
+  ],
+  "topic": "ahead",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-102",
+  "surface": "duo",
+  "seq": 102,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Pet names: constantly, or never?",
+  "options": [
+   "Constantly",
+   "Only in private",
+   "Real names only"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-103",
+  "surface": "duo",
+  "seq": 103,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their side of the bed: sacred, or negotiable?",
+  "options": [
+   "Sacred",
+   "Negotiable",
+   "There are no sides"
+  ],
+  "topic": "day",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-104",
+  "surface": "duo",
+  "seq": 104,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Phones unlocked for each other: obviously, or a boundary?",
+  "options": [
+   "Obviously",
+   "A boundary",
+   "It’s never come up"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-105",
+  "surface": "duo",
+  "seq": 105,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Keeping score: poison, or how it stays fair?",
+  "options": [
+   "Poison",
+   "How it stays fair",
+   "We both know who’s ahead"
+  ],
+  "topic": "heat",
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-106",
+  "surface": "duo",
+  "seq": 106,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The other life we joke about:",
+  "options": [
+   "The farm",
+   "The beach bar",
+   "The band",
+   "We’re living it"
   ],
   "topic": "ahead",
   "axis": null,
@@ -18213,7 +20192,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "moral",
   "test": "values"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-values-09",
   "surface": "test",
@@ -19817,9 +21798,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "mode",
   "test": null
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "lq-thinking-1",
   "surface": "test",
@@ -21973,7 +23952,9 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "orderliness",
   "invert": true
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-129",
   "surface": "test",
@@ -23770,9 +25751,7 @@ const BANK_5: V2SeedQuestion[] = [
   "t": 1,
   "p": 88,
   "k": "Jupiter is largest"
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol6",
   "surface": "learn",
@@ -26147,7 +28126,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 62,
   "k": "Red Spot: Jupiter's storm",
   "w": "A storm wider than Earth that has been blowing for at least 200 years."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-sol11",
   "surface": "learn",
@@ -28102,9 +30083,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 64,
   "k": "the banana overlap",
   "w": "Basic cell machinery is ancient and shared; the often-quoted figure counts genes with a recognisable banana counterpart."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-gene21",
   "surface": "learn",
@@ -28302,6 +30281,666 @@ const BANK_7: V2SeedQuestion[] = [
   "p": 48,
   "k": "four ringed giants",
   "w": "Jupiter, Uranus and Neptune wear faint ones — Saturn’s are just the only rings you can see from a garden."
+ },
+ {
+  "id": "learn-mis1",
+  "surface": "learn",
+  "seq": 246,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Voyager 1, launched in 1977, is now…",
+  "options": [
+   "The farthest human-made object",
+   "Back in a museum",
+   "Orbiting Neptune",
+   "Lost with its signal"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 35,
+  "k": "Voyager, still going",
+  "w": "In interstellar space since 2012, still calling home on power dimmer than a fridge bulb — the farthest thing we have ever thrown."
+ },
+ {
+  "id": "learn-mis2",
+  "surface": "learn",
+  "seq": 247,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Golden Record aboard both Voyagers carries…",
+  "options": [
+   "Mission blueprints",
+   "Sounds and music of Earth",
+   "Star maps only",
+   "Nothing — it’s decorative"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 2,
+  "p": 45,
+  "k": "Earth’s mixtape",
+  "w": "Greetings in 55 languages, whale song, Bach and Chuck Berry — a message for any finder, chosen by Carl Sagan’s committee."
+ },
+ {
+  "id": "learn-mis3",
+  "surface": "learn",
+  "seq": 248,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Apollo 13’s famous line, as actually spoken:",
+  "options": [
+   "“Houston, we have a problem”",
+   "“Houston, we’ve had a problem”",
+   "“Houston, help us”",
+   "“Mayday, mayday”"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 55,
+  "k": "we’ve HAD a problem",
+  "w": "Jack Swigert’s real words were past tense; the film smoothed them. The crew flew around the Moon and made it home."
+ },
+ {
+  "id": "learn-mis4",
+  "surface": "learn",
+  "seq": 249,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Hubble telescope’s first images were blurry because…",
+  "options": [
+   "Dust on the lens",
+   "Earth’s atmosphere",
+   "Its mirror was ground wrong",
+   "Software bugs"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 62,
+  "k": "Hubble’s flawed mirror",
+  "w": "Ground to the wrong shape by microns; astronauts fitted corrective optics in orbit in 1993 — glasses for a telescope."
+ },
+ {
+  "id": "learn-mis5",
+  "surface": "learn",
+  "seq": 250,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The International Space Station circles Earth about every…",
+  "options": [
+   "90 minutes",
+   "24 hours",
+   "8 hours",
+   "A week"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 38,
+  "k": "sixteen sunrises a day",
+  "w": "At 28,000 km/h an orbit takes an hour and a half — the crew sees sixteen sunrises every day."
+ },
+ {
+  "id": "learn-mis6",
+  "surface": "learn",
+  "seq": 251,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Opportunity, the Mars rover, was designed for 90 days. It worked for…",
+  "options": [
+   "90 days exactly",
+   "A year",
+   "Nearly 15 years",
+   "It never landed"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 70,
+  "k": "the 90-day rover’s 15 years",
+  "w": "From 2004 to the 2018 dust storm — marathon distance driven on another planet, ninety days at a time."
+ },
+ {
+  "id": "learn-med7",
+  "surface": "learn",
+  "seq": 252,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Magna Carta, sealed in 1215, was…",
+  "options": [
+   "A king-and-barons peace deal",
+   "A tax code",
+   "A church decree",
+   "A peasants’ charter"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 42,
+  "k": "Magna Carta: a peace deal",
+  "w": "King John’s barons forced terms at Runnymede; its clause on lawful judgment outgrew the quarrel that wrote it."
+ },
+ {
+  "id": "learn-med8",
+  "surface": "learn",
+  "seq": 253,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Copying one Bible by hand took a medieval scribe roughly…",
+  "options": [
+   "A weekend",
+   "A month",
+   "A year or more",
+   "A decade, always"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 55,
+  "k": "a year per Bible",
+  "w": "Steady work at a desk; one reason books were chained like treasure. Gutenberg’s press collapsed the year into days."
+ },
+ {
+  "id": "learn-med9",
+  "surface": "learn",
+  "seq": 254,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Medieval people bathed…",
+  "options": [
+   "Never — thought sinful",
+   "More than the myth claims",
+   "Only royalty",
+   "Once a year, at Easter"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 48,
+  "k": "the bathhouse myth",
+  "w": "Towns ran public bathhouses and soap was a trade; the filthy Middle Ages is mostly a later caricature."
+ },
+ {
+  "id": "learn-med10",
+  "surface": "learn",
+  "seq": 255,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Vikings reached America around the year…",
+  "options": [
+   "1000 — Newfoundland",
+   "1492",
+   "1300",
+   "They never did"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 62,
+  "k": "Vinland, circa 1000",
+  "w": "L’Anse aux Meadows in Newfoundland holds the Norse camp — five centuries before Columbus, remembered in the sagas."
+ },
+ {
+  "id": "learn-flag11",
+  "surface": "learn",
+  "seq": 256,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The red disc on Japan’s flag is…",
+  "options": [
+   "The rising sun",
+   "A cherry blossom",
+   "The red planet",
+   "An island"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 30,
+  "k": "Hinomaru, the sun disc",
+  "w": "The sun-mark flag — the country’s own name reads as “origin of the sun”."
+ },
+ {
+  "id": "learn-flag12",
+  "surface": "learn",
+  "seq": 257,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The colour almost absent from national flags:",
+  "options": [
+   "Purple",
+   "Orange",
+   "Black",
+   "Green"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 52,
+  "k": "almost no purple",
+  "w": "Purple dye was long costlier than gold; today only tiny details — Dominica’s parrot — carry it."
+ },
+ {
+  "id": "learn-flag13",
+  "surface": "learn",
+  "seq": 258,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which national flag differs front from back?",
+  "options": [
+   "Paraguay’s",
+   "Brazil’s",
+   "Mexico’s",
+   "Canada’s"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 74,
+  "k": "Paraguay’s two faces",
+  "w": "The state seal on the front, the treasury seal on the reverse — the only national flag with different sides."
+ },
+ {
+  "id": "learn-flag14",
+  "surface": "learn",
+  "seq": 259,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Canada’s maple leaf flag dates from…",
+  "options": [
+   "1867",
+   "1965",
+   "1931",
+   "1900"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "the leaf, 1965",
+  "w": "Confederation kept the Red Ensign for a century; the eleven-point leaf arrived after a fierce 1964 flag debate."
+ },
+ {
+  "id": "learn-str18",
+  "surface": "learn",
+  "seq": 260,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Past a black hole’s event horizon, what escapes?",
+  "options": [
+   "Light, barely",
+   "Nothing at all",
+   "Radio waves",
+   "Fast ships"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 48,
+  "k": "past the horizon, nothing",
+  "w": "Inside the horizon every path leads inward; Hawking radiation seeps from the edge, never the inside."
+ },
+ {
+  "id": "learn-str19",
+  "surface": "learn",
+  "seq": 261,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A shooting star is…",
+  "options": [
+   "A dust grain burning up",
+   "A dying star",
+   "A satellite",
+   "A distant comet"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 28,
+  "k": "a grain of grit, glowing",
+  "w": "Most meteors are sand-sized; the streak is air heated to glowing, seventy kilometres up."
+ },
+ {
+  "id": "learn-str20",
+  "surface": "learn",
+  "seq": 262,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Polaris, the North Star, is…",
+  "options": [
+   "The brightest star",
+   "Around the 48th brightest",
+   "A planet",
+   "The nearest star"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 60,
+  "k": "famous for position, not power",
+  "w": "Its gift is sitting over the pole — it barely cracks the top fifty; Sirius outshines it twenty-fold."
+ },
+ {
+  "id": "learn-str21",
+  "surface": "learn",
+  "seq": 263,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The gold in your ring was forged…",
+  "options": [
+   "In colliding neutron stars",
+   "In Earth’s core",
+   "In the Sun",
+   "In volcanoes"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 66,
+  "k": "jewellery from a stellar crash",
+  "w": "Supernovae and neutron-star mergers forge the heavy elements; the 2017 merger GW170817 was watched doing it live."
+ },
+ {
+  "id": "learn-anc19",
+  "surface": "learn",
+  "seq": 264,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Terracotta Army guards…",
+  "options": [
+   "A temple",
+   "China’s first emperor",
+   "A famous general",
+   "A queen"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Qin Shi Huang’s clay army",
+  "w": "Thousands of individual soldiers buried 2,200 years ago to guard the First Emperor — farmers digging a well found them in 1974."
+ },
+ {
+  "id": "learn-anc20",
+  "surface": "learn",
+  "seq": 265,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roman harbour concrete, two thousand years on, is…",
+  "options": [
+   "Still hardening in seawater",
+   "Long dissolved",
+   "Replaced by brick",
+   "A tourist myth"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 64,
+  "k": "concrete that likes the sea",
+  "w": "Seawater reacts with the volcanic-ash mix to grow new minerals — some piers are stronger now than when poured."
+ },
+ {
+  "id": "learn-anc21",
+  "surface": "learn",
+  "seq": 266,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Antikythera mechanism, from a Greek shipwreck, is…",
+  "options": [
+   "A geared astronomical computer",
+   "A ship’s anchor",
+   "A music box",
+   "A loom"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 68,
+  "k": "a computer from 100 BC",
+  "w": "Bronze gears predicting eclipses and planetary positions — nothing as intricate survives for the next thousand years."
+ },
+ {
+  "id": "learn-anc22",
+  "surface": "learn",
+  "seq": 267,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Who could vote in ancient Athens’ democracy?",
+  "options": [
+   "Everyone in the city",
+   "Free adult male citizens",
+   "Landowners only",
+   "Priests"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 52,
+  "k": "democracy, with an asterisk",
+  "w": "Women, the enslaved and foreigners were all outside it — a broad idea practised narrowly."
+ },
+ {
+  "id": "learn-body19",
+  "surface": "learn",
+  "seq": 268,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The tongue map — sweet at the tip, bitter at the back — is…",
+  "options": [
+   "Textbook fact",
+   "A myth — all zones taste all",
+   "True for children",
+   "True for supertasters"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 54,
+  "k": "no tongue map",
+  "w": "Every region senses every taste; the map came from a mistranslated 1901 study and stuck for a century."
+ },
+ {
+  "id": "learn-body20",
+  "surface": "learn",
+  "seq": 269,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Cracking your knuckles causes arthritis — true?",
+  "options": [
+   "True",
+   "False — it’s just gas bubbles",
+   "Only in winter",
+   "True after forty"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 42,
+  "k": "knuckles, acquitted",
+  "w": "Studies — including a doctor who cracked one hand for sixty years — find no arthritis link; the pop is a bubble collapsing."
+ },
+ {
+  "id": "learn-body21",
+  "surface": "learn",
+  "seq": 270,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The blood in your veins, before air touches it, is…",
+  "options": [
+   "Dark red",
+   "Blue",
+   "Purple",
+   "Clear"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 36,
+  "k": "never blue",
+  "w": "Deoxygenated blood is dark red; veins look blue because skin filters light. Squid manage actual blue blood."
+ },
+ {
+  "id": "learn-body22",
+  "surface": "learn",
+  "seq": 271,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The smallest bone in your body sits in your…",
+  "options": [
+   "Little toe",
+   "Nose",
+   "Ear",
+   "Wrist"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 30,
+  "k": "the stirrup, 3 mm",
+  "w": "The stapes — smaller than a rice grain — relays sound in the middle ear."
+ },
+ {
+  "id": "learn-c2019",
+  "surface": "learn",
+  "seq": 272,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The World Wide Web was invented at…",
+  "options": [
+   "Silicon Valley",
+   "CERN, by Tim Berners-Lee",
+   "MIT",
+   "Bell Labs"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "the web, born at CERN",
+  "w": "A 1989 memo for sharing physics papers; his boss wrote “vague but exciting” on it. The code was given away free."
+ },
+ {
+  "id": "learn-c2020",
+  "surface": "learn",
+  "seq": 273,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The South Pole was first reached, in 1911, by…",
+  "options": [
+   "Scott’s British party",
+   "Amundsen’s Norwegians",
+   "Shackleton",
+   "Byrd, by plane"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 62,
+  "k": "Amundsen first, by a month",
+  "w": "Amundsen’s dog-sled route won by 34 days; Scott arrived to find the tent and flag already standing."
+ },
+ {
+  "id": "learn-c2021",
+  "surface": "learn",
+  "seq": 274,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Woodstock, 1969, was billed as…",
+  "options": [
+   "Three days of peace and music",
+   "A protest march",
+   "A film festival",
+   "A political rally"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 50,
+  "k": "three days of peace and music",
+  "w": "Half a million people on a dairy farm; the fences failed and it became free — the defining festival."
+ },
+ {
+  "id": "learn-c2022",
+  "surface": "learn",
+  "seq": 275,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Everest was first climbed, in 1953, by…",
+  "options": [
+   "Hillary and Tenzing",
+   "Mallory and Irvine",
+   "Messner, alone",
+   "A Swiss team"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 44,
+  "k": "Hillary and Tenzing, 1953",
+  "w": "Whether Mallory reached the top in 1924 stays unknown; Hillary and Tenzing Norgay came back to say so."
  },
  {
   "id": "pulse-pace",

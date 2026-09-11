@@ -132,6 +132,16 @@ function seededFields() {
   const from = src.indexOf("export const SEEDED_FIELDS = [");
   if (from < 0) throw new Error("pure.ts: SEEDED_FIELDS not found");
   const to = src.indexOf("] as const;", from);
+  // THE TERMINATOR IS AS LOAD-BEARING AS THE OPENER, which `fieldsIn`
+  // above knows and this did not. `indexOf` answers -1 when the array
+  // stops ending that way — `] as const satisfies readonly string[]`, a
+  // reformat, a trailing comment — and `slice(from, -1)` then runs to the
+  // end of the file instead of failing. That does not merely widen the
+  // set: the "missing from SEEDED_FIELDS" arm would match any quoted word
+  // in the ~780 lines that follow, and four real field names are quoted
+  // down there (`type`, `domain`, `options`, `until`), so a genuine
+  // omission of any of them would be masked by prose.
+  if (to < 0) throw new Error("pure.ts: SEEDED_FIELDS is not terminated by `] as const;` where this looks");
   const region = src.slice(from, to);
   // Strings only, and comments are stripped first: these blocks are mostly
   // prose, and a field name quoted inside a comment would satisfy the check
