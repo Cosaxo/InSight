@@ -1823,20 +1823,29 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // No limit() is needed now and one would be wrong: an aggregation's cost
   // is already sub-linear, and capping it would silently under-report the
   // crowd rather than bound anything worth bounding.
-  const agg = await db.collection("v2_presence")
-    .where("cell", "in", cells)
-    .where("until", ">", now)
-    .count()
-    .get();
-  const total = agg.data().count;
-  // Self-exclusion, still exact. The count above cannot filter, so the
-  // caller's own row is looked up directly: one read rather than the whole
+  // TOGETHER, not one after the other. Neither read is an input to the
+  // other and both are always needed, so the second was pure added latency
+  // on the app's most frequent callable — every client with Near on beats
+  // it every PRESENCE_BEAT_MS. Billed reads are unchanged, and so is
+  // statement order below: the D179 note a few lines down constrains what
+  // happens AFTER these reads, which a Promise.all leaves alone.
+  //
+  // Self-exclusion, still exact. The count cannot filter, so the caller's
+  // own row is looked up directly: one read rather than the whole
   // neighborhood. In the app's own flow this is always a hit — runBeat
   // writes `v2_presence/{uid}` and awaits it before calling — but the
   // callable is reachable with any cell, so "is my row actually in this
   // neighborhood, and fresh?" is asked rather than assumed. Subtracting a
   // blind 1 would under-count by one for any caller who is not there.
-  const own = await db.collection("v2_presence").doc(request.auth.uid).get();
+  const [agg, own] = await Promise.all([
+    db.collection("v2_presence")
+      .where("cell", "in", cells)
+      .where("until", ">", now)
+      .count()
+      .get(),
+    db.collection("v2_presence").doc(request.auth.uid).get(),
+  ]);
+  const total = agg.data().count;
   const ownExpiry = presenceExpiry(own);
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)

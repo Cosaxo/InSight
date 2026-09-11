@@ -70,7 +70,7 @@ function AccountSheet({ onClose }) {
   return (
     <div className="overlay surface-tint" {...dlg} style={{ zIndex: 24, '--accent': 'var(--c-people)' }}>
       <div className="app-header">
-        <button className="avatar-btn" onClick={onClose}>✕</button>
+        <button className="avatar-btn" aria-label="Close" onClick={onClose}>✕</button>
         <div className="h-title">Account &amp; <em>privacy</em></div>
         <div style={{ width: 32, flexShrink: 0 }} />
       </div>
@@ -262,7 +262,7 @@ function ProfileOverlay({ onClose, me }) {
     // becomes a hairline section rather than a box
     <div className="overlay surface-tint profile-ov" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
       <div className="app-header">
-        <button className="avatar-btn" onClick={onClose}>✕</button>
+        <button className="avatar-btn" aria-label="Close" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
         {/* the corner gear (D344) — the door to Account & privacy since it
             left the General tab. Live only: the panel states facts about a

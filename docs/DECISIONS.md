@@ -49875,3 +49875,209 @@ same commit that caused it. Fixing it found that the table under that
 sentence had been missing `apply-bigquery.yml` and `backfill-log.yml`
 since the day they were counted — the gate holds the COUNT, and nothing
 holds the ROWS.
+
+## D452 · A whole-app audit, adversarially verified — and the half of it main reached first
+
+**2026-09-09, merged forward 2026-09-11.** **Status: Proposed** — the
+owner's tick on `MERGE-LIST.md` is the decision. Numbered D452 because
+D440–D451 were taken on `main` in the two days this branch sat. Asked for in one sentence (*"go through
+this app and look for improvments optemzations and clean up and
+maitance"*), so the subject is the whole tree rather than one surface.
+
+**How it was run, because the method is the reason to believe the
+findings.** Fourteen dimensions — dead code, `live.ts`, client render
+performance, Cloud Functions, rules and security, the gates themselves,
+the test suites, dependencies and build, documentation drift, type
+safety, duplication, UX and accessibility, robustness, cost and scale —
+each surveyed by an agent that had to quote what it actually read or ran,
+and each survey then handed to a SECOND agent whose instruction was to
+REFUTE it and to default to rejected when it could not reproduce the
+claim. 76 findings went into that second stage; 42 came out CONFIRMED, 29
+RESCOPED (the observation real, the finding overstated or the fix wrong)
+and 5 REJECTED outright.
+
+The rescopes are the part worth keeping. Three examples of what the
+verify stage caught, each of which would have shipped a wrong change: a
+"delete this dead module" finding whose module is named as live by two
+open plans (`reveal-clock.js`); a "the handles deny is defeated" finding
+whose remedy would have proposed shrinking D98's central grant, when the
+tree already says the exposure delta is nil in two places thirty lines
+apart; and a fix that would not have compiled, because it declared a
+variable inside a branch the arm it was fixing had already returned from.
+
+**The baseline was green, and stayed green at every commit.** lint,
+`tsc -b`, 3016 unit tests, 1286 script tests, 837 functions tests, 214
+rules tests with both ratchets, the three e2e suites, and every static
+gate. That is the starting state this repo's rules require and the state
+each of the seven commits below was measured against.
+
+**WHAT MAIN REACHED FIRST, and this is the most useful thing the record
+can say.** `main` moved 94 commits while this branch sat, and eight of
+its findings are the same findings — found independently, fixed
+independently, and in every case with a better record than this branch
+wrote. The merge takes main's side on all of them:
+
+- the `check:figures` bank count (main's **D444**, which also caught that
+  a sixth pack had pushed the over-count from 44 to 52 — this branch only
+  saw 44);
+- the D410 guard missing from the catalog fold, fixed on main 2026-09-10
+  with the `rebuildAggregateV2` consequence this branch did not name;
+- the backend's untypechecked test files — main built the same
+  `functions/tsconfig.test.json`, wired it as `check:fn-types`, and fixed
+  the same `PricingCard` and `AttnCounter` fixture drifts;
+- the duel seal's missing disk mirror, where main's fix also marks
+  `state.inflight`, which this branch's did not;
+- the `v2social.ts` reveal header, the CLAUDE.md/README/MIRROR row and
+  reveal paragraphs, the `duels-rounds` dead guard, and the
+  `cost-arith`/`pulse.test` read arithmetic.
+
+Two agents finding the same defect independently is the strongest
+evidence available that it was real, so this is a confirmation rather
+than a loss. What survives from this branch is what main did not reach:
+the `check:purge` unstripped read, the four accessibility holes, the five
+dead publications and the conversion residue, four of the five
+repeated-work loops, the offline profile-screen deadlock, the dependency
+and config maintenance, and the 27 findings written onto `WORKLIST.md`.
+
+**What was taken, in seven commits.**
+
+1. **Two gates that could not see what they were guarding.**
+   `check:figures` counted the question bank with an ad-hoc `"id":` regex
+   two lines from the shared parser it already imports. D434 made the
+   group a cast, a role vote grew `scen: { id … }` and `role: { id … }`,
+   and the scan began reporting 1342 for a bank of 1298 — then ENFORCED
+   1342 into ten sentences across five files while `check:content`
+   printed the true 1298 three steps later in the same CI job. Nothing
+   went red, because this gate is the thing that decides what the number
+   is. That is D179, D197 and D275's class exactly, for the fourth time.
+   The joint that was missing is now a test, and it pins the PROPERTY —
+   a nested id is not an entry — rather than the number, because pinning
+   1298 would recreate the drift trap the suite's own header is about.
+   `check:purge` had the same shape pointed the permissive way: every
+   read in it strips comments except the one that finds the single purge
+   dispatcher, so a commented-out dispatch passed with all 29 listeners
+   wired to nothing.
+
+2. **Six documentation claims the tree stopped making true**, none of
+   which any gate can read: the Groups Mirror row (`Answers · People ·
+   Compare` in three files, where `GROUP_TABS` has been `Votes · People ·
+   Scores · Compare` since D437), the "next-day reveal" in CLAUDE.md,
+   README.md and `v2social.ts`'s own header (D426 replaced the calendar
+   with the round and `roundReveals()` reads no clock — CLAUDE.md
+   contradicting its own standing instruction to say *until the reveal*),
+   `loadOverlays()` naming two modules deleted at D121, ORIENTATION's
+   "Four of these files declare plan only" where the gate's own regex
+   finds sixteen, `main.jsx` "renders `globalThis.App`" after D354 made
+   it an import, and LiveSignInGate's header saying the account wall is
+   off for the public build when both release workflows default it on and
+   refuse to upload without it. Three hand-maintained counts were deleted
+   rather than corrected.
+
+3. **D410 reaches the catalog fold.** The one production-data finding.
+   D410 made the answer trigger read the author's profile and fold the
+   honest cohort rather than the claimed one, because rules can
+   shape-check an answer's anchors but cannot check whose they are. It
+   was applied to one of the two published folds: the catalog arm read
+   `[eventRef, qRef, privRef]`, never the profile, and folded the raw
+   claim into the published `by` map for 24 shipped pick questions —
+   which `pickSegs`/`pickSeg` read straight onto the pick card as a
+   segment chip and a segment ordering. Fixed the vote arm's way, on the
+   existing `tx.getAll` so the lock window is unchanged, with the row
+   corrected only when it differs. The read-count tripwire caught the
+   change exactly as designed (12 → 13) and moved with it.
+
+4. **Four accessibility holes no ratchet here can see.** D86's
+   change-your-vote was POINTER-ONLY — no role, no tabIndex, no key
+   handler on either twin, so a keyboard or switch user could not reach
+   the feature at all, and jsx-a11y has no rule for a pointer-only
+   handler. Six full-screen overlays closed through an unnamed glyph, and
+   in five of them that button is where `useDialog` puts focus on open.
+   `AskedByYouOverlay` was a ninth overlay with no dialog semantics at
+   all. And the person map opened as a nested overlay with no layer of
+   its own, so one Escape peeled two.
+
+5. **Five loops and round trips doing the same work repeatedly**: a
+   defensive copy of the whole vote map per comparison inside a sort
+   comparator, per keystroke; the profile cache parsed twice on every
+   warm boot; the last serial `in`-chunk read, on the path a `contentRev`
+   bump makes longest; two independent reads serialised in the app's most
+   frequent callable; a denominator recomputed once per field.
+
+6. **Two ways to lose work offline.** `voteDuel` and `voteLate` never
+   marked D357's disk mirror, so an unacknowledged duel seal lived in one
+   process's memory — and on relaunch the round was offered again, where
+   the second seal is a `setDoc` onto an existing document that
+   `firestore.rules` refuses (`allow update` is daily/feed/test only).
+   The round was spent, unanswerable, and the partner's table had a hole
+   in it. Separately the first-run profile screen awaited a raw `setDoc`,
+   which offline PARKS rather than rejecting: the catch could not run,
+   `busy` stayed true, and that screen has no close control, no Escape
+   and no back layer.
+
+7. **The backend's 39 test files were typechecked by nothing** — the
+   build config excludes them correctly and no other config reached them,
+   so ~14k lines were compiled by nobody. A config that reaches them
+   found 27 real errors, including a `PricingCard` fixture carrying a
+   retired field and missing three required ones: the money path was
+   asserting about a shape the server cannot be handed. Four assertions
+   that could not fail were found in the same pass, including one whose
+   guard had never once executed (measured) and one whose verdict changed
+   with the day of the week.
+
+8. **Dependency and config maintenance**: a moderate advisory live on the
+   deployed runtime and invisible to both audit gates because they run
+   `--audit-level=high`; `@types/node` a major ahead of all four runtime
+   pins; the Sentry pair, which cannot move one at a time and had no
+   dependabot rule saying so (#213 red for 23 days); `MAX_CHUNK_KB` 438 KB
+   above anything it measured, so it had stopped being a ratchet; the
+   Stripe wire version inherited from the package rather than pinned at
+   the call site; four strictness flags spread across three configs in
+   three different subsets, all free.
+
+**The arithmetic.** No new Firestore read on any client path. One extra
+billed read per CATALOG answer (24 of 1,298 questions), on the existing
+batched read, so no extra round trip and no change to the lock window —
+`cost-arith.mjs`'s stated approximation widens from one read to two on
+that slice and the constant does not move. One read REMOVED per settled
+duel answer (a duel aid no longer schedules an aggregate refresh for a
+document that cannot exist). `nearbyCountV2` loses one serialized round
+trip at the same billed cost. The shipping bundle is unchanged at
+2,304 KB total and 548 KB eager; `check:globals`' coupling baseline is
+unchanged at 28 (what went were publications, not cross-module reads),
+while published globals fell 44 → 39 and the off-the-bridge count rose
+55 → 56.
+
+**What was NOT taken, and why that is the honest half.** 27 verified
+findings are written onto `WORKLIST.md` § Open rather than fixed here,
+each with its reason. The largest is the feed's per-render derivation and
+its undebounced scroll growth: real, measured, and a restructure of a
+4,600-line pipeline rather than a hoist, which is not a thing to do
+inside an audit sweep. Two scale walls with no alert
+(`ROLLUP_FOLD_CAP` at ~10k DAU, `SHARD_FOLD_CAP` at ~20k) want monitoring
+policies rather than raised caps. Three real duplications each need a
+judgement about which copy wins. `COSTS.md`'s headline tables are one
+model run stale. And `noUncheckedIndexedAccess` was measured rather than
+argued about: ~1,795 errors on the app project and ~690 on functions, so
+it is a project, not a flag.
+
+**One finding is a documentation change and deliberately NOT an owner
+ask.** `v2_handles` refuses `list`, and the audit's first pass read that
+as an anti-enumeration control defeated by the people directory. The
+verify stage refuted the remedy: `v2_users` is world-read and carries
+`handle`, so (uid, handle) is already enumerable — which the ruleset says
+thirty lines below and `data-inventory.md` states as an exposure delta of
+nil. Under D334 a privacy constraint goes to the owner when it BLOCKS
+something; volunteering a new restriction on D98's central grant is the
+opposite, and D352 is explicit that a limit is a design problem to solve
+around. So the deny stays, for the reason it was written — nothing in the
+app wants the list — and the comment now says it is least privilege on
+that collection rather than a barrier for the app, so the next reader does
+not go looking for one that is not there.
+
+**Measured before the push:** `lint`, `tsc -b`,
+`functions/tsconfig.test.json`, `test:unit` (207 files / 3,021 tests, up
+from 3,016 — five new cases, every one mutation-checked red against the
+code it pins), `test:scripts` (74 / 1,288), `test --prefix functions`
+(39 / 839), `test:rules` (214, coverage and budget ratchets at baseline),
+`test:e2e:all`, `build` + `check:bundle`, and every static gate the
+changed files touch. The counts are in the PR body.

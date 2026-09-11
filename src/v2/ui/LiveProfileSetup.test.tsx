@@ -283,6 +283,29 @@ describe("the name and the handle", () => {
     expect(onDone).toHaveBeenCalled();
   });
 
+  it("does not hang the screen when the name write never settles (offline)", async () => {
+    // An offline Firestore write PARKS — the promise never settles, it does
+    // not reject. This screen awaited `saveDisplayName`, so offline the
+    // await never returned, `busy` stayed true, and Save, Skip and both
+    // politics chips stayed disabled. There is no close control, no Escape
+    // handler and no back layer here, and the root is fixed inset-0 outside
+    // <App/>: first run, offline, one tap on Save, and the app was unusable
+    // until it was killed.
+    //
+    // Asserted as COMPLETION, which is the user-visible half: the flow has
+    // to reach `onDone` — the call that takes the screen off the page and
+    // therefore releases every control on it — without the write settling.
+    LIVE.saveDisplayName.mockImplementationOnce(() => new Promise<void>(() => {}));
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    // The write was still ISSUED — the queue delivers it on reconnect.
+    expect(LIVE.saveDisplayName).toHaveBeenCalledWith("Olaf");
+    expect(onDone, "the screen never finished — Save, Skip and the chips stay disabled behind `busy`")
+      .toHaveBeenCalled();
+  });
+
   it("claims the handle, folded the way the server folds it", async () => {
     render(<LiveProfileSetup onDone={onDone} />);
     fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "@Olaf_T" } });

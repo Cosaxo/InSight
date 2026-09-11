@@ -968,12 +968,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               it. Unset it and .mmt-ground::after falls back to the old fixed
               circle, silently — the wiring is pinned in test/map-ring.test.js. */}
           <div className="mmt-ground" style={{ '--ring': laid.ring + 'px' }} aria-hidden="true"></div>
-          {fieldsOn ? laid.fields.map((f) => {
+          {/* the tint's denominator, hoisted: it reads no `f`, so computing
+              it inside the field loop below re-derived one number once per
+              field — and in grouped mode each catCount() is itself a linear
+              scan of `groups`. Value-identical. */}
+          {fieldsOn ? (() => { const maxCt = Math.max(1, ...cats.map((c) => catCount(c.id))); return laid.fields.map((f) => {
             const cat = cats.find((c) => c.id === f.id);
             if (!cat) return null;
             const sz = (f.r + 70) * 2;
             // tint deepens where you've answered most
-            const maxCt = Math.max(1, ...cats.map((c) => catCount(c.id)));
             const fop = hlSet && !hlSet.has(f.id) ? 0.12 : 0.5 + 0.5 * (catCount(f.id) / maxCt);
             return (
               <div
@@ -983,7 +986,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
                 aria-hidden="true"
               ></div>
             );
-          }) : null}
+          }); })() : null}
           <svg className="mmt-edges" viewBox="-1800 -1800 3600 3600" style={{ left: -1800, top: -1800, width: 3600, height: 3600 }}>
             {edges.map((e, i) => {
               let op = 0.75;
