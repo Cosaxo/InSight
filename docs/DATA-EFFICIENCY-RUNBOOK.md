@@ -150,9 +150,23 @@ and the city samples' bound.
       cuts them to the cap in the sample's own order BEFORE the merge
       (exact: an addition dropped there is outranked by cap others in the
       final sort), then merges; the same call takes the day's stamps and
-      refreshes every row it rewrites anyway, so a new name reaches the
-      rows of questions the person did not answer today, for the samples
-      the night touches. An edit keeps its create's stamp.
+      applies them to the day's OWN rows. An edit keeps its create's stamp,
+      and the day's map is what supplies one to an edit that carries none.
+      **It used to refresh EVERY row it rewrote**, on the argument that a
+      new name would then reach questions the person did not answer today
+      — and the argument is backwards: the day's map is built from the
+      LEDGER, so it is the profile as of when they answered, while
+      `profileFanout.restampSamples` writes the same fields with the
+      profile as it stands now. Against a row the fan-out had already
+      corrected, this wrote the older copy back, nightly, on a
+      world-readable document — including republishing a political
+      coordinate whose consent had been withdrawn (D330/D331). The
+      fan-out and its nightly heal own the rows the day did not touch;
+      they read the current profile, this cannot. **Still open** and on
+      `OWNER-LIST.md`: a row the day DOES write still takes the
+      as-of-answer stamp, so a withdrawal made after answering is
+      republished on that day's own questions until the next profile
+      change.
 - [x] **2.3 The device stops reading profiles for people the sample
       named. DONE 2026-09-08** — `fetchSampleDoc` fills the three caches
       from rows that carry `n`, where the cache has nothing (a value read
