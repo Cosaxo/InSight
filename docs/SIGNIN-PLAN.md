@@ -195,6 +195,17 @@ Design's — which is why a two-to-three-day estimate closed in one.
    (the two Firebase auth mail templates), and the one hand test worth
    doing is the mistyped-address escape.
 
+**What the device test found (2026-09-11, [D453](DECISIONS.md#d453--the-sign-in-wall-stopped-waiting-for-auth-to-speak-the-warm-boots-own-treatment-one-surface-over)).**
+The wall appeared for a beat on every launch of a signed-in account
+before vanishing — `SignInGate` composed its verdict from two store
+flags that are false until the auth observer speaks, which is after the
+Auth SDK import and the auth restore, while D356 releases the render
+before either. The store now answers the wall's question off the same
+kind of device mirror the warm paint already uses. Worth recording
+here because it is the class of defect this plan could not have found:
+every gate was green, and only a launch on a real device with a real
+session shows it.
+
 **Three clicks were the owner's alone and blocked step 1's testing:**
 the Apple provider and the Email/Password provider in the Firebase
 console, and Sign in with Apple enabled for the App ID in the Apple

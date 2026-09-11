@@ -134,11 +134,18 @@ jobs:
           printf 'DC_PRIVATE_KEY="%s"\n' "$(printf '%s' "$DC_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')" >> functions/.env.prvfire33
           # The paid-question loop (D313). Each missing credential turns
           # one hop off, loudly, and the rest of the loop keeps its shape:
-          # no ANTHROPIC_API_KEY → reviews pass on deterministic gates
-          # alone; no STRIPE keys → approved bookings cannot be paid and
-          # closed campaigns cannot refund.
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::warning::ANTHROPIC_API_KEY is empty — paid-question reviews run on gates alone (paid.ts logs paid_review_gates_only)."
+          # no STRIPE keys → approved bookings cannot be paid and closed
+          # campaigns cannot refund.
+          #
+          # ANTHROPIC_API_KEY is EXPECTED to be empty since D456 — the
+          # owner moved the review to a Claude Code Routine. Empty is no
+          # longer a degradation and no longer a warning; what it means is
+          # that a booking stays in `review` for the Routine to settle.
+          # Until D456 this line said reviews "run on gates alone", which
+          # was true and was the dangerous half: the gates never read the
+          # words, so that path APPROVED whatever it was given.
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY is set — paid-question reviews run in-request rather than through the review Routine (docs/ROUTINES.md §10)."
           fi
           if [ -z "$STRIPE_SECRET_KEY" ] || [ -z "$STRIPE_WEBHOOK_SECRET" ]; then
             echo "::warning::STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET incomplete — createPaidCheckoutV2 refuses, stripeWebhookV2 answers 503, and the closer records refunds without executing them."
@@ -217,6 +224,41 @@ jobs:
       # is: nothing about static HTML should be able to abort — or worse,
       # half-abort — a Firestore-rules or functions deploy. Check this
       # step's outcome before assuming the policy URL is live.
+      # THE BUY PAGE'S PUBLIC CONFIG (D455; the reCAPTCHA half removed at
+      # D456). The Firebase web API key is public by design — it ships in
+      # every app build — so it is a VARIABLE, written here rather than
+      # committed so a fork or a preview deploy does not inherit
+      # production's project.
+      #
+      # ABSENT IS A WORKING PAGE, not a broken one: web/ask.html treats a
+      # missing config as "this deployment has no keys" and shows the same
+      # honest note it showed before the door was wired. So a deploy with
+      # these unset still ships a correct page — it just cannot sell.
+      - name: Write the buy page's config
+        env:
+          ASK_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+        run: |
+          set -o pipefail
+          if [ -z "$ASK_API_KEY" ]; then
+            echo "::warning::VITE_FIREBASE_API_KEY unset — the buy page will ship with payment closed (runbook 5.14)."
+            rm -f web/ask-config.json
+          else
+            # THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+            # is a textual substitution GitHub performs before bash sees
+            # the script, so a value pasted into the body is code. Same
+            # rule auth-config.yml records at length.
+            node -e '
+              const fs = require("fs");
+              fs.writeFileSync("web/ask-config.json", JSON.stringify({
+                apiKey: process.env.ASK_API_KEY,
+                project: "prvfire33",
+                region: "europe-west1",
+                dbId: "insight",
+              }, null, 2) + "\n");
+            '
+            echo "buy page config written (keys not printed)."
+          fi
+
       - name: Deploy hosting
         id: hosting
         continue-on-error: true

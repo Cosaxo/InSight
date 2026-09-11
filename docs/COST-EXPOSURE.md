@@ -227,17 +227,36 @@ attested, signed-in account that is up to 30 Opus calls a day with a
 16,000-token ceiling each; price it on the current rate card, then
 multiply by however many accounts an actor holds.
 
-Two facts make it small today and are worth confirming rather than
-assuming: `OWNER-LIST.md` still carries *"Set the paid loop's three
-secrets"* unticked, and with `ANTHROPIC_API_KEY` empty the review runs on
-gates alone (`paid_review_gates_only`) and calls no model; and the web
-door (`web/ask.html`, D368) cannot attest a browser yet, so today only
-the app's own attested accounts can book at all. The day the key is set,
-the cap that matters is the **workspace spend limit in the Anthropic
-console** (§6 O2) — the one control that holds whatever the code does —
-followed by a global daily counter and a `max_tokens` the verdict
-actually needs: the response is a one-line JSON verdict, hundreds of
-tokens, not sixteen thousand (§6 C3).
+One fact makes it small today, and the SECOND one expired on 2026-09-10:
+`OWNER-LIST.md` still carries the money path's keys unticked, and with
+`ANTHROPIC_API_KEY` empty the review runs on gates alone
+(`paid_review_gates_only`) and calls no model. What has gone is the
+sentence that used to sit beside it — *"the web door cannot attest a
+browser yet, so today only the app's own attested accounts can book at
+all"*. D455 opened that door, and the bound it was resting on was the
+thing that changed: `bookPaidQuestionV2` no longer demands App Check, so
+"an attested account" is no longer what stands in front of the review.
+
+**What stands there instead is the per-account booking budget and the
+payment** (D456). The owner's ruling took the reCAPTCHA back out on two
+grounds, and both survive this page's arithmetic. The first is that it
+was protecting the per-review model spend, and D456 moved the review to a
+Routine — so there is no per-request model call left to protect, and the
+paragraph above is about a bill that is no longer charged per booking.
+The second is that reCAPTCHA v3 is weak against current automated
+solvers, which is true.
+
+What an unguarded junk booking actually costs is therefore small and
+worth stating rather than implying: one Firestore document that never
+becomes a question anyone sees, because `goLive` runs on the PAYMENT
+webhook. The €320 is the filter. **The residual is storage, not spend**,
+and it is the one thing here that has no ceiling: a booking carries no
+`expireAt`, so an approved-and-never-paid document sits forever. Bounded
+at C10 below.
+
+The distinction the owner drew is the one to keep: a BUYER's humanity
+does not need proving because money proves intent, while a VOTER's does,
+and every vote path in `check:appcheck` still enforces attestation.
 
 ### D · Growth working as designed — modelled, flat, alerted
 
@@ -488,6 +507,15 @@ default to the billing account's admins and users. Both are §6 O4.
 - **C9 · `COSTS.md` housekeeping** rides C1: finding 3 answered (D333),
   the scheduler row, the fixed floor, and a pointer to this page from the
   controls section.
+- **C10 · An unpaid booking expires** — **built 2026-09-11 (D456)**. A
+  booking carried no `expireAt`, so one abandoned between approval and
+  payment sat in `v2_paid_bookings` forever. That was survivable while the
+  door demanded App Check from an attested app; with the door open to a
+  browser and the reCAPTCHA removed, unbounded document creation is the
+  only cost an unpaid booking still has. `bookPaidQuestionV2` now stamps
+  one, Firestore's TTL sweeps it, and `goLive` clears it on the paying
+  webhook so a SOLD campaign is never swept. The window is deliberately
+  longer than a buyer could plausibly take.
 
 ## 7 · What this page could not verify from here
 
