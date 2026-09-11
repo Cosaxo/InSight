@@ -1729,7 +1729,10 @@ function computeDeck(): void {
       .filter((id): id is string => !!id);
     // A miss means the rollover outran the fetch (tomorrow's card is in
     // hand, the day after is not). Keep the standing deck rather than
-    // publishing a short one; the wake handler's refetch fills it.
+    // publishing a short one, and leave `deckDay` where it is — which is
+    // what `resubscribeForToday` reads to know the day is still unserved
+    // and to spend one boot on the missing row. Refusing without that heal
+    // would trade a shifted deck for a frozen one.
     //
     // ANY MISS, not only a total one. This read `if (!ids.length)`, which
     // can fire only when EVERY position is absent — and the case it was
@@ -8449,6 +8452,9 @@ function resetForNewUid(uid: string): void {
   state.profile = { displayName: "", handle: "", testResults: {}, anchors: {}, consent: {} };
   state.deckIds = [];
   state.deckDay = -1;
+  // With the deck, or the new account inherits the old one's spent heal
+  // and a stuck deck on its first day would wait for tomorrow.
+  deckHealedFor = -1;
   state.ready = false;
   state.attached = false;
   state.warm = false;
@@ -8594,6 +8600,10 @@ function purgeLocalTrace(): void {
 // startAggPoll refreshes today's aggregate (and any the deck lacks) and
 // re-arms the timer on the new day's question, so a rollover needs no
 // separate teardown — the whole deck is a boot's read, not a foreground's.
+/** The day a stuck deck has already bought a boot for — see the heal in
+ *  `resubscribeForToday`. Cleared with the deck in `resetForNewUid`. */
+let deckHealedFor = -1;
+
 async function resubscribeForToday(): Promise<void> {
   // `attached` rather than `ready` (D356): before the attach the boot
   // itself is still the thing that will start the poll and the reveal
@@ -8603,6 +8613,31 @@ async function resubscribeForToday(): Promise<void> {
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
       notify();
+      // AND IF IT COULD NOT, GO AND FETCH. `computeDeck` refuses to
+      // publish a deck with a hole in it, which leaves `deckDay` on the
+      // day before — and nothing else in an attached session ever asks for
+      // a daily position: `resolveDailyBank` runs inside `hydrate()`
+      // alone, and `wake()` reaches the boot only while the session is NOT
+      // attached. So an app left open across two midnights (a tablet, a
+      // kiosk, a tab) would serve the old day's card, already answered,
+      // for the life of the process, with the poll following the frozen
+      // ids. One boot heals it — `refreshLive` is re-entrant and shares
+      // its in-flight promise — and ONCE PER DAY, because a bank that
+      // genuinely holds no row for today (the farm has not appended) must
+      // not buy a full hydrate on every wake.
+      const today = dayIndex();
+      if (state.deckDay !== today && deckHealedFor !== today) {
+        deckHealedFor = today;
+        void refreshLive().catch((err) => {
+          // Cleared on failure, so a boot that lost the network is retried
+          // by the next wake rather than the next midnight — the mark is
+          // there to stop a bank with genuinely no row for today from
+          // buying a hydrate every time the app comes forward, not to
+          // spend the day's one attempt on a dropped connection.
+          deckHealedFor = -1;
+          reportError(err, { where: "refreshLive.deckHeal" });
+        });
+      }
     }
     await startAggPoll("today");
     const db = await getDb();
