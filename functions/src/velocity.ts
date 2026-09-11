@@ -309,6 +309,14 @@ export interface BindCoverage {
  * cannot be shown to have come from a qualifying account has not been
  * shown to have come from one. The other direction overstates coverage on
  * precisely the day it is trusted.
+ *
+ * THAT ARGUMENT HOLDS FOR AN ACCOUNT THAT WAS ASKED ABOUT AND NOT FOUND,
+ * and for no other kind — so `perUid` must arrive already narrowed to the
+ * accounts the Auth read actually reached. An account nobody asked about
+ * is not evidence in either direction, and counting it at L0 makes the
+ * ladder say "unbound" about a question that was never put. The caller
+ * narrows it; this note is here because the two are far apart in the
+ * file and the bound that made them differ arrived later than both.
  */
 export function bindCoverage(
   perUid: Map<string, number[]>,
@@ -585,7 +593,27 @@ export interface VelocitySummary {
   /** Whole days served off the shared reader, and rows the tail read itself. */
   sharedDays: number;
   tailRows: number;
+  /** How many of the window's active accounts the Auth fan-out actually
+   *  read, and how many there were. Equal on an ordinary night.
+   *
+   *  THE CLUSTER SIGNAL IS A CLAIM ABOUT A POPULATION, which is what
+   *  makes a stop here different from a heal's: a heal that stops leaves
+   *  work undone and says so, while a cluster scan that stops reports
+   *  "no clusters" about a subset it chose by uid order. So the pair is
+   *  in the summary and the pass warns on it — an absence of flags is
+   *  only evidence if the scan saw everyone. */
+  authScanned: number;
+  authTotal: number;
 }
+
+/** How long the scan may spend asking Admin Auth about the window's
+ *  active accounts before it stops — a SLICE, which `runNightlyPass`
+ *  turns into an instant (FANOUT_HEAL_SLICE_MS has the argument for the
+ *  shape). Forty seconds is hundreds of round trips at a hundred
+ *  accounts each; a window that wants more than that is one where the
+ *  cluster signal has stopped being a per-night check and wants a
+ *  cursor, which is a design change rather than a longer fold. */
+export const VELOCITY_AUTH_SLICE_MS = 40_000;
 
 /** The three log levels the scan speaks — `logger`'s, injectable. */
 export type VelocityLog = Pick<typeof logger, "info" | "warn">;
@@ -609,7 +637,16 @@ const utcDayStart = (ms: number): number => {
  * so a day read whole for the other folds is never counted twice across
  * two nights.
  */
-export async function runVelocityScan(store: VelocityStore, nowMs: number, log: VelocityLog = logger): Promise<VelocitySummary> {
+export async function runVelocityScan(
+  store: VelocityStore,
+  nowMs: number,
+  log: VelocityLog = logger,
+  // An absolute instant on the pass's clock (`runNightlyPass`), not a
+  // duration — see FANOUT_HEAL_SLICE_MS for why the distinction is the
+  // whole shape. `clock` is separate from `nowMs`, which names the window
+  // and is one fixed reading for the night.
+  opts: { deadlineAt?: number; clock?: () => number } = {},
+): Promise<VelocitySummary> {
   const state = await store.getState();
   const lastScanAt = state.lastScanAt || 0;
   const windowStart = Math.max(lastScanAt, nowMs - WINDOW_CAP_MS);
@@ -672,8 +709,19 @@ export async function runVelocityScan(store: VelocityStore, nowMs: number, log: 
   // Riding the same fetch: the `db` claim lives on the UserRecord this
   // loop already pulls, so coverage below costs no extra call.
   const levels = new Map<string, number>();
+  // ONE ADMIN-AUTH ROUND TRIP PER HUNDRED ACTIVE ACCOUNTS, and until now
+  // no bound of any kind on how many — a window with fifty thousand
+  // active uids is five hundred sequential calls to a service this pass
+  // does not control, inside a 480-second invocation, with five folds
+  // still behind it. Checked BEFORE each page, because the question is
+  // whether to start another round trip.
+  const clock = opts.clock ?? Date.now;
+  let scanned = 0;
   for (let i = 0; i < uids.length; i += 100) {
-    foldAuthPage(await store.users(uids.slice(i, i + 100)), created, levels);
+    if (opts.deadlineAt != null && clock() >= opts.deadlineAt) break;
+    const page = uids.slice(i, i + 100);
+    foldAuthPage(await store.users(page), created, levels);
+    scanned += page.length;
   }
   const clusters = birthClusters(created);
   for (const c of clusters) {
@@ -716,7 +764,19 @@ export async function runVelocityScan(store: VelocityStore, nowMs: number, log: 
   // operator has on flip day, and again on every later tightening, is
   // "what share of real votes would this refuse", and they should not
   // have to do the subtraction while deciding.
-  const cov = bindCoverage(fold.perUid, levels);
+  // NARROWED TO WHAT WAS ASKED. The Auth loop above stops on the pass's
+  // clock, and the uids it reached are its first `scanned` in the same
+  // sorted order — so everything after that point is an account nobody
+  // asked about, which `bindCoverage` would otherwise tally at L0 and
+  // report as unbound. On a night that stopped early, that is the number
+  // an operator reads before flipping enforcement, overstating what it
+  // would refuse without bound: at the limit, "would refuse 100% of
+  // answers" about a population the scan never saw.
+  const askedAbout = new Set(uids.slice(0, scanned));
+  const covPool = scanned >= uids.length
+    ? fold.perUid
+    : new Map([...fold.perUid].filter(([uid]) => askedAbout.has(uid)));
+  const cov = bindCoverage(covPool, levels);
   const atBar = refusedAt(cov, REQUIRED_LEVEL);
   const ladder = [...cov.byLevel.entries()]
     .sort((a, b) => a[0] - b[0])
@@ -725,11 +785,18 @@ export async function runVelocityScan(store: VelocityStore, nowMs: number, log: 
   log.info(
     `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
       + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
-      + `from ${atBar.voters}/${cov.voters} voters`,
+      + `from ${atBar.voters}/${cov.voters} voters`
+      // The basis, and only when it is not the obvious one: a partial
+      // night's ratio is still a real ratio, over a smaller room.
+      + (scanned >= uids.length ? "" : ` — over the ${scanned} of ${uids.length} active accounts this pass reached`),
     {
       metric: "bind_coverage",
       voters: cov.voters,
       answers: cov.answers,
+      // The population the ratio is OVER, so the metric can be read
+      // without the message: equal on an ordinary night.
+      scanned,
+      active: uids.length,
       bar: REQUIRED_LEVEL,
       refusedVoters: atBar.voters,
       refusedAnswers: atBar.answers,
@@ -746,6 +813,7 @@ export async function runVelocityScan(store: VelocityStore, nowMs: number, log: 
   // keeps its name; the metric is the same line from inside the pass).
   const summary: VelocitySummary = {
     entries: fold.entries, uids: fold.perUid.size, volumeFlags, cadenceFlags, clusterFlags: clusters.length, burstFlags, sharedDays, tailRows,
+    authScanned: scanned, authTotal: uids.length,
   };
   log.info(
     `[velocity] scan: ${fold.entries} entries, ${fold.perUid.size} uids — flags: volume=${volumeFlags} cadence=${cadenceFlags} cluster=${clusters.length} burst=${burstFlags} (${sharedDays} whole day(s) off the shared read, ${tailRows} rows read for the partial day)`,

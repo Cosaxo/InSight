@@ -56,8 +56,9 @@ A live stop is not one reading. City, Country and World carry a tab row —
 only** (D152) — under a similarity
 field that draws above it always: your city's people ranked by test-score
 match, and cities and countries placed by their real average-score
-profiles (decisions D112, D136). Circle and Groups carry the three of
-those a circle of nine can answer (D190). Every one of them is a fold
+profiles (decisions D112, D136). Circle carries the three of
+those a circle of nine can answer (D190); Groups carries four, its first
+tab the room's votes and its third the room rating itself (D434–D437). Every one of them is a fold
 over aggregates that were publishing anyway.
 
 The slicing is the whole trick, and it costs one write. An answer is
@@ -95,11 +96,14 @@ enforces is the opposite of what it used to (decision **D98**):
 - **Every question slices, including the political ones.** D44's
   special-category carve-out is gone; there is no category held back.
 - **Reveals are materialized server-side.** Group/duo answers stay sealed
-  until a Cloud Function writes the round's reveal doc — a 1v1 when the
-  partner answers, a circle when the last member does, and otherwise at
-  the round's 48-hour deadline for whoever played (D426, D437) — that is
-  the *game*, not a privacy promise, and rules deny answering a round that
-  is already revealed so nobody peeks then plays.
+  until a Cloud Function writes the reveal doc for that ROUND — a 1v1 when
+  the partner answers, a circle when the last member does, and otherwise
+  at the round's 48-hour deadline, whichever comes first (D426 moved duels
+  off day keys; the scheduled sweep runs every two hours). That is the
+  *game*, not a privacy promise. What the rules enforce is that a BLIND
+  answer cannot be written to a round that has revealed: a member who
+  missed it may still answer, but only flagged `late`, because the table
+  is world-readable and their answer is not blind (ROUNDS-PLAN §4).
 - **No fake anything.** Still binding, and now the only reason anything
   is ever hidden: no seeded comments, no synthetic users, no demo
   progress in live mode (decision D1). Passive tests start at zero. Where

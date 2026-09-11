@@ -170,6 +170,16 @@ export interface AnswerMapStore {
   putMaps(entries: Map<string, Record<string, number>>): Promise<void>;
 }
 
+/** How long one night may spend healing yesterday's maps before it hands
+ *  the rest back — a SLICE, which `runNightlyPass` turns into an instant
+ *  the same way it does the rollup's and the fan-out's (see
+ *  FANOUT_HEAL_SLICE_MS for why a fold-local stopwatch cannot hold the
+ *  promise). Sixty seconds is thousands of accounts at 300 a round trip;
+ *  a night that wants more than that is a night the trigger missed
+ *  writes at a scale worth looking at, not a night that wants a longer
+ *  fold. */
+export const ANSWER_MAP_HEAL_SLICE_MS = 60_000;
+
 export interface AnswerMapHealSummary {
   day: string;
   /** People the day's ledger named with a usable answer. */
@@ -178,6 +188,16 @@ export interface AnswerMapHealSummary {
   healed: number;
   /** Entries written. */
   entries: number;
+  /** True when the deadline ended the run with people unreached. Not the
+   *  same kind of leftover the fan-out's is: this heal reads YESTERDAY
+   *  and nothing else, so the people it did not reach are not first in
+   *  tomorrow's queue — tomorrow heals tomorrow's yesterday. The header
+   *  already accepts that shape for a night that THROWS ("a night that
+   *  fails leaves one day unhealed"); stopping makes it partial instead
+   *  of total, and says so out loud so a repeat is visible. */
+  stopped: boolean;
+  /** People the deadline left unread, when it stopped; 0 otherwise. */
+  unreached: number;
 }
 
 /**
@@ -187,13 +207,27 @@ export interface AnswerMapHealSummary {
  * trigger is the writer; the heal is what makes a missed write a day's
  * lag rather than a permanent hole.
  */
-export async function runAnswerMapHeal(store: AnswerMapStore, nowMs: number): Promise<AnswerMapHealSummary> {
+export async function runAnswerMapHeal(
+  store: AnswerMapStore,
+  nowMs: number,
+  // An absolute instant on the pass's clock, handed down by
+  // `runNightlyPass`; `clock` is separate from `nowMs` because that one
+  // names the DAY and is deliberately one fixed reading for the night.
+  opts: { deadlineAt?: number; clock?: () => number } = {},
+): Promise<AnswerMapHealSummary> {
+  const clock = opts.clock ?? Date.now;
   const day = utcDay(nowMs, -1);
   const byUid = foldAnswerMaps(await store.ledgerDay(day));
   const uids = [...byUid.keys()].sort();
   let healed = 0;
   let entries = 0;
+  let stopped = false;
+  let done = 0;
   for (let i = 0; i < uids.length; i += 300) {
+    // BEFORE the round trip, not after it: the check is about whether to
+    // START another read, and one taken past the deadline is the one that
+    // takes the folds behind this with it.
+    if (opts.deadlineAt != null && clock() >= opts.deadlineAt) { stopped = true; break; }
     const chunk = uids.slice(i, i + 300);
     const maps = await store.getMaps(chunk);
     const write = new Map<string, Record<string, number>>();
@@ -206,8 +240,9 @@ export async function runAnswerMapHeal(store: AnswerMapStore, nowMs: number): Pr
       entries += n;
     }
     if (write.size) await store.putMaps(write);
+    done += chunk.length;
   }
-  return { day, people: uids.length, healed, entries };
+  return { day, people: uids.length, healed, entries, stopped, unreached: stopped ? uids.length - done : 0 };
 }
 
 export function firestoreAnswerMapStore(db: Firestore, ledgerDay: LedgerDayReader): AnswerMapStore {

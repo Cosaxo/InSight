@@ -569,7 +569,7 @@ describe("runVelocityScan — the whole days off the shared read, the partial da
   const D6 = Date.parse("2026-09-06T00:00:00Z");
 
   function fakeStore(days: Record<string, Row[]>, tail: Row[], state: { lastScanAt: number; days: DayCounts } = { lastScanAt: 0, days: {} }) {
-    const asked = { days: [] as string[], tailSince: [] as number[], put: null as null | { lastScanAt: number; days: DayCounts } };
+    const asked = { days: [] as string[], tailSince: [] as number[], userPages: [] as number[], put: null as null | { lastScanAt: number; days: DayCounts } };
     const store: VelocityStore = {
       async getState() { return state; },
       async putState(s) { asked.put = s; },
@@ -580,7 +580,10 @@ describe("runVelocityScan — the whole days off the shared read, the partial da
         foldInto(into, rows);
         return rows.reduce((m, r) => Math.max(m, r.atMs), sinceMs);
       },
-      async users(uids) { return uids.map((uid) => ({ uid, metadata: { creationTime: new Date(D5).toISOString() } })); },
+      async users(uids) {
+        asked.userPages.push(uids.length);
+        return uids.map((uid) => ({ uid, metadata: { creationTime: new Date(D5).toISOString() } }));
+      },
     };
     return { store, asked };
   }
@@ -654,6 +657,89 @@ describe("runVelocityScan — the whole days off the shared read, the partial da
     const beat = lines.find((l) => l.fields.metric === "velocity_scan");
     expect(beat?.fields).toMatchObject({ entries: 20, uids: 1, cadenceFlags: 1, sharedDays: 1, tailRows: 0 });
     expect(lines.some((l) => l.fields.metric === "bind_coverage")).toBe(true);
+  });
+
+  it("stops asking Admin Auth about accounts on the pass's clock, and says how far it got", async () => {
+    // The birth-cluster signal is the only part of this scan that leaves
+    // the ledger: one `getUsers` per hundred active accounts, no bound of
+    // any kind, running FOURTH of nine folds inside a 480-second pass. A
+    // window with a large active population was five hundred sequential
+    // calls to a service the pass does not control, with five folds
+    // behind it.
+    //
+    // 250 accounts is three pages; the clock is past the deadline when
+    // the second is about to start, so exactly one lands.
+    const rows: Row[] = Array.from({ length: 250 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", atMs: D5 + 1000 }));
+    const { store, asked } = fakeStore({ "2026-09-05": rows }, [], { lastScanAt: D5, days: {} });
+    let t = 0;
+    const out = await runVelocityScan(store, NOW, quiet, { deadlineAt: 1_000, clock: () => (t += 900) });
+    expect(asked.userPages, "the deadline did not stop the Auth fan-out").toEqual([100]);
+    // …and the pair that keeps the signal honest: "no clusters" over 100
+    // of 250 is not the same sentence as "no clusters".
+    expect(out.authScanned).toBe(100);
+    expect(out.authTotal).toBe(250);
+  });
+
+  it("counts bind coverage over the accounts it ASKED about, not over every voter", async () => {
+    // The regression the bound itself created, and the reason a fix needs
+    // its own case. `levels` is filled inside the Auth loop, and
+    // `bindCoverage` treats a uid it cannot find as level 0 — honest for
+    // an account erased since it voted, and a lie about one nobody asked
+    // about. Unnarrowed, a night that read 100 of 250 accounts reports
+    // the other 150 as unbound, and that ratio is exactly the number an
+    // operator reads before turning enforcement on: at the limit it says
+    // "enforcement would refuse 100% of answers" about a population the
+    // scan never saw.
+    const rows: Row[] = Array.from({ length: 250 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", atMs: D5 + 1000 }));
+    const { store } = fakeStore({ "2026-09-05": rows }, [], { lastScanAt: D5, days: {} });
+    const lines: Array<{ msg: string; fields: Record<string, unknown> }> = [];
+    const log = {
+      info: (m: unknown, f?: unknown) => { lines.push({ msg: String(m), fields: (f ?? {}) as Record<string, unknown> }); },
+      warn: (m: unknown, f?: unknown) => { lines.push({ msg: String(m), fields: (f ?? {}) as Record<string, unknown> }); },
+    };
+    let t = 0;
+    await runVelocityScan(store, NOW, log, { deadlineAt: 1_000, clock: () => (t += 900) });
+    const cov = lines.find((l) => l.fields.metric === "bind_coverage")!;
+    expect(cov, "the coverage line stopped being logged").toBeTruthy();
+    expect(cov.fields.voters, "the ratio counted accounts nobody asked about").toBe(100);
+    // …and it says so, rather than reading as a whole-population number.
+    expect(cov.fields).toMatchObject({ scanned: 100, active: 250 });
+    expect(cov.msg).toMatch(/over the 100 of 250 active accounts/);
+  });
+
+  it("…and says nothing about the basis when it reached everyone — the control", async () => {
+    const rows: Row[] = Array.from({ length: 250 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", atMs: D5 + 1000 }));
+    const { store } = fakeStore({ "2026-09-05": rows }, [], { lastScanAt: D5, days: {} });
+    const lines: Array<{ msg: string; fields: Record<string, unknown> }> = [];
+    const log = {
+      info: (m: unknown, f?: unknown) => { lines.push({ msg: String(m), fields: (f ?? {}) as Record<string, unknown> }); },
+      warn: (m: unknown, f?: unknown) => { lines.push({ msg: String(m), fields: (f ?? {}) as Record<string, unknown> }); },
+    };
+    await runVelocityScan(store, NOW, log);
+    const cov = lines.find((l) => l.fields.metric === "bind_coverage")!;
+    expect(cov.fields.voters).toBe(250);
+    expect(cov.fields).toMatchObject({ scanned: 250, active: 250 });
+    expect(cov.msg, "an ordinary night explained a basis nobody needed").not.toMatch(/active accounts this pass reached/);
+  });
+
+  it("…and a night with time asks about everyone — the control", async () => {
+    // Without this, stopping before the first page would satisfy the case
+    // above and turn the cluster signal off every night.
+    const rows: Row[] = Array.from({ length: 250 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", atMs: D5 + 1000 }));
+    const { store, asked } = fakeStore({ "2026-09-05": rows }, [], { lastScanAt: D5, days: {} });
+    let t = 0;
+    const out = await runVelocityScan(store, NOW, quiet, { deadlineAt: 1_000_000, clock: () => (t += 900) });
+    expect(asked.userPages).toEqual([100, 100, 50]);
+    expect(out.authScanned).toBe(250);
+    expect(out.authTotal).toBe(250);
+  });
+
+  it("a caller handing down no deadline is not bounded at all — the old contract", async () => {
+    const rows: Row[] = Array.from({ length: 250 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", atMs: D5 + 1000 }));
+    const { store, asked } = fakeStore({ "2026-09-05": rows }, [], { lastScanAt: D5, days: {} });
+    const out = await runVelocityScan(store, NOW, quiet, { clock: () => Number.MAX_SAFE_INTEGER });
+    expect(asked.userPages).toEqual([100, 100, 50]);
+    expect(out.authScanned).toBe(250);
   });
 });
 

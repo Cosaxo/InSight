@@ -367,6 +367,17 @@ const state = {
   //                 snapshots and the post-vote delayed refresh.
   inflight: {} as Record<string, true>,
   unaggregated: {} as Record<string, number>,
+  // …and, for a D86 EDIT only, the option index it moved AWAY from.
+  // `unaggregated` says "the published aggregate does not hold this
+  // answer yet", which is true of a create and FALSE of an edit — the
+  // trigger folded the original, so the crowd already counts this device
+  // at the old option. Without that index the deck could not subtract it
+  // from where it actually sits (data/deck.ts `countsFor`), and every
+  // share on the card was drawn over a total one vote too high until the
+  // refresh landed. Cleared with the mark it belongs to, through
+  // `clearUnaggregated` — a second map with five separate deletions to
+  // remember is the drift this file has already paid for once.
+  unaggregatedFrom: {} as Record<string, string>,
   // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
@@ -417,6 +428,14 @@ const state = {
   revealHist: {} as Record<string, Record<string, Record<string, unknown> | null>>,
   revealHistLoading: {} as Record<string, boolean>,
   revealHistLoaded: {} as Record<string, boolean>,
+  // …and the third state the pair above cannot hold, for the reason the
+  // sentence above gives: a failed query leaves `revealHistLoaded` unset
+  // ON PURPOSE so a later call retries, which makes it indistinguishable
+  // from a room whose history has never been asked for. The loader
+  // ANSWERS "failed" and one caller listens; this is the same answer
+  // where every caller can read it. `takesFailed` is the same field one
+  // surface over.
+  revealHistFailed: {} as Record<string, true>,
   // My CALL on each duel answer — answer id → guessIdx — kept beside the
   // pick, which `votes` holds alone. The card's sealed list (request 12)
   // says "you: Ignore · called Answer" for every round waiting on the
@@ -432,6 +451,13 @@ const state = {
   // revealHistLoading above.
   takes: {} as Record<string, TakeDoc[]>,
   takesLoading: {} as Record<string, boolean>,
+  // …and the third state the two above cannot hold between them. The
+  // catch in `loadTakes` leaves the key ABSENT on purpose, so a failed
+  // read is indistinguishable from a room that never wrote a take —
+  // `takesLoading`'s own docstring says so and fixed only the in-flight
+  // half. `kindredFailed`/`testAggsFailed` are the same field one
+  // surface over; this is scope-keyed because the read is.
+  takesFailed: {} as Record<string, true>,
   // takeId → true once this account has flagged it. Flags are create-only
   // and unreadable BY DESIGN (firestore.rules: `allow read: if false` —
   // they are anonymous to the circle and to the moderation run), so this
@@ -937,6 +963,12 @@ function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: s
   }
   scheduleAggRefresh(db, aid);
 }
+/** The mark and the edit's origin index go together, always. */
+function clearUnaggregated(id: string): void {
+  delete state.unaggregated[id];
+  delete state.unaggregatedFrom[id];
+}
+
 function rollbackPending(aid: string, serverValue?: string): void {
   if (serverValue === undefined) {
     delete state.votes[aid];
@@ -944,7 +976,7 @@ function rollbackPending(aid: string, serverValue?: string): void {
     state.votes[aid] = serverValue;
   }
   delete state.inflight[aid];
-  delete state.unaggregated[aid];
+  clearUnaggregated(aid);
   dropFeedMirror(aid, serverValue);
   clearPending(aid);
 }
@@ -1347,7 +1379,7 @@ async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<v
       // today this drain is only armed after the ack, so inflight
       // is already clear.)
       if (d.id in state.unaggregated && !(d.id in state.inflight)) {
-        delete state.unaggregated[d.id];
+        clearUnaggregated(d.id);
       }
     }
     state.stats.aggsFetched += snap.size;
@@ -1498,6 +1530,7 @@ function voteCtx(qid: string): VoteContext {
     agg: state.aggs[qid],
     mine: state.votes[qid],
     pending: qid in state.unaggregated,
+    pendingFrom: state.unaggregatedFrom[qid],
   };
 }
 
@@ -1583,7 +1616,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // optimistic split; here it was unreachable until restorePending
       // put an inflight answer in front of the boot's deck read.
       if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight)) {
-        delete state.unaggregated[d.id];
+        clearUnaggregated(d.id);
       }
     });
     state.stats.aggsFetched += snap.size;
@@ -2054,9 +2087,37 @@ function mirrorFeedVotes(): void {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v == null || wf[q.id] != null) return;
+      if (v == null) return;
       const mv = mirrorVoteValue(q, v);
-      if (mv != null) wf[q.id] = mv;
+      if (mv == null) return;
+      // AN EXISTING ENTRY IS REPLACED ONLY WHERE THAT CANNOT LOSE
+      // ANYTHING, which is the plain vote card — its mirror value IS the
+      // stored option index, in the same units.
+      //
+      // Why it has to be replaced at all: a D86 edit made on ANOTHER
+      // device arrives here through hydrate's edit delta, which writes
+      // `state.votes` and nothing else. The guard that stood here was
+      // `wf[q.id] != null`, so the mirror kept the pre-edit option — and
+      // `world-feed.jsx` renders from the mirror, not from the store. The
+      // card highlighted the option the reader had moved AWAY from, and
+      // tapping the one they had actually chosen was refused with "your
+      // vote stands". Permanent on that device: nothing else ever rewrote
+      // the entry. The paragraph at hydrate's edit query reasons at
+      // length about one way an edit fails to propagate and misses this
+      // one.
+      //
+      // Why NOT for a dial or a field: their mirror value is the bucket's
+      // MIDPOINT, and the local entry is the reader's own exact position
+      // on the range. Replacing it would round their dial every boot, and
+      // telling "the answer changed" from "the same answer, stored more
+      // precisely" needs the inverse of the midpoint map, which lives in
+      // the spec layer that data/ cannot import (the note above
+      // `mirrorVoteValue` says why the midpoint math is duplicated at
+      // all). So they keep the old behaviour, and the gap is written down
+      // rather than closed by rounding.
+      const replaceable = q.type !== "dial" && q.type !== "field";
+      if (wf[q.id] != null && !replaceable) return;
+      wf[q.id] = mv;
     });
     lsSet(WF_LS, JSON.stringify(wf));
   } catch {
@@ -3924,8 +3985,12 @@ const SOCIAL = {
   async loadRevealHistory(gid: string, take = REVEAL_HIST_CAP): Promise<RevealHistoryRead> {
     // "busy" for both early returns, and it is the honest word for each:
     // the history is either in hand or on its way, and neither is a
-    // failure the caller should draw. `revealHistoryLoading` is what says
-    // which — a panel wanting to distinguish them asks that.
+    // failure the caller should draw. It is also all it can say — the two
+    // are different frames on a screen, and the answer collapses them, so
+    // a caller that needs them apart asks `revealHistState` rather than
+    // reading the word. `revealHistoryLoading` separates "on its way"
+    // from the other two and cannot tell "in hand" from "never asked",
+    // which is why the three-word reader exists.
     if (state.revealHistLoading[gid] || state.revealHistLoaded[gid]) return "busy";
     // ARM AND SAY SO — `loadVoters`' rule, and this was the one loader
     // that did not follow it. The Groups stop mounts this on a `[gid]`
@@ -3964,6 +4029,12 @@ const SOCIAL = {
       // unconditional since D98 — so it is reported, where the per-key
       // version swallowed permission-denied as the ordinary late-joiner
       // case. Transient (offline, deadline) is reported the same way.
+      // …and recorded where every caller can read it, not only the one
+      // that keeps the answer. The Groups Mirror stop `void`s this call,
+      // so a refused read left it drawing "no rounds revealed yet" under
+      // the room's own name — the definite claim the arming notify two
+      // blocks up exists to stop, arriving by the other door.
+      state.revealHistFailed[gid] = true;
       reportError(err, { where: "revealHistory", gid });
     } finally {
       state.revealHistLoading[gid] = false;
@@ -3988,6 +4059,30 @@ const SOCIAL = {
    */
   revealHistoryLoading(gid: string): boolean {
     return !!state.revealHistLoading[gid];
+  },
+  /**
+   * Has this room's reveal history been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The finish of the sentence `revealHistoryLoading` above starts, and
+   * the same shape as `takesState`, `kindredState`, `testAggsState`. The
+   * loader already answers "failed" to its caller — but only `void`ing
+   * callers were left, one of them the Groups Mirror stop, which then
+   * printed "no rounds revealed yet" about a room it had failed to read.
+   * An answer a caller may drop is a fact the store should keep.
+   *
+   * 'ready' also covers "never asked": a room nobody loaded has no
+   * failure to report, and the load is on-demand by design.
+   */
+  revealHistState(gid: string): "loading" | "ready" | "failed" {
+    if (state.revealHistLoading[gid]) return "loading";
+    // A history that HAS been read is settled, whatever came before it —
+    // derived from the settled flag rather than by clearing the mark on
+    // the retry's arm, because a derivation from a value the success
+    // path already sets cannot drift out of step with it, and no harness
+    // in this tree can resolve a reveal-history read to catch it if it
+    // did (reveal-history-arm.test.ts records why).
+    if (state.revealHistLoaded[gid]) return "ready";
+    return state.revealHistFailed[gid] ? "failed" : "ready";
   },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     type Row = Record<string, unknown> & { day: string; id: string };
@@ -4398,6 +4493,10 @@ const SOCIAL = {
     // false and `loadTakes` as a no-op, so smoke-live's "No takes yet"
     // assertion never reaches the store at all.
     state.takesLoading[key] = true;
+    // A retry is a fresh claim: the guard above lets one through exactly
+    // because the failed read cached nothing, so the old mark must not
+    // outlive the attempt it was about.
+    delete state.takesFailed[key];
     notify();
     try {
       const db = await getDb();
@@ -4424,6 +4523,11 @@ const SOCIAL = {
       // Leave the key absent rather than caching an empty list: a
       // transient failure that freezes "no takes" into the session reads
       // exactly like a circle that never wrote any.
+      // …and record that it failed, which is the half leaving the key
+      // absent cannot express: the panel reads `[]` afterwards and, with
+      // only the in-flight flag to ask, prints "No takes yet. Say the
+      // first thing." over a room it never managed to read.
+      state.takesFailed[key] = true;
       reportError(err, { where: "loadTakes", gid });
     } finally {
       state.takesLoading[key] = false;
@@ -4455,6 +4559,28 @@ const SOCIAL = {
   takesLoading(gid: string, qid?: string): boolean {
     const key = takeScopeKey(gid, qid);
     return key == null ? false : !!state.takesLoading[key];
+  },
+  /**
+   * Has this scope's take list been read? 'loading' | 'ready' | 'failed'.
+   *
+   * The finish of the sentence `takesLoading` above starts. That flag
+   * separated "in flight" from `takes()`'s `[]`; it cannot separate the
+   * other two, because the catch leaves the key absent so a later open
+   * retries — which is right for the cache and silent for the reader.
+   * The panel then said "No takes yet. Say the first thing." for the
+   * life of the mount after a refused read: a definite claim about a
+   * room that may be full, and an invitation to be first in it.
+   *
+   * 'ready' also covers "never asked", exactly like `kindredState` and
+   * `testAggsState`: a scope nobody loaded has no failure to report, and
+   * the read breaker's pause is a state the caller checks in front (the
+   * paused arm is true whatever the query would have found).
+   */
+  takesState(gid: string, qid?: string): "loading" | "ready" | "failed" {
+    const key = takeScopeKey(gid, qid);
+    if (key == null) return "ready";
+    if (state.takesLoading[key]) return "loading";
+    return state.takesFailed[key] ? "failed" : "ready";
   },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
@@ -7553,6 +7679,15 @@ const LIVE = {
     // answer is an ordinary answer document, so nothing new has to unset
     // it.
     state.unaggregated[aid] = optionIdx;
+    // IN FLIGHT, like every other write path — and here it is not
+    // bookkeeping. `noteFolded` and both of the store's drains refuse to
+    // clear an unfolded mark for an answer the server has not
+    // acknowledged, because no aggregate can hold it yet; without this
+    // flag that guard is vacuous on the one path whose mark nothing else
+    // clears. It also settles the older inconsistency: `restorePending`
+    // sets the flag for a restored answer, so a pulse vote was
+    // unconfirmed after a relaunch and confirmed before one.
+    state.inflight[aid] = true;
     markPending(aid, String(optionIdx));
     notify();
     return (async () => {
@@ -7567,6 +7702,7 @@ const LIVE = {
           answeredAt: serverTimestamp(),
           anchors: answerAnchors(),
         });
+        delete state.inflight[aid];
         cacheVote(aid, optionIdx);
         clearPending(aid);
       } catch (err) {
@@ -7601,6 +7737,35 @@ const LIVE = {
    * nothing readable and fails a test rather than shifting every share by
    * one (the D72 shape).
    */
+  /**
+   * The clear the store's two drains apply, for an aggregate THIS STORE
+   * DID NOT FETCH.
+   *
+   * `data/pulse` reads its day-keyed aggregates itself, and both drains
+   * here iterate documents live.ts fetched for the deck — so a pulse id
+   * reached neither, and the comment on `votePulse` that says "nothing
+   * new has to unset it" was wrong about its own file. The mark then
+   * stood for the life of the session: `pulsePending` kept answering,
+   * and once the fold HAD landed the card added a vote nobody cast on
+   * top of the one it was already counting. Its own suite records the
+   * fact and covers only the refused write.
+   *
+   * Called on the TREND read, not on the day read, and the difference is
+   * the whole safety of it. The forced refetch after an answer
+   * "reliably loses the race with the fold" — pulse.ts's own words, and
+   * the reason the mark exists at all — and `ensureToday` then
+   * short-circuits on the day it already has, so no later read of that
+   * day happens. The trend is the tap that comes afterwards, which is
+   * the same assumption `drainAggRefresh` makes about its own re-read.
+   *
+   * Guarded like the drains: an answer still in flight cannot be in any
+   * aggregate, and one the device never wrote is not its business.
+   */
+  noteFolded(aid: string): void {
+    if (!(aid in state.unaggregated) || !state.votes[aid] || aid in state.inflight) return;
+    clearUnaggregated(aid);
+    notify();
+  },
   pulsePending(baseQid: string): number | null {
     const aid = `${baseQid}_${utcDayKey(0)}`;
     return aid in state.unaggregated ? state.unaggregated[aid] : null;
@@ -7878,13 +8043,21 @@ const LIVE = {
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
     if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;
+    // BEFORE the optimistic move, which is the only moment the old index
+    // still exists in this process: one line later `state.votes[qid]` is
+    // the new one.
+    const from = state.votes[qid];
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     // The new option is not in the public agg yet — same display flag as a
-    // create. The old option briefly reads one high (my old vote is still
-    // in the counts, no longer marked mine); the delayed refresh below
-    // pulls the moved counts and settles it.
+    // create — but an edit is NOT a create underneath it, and the counts
+    // need both facts. The crowd already holds this device at the old
+    // option, so the deck subtracts it from there (`countsFor`) rather
+    // than leaving it to the delayed refresh: until that landed, the old
+    // option read one high AND the total read one high, which put every
+    // share on the card over a denominator that did not exist.
     state.unaggregated[qid] = optionIdx;
+    if (from !== undefined && from !== optionId) state.unaggregatedFrom[qid] = from;
     markPending(qid, optionId, true);
     notify();
     void (async () => {
@@ -7952,6 +8125,7 @@ function resetForNewUid(uid: string): void {
   state.votes = {};
   state.inflight = {};
   state.unaggregated = {};
+  state.unaggregatedFrom = {};
   state.editedAt = {};
   state.aggs = {};
   state.overflowCells = {};
@@ -7966,6 +8140,7 @@ function resetForNewUid(uid: string): void {
   state.revealHist = {};
   state.revealHistLoading = {};
   state.revealHistLoaded = {};
+  state.revealHistFailed = {};
   state.duelCalls = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
@@ -7974,6 +8149,7 @@ function resetForNewUid(uid: string): void {
   // (flags are `allow read: if false` by design).
   state.takes = {};
   state.takesLoading = {};
+  state.takesFailed = {};
   state.myFlags = {};
   // The voter lists carry an `isMe` flag computed against the OLD uid, so
   // a survivor would mark a stranger's answer as this account's own. The
@@ -8420,6 +8596,24 @@ export function refreshLive(): Promise<void> {
 // attached or the deck has aged out.
 function wake(): void {
   if (torndown) return;
+  // NOT WHILE THE APP IS HIDDEN, and `online` is why this line exists.
+  // Two events reach this handler: the app coming to the foreground, and
+  // the network coming back. The second can fire with the app
+  // BACKGROUNDED — a phone changing between wifi and cellular in a
+  // pocket, a tunnel ending — and everything below it undoes the idle
+  // detach: `cancelIdleDetach` drops the armed timer and
+  // `resubscribeForToday` re-attaches the reveal listeners and restarts
+  // the deck poll. Nothing re-arms either, because the only thing that
+  // does is a visibilitychange to HIDDEN and the app is already there —
+  // so one network blip in a pocket bought back the whole listener bill
+  // IDLE_DETACH_MS exists to bound, for the rest of the background
+  // period.
+  //
+  // Returning costs nothing: the timer stays armed, the detach happens on
+  // schedule, and the next foreground calls this again through the
+  // visibility handler — which is the path that has always done the
+  // re-attaching.
+  if (typeof document !== "undefined" && document.hidden) return;
   cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   // `attached`, not `ready` (D356): a warm-painted session whose network

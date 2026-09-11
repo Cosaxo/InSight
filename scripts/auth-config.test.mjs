@@ -28,7 +28,7 @@
 // property that matters — the password never reaching stdout — is asserted
 // below on the code rather than on a run.
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -38,6 +38,21 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const run = promisify(execFile);
+
+// EVERY CASE HERE SPAWNS A NODE PROCESS, and vitest's default per-test
+// timeout is 5 s. Alone this file finishes in about two seconds; inside a
+// full `npm run test:scripts` — eighty files in parallel, each with its
+// own workers — a cold `node` start plus this script's own imports has
+// been measured past the default and timed out. That reds CI's LINT job,
+// which is also where `check:globals`, `check:figures` and every client
+// gate live, so the failure reads as "a gate broke" and is a scheduler
+// hiccup. Raised rather than serialised: what is slow is process start,
+// not the assertions, and nothing here is waiting on anything real.
+const CHILD_PROCESS_TIMEOUT_MS = 30_000;
+// Set on the FILE rather than on each of the twelve cases: a per-case
+// argument is a thing to remember on the thirteenth, and every case here
+// has the same reason.
+vi.setConfig({ testTimeout: CHILD_PROCESS_TIMEOUT_MS });
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = join(root, "scripts/auth-config.mjs");
 

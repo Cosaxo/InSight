@@ -70,6 +70,19 @@ jobs:
       # scorecard path renders. The console's own operator gate (`pulse
       # --check`) is a different thing and is on a schedule, not here (D47).
       - run: npm run test:scripts
+      # THE TYPE GATE THE SERVER'S TEST FILES NEVER HAD.
+      # functions/tsconfig.json excludes `src/**/*.test.ts` — correctly, it
+      # is the build that ships to Cloud Functions — and the root `tsc -b`
+      # does not reach functions/src at all, so every fake in that half was
+      # unchecked by anything. What drifts is the stand-in: a runner fake
+      # that stops matching the interface it stands for is only wrong where
+      # something reads the missing part, so the suite stays green. Seven
+      # such drifts were found the day this landed.
+      # Here and not on backend-checks.yml, by the same rule as check:figures
+      # above: a test file is never deployed, so a drifted fake cannot say
+      # whether a rules fix is safe to ship, and nothing that cannot answer
+      # that question gets to block one.
+      - run: npm run check:fn-types
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,

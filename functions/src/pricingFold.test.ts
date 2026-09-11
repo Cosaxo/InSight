@@ -95,7 +95,12 @@ describe("foldPricing — the index is crowding beyond the free places, with no 
   it("averages over the fortnight — a campaign covering half of it is half a place", () => {
     const half = foldPricing(card, [row({ from: 1, to: 7 })], TODAY);
     expect(half.cohorts.city.idx).toBe(1);
-    expect(half.cohorts.city.crowd.slice(0, 8)).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
+    // `crowd` is optional on the stored cohort — a card folded before the
+    // per-day series existed has none — so the assertion says which it is
+    // before reading it, rather than throwing an unhelpful TypeError if
+    // the fold ever stops writing it.
+    expect(half.cohorts.city.crowd, "the fold stopped writing the per-day series").toBeDefined();
+    expect(half.cohorts.city.crowd!.slice(0, 8)).toEqual([1, 1, 1, 1, 1, 1, 1, 0]);
     expect(half.cohorts.city.nextOpen).toBe(day(8));
     // Three full and one for half the fortnight: 3.5 in rotation on
     // average, 1.5 beyond the places, three quarters of a step.

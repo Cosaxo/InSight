@@ -81,10 +81,18 @@ describe("D357's closing rule", () => {
       if (member in EXEMPT) continue;
       const body = bodyOf(line);
       if (!/markPending\(/.test(body)) offenders.push(`${member} (live.ts:${line}) never marks`);
-      // …and the other half of the same rule: what is marked is cleared,
-      // on the ack and on the refusal alike, or the next boot restores an
-      // answer the server said no to.
-      else if (!/clearPending\(|rollbackPending\(/.test(body)) offenders.push(`${member} (live.ts:${line}) marks and never clears`);
+      // …and the other half of the same rule, as TWO conditions rather
+      // than one. D357 says "marks and clears the mirror" about the ack
+      // AND the refusal, and an OR of the two accepted either alone: a
+      // member that only rolled back passed while every acked answer
+      // stayed marked for the next boot to re-offer, and a member that
+      // only cleared passed while every refused one did. Both halves
+      // exist on all six paths today; this is what keeps the seventh
+      // from shipping with one.
+      else {
+        if (!/clearPending\(/.test(body)) offenders.push(`${member} (live.ts:${line}) marks and never clears on the ack`);
+        if (!/rollbackPending\(/.test(body)) offenders.push(`${member} (live.ts:${line}) marks and never undoes a refusal`);
+      }
     }
     expect(offenders, "an answer write outside the mirror — D357's closing rule").toEqual([]);
   });

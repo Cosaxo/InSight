@@ -140,7 +140,7 @@ describe("the fold stores carry the retry stamp in both directions", () => {
     expect(m, "the ledger scan's .select() moved or was renamed — this case is vacuous").toBeTruthy();
     for (const field of ["uid", "qid", "at", "fromIdx"]) {
       expect(
-        m[1],
+        m![1],
         `velocity.ts's scan drops \`${field}\` from its projection`,
       ).toContain(`"${field}"`);
     }

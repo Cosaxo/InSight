@@ -488,7 +488,18 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     const v = read("functions/src/velocity.ts");
     expect(v).toMatch(/collection\("v2_agg_events"\)/);
     expect(v, "the whole days no longer come off the shared reader").toMatch(/ledgerDay\(utcDayKeyOf\(dayStart\)\)/);
-    expect(read("functions/src/nightly.ts"), "the pass no longer runs the scan").toMatch(/runVelocityScan\(firestoreVelocityStore\(db, ledgerDay\), now\)/);
+    // MATCHED TO THE SHARED READER AND NOT TO THE WHOLE CALL. What this
+    // line is here to prove is that the pass runs the scan against the
+    // store built on `ledgerDay` — the memoised reader whose sharing is
+    // the reason VELOCITY_READS_PER_LEDGER_ENTRY is a partial day's share
+    // rather than 1. The old pattern ended `, now)` and so also pinned the
+    // argument LIST, which is not a cost claim: giving the scan a time
+    // bound added two arguments and turned this tripwire red, reporting a
+    // cost regression that had not happened. A pattern that fails for a
+    // reason outside its own subject is the failure this file documents
+    // three lines down about the field list.
+    expect(read("functions/src/nightly.ts"), "the pass no longer runs the scan off the shared reader")
+      .toMatch(/runVelocityScan\(firestoreVelocityStore\(db, ledgerDay\)/);
     // The FIELD LIST is not the tripwire and must not be pinned as one:
     // `select()` narrows egress, not billed reads, so adding a field (as
     // `fromIdx` was, to tell a D86 edit's row from a create) changes the
