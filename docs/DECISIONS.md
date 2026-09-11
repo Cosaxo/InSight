@@ -49680,9 +49680,12 @@ Five things looked like the same class and are not, each verified rather
 than assumed:
 
 - **The rules-coverage ratchet survived the composition untouched, and it
-  was the likeliest casualty.** B lowered `neverFalse` 8 → 7 on its own
-  branch, having covered two arms that were true zero times; A added three
-  new sub-expressions to the profile rule in the same night. A baseline
+  was the likeliest casualty.** B lowered `neverFalse` 8 → 7 in
+  `rules-coverage-baseline.json` on its own branch, in a night whose three
+  new rules cases were each about an arm that was TRUE zero times — a
+  different metric from the one the ratchet counts, which is why the
+  interaction is not readable from B's commits. A added three new
+  sub-expressions to the profile rule the same night. A baseline
   computed on one branch and a rule grown on the other is how a shrink-only
   ratchet goes red on a tree neither shift ever built. Measured on the
   composed tree: **7 of 381** atomic predicates never evaluate false,
