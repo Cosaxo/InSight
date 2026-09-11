@@ -366,6 +366,13 @@ export function ensureTrend(pid: string): Promise<void> {
         next[k] = got.get(`${pid}_${k}`) ?? null;
       }
       trendAggs[pid] = next;
+      // TODAY'S MARK IS SPENT NOW. `aggFor` prefers this map over the
+      // day read, and this read happened after the answer's ack — so the
+      // overlay `pulsePending` supplies would be added on top of a fold
+      // that already holds it, which is how opening the chart moved the
+      // card's own crowd by one. The store owns the clear and its
+      // guards; this only says the later read landed.
+      LIVE.noteFolded(`${pid}_${utcKey(dayAt(DAYS - 1))}`);
       notify();
     } finally {
       loadingTrend[pid] = undefined;

@@ -676,10 +676,40 @@ describe("LiveBreakdownPanel · the type cut", () => {
   });
 
   it("says it is still reading rather than claiming nobody is typed", () => {
+    // `votersLoading` IS SET HERE NOW, and it was the whole defect that it
+    // did not have to be. `split === null` is three facts — never asked,
+    // in flight, and a read that landed and failed — and this case stubbed
+    // the flag FALSE while asserting the in-flight sentence, so it pinned
+    // the settled-failure state as if it were the loading one. The arm it
+    // was holding could not tell them apart either.
     LIVE.voterScores = () => null;
+    LIVE.votersLoading = () => true;
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Type"));
     expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+  });
+
+  it("says the read FAILED once it has settled, on the Type cut and the Logic cut", () => {
+    // The third fact. `loadVoters` swallows its error, leaves the cache
+    // absent on purpose so a later open retries, and drops the loading
+    // flag — so this is the state a refused read actually lands in, and
+    // the note sat on "Reading who answered…" for the life of the open
+    // panel. Nothing retries while the chip stays open: the loader effect
+    // is keyed `[typeOpen, logicOpen, qid]`.
+    //
+    // `LbFriends`, in the same file and waiting on the same list, has
+    // always had this arm. These two are being brought level with it.
+    LIVE.voterScores = () => null;
+    LIVE.voters = () => null;
+    LIVE.votersLoading = () => false;
+    LIVE.budgetPaused = false;
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.getByText(/Could not read who answered/)).toBeTruthy();
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
+    fireEvent.click(chip("Logic"));
+    expect(screen.getByText(/Could not read who answered/)).toBeTruthy();
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
   });
 
   it("says PAUSED under the read breaker instead of 'Reading…' forever (D332)", () => {
@@ -836,7 +866,10 @@ describe("LiveBreakdownPanel · the logic cut (D227)", () => {
   });
 
   it("says it is still reading rather than claiming nobody is scored", () => {
+    // The Logic cut's twin of the Type case above, and it carried the same
+    // stub: `votersLoading` false while asserting the in-flight sentence.
     LIVE.voterScores = () => null;
+    LIVE.votersLoading = () => true;
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Logic"));
     expect(screen.getByText(/Reading who answered/)).toBeTruthy();

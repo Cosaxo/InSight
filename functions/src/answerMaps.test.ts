@@ -94,7 +94,7 @@ describe("runAnswerMapHeal", () => {
       },
     );
     const out = await runAnswerMapHeal(store, NOW);
-    expect(out).toEqual({ day: "2026-09-05", people: 3, healed: 2, entries: 2 });
+    expect(out).toEqual({ day: "2026-09-05", people: 3, healed: 2, entries: 2, stopped: false, unreached: 0 });
     expect(reads).toEqual([["u1", "u2", "u3"]]);
     expect(writes).toHaveLength(1);
     expect(writes[0].get("u1")).toEqual({ q2: 0 });
@@ -103,9 +103,50 @@ describe("runAnswerMapHeal", () => {
     expect(maps.u1, "the heal overwrote a value the trigger wrote after the day").toEqual({ q1: 0, q2: 0 });
   });
 
+  it("stops on the pass's clock rather than reading every person there is", async () => {
+    // The fold had no bound of any kind: one `getAll` and one batch per
+    // 300 people, over every uid yesterday's ledger names, inside a pass
+    // that gets 480 seconds and runs three folds after it. A day with a
+    // large active population spent them all here, and the folds behind
+    // it died with the invocation.
+    //
+    // 900 people is three round trips; the clock is past the deadline
+    // when the second is about to start, so exactly one lands.
+    const ledger = Array.from({ length: 900 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", optionIdx: 1 }));
+    const { store, reads } = memoryStore(ledger, {});
+    let t = 0;
+    const out = await runAnswerMapHeal(store, NOW, { deadlineAt: 1_000, clock: () => (t += 900) });
+    expect(reads, "the deadline did not stop the fan-out of reads").toHaveLength(1);
+    expect(out.stopped).toBe(true);
+    expect(out.unreached, "a stop that cannot say how many it left is a silent hole").toBe(600);
+    expect(out.healed).toBe(300);
+  });
+
+  it("…and a night with time reads everyone — the control", async () => {
+    // Without this, stopping before the first read would satisfy the case
+    // above and heal nobody every night.
+    const ledger = Array.from({ length: 900 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", optionIdx: 1 }));
+    const { store, reads } = memoryStore(ledger, {});
+    let t = 0;
+    const out = await runAnswerMapHeal(store, NOW, { deadlineAt: 1_000_000, clock: () => (t += 900) });
+    expect(reads).toHaveLength(3);
+    expect(out).toMatchObject({ people: 900, healed: 900, stopped: false, unreached: 0 });
+  });
+
+  it("a caller that hands down no deadline is not bounded at all — the old contract", async () => {
+    // The pass is the only caller today, but the option is what carries
+    // the bound: a direct caller (a backfill script, a one-off) must not
+    // silently inherit a 60-second cut it never asked for.
+    const ledger = Array.from({ length: 900 }, (_, i) => ({ uid: `u${String(i).padStart(4, "0")}`, qid: "q1", optionIdx: 1 }));
+    const { store, reads } = memoryStore(ledger, {});
+    const out = await runAnswerMapHeal(store, NOW, { clock: () => Number.MAX_SAFE_INTEGER });
+    expect(reads).toHaveLength(3);
+    expect(out.stopped).toBe(false);
+  });
+
   it("a day with no entries reads and writes nothing", async () => {
     const { store, reads, writes } = memoryStore([], {});
-    expect(await runAnswerMapHeal(store, NOW)).toEqual({ day: "2026-09-05", people: 0, healed: 0, entries: 0 });
+    expect(await runAnswerMapHeal(store, NOW)).toEqual({ day: "2026-09-05", people: 0, healed: 0, entries: 0, stopped: false, unreached: 0 });
     expect(reads).toEqual([]);
     expect(writes).toEqual([]);
   });

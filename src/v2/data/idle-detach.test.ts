@@ -310,6 +310,62 @@ describe("the idle detach, which now owns the reveal listeners alone", () => {
     expect(mod._idleDetachForTest().pending).toBe(false);
   });
 
+  it("a network blip in a pocket does not undo it", async () => {
+    // `online` and the foreground share one wake handler, and `online`
+    // can fire with the app BACKGROUNDED — a phone moving between wifi
+    // and cellular, a tunnel ending. Everything the handler does undoes
+    // this detach: it drops the armed timer and re-attaches the reveal
+    // listeners. Nothing re-arms either, because the only thing that does
+    // is a visibilitychange to hidden and the app is already hidden — so
+    // one blip bought back the entire listener bill IDLE_DETACH_MS exists
+    // to bound, for the rest of the background period. That is the term
+    // this file's header calls 94% of the modelled invoice at 500k DAU,
+    // and it shows up nowhere but the invoice.
+    vi.useFakeTimers();
+    const mod = await bootLive();
+
+    setHidden(true);
+    vi.advanceTimersByTime(30_000);
+    expect(mod._idleDetachForTest().pending).toBe(true);
+
+    window.dispatchEvent(new Event("online"));
+    expect(
+      mod._idleDetachForTest().pending,
+      "a network event while backgrounded cancelled the idle detach, and nothing re-arms it",
+    ).toBe(true);
+
+    // …and it still fires on its own schedule.
+    vi.advanceTimersByTime(60_000);
+    expect(mod._idleDetachForTest().pending).toBe(false);
+  });
+
+  it("…and a network blip in the FOREGROUND still wakes the session — the control", async () => {
+    // Without this, "ignore `online` entirely" would satisfy the case
+    // above and leave a session that came back online while somebody was
+    // looking at it with no listeners and no poll until they backgrounded
+    // the app and returned.
+    vi.useFakeTimers();
+    const mod = await bootLive();
+
+    setHidden(true);
+    vi.advanceTimersByTime(30_000);
+    expect(mod._idleDetachForTest().pending).toBe(true);
+    setHidden(false);
+    expect(mod._idleDetachForTest().pending).toBe(false);
+
+    // Armed again by a second hide, then cancelled by an `online` that
+    // arrives while the app is visible.
+    setHidden(true);
+    vi.advanceTimersByTime(30_000);
+    expect(mod._idleDetachForTest().pending).toBe(true);
+    hidden = false;
+    window.dispatchEvent(new Event("online"));
+    expect(
+      mod._idleDetachForTest().pending,
+      "a visible session ignored the network coming back",
+    ).toBe(false);
+  });
+
   it("running the detach twice is a no-op", async () => {
     // The re-attach guard this used to protect lived in `subscribeAggs`,
     // which is gone. What remains is `revealUnsubs`, and the fixture here

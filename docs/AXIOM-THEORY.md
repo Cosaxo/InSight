@@ -417,8 +417,11 @@ duos alike (`mode: group|duo`, membership by a server-minted invite
 code — a capability, which is why the doc stays member-gated after
 D98). Each round's duel answer is sealed at `g_{gid}_r{n}`, readable by
 its author only — the one answer shape D98 did not publish, for game
-timing rather than privacy. The next day's reveal,
-`v2_groups/{gid}/reveals/r{n}`, is readable by any signed-in user and
+timing rather than privacy. The round's reveal,
+`v2_groups/{gid}/reveals/r{n}` — written when everyone has played or at
+the round's 48-hour deadline (D426/D437), not on the next day, which is
+what this said while the path beside it was already round-keyed — is
+readable by any signed-in user and
 carries every member's `optionIdx` and, for a 1v1, both members'
 `guessIdx` (`data/duelRuns.ts` folds the read-runs from exactly that).
 At reveal time `foldDuelSignal` (`functions/src/v2social.ts`) sums the

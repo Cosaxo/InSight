@@ -144,12 +144,24 @@ if (process.argv.includes("--json")) {
 
 // THE ASSERTION, and it is about the doors the APP offers rather than about
 // every door Firebase knows. `LiveSignInGate` renders Apple first and Google
-// second, and D3's first run needs Anonymous — so those three off is a
-// broken app, and each has shipped or nearly shipped broken for want of
-// exactly this check (D387's App Check token, D414's provider list).
+// second, D414 added email and password as the third, and D3's first run
+// needs Anonymous — so any of those four off is a broken app, and each has
+// shipped or nearly shipped broken for want of exactly this check (D387's
+// App Check token, D414's provider list).
+//
+// EMAIL WAS READ AND NEVER ASKED ABOUT. It is fetched from
+// `/config`'s `signIn.email`, printed by both output arms above, and until
+// 2026-09-11 it stopped there: `WANT` held two ids and this list added only
+// `anonymous`, so a project with Email/Password switched OFF printed
+// `email          OFF` and exited 0. That is a third of the sign-in wall —
+// the door `web/privacy.html` names under a `check:policy-claims` pin, and
+// the one an account with no Apple or Google identity has to use — reported
+// as fine by the one instrument built to answer whether the provider is
+// even on.
 const missing = [
   ...WANT.filter((id) => configured.get(id) !== true),
   ...(signIn.anonymous?.enabled === true ? [] : ["anonymous"]),
+  ...(signIn.email?.enabled === true ? [] : ["email/password"]),
 ];
 if (missing.length) {
   console.error(`\ncheck-auth-providers FAILED — not enabled: ${missing.join(", ")}`);

@@ -57,6 +57,44 @@ import { note } from "./engagement";
  * otherwise a no-op — and the moments that make a reveal possible call it
  * with `ask: true`.
  */
+/**
+ * The listener set currently attached, and whose it is.
+ *
+ * WHY THIS EXISTS. `registerPush` runs more than once per session BY
+ * DESIGN: the boot calls it once per uid, and `pushEarned` (live.ts)
+ * calls it again on every createGroup / requestJoin / acceptInvite,
+ * deliberately without consulting the boot's memo — the point of that
+ * call is to ASK, at the moment the permission is worth something. On a
+ * returning device that already granted it, both calls get past the
+ * permission gate and each used to attach a full new set of three
+ * listeners.
+ *
+ * What that cost, measured 2026-09-11 with the plugin faked: after boot,
+ * three listeners; after one `pushEarned()`, six, and `register()` called
+ * twice. One tap on a notification then ran the handler N times — so
+ * `note("notifOpen")` counted N, corrupting the sent→opened half of
+ * D270's funnel, which is the only half the client owns — and
+ * `insight-live-update` was dispatched N times. `register()` re-firing
+ * `registration` into every attached listener also raced several
+ * `registerPushToken` callables per token, because the
+ * `insight.pushToken.v1` memo they dedupe against is only written after
+ * the first one returns.
+ *
+ * KEYED BY UID RATHER THAN A BARE FLAG, because the handlers close over
+ * `uid`: the registration handler writes `{uid, token}` and returns early
+ * on a match, so a set left attached from a previous account would file
+ * the new account's token under the old uid. A uid change tears the old
+ * set down first.
+ */
+let attachedFor: string | null = null;
+let handles: { remove: () => Promise<void> }[] = [];
+
+/** Test seam: forget the attached set, so a suite can rehearse a boot. */
+export function _forgetPushListenersForTest(): void {
+  attachedFor = null;
+  handles = [];
+}
+
 export async function registerPush(
   uid: string,
   { ask = false }: { ask?: boolean } = {},
@@ -140,7 +178,22 @@ export async function registerPush(
         }
       }
     }
-    await PushNotifications.addListener("registration", (token) => {
+    // ATTACH ONCE PER ACCOUNT — see `attachedFor` above. A second call
+    // for the same uid still reaches `register()` below, which is what
+    // asks the platform for a token; what it no longer does is add a
+    // second copy of every handler.
+    if (attachedFor !== uid) {
+      for (const h of handles) {
+        try {
+          await h.remove();
+        } catch (err) {
+          // A listener that will not detach must not stop the new set
+          // going on: the alternative is an account with no handlers.
+          reportError(err, { where: "push.removeListener" });
+        }
+      }
+      handles = [];
+      handles.push(await PushNotifications.addListener("registration", (token) => {
       void (async () => {
         try {
           // one write per NEW (uid, token) pair — uid-scoped so a fresh
@@ -177,8 +230,8 @@ export async function registerPush(
           reportError(err, { where: "pushTokenSave" });
         }
       })();
-    });
-    await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+    }));
+      handles.push(await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const data = (action.notification && action.notification.data) || {};
       // land on the daily tab; DailySplit consumes whatever was stashed.
       // The registry since D248, not a `window as unknown as {…}` cast:
@@ -231,19 +284,21 @@ export async function registerPush(
         }
         land();
       }
-    });
+    }));
     // A push arriving while the app is OPEN. Presented by nothing (see the
     // header); handed to the store as an event so what it announces is on
     // screen: a room's round moves on its own subscription, an invitation
     // is re-fetched (live.ts listens). Not a `live.ts` import — that file
     // imports this one.
-    await PushNotifications.addListener("pushNotificationReceived", (n) => {
+      handles.push(await PushNotifications.addListener("pushNotificationReceived", (n) => {
       const data = (n && n.data) || {};
       window.dispatchEvent(new CustomEvent("insight-push-received", {
         detail: { kind: String(data.kind || ""), gid: data.gid ? String(data.gid) : null },
       }));
       window.dispatchEvent(new Event("insight-live-update"));
-    });
+    }));
+      attachedFor = uid;
+    }
     await PushNotifications.register();
   } catch (err) {
     reportError(err, { where: "pushRegister" });

@@ -49520,3 +49520,243 @@ Two gates cannot pass from here and neither is the composition's:
 `check:web-firebase` needs the release secrets and runs only on the
 release workflows; `check:store-copy` fails identically on `origin/main`,
 on the Play signing SHA-256 placeholder that is the owner's to fill.
+
+## D450 · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on
+
+**2026-09-11.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-three commits are kept as written; nothing was reverted. What this
+review adds is the composition, five conflict resolutions, and six prose
+fixes for things no shift could see alone. The owner's instruction was
+*"review tonights nightshifts and merge what you approve"*: every part is
+approved, and this record says which parts the composition had to change
+to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260911` | 32 | 26 behind | shift A, Claude 2's, 21:20–05:33 UTC |
+| `nightb-20260911` | 31 | 27 behind | shift B, Claude 1's, 20:14–04:12 UTC |
+
+`main` took twenty-seven commits during the night: twenty-one console and
+pulse rows, and six content-lane merges (#479–#484, the lanes that
+self-merge on green under D212). No decision number moved. Neither shift
+claimed one; the tree sat at D449. This record is D450.
+
+**THIRTEEN FILES WERE TOUCHED BY BOTH** — `CLAUDE.md`, `README.md`,
+`docs/DATA-EFFICIENCY-RUNBOOK.md`, `docs/LOCAL-TESTING.md`,
+`docs/MIRROR.md`, `docs/SCHEMA-V2.md`, `firestore-tests/rules.test.ts`,
+`firestore-tests/storage.rules.test.ts`, `functions/src/answerMaps.ts`,
+`functions/src/patternsSamples.test.ts`, `functions/src/v2social.ts`,
+`src/v2/data/live.ts`, `web/privacy.html` — against nine the night before
+(D449) and zero the night before that (D430). **Five of them conflicted**,
+where the last two nights conflicted on nothing. That is the difference
+worth recording: D430 and D449 both observed that two shifts write in
+different regions of a shared file and git applies both, so the review has
+to be spent on prose one shift made false. Tonight the two shifts landed
+on the *same* regions, because both had independently picked up the same
+two sweeps — the retired calendar-day duel model, and the profile photo's
+signed-in floor.
+
+A conflict is the cheap case. Four of the five are one defect each, and
+git stopped on all four.
+
+### The five conflicts
+
+**1 · `CLAUDE.md`'s duel-seal paragraph — both shifts rewrote the same
+stale sentence.** It said "sealed until the next-day reveal"; D426
+replaced the calendar day with a round and D437 gave the round a 48-hour
+deadline. A's rewrite carries the `late` flag (a member who missed a
+revealed round may still answer, flagged, because their answer is no
+longer blind); B's carries the deadline's two ends and the observation
+that the sentence named a cadence the copy rule four sections down
+forbids — in the file that states the rule. Both are true and neither
+contains the other. Composed into one paragraph carrying both.
+
+**2 · `README.md`'s reveal bullet — and this one is a defect in B, which
+only A's parallel rewrite makes visible.** B's version ended *"rules deny
+answering a round that is already revealed so nobody peeks then plays"*.
+They do not. `firestore.rules` 1100–1117 splits the arm in two: the blind
+arm requires `late == false` AND no reveal, and the late arm requires
+`late == true` — so answering a revealed round is **permitted** and the
+flag is **required**, which is what keeps a straggler's answer out of the
+scoring (ROUNDS-PLAN §4). A's version says exactly that. A's is kept and
+B's deadline detail — that a 1v1 reveals at the deadline too, so a
+partner who stops answering cannot seal your pick for good — folded in.
+
+**3 · The `test:rules` count, at three sites — neither shift's number was
+the tree's.** A measured 222 (it added one case), B measured 224 (it added
+three). Both were right about their own branch and the composed tree is
+**225**, which is 221 plus four. `check:figures` counts `it(` off the two
+files and holds four sites equal to it, so this was going to be caught;
+it is recorded because it is the same shape as D449's coupling-count
+defect one night earlier, and because the fix is to MEASURE rather than to
+pick a side. Confirmed twice: statically at 216 + 9, and by the suite
+reporting 225 passed.
+
+**4 · `firestore-tests/storage.rules.test.ts` — both shifts found the same
+defect and wrote the same comment.** The case is named "but not by the
+signed-out world", and the comment above it claimed the bucket is not a
+public CDN and that signed-in is the floor. It is not: `avatarUrl`
+(`src/v2/data/avatar.ts`) builds the Storage download-token endpoint and
+every face is a plain `<img>` on it, and a download token is consulted
+INSTEAD of the rules. B's comment carries the emulator measurement (the
+tokenless address 403, the tokenised one 200 with no Firebase app, no
+Authorization header and no account) and where the token sits
+(`v2_avatars/{uid}`, readable by any signed-in — so any free anonymous —
+account, which is what makes the link obtainable and then shareable). A's
+carries the pointer to `storage.rules`, which is where A put the whole
+argument and the price of each of the two fixes. Kept B's with A's
+pointer folded in.
+
+**5 · Three figure sites in `README.md`, `docs/LOCAL-TESTING.md` and
+`docs/SCHEMA-V2.md`** are the same defect as 3, in the three other files
+that quote the count.
+
+### The sentence the merge had nothing to stop on — in two files
+
+**`storage.rules` and `docs/data-inventory.md` — A's note said the privacy
+page needed no change, and it was true when A wrote it.** A's new argument ends: *"`web/privacy.html`
+promises no signed-in floor for photos … so the page is not falsified by
+this — the two comments and the inventory row were."* B spent the same
+night giving the photo its own **who can see what** row on that page —
+*"anyone signed in to the app, and anyone they pass the link to … no
+account, no sign-in"* — and pinning it with a new `check:policy-claims`
+token. So by morning the file that explains the token said the page leaves
+the point implied, and the page stated it outright under a gate. A's
+sentence now carries B's row — in **both** files, because A wrote the same
+clause twice, once in `storage.rules` and once in the inventory's photo
+cell, and only the first was found on the first pass of this review.
+Nothing about either fails a gate, and no gate reads them: `check:docs`
+and `check:data-inventory` are both green with the stale clause in place,
+and the inventory's own cell says why one aisle over — "no gate can see
+it … `check:data-inventory` reads collection names and the reader column,
+never this cell". This is D449's class exactly, and it is the one thing
+tonight that git could not stop on, because the two shifts wrote in
+different files.
+
+### The sweep both shifts ran, and neither finished
+
+B's commit is titled *"the retired calendar-day duel model is still stated
+as fact in five places"*; A's is *"three files said the Groups row has
+three tabs and no Scores"* and *"the duel seal is a round's, not a day's"*.
+Re-running the sweep on the COMPOSED tree — which is the first tree where
+both shifts' fixes exist — finds **six more sites** neither reached. They
+are kept in this record rather than filed away because the lesson is that
+two independent sweeps of one corpus do not add up to one complete sweep,
+and the composed tree is the only place that is measurable.
+
+- **`SECURITY.md` is the one that matters**, and it is not only stale but
+  wrong in the direction that costs a researcher's time. It scoped the
+  finding as *"reading a groupmate's pick early, or answering a day
+  already revealed, breaks the mechanic"*. Answering a revealed round does
+  not break the mechanic — the rules **permit** it and **require**
+  `late: true` on it (see conflict 2). A report of it would be triaged as
+  a valid finding against behaviour the app deliberately ships. Now
+  scoped to the round, and the finding restated as the unflagged write.
+- **`src/v2/spec/daily-split.jsx`**'s header described Group as "one
+  question a day … yesterday revealed with names" and 1v1 as "next-day
+  reveal", in the file that draws all three modes.
+- **`docs/AXIOM-THEORY.md`** said "The next day's reveal" immediately
+  before the round-keyed path `reveals/r{n}` it was naming — the sentence
+  contradicted its own next clause.
+- **`docs/LAUNCH-RUNBOOK.md`** told a tester to expect "the sealed duel
+  and its next-day reveal" from two phones, when on a 1v1 the reveal lands
+  the moment the second phone answers. That is a test script that would
+  have had someone wait overnight for something that already happened.
+- **`src/v2/ui/LiveWalkthrough.tsx`** cited *"sealed until tomorrow"* as
+  `web/privacy.html`'s D5 row. That page no longer says it — B rewrote the
+  row this night — and the walkthrough's own copy had already moved to
+  "until the reveal" nine lines further down, with a comment explaining
+  why. The file argued against itself.
+- **`src/v2/README.md`** described `LiveWalkthrough.test` as pinning the
+  phrase *"sealed until tomorrow"*. The test pins `/\bsealed\b/` and
+  `/with names/` and says in its own comment that it stopped pinning the
+  phrase, for exactly the reason the copy rule gives.
+
+### What was checked and left alone
+
+Five things looked like the same class and are not, each verified rather
+than assumed:
+
+- **The rules-coverage ratchet survived the composition untouched, and it
+  was the likeliest casualty.** B lowered `neverFalse` 8 → 7 in
+  `rules-coverage-baseline.json` on its own branch, in a night whose three
+  new rules cases were each about an arm that was TRUE zero times — a
+  different metric from the one the ratchet counts, which is why the
+  interaction is not readable from B's commits. A added three new
+  sub-expressions to the profile rule the same night. A baseline
+  computed on one branch and a rule grown on the other is how a shrink-only
+  ratchet goes red on a tree neither shift ever built. Measured on the
+  composed tree: **7 of 381** atomic predicates never evaluate false,
+  baseline 7 — the predicate total moved 378 → 381 and A's own new case
+  exercises all three. Nothing to change.
+- **A's `answerMaps` time bound and B's `answerMaps` header do not
+  contradict.** Both shifts landed in that file on the subject of bounds
+  and they are different bounds: A put a 60-second slice on the heal's
+  RUNTIME, B corrected the header's claim about the map document's SIZE —
+  "the bound is the bank, not time" is false for `pulse`, whose qid is the
+  composite `{qid}_{day}`. B's "NO GUARD YET" is about the entry guard and
+  stays true with A's clock in place.
+- **A's `pushRoster` fallback is unreachable rather than wrong.** A's fix
+  addresses the reveal push being fanned out from the page's stale roster
+  instead of the transaction's; it ends
+  `(pushRoster.length ? pushRoster : members)`, and since `if (!didReveal)
+  return false` guards the push, the fallback can only fire when the fresh
+  roster is genuinely empty — where it would notify the departed members
+  the fix exists to exclude. Traced both producers: `leaveGroupV2` does its
+  read-and-shrink inside a transaction precisely so `memberUids: []` cannot
+  happen (its own comment says so), and `deleteAccount` phase 1c, which is
+  NOT transactional and could race two final members, is reaching accounts
+  whose token documents are already gone — which A's comment names as the
+  inert arm. Left as written.
+- **`check:bundle` passes with 1 KB of headroom, and that is a measurement
+  rather than a finding.** B's SignInGate fix reported 550 KB eager against
+  the 552 ceiling on its own branch; the composed tree is **551**. Still
+  green, and the next eager addition is the one that trips it.
+- **`test:scripts` did not repeat D449's defect 4.** A found the same trap
+  in its own work this night, one layer out — `check:fn-types`, added to
+  CI's lint job, typechecks files importing `firebase-admin`, and that job
+  installs the root package only — and fixed it by adding
+  `npm ci --prefix functions` to the job. The fix is placed AFTER
+  `test:scripts` and before the gate, which preserves the property D449
+  bought: `test:scripts` still runs in a lint job with no
+  `functions/node_modules`. Verified here both ways rather than assumed —
+  with `functions/node_modules` moved aside, `test:scripts` is 1355 green
+  and `check:fn-types` fails on missing modules; restored, the gate passes.
+
+### Measured on the composed tree
+
+`test:unit` 3148 over 215 files · `test --prefix functions` 990 passed, 1
+skipped over 47 files · `test:scripts` 1355 over 80 files, run twice — once
+ordinarily and once with `functions/node_modules` moved aside, which is the
+lint job's actual environment · `test:rules` **225**, plus the coverage
+ratchet (7 of 381 never-false, at baseline) and the D438 budget gate (15
+probes at their pins, floor 50, loads at 80) · `test:e2e:all` on one
+emulator boot, all three suites green · `tsc -b` · `lint` · and every
+`check:*` gate, `check:bundle` and `check:eager-content` measured on a real
+shipping build (2324 KB total / 551 KB eager against 2440 / 552; 93 modules
+in the first-paint graph, 4 of them content, all 4 named as debt).
+
+Two gates cannot pass from here and neither is the composition's:
+`check:web-firebase` needs the release secrets and runs only on the release
+workflows; `check:store-copy` fails identically on `origin/main`, on the
+Play signing SHA-256 placeholder that is the owner's to fill — verified
+against a clean worktree of `origin/main` rather than assumed from D449.
+
+### The owner's row this night added
+
+B filed one on `OWNER-LIST.md` and it is a consent question, so it is
+D334's ask rather than a deferral a routine may take: the nightly patterns
+pass republishes a political coordinate whose consent was withdrawn,
+because it stamps sample rows from the day's LEDGER — the profile as of
+when the person answered — over what `profileFanout.restampSamples` wrote
+from the profile as it stands now. The broad half is fixed in this tree
+(the loop no longer touches rows the day's additions did not write). The
+remainder needs one of two decisions that spend different things — an
+extra profile read per active person per night, or a stamp timestamp on a
+world-readable document every reader downloads — which is why it is the
+owner's. A independently closed the adjacent hole in the same night at the
+rules layer: a profile write that simply omitted `consent` deleted the
+consent record, which would have left the published coordinate standing
+while its consent read back as "never asked".

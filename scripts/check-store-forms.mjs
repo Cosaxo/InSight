@@ -306,6 +306,14 @@ if (reduced === undefined) {
   );
 }
 
+// THE AUDITED SOURCE, READ ONCE. Two rules below need it — the Location
+// paragraph and the citation join — and it is hoisted rather than read
+// twice because `source-pins.test.mjs` counts every site that reads a file
+// and matches against it without stripping comments, against a ceiling the
+// tree already sits exactly on. A second read of the same file would have
+// spent that headroom on a duplicate.
+const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
+
 // …AND THE FILE THE FORMS ARE ANSWERED FROM.
 //
 // The two rules above hold app-privacy.json to the plist, and they were
@@ -321,7 +329,6 @@ if (reduced === undefined) {
 // in the same direction. Twice is a pattern, and a pattern is what a gate
 // is for.
 if (reduced === "false") {
-  const inv = readFileSync(join(root, "docs/data-inventory.md"), "utf8");
   // The CONCLUSION, not the whole paragraph. That paragraph is partly a
   // record of the two times this went wrong, so it quotes the wordings it
   // replaced — and a rule reading the whole thing fires on the history it
@@ -347,6 +354,58 @@ if (reduced === "false") {
       + "at maxSdkVersion 30. D175 uncapped it, and the manifest line says so "
       + "in its own comment.",
     );
+  }
+}
+
+// ── 4b. THE INVENTORY'S OWN STORE-FORM CITATIONS ────────────────────
+//
+// `docs/data-inventory.md` calls itself "the source for the App Store
+// Privacy Nutrition Label / Play Data Safety answers", both gates' headers
+// say so, `app-privacy.json`'s own `$comment` says so, and CLAUDE.md says
+// so — and until this rule the ONLY thing here that read it was the
+// Location paragraph above. `check-data-inventory.mjs` never opens the
+// store forms at all. Measured 2026-09-11: deleting PHOTOS_OR_VIDEOS from
+// app-privacy.json AND its row from §3 left check:store-forms,
+// check:data-inventory, check:policy-claims, check:public-copy and
+// check:docs all green, while the inventory still declared the avatar
+// collection world-readable.
+//
+// A FULL join is not what this is. Mapping every inventory row to a store
+// category needs judgement nobody has written down, and inventing it in a
+// gate would make the gate a second source of truth — the thing this file
+// exists to prevent. What IS available with no judgement at all is the
+// inventory's own citations: where that file states what a form answers,
+// the form has to answer it. Today there is one (the pulse row, on Apple's
+// Health row, which exists because two pulses ask about sleep and energy).
+// The rule is written generically so the next one is held for free, and so
+// a citation whose form answer moves cannot quietly become fiction.
+{
+  // The shape it is written in today, and the shape a new citation should
+  // follow: "…STORE-FORMS.md` answers Apple's **Health** row YES…"
+  const cites = [...inv.matchAll(
+    /answers Apple's\s+\*\*([A-Za-z ]+)\*\*\s+row\s+(YES|NO)/g,
+  )];
+  if (!cites.length) {
+    errors.push(
+      "docs/data-inventory.md no longer contains a store-form citation this can\n"
+      + "    read (\"answers Apple's **X** row YES/NO\"). It had one — the pulse row on\n"
+      + "    Apple's Health row. Either the sentence was reworded, in which case fix\n"
+      + "    this pattern, or the claim was dropped, in which case the inventory has\n"
+      + "    stopped saying what the forms answer and this rule has nothing to hold.",
+    );
+  }
+  for (const [, label, want] of cites) {
+    const type = label.trim().toUpperCase().replace(/\s+/g, "_");
+    const has = jsonTypes.has(norm(type));
+    if (has !== (want === "YES")) {
+      errors.push(
+        `docs/data-inventory.md says STORE-FORMS.md answers Apple's ${label.trim()} row\n`
+        + `    ${want}, and app-privacy.json ${has ? "declares" : "does not declare"} ${type}\n`
+        + "    collected. The inventory is the audited source the forms are answered\n"
+        + "    FROM, so when the two disagree the form is what moved — and an\n"
+        + "    under-declared row is what gets an app pulled.",
+      );
+    }
   }
 }
 
@@ -493,6 +552,112 @@ if (!playProse.length) {
         `play-data-safety.json points deletionRequestUrl at ${page}, which is\n`
         + "    not in web/. The URL is hosted from that directory, so a rename\n"
         + "    there is a dead link on a filed form.",
+      );
+    }
+  }
+}
+
+// ── 7. THE TWO STORES AGAINST EACH OTHER ────────────────────────────
+//
+// Rules 1-2 hold Apple's form to its prose twin; rule 6 holds Play's form
+// to its prose twin. Nothing joined the two pairs, so one datum could be
+// declared collected on one store and not on the other and both halves
+// would still agree with their own copy.
+//
+// That is not hypothetical and it is not new. `play-data-safety.json`'s
+// own `$photos` note records it happening: Photos sat inside a bundled
+// `collected: false` row while Apple's form declared PHOTOS_OR_VIDEOS
+// collected, "and BOTH carried the bundled No, so rule 6 compared two
+// copies of the same wrong answer". That fix corrected the answer and did
+// not add the join, so the identical divergence stayed invisible.
+// Measured 2026-09-10: setting Play's Photos row to `collected: false` in
+// BOTH copies, with Apple's row left collected, printed
+// "11 Play row(s) agree" and exited 0.
+//
+// WHAT THIS RULE DOES NOT DO: decide a filing. It changes no declared
+// answer. It asserts that the pairs which already name the same datum
+// keep answering the same way, and that a type or row appearing on one
+// store cannot be silently absent from this map — a new one must be
+// paired here or written into DIVERGENT below with its reason. Under-
+// declaring is the direction rule 2's own comment calls "what gets an
+// app pulled".
+const CROSS_STORE = new Map([
+  ["USER_ID", "Personal info → User IDs"],
+  ["EMAIL_ADDRESS", "Personal info → Email address"],
+  ["NAME", "Personal info → Name"],
+  ["COARSE_LOCATION", "Location → Approximate location"],
+  ["PRECISE_LOCATION", "Location → Precise location"],
+  ["PHOTOS_OR_VIDEOS", "Photos and videos → Photos"],
+  ["SENSITIVE_INFO", "Personal info → Political or religious beliefs"],
+  ["CRASH_DATA", "App info & performance → Crash logs"],
+]);
+
+/**
+ * The pairs that do NOT line up today, each with what it waits on. These
+ * are carried, not endorsed — the same stance `$openBeforeFiling` takes in
+ * play-data-safety.json, and for three of them the same three answers.
+ * A divergence listed here is visible; one that is not listed is a
+ * failure.
+ */
+const DIVERGENT = new Map([
+  ["PRODUCT_INTERACTION", "Apple declares it for ANALYTICS; Play's App activity row is "
+    + "bundled at collected:false. play-data-safety.json's $openBeforeFiling names this "
+    + "one of three answers not settled (the App activity row against D270/D272)."],
+  ["OTHER_USER_CONTENT", "no Play row names it. Play has no general user-content "
+    + "category and nobody has derived which of its rows takes answers and takes. "
+    + "Unreviewed, and it is an under-declaration on Play if the answer is a row."],
+  ["HEALTH", "no Play row names it. Same shape as OTHER_USER_CONTENT and the same "
+    + "unreviewed state."],
+  ["Personal info → Gender", "declared on Play, no Apple type declared. Apple folds "
+    + "gender into SENSITIVE_INFO or OTHER_DATA and neither is filed for it; "
+    + "unreviewed, and it is the under-declaration pointing the other way."],
+]);
+
+{
+  const playByKey = new Map((playJson.rows ?? []).map((r) => [norm(r.category), r]));
+  const appleTypes = new Set(privacy.collected.map((r) => norm(r.type)));
+
+  for (const [type, category] of CROSS_STORE) {
+    const row = playByKey.get(norm(category));
+    if (!row) {
+      errors.push(
+        `cross-store: ${type} is paired with the Play row ${JSON.stringify(category)},\n`
+        + "    which play-data-safety.json no longer has. The pairing is what keeps the\n"
+        + "    two filings answering alike — repair it here, do not drop it.",
+      );
+      continue;
+    }
+    const onApple = appleTypes.has(norm(type));
+    if (onApple !== row.collected) {
+      errors.push(
+        `cross-store: ${type} is ${onApple ? "" : "NOT "}collected on Apple and\n`
+        + `    ${JSON.stringify(category)} is ${row.collected ? "" : "NOT "}collected on Play.\n`
+        + "    It is the same datum and the same upload path serves both stores, so the\n"
+        + "    two forms cannot answer differently. This is the join that was missing\n"
+        + "    when Photos was under-declared on Play for weeks.",
+      );
+    }
+  }
+
+  // The completeness half: nothing may be absent from both lists.
+  for (const t of appleTypes) {
+    if (!CROSS_STORE.has(t) && !DIVERGENT.has(t)) {
+      errors.push(
+        `cross-store: app-privacy.json declares ${t} and this map does not mention it.\n`
+        + "    Pair it with its Play row in CROSS_STORE, or write it into DIVERGENT with\n"
+        + "    the reason it has no counterpart. A type in neither list is a store answer\n"
+        + "    nobody has compared.",
+      );
+    }
+  }
+  const paired = new Set([...CROSS_STORE.values()].map(norm));
+  for (const [k, row] of playByKey) {
+    if (!row.collected) continue;
+    if (!paired.has(k) && !DIVERGENT.has(row.category)) {
+      errors.push(
+        `cross-store: play-data-safety.json collects ${JSON.stringify(row.category)} and\n`
+        + "    this map does not mention it. Pair it with its Apple type in CROSS_STORE,\n"
+        + "    or write it into DIVERGENT with the reason.",
       );
     }
   }

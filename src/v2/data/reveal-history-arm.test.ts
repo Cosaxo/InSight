@@ -101,6 +101,51 @@ describe("loadRevealHistory", () => {
     // than freezing the gap into the session.
     expect(LIVE.social.revealHistory("g_fail")).toEqual([]);
     expect(LIVE.social.revealHistoryLoading("g_fail")).toBe(false);
+    // …and the store KEEPS the word, for the callers that drop it. Both
+    // of them `void` the call — one is the Groups Mirror stop — so the
+    // answer above reached nobody there and the two facts left behind,
+    // an empty history and a flag that is false again, are exactly what
+    // a room nobody has ever loaded looks like.
+    expect(
+      LIVE.social.revealHistState("g_fail"),
+      "a refused read is indistinguishable from a room that never played",
+    ).toBe("failed");
+  });
+
+  it("…and a room nobody asked about is not a room that failed — the control", () => {
+    // Without this, answering 'failed' for every unread room would
+    // satisfy the case above and put "couldn’t read the rounds" on every
+    // stop that has not opened yet.
+    expect(LIVE.social.revealHistState("g_never")).toBe("ready");
+  });
+
+  it("says 'loading' while a retry is open, not the failure before it", async () => {
+    // The mark is about ONE attempt, and the in-flight flag is read
+    // first so a retry says what the reader is waiting on.
+    //
+    // ITS OTHER HALF IS REASONED, NOT MEASURED, and that is a fact about
+    // this tree rather than about the fix: `revealHistState` answers
+    // 'ready' for a room whose `revealHistLoaded` is set, so a stale mark
+    // cannot outlive a read that SUCCEEDED — and no harness here can
+    // resolve a reveal-history read to prove it. This file's `getDb`
+    // hands back a sentinel the real query builders will not take, and
+    // spying past that fails on an ESM namespace. The derivation is from
+    // a flag the success path already sets and the two cases above
+    // already exercise, which is why it is a derivation rather than a
+    // clear of its own.
+    h.dbThrows = true;
+    h.dbPending = false;
+    await LIVE.social.loadRevealHistory("g_retry");
+    expect(LIVE.social.revealHistState("g_retry")).toBe("failed");
+
+    h.dbThrows = false;
+    h.dbPending = true;
+    void LIVE.social.loadRevealHistory("g_retry");
+    await Promise.resolve();
+    expect(
+      LIVE.social.revealHistState("g_retry"),
+      "the retry wore the failure of the read before it",
+    ).toBe("loading");
   });
 });
 
