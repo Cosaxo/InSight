@@ -40,18 +40,16 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-11T09:12:24Z -->
+<!-- console:generated 2026-09-11T09:16:47Z -->
 
 ## Open
 
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 8 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 277 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 11 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 280 behind main · opened 2026-09-01 · stage **new**
 - [ ] **night-20260911** (no PR yet) · Claude 2's night shift · 32 commits · last 05:33 UTC 2026-09-11
 - [ ] **nightb-20260911** (no PR yet) · Claude 1's night shift B · 31 commits · last 04:12 UTC 2026-09-11
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · night-20260908 (D420) · nightb-20260908 (D420) · and 10 more.
-
-**Self-merging:** #481 Learn: Space missions born, 24 levelled across six fields
 
 ## In the shift
 
@@ -67,6 +65,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#481** · Learn: Space missions born, 24 levelled across six fields · merged 2026-09-11
 - **#480** · Catalog card pk41: the athlete you'd want beside you · merged 2026-09-11
 - **#479** · Question farm: 8 for Morals, Music, Skills, Sport, Story, Travel, Values, Body — plus two promoted · merged 2026-09-11
 - **#476** · The 2026-09-10 clicks: the budget's wire is one console click, the deletion's listing must see the nightly pass, and the record of what each turned out to be · merged 2026-09-10
@@ -121,4 +120,3 @@ merge shift like any other PR.
 - **#431** · Feed 2026-09-07: sixty levelled — six per topic, written fresh against a deep bank · merged 2026-09-08
 - **#438** · The bank stopped compiling at 1145, and the content lanes were dark all day · merged 2026-09-08
 - **#426** · Question farm: 8 questions for Skills, Sport, Story, Travel, Body, Film, Food, Goals — plus two promoted · merged 2026-09-08
-- **#430** · Learn: ten cards to the floor — five cell biology, five commonly-confused · merged 2026-09-08
