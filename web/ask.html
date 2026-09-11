@@ -1112,7 +1112,13 @@
           var f = doc && doc.fields ? doc.fields : null;
           var status = f && f.status && f.status.stringValue;
           if (status && status !== "review") {
-            return { status: status, reason: f.declineReason && f.declineReason.stringValue };
+            // `note` IS THE FIELD, not `declineReason`: both writers in
+            // functions/src/paid.ts (the retired ad lane and the reviewer
+            // verdict) update the booking with `note`. Reading the other
+            // name silently left `reason` undefined, so every decline —
+            // a named private person, the retired ad lane — was shown the
+            // page's own civic-authority sentence instead of its reason.
+            return { status: status, reason: f.note && f.note.stringValue };
           }
           // TWENTY TRIES IS THIRTY SECONDS, and since D456 the reviewer is
           // a Routine on a schedule rather than a model call inside the

@@ -374,7 +374,11 @@ describe("the pay tap with keys", () => {
         json: async () => ({
           fields: {
             status: { stringValue: "declined" },
-            declineReason: { stringValue: "Questions about named private people aren't sold here." },
+            // THE FIELD THE REVIEWER ACTUALLY WRITES is `note` — both
+            // decline paths in functions/src/paid.ts update it. This
+            // fixture said `declineReason` and so agreed with the page's
+            // misread rather than with the booking document.
+            note: { stringValue: "Questions about named private people aren't sold here." },
           },
         }),
       },
@@ -387,6 +391,24 @@ describe("the pay tap with keys", () => {
     expect(sp(text())).toMatch(/named private people/);
     const paid = globalThis.fetch.mock.calls.some((c) => String(c[0]).indexOf("createPaidCheckoutV2") >= 0);
     expect(paid, "a declined booking was sent to checkout anyway").toBe(false);
+  });
+
+  it("falls back to its own sentence when the decline carries no note", async () => {
+    // The control for the case above: the page's civic-authority text is
+    // right for a decline with nothing written on it, and wrong for every
+    // decline that has words of its own.
+    const { fn } = wire({
+      verdict: {
+        ok: true,
+        json: async () => ({ fields: { status: { stringValue: "declined" } } }),
+      },
+    });
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).toMatch(/in the voice of an authority/);
   });
 
   it("carries the booking id to checkout, with its own token", async () => {
