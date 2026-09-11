@@ -515,8 +515,14 @@ describe("v2 profile", () => {
     await refused(setDoc(mine, { createdAt: "x".repeat(20000) }));
     await refused(setDoc(mine, { updatedAt: { nested: "y".repeat(20000) } }));
     // …and a moment is still a moment, in either shape the tree uses.
-    await assertSucceeds(setDoc(mine, { createdAt: 1730000000000 }));
-    await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }));
+    // MERGES, because these two are about the timestamps and nothing
+    // else: this profile carries a consent record (written at the top of
+    // the case), and a NON-merge write that omits it is now refused for
+    // dropping it — the arm the case below this one is about. Written as
+    // whole-document writes they would fail for a reason that has nothing
+    // to do with what they assert.
+    await assertSucceeds(setDoc(mine, { createdAt: 1730000000000 }, { merge: true }));
+    await assertSucceeds(setDoc(mine, { updatedAt: serverTimestamp() }, { merge: true }));
     // unknown anchor key
     await refused(setDoc(mine, { anchors: { ssn: "123" } }));
     // ── testResults is SERVER-ONLY now, and these cases are the door ──
@@ -809,6 +815,44 @@ describe("v2 profile", () => {
     // anonymity toggle that has never existed. D331 took it off, and a
     // write carrying it must now be refused rather than quietly stored.
     await refused(setDoc(mine, { anon: true }));
+  });
+
+  it("refuses a write that DROPS a consent record it already has", async () => {
+    // The third clause in this rule caught spelling absence as a free
+    // pass, after `handle` and `testResults` — and the one where it costs
+    // the most, because `testResults` is frozen to the client now: the
+    // published `testResults.political` coordinate would stay while its
+    // consent record went, which reads back as "never asked". D331
+    // couples the two in ONE server write precisely so that state cannot
+    // exist.
+    //
+    // The profile here carries consent and NOTHING ELSE, deliberately. A
+    // profile that also held `testResults` would see the non-merge write
+    // below refused by that clause instead, and this case would pass
+    // without ever reaching the one it is about.
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, { consent: { political: { v: 1, at: 1730000000000 } } }));
+    // The removal wearing both its hats: a non-merge write that leaves
+    // the key out, and the explicit delete.
+    await refused(setDoc(mine, { displayName: "Ada" }));
+    await refused(updateDoc(mine, { consent: deleteField() }));
+
+    // THE CONTROLS, because "refuse absence" is only correct where there
+    // is something to remove.
+    // 1. An ordinary merge never mentions consent and must still write —
+    //    `request.resource.data` is the RESULTING document, so the stored
+    //    record is present in it.
+    await assertSucceeds(setDoc(mine, { displayName: "Ada" }, { merge: true }));
+    // 2. Withdrawal is a shape, not a deletion: `off` is set and the
+    //    record stays. (The app's withdrawal runs on the server; this is
+    //    the client arm still being legal.)
+    await assertSucceeds(setDoc(mine, {
+      consent: { political: { v: 1, at: 1730000000000, off: 1730000001000 } },
+    }, { merge: true }));
+    // 3. A profile that has never consented writes freely.
+    const theirs = doc(asUser(STRANGER), "v2_users", STRANGER);
+    await assertSucceeds(setDoc(theirs, { displayName: "Bo" }));
+    await assertSucceeds(setDoc(theirs, { displayName: "Bo again" }));
   });
 
   // D155 added `age` beside `ageBand` — the exact number, for the screens
