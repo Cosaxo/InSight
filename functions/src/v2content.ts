@@ -7893,6 +7893,7 @@ const BANK_1: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "sub": "sub_cooking",
   "ax": [
    "a chore",
    "therapy"
@@ -10215,7 +10216,8 @@ const BANK_2: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_cooking"
  },
  {
   "id": "feed-f267",
@@ -13513,7 +13515,8 @@ const BANK_3: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "sub": "sub_cooking"
  },
  {
   "id": "feed-f357",
@@ -13761,6 +13764,1433 @@ const BANK_3: V2SeedQuestion[] = [
   "from": "2026-09-10",
   "until": "2026-09-18",
   "bg": "An analysis of over 1,700 supernovae, from the Tata Institute and Oxford, suggests cosmic expansion may be slowing — challenging the dark-energy consensus. Most cosmologists are unconvinced; the Rubin Observatory’s coming survey of hundreds of thousands of supernovae is expected to settle it."
+ },
+ {
+  "id": "feed-f362",
+  "surface": "feed",
+  "seq": 517,
+  "type": "vote",
+  "domain": null,
+  "prompt": "If you were famous, would you read the comments?",
+  "options": [
+   "Every single one",
+   "Never — assistants exist",
+   "Only the nice ones, curated"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators"
+ },
+ {
+  "id": "feed-f363",
+  "surface": "feed",
+  "seq": 518,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Fan mail: have you ever actually sent any?",
+  "options": [
+   "Yes, and got a reply",
+   "Yes, into the void",
+   "Written, never sent",
+   "Never"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f364",
+  "surface": "feed",
+  "seq": 519,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your favourite creator goes full ads. Forgiven?",
+  "options": [
+   "Instantly — get the bag",
+   "Depends on the product",
+   "Never quite the same"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators"
+ },
+ {
+  "id": "feed-f365",
+  "surface": "feed",
+  "seq": 520,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Meeting a celebrity you admire: play it cool, or say the thing?",
+  "options": [
+   "Cool, then regret",
+   "Say the thing",
+   "Pretend not to notice them"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f366",
+  "surface": "feed",
+  "seq": 521,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Podcasts by the already-famous: insight, or two friends laughing?",
+  "options": [
+   "Real insight",
+   "Two friends laughing",
+   "Both — that’s the charm"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators"
+ },
+ {
+  "id": "feed-dl83",
+  "surface": "feed",
+  "seq": 522,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years behind is your celebrity knowledge?",
+  "options": [
+   "0–2 years",
+   "2–3 years",
+   "3–5 years",
+   "5–7 years",
+   "7–8 years",
+   "8–10 years",
+   "10–12 years",
+   "12–13 years",
+   "13–15 years",
+   "15–17 years",
+   "17–18 years",
+   "18–20 years"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "sub": "sub_creators",
+  "lo": 0,
+  "hi": 20,
+  "unit": "years"
+ },
+ {
+  "id": "feed-f367",
+  "surface": "feed",
+  "seq": 523,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A friend’s terrible haircut, and they love it. Truth?",
+  "options": [
+   "Truth, gently",
+   "Lie happily",
+   "Change the subject"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-f368",
+  "surface": "feed",
+  "seq": 524,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An open diary, alone in the room. Do your eyes obey?",
+  "options": [
+   "They obey",
+   "One line wouldn’t hurt",
+   "I’d read it all, ashamed"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-f369",
+  "surface": "feed",
+  "seq": 525,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The cashier undercharges you, badly. Say something?",
+  "options": [
+   "Always",
+   "Depends how much",
+   "Their mistake, my luck"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-f370",
+  "surface": "feed",
+  "seq": 526,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Compliments you don’t quite mean: social glue, or tiny lies?",
+  "options": [
+   "Glue — keep them coming",
+   "Tiny lies that add up",
+   "Both, and that’s fine"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty"
+ },
+ {
+  "id": "feed-dl84",
+  "surface": "feed",
+  "seq": 527,
+  "type": "dial",
+  "domain": null,
+  "prompt": "White lies this week, at an honest count?",
+  "options": [
+   "0–2 lies",
+   "2–3 lies",
+   "3–5 lies",
+   "5–7 lies",
+   "7–8 lies",
+   "8–10 lies",
+   "10–12 lies",
+   "12–13 lies",
+   "13–15 lies",
+   "15–17 lies",
+   "17–18 lies",
+   "18–20 lies"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty",
+  "lo": 0,
+  "hi": 20,
+  "unit": "lies"
+ },
+ {
+  "id": "feed-pt8",
+  "surface": "feed",
+  "seq": 528,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Reference — a friend, a job, and your name on the line",
+  "options": [
+   "The Accomplice Tutor",
+   "The Reckoning’s Friend",
+   "The Mid-Call Convert",
+   "The Fog Machine",
+   "The Loud Celebrant",
+   "The Quiet Auditor",
+   "The Corner Coach",
+   "The Perfectionist’s Shadow"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "sub": "sub_honesty",
+  "title": "The Reference",
+  "intro": "A close friend is one call away from a job they badly need. They ask you to be the reference — and to say they ran projects you know they only watched.",
+  "hue": 30,
+  "nodes": {
+   "_": {
+    "q": "The recruiter’s email arrives that evening: fifteen minutes, tomorrow at ten.",
+    "a": [
+     {
+      "t": "Agree — and plan to embellish"
+     },
+     {
+      "t": "Agree — but only to the truth"
+     }
+    ]
+   },
+   "A": {
+    "q": "On the call, the recruiter asks point-blank: “Did they lead the rollout?”",
+    "a": [
+     {
+      "t": "“Yes.” Say it steady"
+     },
+     {
+      "t": "Swerve — “they were central to it”"
+     }
+    ]
+   },
+   "B": {
+    "q": "You tell your friend the plan: truth, warmly framed. They go quiet, then say “so you won’t help.”",
+    "a": [
+     {
+      "t": "Hold the line — “this IS help”"
+     },
+     {
+      "t": "Offer to coach them instead"
+     }
+    ]
+   },
+   "AA": {
+    "q": "They get the job. Three weeks in, they call you at midnight, drowning in exactly what you said they could do.",
+    "a": [
+     {
+      "t": "Help them learn it, quietly"
+     },
+     {
+      "t": "Tell them to come clean at work"
+     }
+    ]
+   },
+   "AB": {
+    "q": "The recruiter pauses. “Central how, exactly?” The silence has edges.",
+    "a": [
+     {
+      "t": "Come clean, mid-call"
+     },
+     {
+      "t": "Talk fast, stay vague"
+     }
+    ]
+   },
+   "BA": {
+    "q": "They interview on the honest reference. A week later: they got it — the junior version of the role.",
+    "a": [
+     {
+      "t": "Celebrate it loudly"
+     },
+     {
+      "t": "Privately think they lost out"
+     }
+    ]
+   },
+   "BB": {
+    "q": "Three evenings of coaching in, they’re actually good at this. The interview is Friday.",
+    "a": [
+     {
+      "t": "Tell them they’re ready"
+     },
+     {
+      "t": "One more evening, to be sure"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Accomplice Tutor",
+    "line": "You lied them in, then taught them true. Nobody ever knew — except both of you."
+   },
+   "AAB": {
+    "name": "The Reckoning’s Friend",
+    "line": "You pushed them to confess. It cost a job and saved a friendship — you still think in that order."
+   },
+   "ABA": {
+    "name": "The Mid-Call Convert",
+    "line": "The truth arrived late but it arrived. The recruiter thanked you; your friend, eventually, did too."
+   },
+   "ABB": {
+    "name": "The Fog Machine",
+    "line": "Vague enough to pass, clear enough to sleep — you tell yourself. Mostly it works."
+   },
+   "BAA": {
+    "name": "The Loud Celebrant",
+    "line": "Junior role, honest start. You cheered like it was the senior one, and meant it."
+   },
+   "BAB": {
+    "name": "The Quiet Auditor",
+    "line": "You did the right thing and kept a small ledger of what it cost. You check it sometimes."
+   },
+   "BBA": {
+    "name": "The Corner Coach",
+    "line": "You wouldn’t lie for them, so you made the lie unnecessary. The best reference is a ready friend."
+   },
+   "BBB": {
+    "name": "The Perfectionist’s Shadow",
+    "line": "One more evening, then another. They were ready before you were."
+   }
+  }
+ },
+ {
+  "id": "feed-f371",
+  "surface": "feed",
+  "seq": 529,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Festive shelves in October: cosy, or an ambush?",
+  "options": [
+   "Cosy — start the season",
+   "An ambush",
+   "Invisible until December"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons"
+ },
+ {
+  "id": "feed-f372",
+  "surface": "feed",
+  "seq": 530,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The first day that smells like spring: does it change you?",
+  "options": [
+   "Completely",
+   "A little lighter",
+   "Weather is weather"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons"
+ },
+ {
+  "id": "feed-f373",
+  "surface": "feed",
+  "seq": 531,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Decorations down: January 2nd, or when they fall?",
+  "options": [
+   "The 2nd, sharp",
+   "Twelfth Night, properly",
+   "When they fall"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons"
+ },
+ {
+  "id": "feed-f374",
+  "surface": "feed",
+  "seq": 532,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The out-of-office reply: honest dates, or a little padding?",
+  "options": [
+   "Honest to the hour",
+   "A day of padding",
+   "I answer anyway, sadly"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_work"
+ },
+ {
+  "id": "feed-dl85",
+  "surface": "feed",
+  "seq": 533,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Weeks ahead you start looking forward to your favourite season?",
+  "options": [
+   "0–2 weeks",
+   "2–4 weeks",
+   "4–7 weeks",
+   "7–9 weeks",
+   "9–11 weeks",
+   "11–13 weeks",
+   "13–15 weeks",
+   "15–17 weeks",
+   "17–20 weeks",
+   "20–22 weeks",
+   "22–24 weeks",
+   "24–26 weeks"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons",
+  "lo": 0,
+  "hi": 26,
+  "unit": "weeks"
+ },
+ {
+  "id": "feed-fd31",
+  "surface": "feed",
+  "seq": 534,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your year — place it",
+  "options": [
+   "planned · crawled",
+   "lean planned · crawled",
+   "lean improvised · crawled",
+   "improvised · crawled",
+   "planned · middle",
+   "lean planned · middle",
+   "lean improvised · middle",
+   "improvised · middle",
+   "planned · flew by",
+   "lean planned · flew by",
+   "lean improvised · flew by",
+   "improvised · flew by"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "sub": "sub_seasons",
+  "ax": [
+   "planned",
+   "improvised"
+  ],
+  "ay": [
+   "flew by",
+   "crawled"
+  ]
+ },
+ {
+  "id": "feed-f375",
+  "surface": "feed",
+  "seq": 535,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Weekly episodes, or the full-season drop?",
+  "options": [
+   "Weekly — let it breathe",
+   "Full drop — my pace",
+   "Wait, then binge weekly shows"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-f376",
+  "surface": "feed",
+  "seq": 536,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A beloved series past its best: ride it down, or leave early?",
+  "options": [
+   "Ride it to the end",
+   "Leave while it’s good",
+   "Skim the finale only"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-f377",
+  "surface": "feed",
+  "seq": 537,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watching ahead of your watch-partner: betrayal?",
+  "options": [
+   "High treason",
+   "One episode is fine",
+   "We watch apart, we live"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-f378",
+  "surface": "feed",
+  "seq": 538,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The “previously on” recap: skip, or savour?",
+  "options": [
+   "Skip — I remember",
+   "Savour — I do not",
+   "Depends how long it’s been"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series"
+ },
+ {
+  "id": "feed-dl86",
+  "surface": "feed",
+  "seq": 539,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Series you’re “currently watching”, honestly?",
+  "options": [
+   "0–1 shows",
+   "1–2 shows",
+   "2–3 shows",
+   "3–4 shows",
+   "4–5 shows",
+   "5–6 shows",
+   "6–7 shows",
+   "7–8 shows",
+   "8–9 shows",
+   "9–10 shows",
+   "10–11 shows",
+   "11–12 shows"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series",
+  "lo": 0,
+  "hi": 12,
+  "unit": "shows"
+ },
+ {
+  "id": "feed-fd32",
+  "surface": "feed",
+  "seq": 540,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your watching — place it",
+  "options": [
+   "films · alone",
+   "lean films · alone",
+   "lean series · alone",
+   "series · alone",
+   "films · middle",
+   "lean films · middle",
+   "lean series · middle",
+   "series · middle",
+   "films · together",
+   "lean films · together",
+   "lean series · together",
+   "series · together"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "sub": "sub_series",
+  "ax": [
+   "films",
+   "series"
+  ],
+  "ay": [
+   "together",
+   "alone"
+  ]
+ },
+ {
+  "id": "feed-f379",
+  "surface": "feed",
+  "seq": 541,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Saying please to an assistant: habit, or wasted breath?",
+  "options": [
+   "Always — costs nothing",
+   "It’s a toaster",
+   "Polite, just in case"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "sub": "sub_ai"
+ },
+ {
+  "id": "feed-f380",
+  "surface": "feed",
+  "seq": 542,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A gadget breaks out of warranty. First instinct?",
+  "options": [
+   "Repair it, on principle",
+   "Replace — time is money",
+   "YouTube surgery first"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f381",
+  "surface": "feed",
+  "seq": 543,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Muting a group chat: self-care, or a silent exit?",
+  "options": [
+   "Self-care",
+   "A silent exit",
+   "I mute nothing, I suffer"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f382",
+  "surface": "feed",
+  "seq": 544,
+  "type": "vote",
+  "domain": null,
+  "prompt": "An AI wrote this question. Does that change your answer?",
+  "options": [
+   "Yes — I answer differently now",
+   "No — a question’s a question",
+   "I suspected anyway"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "sub": "sub_ai"
+ },
+ {
+  "id": "feed-f383",
+  "surface": "feed",
+  "seq": 545,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Wired headphones are back:",
+  "options": [
+   "They never left",
+   "Style — the cable is the point",
+   "Bluetooth won, move on"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl87",
+  "surface": "feed",
+  "seq": 546,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Times you used an AI yesterday, roughly?",
+  "options": [
+   "0–4 times",
+   "4–8 times",
+   "8–13 times",
+   "13–17 times",
+   "17–21 times",
+   "21–25 times",
+   "25–29 times",
+   "29–33 times",
+   "33–38 times",
+   "38–42 times",
+   "42–46 times",
+   "46–50 times"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "sub": "sub_ai",
+  "lo": 0,
+  "hi": 50,
+  "unit": "times"
+ },
+ {
+  "id": "feed-f384",
+  "surface": "feed",
+  "seq": 547,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Dog-earing pages: barbarism, or a book well loved?",
+  "options": [
+   "Barbarism",
+   "A book well loved",
+   "Bookmarks exist, people"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books"
+ },
+ {
+  "id": "feed-f385",
+  "surface": "feed",
+  "seq": 548,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Abandoning a book halfway: freedom, or failure?",
+  "options": [
+   "Freedom — life is short",
+   "Failure — finish what you start",
+   "It goes back on the pile"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books"
+ },
+ {
+  "id": "feed-f386",
+  "surface": "feed",
+  "seq": 549,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Judging a book by its cover: we all do. What actually sells you?",
+  "options": [
+   "The cover, fine",
+   "The first page",
+   "The back blurb",
+   "A friend’s face saying it"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books"
+ },
+ {
+  "id": "feed-f387",
+  "surface": "feed",
+  "seq": 550,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Museums gift shops: the real exhibition?",
+  "options": [
+   "Straight there",
+   "A polite loop at the end",
+   "I leave with postcards, always"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-fd33",
+  "surface": "feed",
+  "seq": 551,
+  "type": "field",
+  "domain": null,
+  "prompt": "Your bookshelf — place it",
+  "options": [
+   "all read · boxed away",
+   "lean all read · boxed away",
+   "lean aspirational · boxed away",
+   "aspirational · boxed away",
+   "all read · middle",
+   "lean all read · middle",
+   "lean aspirational · middle",
+   "aspirational · middle",
+   "all read · on display",
+   "lean all read · on display",
+   "lean aspirational · on display",
+   "aspirational · on display"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books",
+  "ax": [
+   "all read",
+   "aspirational"
+  ],
+  "ay": [
+   "on display",
+   "boxed away"
+  ]
+ },
+ {
+  "id": "feed-pt9",
+  "surface": "feed",
+  "seq": 552,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Borrowed Book — a favourite, lent a year ago",
+  "options": [
+   "The Margin Correspondent",
+   "The Open Library",
+   "The Complete Collector",
+   "The Fresh Start",
+   "The Delighted Lender",
+   "The Gentle Exposé",
+   "The Matchmaker",
+   "The Quiet Smiler"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "sub": "sub_books",
+  "title": "The Borrowed Book",
+  "intro": "Your favourite book — the one with your notes in the margins — went to a friend a year ago. Tonight you spot it at their place: spine cracked, coffee ring on the cover, doing duty as a coaster.",
+  "hue": 200,
+  "nodes": {
+   "_": {
+    "q": "They catch you looking at it. “Oh — I still have that, don’t I.”",
+    "a": [
+     {
+      "t": "“I’d love it back, actually.”"
+     },
+     {
+      "t": "“Keep it — clearly it lives here.”"
+     }
+    ]
+   },
+   "A": {
+    "q": "They hand it over with a wince at the coffee ring. “I’m so sorry — I’ll replace it.”",
+    "a": [
+     {
+      "t": "“It’s fine. Books get lived in.”"
+     },
+     {
+      "t": "Accept the new copy"
+     }
+    ]
+   },
+   "B": {
+    "q": "A month later they mention they finally read it — and loved it enough to buy their own.",
+    "a": [
+     {
+      "t": "Ask for the old one back now"
+     },
+     {
+      "t": "Let the old copy go for good"
+     }
+    ]
+   },
+   "AA": {
+    "q": "Home again, you flip through. Their pencil notes sit next to yours — arguing with you in the margins.",
+    "a": [
+     {
+      "t": "Read the whole thing again, replying"
+     },
+     {
+      "t": "Rub nothing out, lend it onward"
+     }
+    ]
+   },
+   "AB": {
+    "q": "The new copy arrives, pristine. Your margins are still in their house.",
+    "a": [
+     {
+      "t": "Ask for the old one too"
+     },
+     {
+      "t": "Start new margins from scratch"
+     }
+    ]
+   },
+   "BA": {
+    "q": "It comes home a wreck and a veteran. They kept a page of your notes photographed “for reference.”",
+    "a": [
+     {
+      "t": "Be quietly delighted"
+     },
+     {
+      "t": "Feel oddly exposed"
+     }
+    ]
+   },
+   "BB": {
+    "q": "At their place months on, your old copy sits shelved beside their new one — a matching pair.",
+    "a": [
+     {
+      "t": "Point it out, touched"
+     },
+     {
+      "t": "Say nothing, smile at it"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Margin Correspondent",
+    "line": "Two sets of notes, one long conversation. The coffee ring marks where it got good."
+   },
+   "AAB": {
+    "name": "The Open Library",
+    "line": "You rubbed nothing out and lent it onward. Somewhere it’s three sets of margins now."
+   },
+   "ABA": {
+    "name": "The Complete Collector",
+    "line": "Both copies home: the pristine one for the shelf, the wrecked one for reading."
+   },
+   "ABB": {
+    "name": "The Fresh Start",
+    "line": "New copy, new margins. The old notes live at their house, like a letter you don’t need back."
+   },
+   "BAA": {
+    "name": "The Delighted Lender",
+    "line": "They photographed your notes. A book can be returned; apparently a margin cannot."
+   },
+   "BAB": {
+    "name": "The Gentle Exposé",
+    "line": "Your pencil thoughts, photographed. Lovely, and a little like being read yourself."
+   },
+   "BBA": {
+    "name": "The Matchmaker",
+    "line": "You pointed at the pair on their shelf and both of you grinned. Best loan you ever made."
+   },
+   "BBB": {
+    "name": "The Quiet Smiler",
+    "line": "Some things you don’t say out loud. The two spines say it fine."
+   }
+  }
+ },
+ {
+  "id": "feed-f388",
+  "surface": "feed",
+  "seq": 553,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Penalty shootouts: the fairest end, or a coin flip in boots?",
+  "options": [
+   "Fair — nerve is skill",
+   "A coin flip in boots",
+   "Cruel and perfect TV"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_football"
+ },
+ {
+  "id": "feed-f389",
+  "surface": "feed",
+  "seq": 554,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The tennis grunt: part of the game, or mute-button material?",
+  "options": [
+   "Part of the game",
+   "Mute-button material",
+   "I stopped hearing it years ago"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_tennis"
+ },
+ {
+  "id": "feed-f390",
+  "surface": "feed",
+  "seq": 555,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Finisher medals: earned, or participation trophies?",
+  "options": [
+   "Earned — the distance is real",
+   "A bit soft",
+   "Who cares — shiny"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_running"
+ },
+ {
+  "id": "feed-f391",
+  "surface": "feed",
+  "seq": 556,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sports documentaries: better than the season itself?",
+  "options": [
+   "Often better",
+   "Never — live or nothing",
+   "They make me care, then I stay"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f392",
+  "surface": "feed",
+  "seq": 557,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your kit: performance gear, or whatever’s clean?",
+  "options": [
+   "Proper kit — it helps",
+   "Whatever’s clean",
+   "The gear IS the motivation"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl88",
+  "surface": "feed",
+  "seq": 558,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The longest you’ve ever run, ever?",
+  "options": [
+   "0–4 km",
+   "4–8 km",
+   "8–13 km",
+   "13–17 km",
+   "17–21 km",
+   "21–25 km",
+   "25–29 km",
+   "29–33 km",
+   "33–38 km",
+   "38–42 km",
+   "42–46 km",
+   "46–50 km"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "sub": "sub_running",
+  "lo": 0,
+  "hi": 50,
+  "unit": "km"
+ },
+ {
+  "id": "feed-f393",
+  "surface": "feed",
+  "seq": 559,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your inner clock: do you know the time without looking?",
+  "options": [
+   "Within minutes",
+   "Within an hour",
+   "No idea, ever"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-f394",
+  "surface": "feed",
+  "seq": 560,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Thinking about infinity: a thrill, or a headache?",
+  "options": [
+   "A thrill",
+   "A headache",
+   "Both, at 2am"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f395",
+  "surface": "feed",
+  "seq": 561,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Microbes found on Mars tomorrow. Does your day change?",
+  "options": [
+   "Everything changes",
+   "A toast, then Tuesday",
+   "Not really"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_aliens"
+ },
+ {
+  "id": "feed-f396",
+  "surface": "feed",
+  "seq": 562,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Déjà vu: a glitch, a memory hiccup, or something more?",
+  "options": [
+   "A glitch",
+   "A memory hiccup",
+   "Something more"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind"
+ },
+ {
+  "id": "feed-dl89",
+  "surface": "feed",
+  "seq": 563,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes you can sit doing absolutely nothing?",
+  "options": [
+   "0–5 min",
+   "5–10 min",
+   "10–15 min",
+   "15–20 min",
+   "20–25 min",
+   "25–30 min",
+   "30–35 min",
+   "35–40 min",
+   "40–45 min",
+   "45–50 min",
+   "50–55 min",
+   "55–60 min"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "sub": "sub_mind",
+  "lo": 0,
+  "hi": 60,
+  "unit": "min"
+ },
+ {
+  "id": "feed-fd34",
+  "surface": "feed",
+  "seq": 564,
+  "type": "field",
+  "domain": null,
+  "prompt": "Time — place it",
+  "options": [
+   "friend · never enough",
+   "lean friend · never enough",
+   "lean enemy · never enough",
+   "enemy · never enough",
+   "friend · middle",
+   "lean friend · middle",
+   "lean enemy · middle",
+   "enemy · middle",
+   "friend · too much",
+   "lean friend · too much",
+   "lean enemy · too much",
+   "enemy · too much"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "friend",
+   "enemy"
+  ],
+  "ay": [
+   "too much",
+   "never enough"
+  ]
+ },
+ {
+  "id": "feed-f397",
+  "surface": "feed",
+  "seq": 565,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cooking for guests: crowd-pleasers, or the experiment?",
+  "options": [
+   "Crowd-pleasers",
+   "The experiment",
+   "Order in, plate nicely"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking"
+ },
+ {
+  "id": "feed-f398",
+  "surface": "feed",
+  "seq": 566,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Sharpening your own knives: yes, or “they’re fine”?",
+  "options": [
+   "Yes — it changes everything",
+   "They’re fine",
+   "I own a sharpener, unused"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking"
+ },
+ {
+  "id": "feed-f399",
+  "surface": "feed",
+  "seq": 567,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The one pan you’d save from a fire:",
+  "options": [
+   "The cast iron",
+   "The nonstick",
+   "Grandma’s pot",
+   "The air fryer"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking"
+ },
+ {
+  "id": "feed-f400",
+  "surface": "feed",
+  "seq": 568,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The weirdest thing on the menu: always, sometimes, never?",
+  "options": [
+   "Always — that’s the point",
+   "Sometimes, feeling brave",
+   "Never — I know what I like"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_eatingout"
+ },
+ {
+  "id": "feed-f401",
+  "surface": "feed",
+  "seq": 569,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Salt: taste first, or shake on sight?",
+  "options": [
+   "Taste first, always",
+   "Shake on sight",
+   "The cook already salted it"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl90",
+  "surface": "feed",
+  "seq": 570,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Weeknight dinner, hob to table — minutes?",
+  "options": [
+   "5–12 min",
+   "12–19 min",
+   "19–26 min",
+   "26–33 min",
+   "33–40 min",
+   "40–48 min",
+   "48–55 min",
+   "55–62 min",
+   "62–69 min",
+   "69–76 min",
+   "76–83 min",
+   "83–90 min"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "sub": "sub_cooking",
+  "lo": 5,
+  "hi": 90,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f402",
+  "surface": "feed",
+  "seq": 571,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Festival camping: the point, or the price?",
+  "options": [
+   "The whole point",
+   "The price you pay",
+   "Day tickets exist"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "sub": "sub_gigs"
+ },
+ {
+  "id": "feed-f403",
+  "surface": "feed",
+  "seq": 572,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The song you always skip on a beloved album:",
+  "options": [
+   "Every album has one",
+   "Skipping is sacrilege",
+   "I shuffle anyway"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f404",
+  "surface": "feed",
+  "seq": 573,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Music while reading: enhances, or impossible?",
+  "options": [
+   "Enhances — the right album",
+   "Impossible — words fight words",
+   "Instrumental only"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f405",
+  "surface": "feed",
+  "seq": 574,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Seated gigs: civilised, or a contradiction?",
+  "options": [
+   "Civilised — my knees agree",
+   "A contradiction",
+   "Depends on the band"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "sub": "sub_gigs"
+ },
+ {
+  "id": "feed-f406",
+  "surface": "feed",
+  "seq": 575,
+  "type": "vote",
+  "domain": null,
+  "prompt": "New music: still hunting, or is the archive enough?",
+  "options": [
+   "Hunting weekly",
+   "Friends feed me",
+   "The archive is enough"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl91",
+  "surface": "feed",
+  "seq": 576,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The perfect gig crowd, roughly?",
+  "options": [
+   "20–185 people",
+   "185–350 people",
+   "350–515 people",
+   "515–680 people",
+   "680–845 people",
+   "845–1010 people",
+   "1010–1175 people",
+   "1175–1340 people",
+   "1340–1505 people",
+   "1505–1670 people",
+   "1670–1835 people",
+   "1835–2000 people"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "sub": "sub_gigs",
+  "lo": 20,
+  "hi": 2000,
+  "unit": "people"
  },
  {
   "id": "pick-pk04",
@@ -15176,7 +16606,9 @@ const BANK_3: V2SeedQuestion[] = [
    "label": "the medic",
    "seat": "heart"
   }
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gr21",
   "surface": "group",
@@ -16198,9 +17630,7 @@ const BANK_3: V2SeedQuestion[] = [
   "topic": "day",
   "axis": null,
   "test": null
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "duo-077",
   "surface": "duo",
@@ -18735,7 +20165,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "open",
   "test": "attachment"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-attachment-06",
   "surface": "test",
@@ -19817,9 +21249,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "lens",
   "axis": "selfdef",
   "test": null
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "lq-humor-4",
   "surface": "test",
@@ -22536,7 +23966,9 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "political",
   "facet": "private",
   "invert": true
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-political-41",
   "surface": "test",
@@ -23764,9 +25196,7 @@ const BANK_5: V2SeedQuestion[] = [
   "t": 1,
   "p": 44,
   "k": "Mars has two moons"
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol4",
   "surface": "learn",
@@ -26774,7 +28204,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 32,
   "k": "Bolivia: Sucre (on paper)",
   "w": "Sucre holds the constitutional title and the supreme court; the government sits in La Paz — both answers win arguments."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-cap18",
   "surface": "learn",
@@ -28094,9 +29526,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 46,
   "k": "twins, different fingerprints",
   "w": "Ridge detail sets in womb currents and touch, not in the genome — no two prints repeat, twins included."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-gene19",
   "surface": "learn",

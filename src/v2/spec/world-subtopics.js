@@ -33,6 +33,11 @@ const WORLD_SUBTOPICS = [
   { id: 'sub_creators',  parent: 'people',  label: 'Creators' },
   { id: 'sub_ai',        parent: 'tech',    label: 'AI' },
   { id: 'sub_aliens',    parent: 'bigq',    label: 'Are we alone?' },
+  { id: 'sub_books',     parent: 'culture', label: 'Books & reading' },
+  { id: 'sub_honesty',   parent: 'dilemma', label: 'Honesty' },
+  { id: 'sub_seasons',   parent: 'event',   label: 'Holidays & seasons' },
+  { id: 'sub_cooking',   parent: 'food',    label: 'Cooking' },
+  { id: 'sub_series',    parent: 'movies',  label: 'TV series' },
 ];
 
 // ── background knowledge ────────────────────────────────────────────────────
