@@ -180,9 +180,16 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    longer than the cap — so D328 buckets
                                    its derived `jobField` instead.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
-  { qid, uid, optionIdx?,          dedup: at-least-once delivery can't
-    anchors?, fromIdx?,            double-count. Attribution: uid is what
-    n?, s?, l?, at, expireAt }
+  { qid, uid, optionIdx?, fromIdx?, dedup: at-least-once delivery can't
+    anchors?, entity?, n?, s?, l?, double-count. `entity` is a catalogue
+    at, expireAt }                 pick's canonical key (D459), what the
+                                   fit reads where a vote has optionIdx;
+                                   `anchors` the answer's frozen chips
+                                   (D397, and on catalog entries since
+                                   D459); `n`, `s`, `l` the profile
+                                   stamp the create trigger adds
+                                   (DATA-EFFICIENCY-RUNBOOK 2.1).
+                                   Attribution: uid is what
                                    lets an operator subtract a discovered
                                    fake-account ring from the exact counts
                                    and republish (DEPLOYMENT.md,
@@ -350,20 +357,39 @@ v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1;
                                    · dial, the instrument items included)
                                    and one one-hot pseudo-item per option
                                    of an unordered pick (`opt`, keyed
-                                   `qid~i`). n is the answers folded (the
+                                   `qid~i`) — and, since D458, one item per
+                                   profile value enough people carry
+                                   (`anc`, keyed `anchor~dim~value`: +1 for
+                                   a person whose frozen anchors carry the
+                                   value, −1 for one carrying the dim with
+                                   another value; compiled from the people,
+                                   floored and capped per dim) — and, since
+                                   D459, one item per entity enough people
+                                   picked on a catalogue question (`pick`,
+                                   keyed `qid~entity`, at most CANON_TOP_N
+                                   per question: +1 picked it, −1 picked
+                                   another). n is the answers folded (the
                                    basis a client states or refuses on);
                                    sum/n is the mean the residual centres
                                    by — for a two-option row the same
                                    marginal the question's public aggregate
                                    carries; `sd` is an ordinal row's spread
   items? {key: {kind, qid, opt?,   the candidate's item metadata — how a
-     nOptions}}                     device encodes its own answer to each
-                                   row; absent while the online engine owns
-                                   `q`, whose rows are all two-option
+     nOptions, dim?, bucket?,       device encodes its own answer to each
+     entity?}}                      row, which dim and value an anchor row
+                                   stands for (D458), which entity a pick
+                                   row does (D459); absent while the
+                                   online engine owns `q`, whose rows are
+                                   all two-option
   lambdaU                          the device ridge the engine's scorecard
                                    was measured at, for the phone's own
                                    solve (estimateTheta) to read rather
                                    than assume
+  tau                              the link's slope it was measured at
+                                   (D460): the guess is marginal + tau·θ·L;
+                                   swept on a (ridge, slope) grid for the
+                                   candidate, the shipped 1 for the online
+                                   engine; absent on a document before it
   quality, displacement, seeds     the engine's scorecard (D325): the
                                    prequential series with the marginal-
                                    only baseline and skill beside every
@@ -385,11 +411,13 @@ Nothing per-person in it, under either engine.
 
 v2_patterns/sample-{qid}           the nightly voter sample (D397)
   qid
-  rows {uid: {o, a, d}}            the newest PATTERNS_SAMPLE_CAP (200 — the
+  rows {uid: {o | e, a, d}}        the newest PATTERNS_SAMPLE_CAP (200 — the
                                    who-voted sheet's own cap) voters of one
-                                   core question: the option index picked,
-                                   the answer's frozen anchors (D8) and the
-                                   UTC day it was ledgered. Keyed by uid so
+                                   question: the option index picked — or,
+                                   on a catalogue question, the entity key
+                                   (`e`, D459) — the answer's frozen anchors
+                                   (D8) and the UTC day it was ledgered.
+                                   Keyed by uid so
                                    a person is one row (an edit moves it)
                                    and erasure is a field delete
   n, at                            the basis a client states; server clock
@@ -423,6 +451,15 @@ v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2, D395)
                                    engine's substrate: it reads people, not
                                    days. Derived from the answers
                                    subcollection, ~1/50th its bytes
+  an: {dim: value}                 the person's NEWEST frozen anchors as
+                                   their last ledgered answer carried them
+                                   (D458) — BREAKDOWN_DIMS keys, values the
+                                   cube would count — the anchor items'
+                                   substrate. A snapshot replaced whole, so
+                                   a dim the person cleared is cleared here
+  p: {qid: entity}                 the person's catalogue picks (D459), the
+                                   canonical key per card, compacted like
+                                   `a` — the pick items' substrate
 read: NOBODY · write: NOBODY — the push/ shape; the nightly pass (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 

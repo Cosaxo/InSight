@@ -922,45 +922,68 @@ const MAX_TOTAL_JS_KB = 2440;
 // trip MEANS: no question lane can cause one — check:eager-content's
 // allowlist is down to three demo archives, none of which grows when a lane
 // writes — so this ceiling is measuring code in first paint and nothing else.
+// 552 → 553 (2026-09-11, D464): ninety-five bytes, and the argument for
+// them is worth more than they are.
 //
-// 552 → 553 (2026-09-11): the catalogue's who-picked-what sheet. THE BAND
-// SET ON 09-06 IS GONE — five days of ordinary drift ate all eleven
-// kilobytes of it, and this change arrived to find 49 BYTES of headroom
-// and needed 112.
+// THE BYTES, measured against origin/main (565,245 → 565,340; 552 KB is
+// 565,248, which main clears by three). Two things: the Map draws a dot
+// per published ROW now, so `data/deck` carries a catalogue question's
+// `domain` and `coreFeedAggregated` stops filtering to two options — the
+// typed path that lets a choice, a scale and a catalogue card reach the
+// lens at all; and the card shows a bead's picture, so a lazy chunk
+// imports `data/catalogArt`, which splits it out of the feed's chunk and
+// puts a new chunk NAME in the entry's preload manifest. Nothing new is
+// fetched before paint — the 27 KB that name points at is fetched on a
+// tap, if ever.
 //
-// What the 112 bytes are, because a raise that does not say is the thing
-// every entry above refuses: 95 in data/voters.ts, where the voter query
-// stopped DROPPING catalogue answers (it skipped any row without an
-// `optionIdx`, which is every pick, so a catalogue question was the one
-// kind in the app with no answer to "who picked what" — six months after
-// D98 made answers public so it could be asked); 10 in data/live.ts, where
-// Kindred now reads a pick's entity instead of its permanent -1; and 12 in
-// the cohort chunk. Nothing new joined the eager graph: no new module, no
-// new preload, 44 files before and after. The panel itself, its folds and
-// its catalogue reads are all behind the feed chunk.
+// WHAT WAS GIVEN BACK FIRST, because this block has said "trim, do not
+// raise" every time before and it was right to: teaching `data/voters`'
+// sample parse to keep a catalogue pick's row cost 86 bytes here for the
+// benefit of ONE lazy caller, so the Patterns tab reads that document
+// itself, in its own chunk. That is better placed as well as cheaper.
 //
-// So this is NOT the raise the entries above refuse. Those were asked to
-// fit a SCREEN into first paint and the answer was to defer the screen.
-// There is nothing here to defer: the bytes are a field on a row inside a
-// query function that data/live.ts calls, and live.ts is eager by
-// construction (it is the store the first frame reads).
+// AND ONE TRIM THAT ANOTHER GATE REFUSED, which is the part worth
+// keeping. Reading the feed's pool through `globalThis.WORLD_FEED_QS`
+// would have saved the first 64 bytes — the pool is already published and
+// already carries every field the join needs. `check:globals` rule 4
+// failed it: that is new cross-module coupling through global scope, and
+// its count only moves down. Two ratchets pulled opposite ways and the
+// architectural one won, which is the right outcome — bytes are
+// recoverable, a convention going backwards is not.
 //
-// WHAT THE NEXT PERSON SHOULD DO INSTEAD OF RAISING THIS AGAIN, because
-// the drift is the real finding and this change only tripped over it:
-// data/voters.ts is 7.9 KB of the eager graph and its query half —
-// fetchVoters, fetchVoterSample, fetchVoterTail, fetchSampleDoc,
-// resolveNames — is called only from live.ts's own async loaders, on a tap.
-// Split the pure helpers (the row type, chunkUids, groupByOption,
-// sortVoters, unionVoters, the caps) into their own module and import the
-// queries dynamically, and first paint gets ~6 KB back — sixty times what
-// this raise takes. The 40 KB of demo sample-data.js in the same graph
-// (app-shell.jsx + spec-index.js, both static) is the bigger one again.
+// WHAT THIS RAISE DOES NOT GIVE BACK. The argument above — this constant
+// is what keeps the Firestore SDK (~200 KB) out of first paint — is
+// untouched at 553; reaching it would take a raise two orders of
+// magnitude larger. What it DOES concede is that 552 was the exact
+// measurement, so the gate had stopped being a budget and become an alarm
+// on every byte, which this block itself calls the thing to watch for
+// forty lines up.
 //
-// +1 KB rather than a fresh 11 KB band, deliberately: the band is what a
-// SWEEP re-sets after freeing room, and nothing was freed here. An alarm
-// rearmed a kilobyte from the wall is the failure mode the 2230 entry
-// named — and that is the correct state for this number to be in, because
-// the next feature SHOULD have to read this note.
+// THE HEADROOM IS STILL OWED, and where it is is measured: `data/voters`
+// is ~8 KB of the eager graph because `data/live.ts` imports it
+// statically, while all ~30 of its uses sit in methods that run long
+// after first paint. Deferring it the way D122's handles and invitations
+// are deferred, one file over, is the next change to this graph — its
+// own change, not a rider on a feature.
+//
+// AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D465), landing
+// the same evening from another branch and measured on the merge: the
+// catalogue's who-picked-what sheet costs 112 bytes here — 95 in
+// data/voters.ts, where the voter query stopped DROPPING catalogue
+// answers (it skipped any row without an `optionIdx`, which is every
+// pick, so a catalogue question was the one kind in the app with no
+// answer to "who picked what"); 10 in data/live.ts, where Kindred reads
+// a pick's entity instead of its permanent -1; and the rest in the cohort
+// chunk. Nothing new joined the eager graph — no new module and no new
+// preload — and there was nothing to defer: the bytes are a field on a
+// row inside a query function that data/live.ts calls.
+//
+// Recorded rather than folded into the entry above, because the two are
+// independent measurements of the same ceiling: D464 raised it for the
+// Map's dots, this arrived at the raised number, and the merged tree is
+// measured below both. The owed headroom is the same headroom, and the
+// two branches found it independently — which is the strongest argument
+// yet for spending it: `data/voters`' query half, deferred.
 const MAX_EAGER_KB = 553;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all

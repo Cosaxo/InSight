@@ -137,6 +137,32 @@ their groupings in
 the product to build. **Fourteen of the sixteen need no new data**,
 which is why the closed bridge costs money rather than merely time.
 
+- **The Oracle's shadow meter (D457, 2026-09-09) — an instrument with
+  no reading yet.** Every seal since that day carries two guesses, the
+  world-centred one and the one starting from the viewer's own groups'
+  split, graded on the same answer, with the base rate's own surprisal
+  beside them. `PATTERNS.meter()` reads `cohortBits` against `worldBits`
+  over the records that carry both, and either against `baseBits`; lower
+  is better. No device has records under it yet, so there is no verdict
+  to write — this row is here so the next reader of the meter knows what
+  it is a verdict ON, and writes the number here rather than in prose
+  elsewhere.
+
+- **The loadings document's two ceilings, measured from its shape
+  (D461, 2026-09-10).** `npm run budget:loadings` counts what one
+  publication costs Firestore by the documented rules. At today's shape
+  — 545 item rows, about 100 anchor rows, up to 240 pick rows, the
+  benched engine's block and a scorecard per question — the document
+  would have cost about 31,700 of the 40,000 index entries a document
+  may hold, twice the plan's estimate, because the second engine's block
+  and the per-question scorecard count too; three thousand rows would
+  have crossed that limit at a third of the byte ceiling. Nothing
+  queries inside the collection group, so it is exempt from indexing
+  now (`firestore.indexes.json`, the wildcard), and 1 MiB holds about
+  3,500 rows of this shape. A shape estimate, held by
+  `scripts/loadings-budget.test.mjs`; the first deploy of the index file
+  is where the exemption itself is proved.
+
 ## 5 · Program findings — how to run machine-written work at all
 
 These generalize past this project and are the graph-optimizer and

@@ -394,9 +394,16 @@ export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onD
   }
 
   const items = PATTERNS.pool();
+  // The Map draws a dot per published ROW since D464 — a choice's options,
+  // a catalogue's picks, a profile value — where the Oracle and the People
+  // lens still read the two-option pool, which is the shape their own
+  // arithmetic is written in.
+  const mapRows = PATTERNS.rows();
   // only topics that actually have questions in the pool
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
-  const chips = [{ id: "all", label: "All topics" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
+  // …plus the ring of the viewer's own answers (D461), which is not a
+  // topic but rings like one
+  const chips = [{ id: "all", label: "All topics" }, { id: "answered", label: "Answered" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
   // The population roster (D216) — the standalone's own: Circle · your
   // country's code · World. Circle always offers (the D190 posture: a row
   // draws even when the stop is empty — the lens says the honest state);
@@ -455,7 +462,7 @@ export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onD
         </div>
       </div>
       <div key={lens} ref={stackRef} className={(lensSt.dir ? "pt-slide-" + lensSt.dir : "fade-in") + " pt-stack"}>
-        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} guide={guide} />}
+        {lens === "map" && <PatternsMap items={mapRows} version={version} topic={topic} guide={guide} />}
         {lens === "oracle" && <PatternsOracle items={items} version={version} guide={guide} />}
         {lens === "people" && (
           <PatternsPeople items={items} version={version} pop={pop} guide={guide} onOracle={() => setLens("oracle")} />

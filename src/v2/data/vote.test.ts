@@ -2685,13 +2685,19 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // but this pin would notice one moving alone: the board would just
     // quietly show a different depth than the aggregate carries.
     it("CANON_BOARD_N matches the server's CANON_TOP_N", () => {
+      // In pure.ts since D459 — the Patterns fit caps a catalogue
+      // question's items at the board's size, and pure.ts is the one
+      // module the trigger and the fit both import; v2.ts re-exports it.
       const serverSrc = readFileSync(
-        resolve(__dirname, "../../../functions/src/v2.ts"),
+        resolve(__dirname, "../../../functions/src/pure.ts"),
         "utf8",
       );
-      const m = /const CANON_TOP_N = (\d+);/.exec(serverSrc);
+      const m = /export const CANON_TOP_N = (\d+);/.exec(serverSrc);
       expect(m, "the server's CANON_TOP_N moved or was renamed").toBeTruthy();
       expect(Number(m![1])).toBe(CANON_BOARD_N);
+      // and v2.ts still hands it out under the name every other reader uses
+      const v2Src = readFileSync(resolve(__dirname, "../../../functions/src/v2.ts"), "utf8");
+      expect(v2Src).toMatch(/export \{ CANON_TOP_N \};/);
     });
   });
 

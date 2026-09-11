@@ -75,6 +75,7 @@ import {
   type TurnRecipient,
   roundKey,
   ROUND_DEADLINE_MS,
+  CANON_TOP_N,
 } from "./pure";
 import { notifyTurn, revealDueRounds } from "./v2social";
 import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
@@ -294,16 +295,16 @@ export const LEDGER_RETENTION_DAYS = 90;
 // sweep reads yesterday's ledger as its vote log, and (uid, qid) alone
 // says who answered, not what. It adds nothing the answer doc does not
 // already publish (D98), rides the same 90-day TTL, and erases with the
-// account (index.ts phase 4c). Absent on catalog entries — the fit's
-// pool is two-option questions only — and an edit's entry carries the
-// NEW side, so a refit leans toward what the person now says.
+// account (index.ts phase 4c). Absent on catalog entries, which carry
+// `entity` instead since D459 — and an edit's entry carries the NEW
+// side, so a refit leans toward what the person now says.
 //
 // `anchors` joined for the nightly voter samples (D397): the sample a
 // device reads instead of querying two hundred answer documents carries
 // each voter's FROZEN cohort chips (D8), and the ledger is the one place
 // the sample builder can take them from without a second read per entry.
 // The snapshot the answer itself carries, string values only; public like
-// the answer (D98); same TTL, same erasure. Absent on catalog entries.
+// the answer (D98); same TTL, same erasure. On catalog entries since D459.
 function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const out: Record<string, string> = {};
@@ -322,13 +323,20 @@ function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
 // (patternsSamples.ts). `n` present is what marks a stamped entry; `s` and
 // `l` are written as null when the profile holds nothing usable, so a
 // stamped-with-nothing entry is distinguishable from an unstamped one.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, stamp?: ProfileStamp) {
+// `entity` is D459's, and the two never travel together: a catalogue pick
+// has no option and the catalog arm reads no profile.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, entity?: string, stamp?: ProfileStamp) {
   const a = ledgerAnchors(anchors);
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
     ...(a ? { anchors: a } : {}),
+    // A catalogue pick's canonical key (D459) — what the fit reads as the
+    // person's answer where a vote carries `optionIdx`. Validated above
+    // against the committed catalogue before this entry is written, so
+    // an unknown key never reaches the ledger. Public like the answer.
+    ...(entity === undefined ? {} : { entity }),
     ...(stamp ? { n: stamp.n, s: stamp.s, l: stamp.l } : {}),
     // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
     // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
@@ -415,7 +423,7 @@ export async function runAggTransaction(
 // enforced by scripts/check-catalogs.mjs); while a set is empty its
 // domain simply never aggregates — fail-safe until the catalogue is
 // generated and committed (D15).
-export const CANON_TOP_N = 10;
+export { CANON_TOP_N };
 export const CATALOG_MAX_ENTITY = 1025;
 // Atomic numbers — contiguous like dex numbers, and the most stable keys
 // any domain here will get (IUPAC does not renumber). Must equal the count
@@ -1073,7 +1081,9 @@ export const onV2AnswerCreated = onDocumentCreated(
         // rules and both are gone — `rest` is now simply "everything
         // outside the top N", which is what a reader assumed it was.
         const canon = canonTopN(ent, CANON_TOP_N);
-        tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        // With the pick and the chips since D459 — the fit compacts the one
+        // and the samples carry the other, exactly as on the vote arm.
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid, undefined, undefined, snap.get("anchors"), key));
         logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
@@ -1262,7 +1272,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // profile's stamp (runbook 2.1): `prof` is already in hand, so the
       // name and scores the sample row will show cost no read here.
       tx.set(eventRef, ledgerEntry(
-        event.params.uid, qid, optionIdx, undefined, anchors,
+        event.params.uid, qid, optionIdx, undefined, anchors, undefined,
         profileStamp(prof.exists ? { displayName: prof.get("displayName"), testResults: prof.get("testResults") } : undefined),
       ));
       // The log's row takes the honest anchors, as the ledger does.

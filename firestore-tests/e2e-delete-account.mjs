@@ -163,6 +163,20 @@ await adb.doc(CITY_SAMPLE).set({
   },
   n: 2,
 });
+// …and the world map's position documents (D462): the country's and the
+// world's, the same rows-keyed-by-uid shape, reached by the id range
+// rather than by this account's own chip.
+const WORLD_DOCS = ["v2_patterns/people-NO", "v2_patterns/people-world"];
+for (const path of WORLD_DOCS) {
+  await adb.doc(path).set({
+    id: path.split("/")[1],
+    ...(path.endsWith("people-NO") ? { country: "NO" } : {}),
+    rows: { [uid]: { x: 0.4, y: -0.2, n: 31 }, [OTHER]: { x: -0.1, y: 0.3, n: 12 } },
+    n: 2,
+    total: 2,
+    day: DAY,
+  });
+}
 // …and the fit's per-person state, with the answer map the samples were
 // built beside — under the subtree the recursive delete takes
 await adb.doc(`v2_users/${uid}/patterns/state`).set({ v: [0, 0, 0, 0, 0, 0, 0, 0], n: 1, d: DAY, a: { "daily-000": 1 } });
@@ -807,6 +821,24 @@ if (citySampleAfter.get("rows")?.[OTHER]?.o !== 0)
 if (citySampleAfter.get("n") !== 1)
   fail("the city sample's basis did not follow the scrub: n is " + citySampleAfter.get("n"));
 ok("the per-city voter sample no longer names the erased account either");
+
+// ── the world map's position: gone at once, not at the next rebuild ──
+//
+// The privacy page promises "deleting your account removes it at once"
+// (check:policy-claims pins the sentence). A nightly rebuild would drop
+// the row eventually; this is the arm that makes the page true at 09:00.
+for (const path of WORLD_DOCS) {
+  const after = await adb.doc(path).get();
+  if (!after.exists)
+    fail(`${path} was deleted outright — it is everyone else's map`);
+  if (after.get("rows")?.[uid] !== undefined)
+    fail(`the erased account's position survived in ${path} (D462)`);
+  if (after.get("rows")?.[OTHER]?.n !== 12)
+    fail(`the position scrub removed more than the one row in ${path}`);
+  if (after.get("n") !== 1)
+    fail(`${path}'s basis did not follow the scrub: n is ` + after.get("n"));
+}
+ok("the world map no longer carries the erased account's position, and the other person's stands");
 
 // ── every seeded phase must be gone ──
 for (const [path, label] of [
