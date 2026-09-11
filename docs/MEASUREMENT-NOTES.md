@@ -137,7 +137,7 @@ their groupings in
 the product to build. **Fourteen of the sixteen need no new data**,
 which is why the closed bridge costs money rather than merely time.
 
-- **The Oracle's shadow meter (D453, 2026-09-09) — an instrument with
+- **The Oracle's shadow meter (D454, 2026-09-09) — an instrument with
   no reading yet.** Every seal since that day carries two guesses, the
   world-centred one and the one starting from the viewer's own groups'
   split, graded on the same answer, with the base rate's own surprisal
@@ -149,7 +149,7 @@ which is why the closed bridge costs money rather than merely time.
   elsewhere.
 
 - **The loadings document's two ceilings, measured from its shape
-  (D457, 2026-09-10).** `npm run budget:loadings` counts what one
+  (D458, 2026-09-10).** `npm run budget:loadings` counts what one
   publication costs Firestore by the documented rules. At today's shape
   — 545 item rows, about 100 anchor rows, up to 240 pick rows, the
   benched engine's block and a scorecard per question — the document

@@ -205,7 +205,7 @@ describe("the ridge solve keeps its precision", () => {
   });
 });
 
-describe("the link's slope and the schedule (D456)", () => {
+describe("the link's slope and the schedule (D457)", () => {
   const e = (i: number): number[] => Array.from({ length: 8 }, (_, j) => (j === i ? 1 : 0));
 
   it("tau 1 is the shipped guess; tau scales the lean and never the base rate", () => {

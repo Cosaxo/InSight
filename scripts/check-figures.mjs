@@ -1860,7 +1860,7 @@ const isEntry = process.argv[1]
 
 export { FIGURES };
 
-// The tree's own figures, printed WHETHER OR NOT anything drifted (D460's
+// The tree's own figures, printed WHETHER OR NOT anything drifted (D461's
 // merge found out why). They used to ride the OK line alone, so a reader —
 // and this script's own test, which reads the bank count back out of the
 // output — lost them the moment any unrelated figure moved. A drift report

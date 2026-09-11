@@ -1,6 +1,6 @@
 // The loadings budget's arithmetic, and the two claims PATTERNS-PLAN.md
 // §7.1 makes about the document — held against the committed index file
-// rather than against a fixture of it (D457).
+// rather than against a fixture of it (D458).
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

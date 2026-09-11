@@ -40,7 +40,7 @@ const item = (qid: string, L: number[], mine: number | null, cat = "sport"): Map
     mine,
   }) as MapRow;
 
-/** One bead of a choice — a question with several rows (D460). */
+/** One bead of a choice — a question with several rows (D461). */
 const bead = (qid: string, opt: number, L: number[], mine: number | null, cat = "sport"): MapRow =>
   ({
     key: `${qid}~${opt}`,
@@ -380,7 +380,7 @@ describe("a selection", () => {
   });
 });
 
-describe("the ring is the topic's own (D457)", () => {
+describe("the ring is the topic's own (D458)", () => {
   const MIXED = [
     item("sa", vec(1, 0), 1, "sport"),
     item("sb", vec(0.9, 0.1), -1, "sport"),
@@ -438,7 +438,7 @@ describe("the ring is the topic's own (D457)", () => {
 });
 
 
-// ── every kind of dot (D460) ────────────────────────────────────────
+// ── every kind of dot (D461) ────────────────────────────────────────
 //
 // The request the canvas answered: a node with more than two answers.
 // What has to hold is the RULE — a dot is a row — and the four things
@@ -446,7 +446,7 @@ describe("the ring is the topic's own (D457)", () => {
 // between groups, a group is trimmed as a group, the card opens on the
 // tapped bead with its siblings as chips, and the You arc is off until
 // it is asked for.
-describe("a bead group (D460)", () => {
+describe("a bead group (D461)", () => {
   const GROUP = [
     bead("pick", 0, vec(1, 0), 1),
     bead("pick", 1, vec(0.9, 0.2), -1),
@@ -491,7 +491,7 @@ describe("a bead group (D460)", () => {
   });
 });
 
-describe("the You arc (D460)", () => {
+describe("the You arc (D461)", () => {
   const WITH_YOU = [
     item("qa", vec(1, 0), 1),
     item("qb", vec(0.9, 0.1), -1),

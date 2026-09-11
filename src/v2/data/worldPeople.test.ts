@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseWorldDoc, resetWorldPositions, worldDocId, worldPositions } from "./worldPeople";
 import LIVE from "./live";
 
-describe("the world map's document id (D458)", () => {
+describe("the world map's document id (D459)", () => {
   it("names the world's own and one per country code", () => {
     expect(worldDocId(null)).toBe("people-world");
     expect(worldDocId("NO")).toBe("people-NO");

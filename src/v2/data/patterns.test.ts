@@ -36,7 +36,7 @@ const live = vi.hoisted(() => {
     answeredIndex: vi.fn((): Record<string, number> => Object.fromEntries(
       Object.entries(l.myVotes()).map(([qid, id]) => [qid, Number(String(id).split(":").pop())]),
     )),
-    // The cohort prior's two inputs (D453): the viewer's own anchors and
+    // The cohort prior's two inputs (D454): the viewer's own anchors and
     // a question's aggregate with its `by` cells. Empty and absent by
     // default, so every case above this block seals from the world exactly.
     anchors: vi.fn((): Record<string, string> => ({})),
@@ -551,7 +551,7 @@ describe("the purge", () => {
   });
 });
 
-describe("the cohort prior (D453)", () => {
+describe("the cohort prior (D454)", () => {
   /** An aggregate whose cells split by the viewer's groups: on qb the
    * viewer's age band leans hard to option 0, their gender is split
    * evenly, and the world (the row's sum) is a coin. */
@@ -693,7 +693,7 @@ describe("the cohort prior (D453)", () => {
   });
 });
 
-describe("anchor rows (D454)", () => {
+describe("anchor rows (D455)", () => {
   /** The candidate's document with two gender rows and one age row that
    * has no basis yet. */
   const publishAnchored = () => {
@@ -766,7 +766,7 @@ describe("anchor rows (D454)", () => {
   });
 });
 
-describe("pick rows (D455)", () => {
+describe("pick rows (D456)", () => {
   /** The candidate's document with a catalogue question's two popular
    * entities as rows, beside a two-option question. */
   const publishPicks = () => {
@@ -814,7 +814,7 @@ describe("pick rows (D455)", () => {
   });
 });
 
-describe("the slope and the schedule on the store (D456)", () => {
+describe("the slope and the schedule on the store (D457)", () => {
   it("reads tau off the document — 1 when absent — and seals with it", async () => {
     publishFixture();
     live.myVotes.mockReturnValue({ qa: "qa:0" });

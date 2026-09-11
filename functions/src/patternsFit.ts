@@ -99,7 +99,7 @@ export interface PatternsUserState {
   a?: Record<string, number>;
   /**
    * The person's frozen anchors as their NEWEST ledgered answer carried
-   * them (D454): dim → value, BREAKDOWN_DIMS keys only, every value one
+   * them (D455): dim → value, BREAKDOWN_DIMS keys only, every value one
    * `breakdownBucket` accepts. The candidate engine reads them as anchor
    * items beside the answer map, so a vector starts from the person's
    * demographics before their first answer. A snapshot, not a merge — a
@@ -109,7 +109,7 @@ export interface PatternsUserState {
    */
   an?: Record<string, string>;
   /**
-   * The person's catalogue picks (D455): qid → the canonical entity key,
+   * The person's catalogue picks (D456): qid → the canonical entity key,
    * compacted from the ledger like `a` (last wins; a pick cannot be
    * edited, so the first is the last). The candidate engine reads them as
    * pick items beside the answer map.

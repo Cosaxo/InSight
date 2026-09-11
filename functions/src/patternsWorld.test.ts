@@ -10,7 +10,7 @@ import {
 
 const person = (uid: string, n: number, country?: string) => ({ uid, x: 0.1, y: -0.2, n, ...(country ? { country } : {}) });
 
-describe("the published position's rounding (D458)", () => {
+describe("the published position's rounding (D459)", () => {
   it("is two decimals, and never a negative zero", () => {
     expect(roundPos(0.123456)).toBe(0.12);
     expect(roundPos(-0.987)).toBe(-0.99);
@@ -43,7 +43,7 @@ describe("the model a position is solved against", () => {
   });
 });
 
-describe("the world map's documents (D458)", () => {
+describe("the world map's documents (D459)", () => {
   it("writes one document per country plus the world's own, and states the population", () => {
     const b = new WorldMapBuilder(3);
     for (let i = 0; i < 5; i++) b.add(person(`no${i}`, 10 + i, "Norway"));

@@ -212,7 +212,7 @@ describe("buildS", () => {
       // the fixture.
       branch: undefined,
       sub: undefined,
-      // D460: the catalogue a pick question draws from, carried like
+      // D461: the catalogue a pick question draws from, carried like
       // `type` beside it — null on a question that names none, which is
       // every question but a catalogue card.
       domain: null,

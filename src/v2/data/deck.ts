@@ -528,7 +528,7 @@ export function buildS(
     sub: q.sub,
     type: q.type,
     // the catalogue a pick question draws from (D14) — the Map's card
-    // needs it to name and picture a bead (D460), and it is bank data
+    // needs it to name and picture a bead (D461), and it is bank data
     // like `type` beside it
     domain: q.domain ?? null,
     tag: q.tag,

@@ -103,10 +103,10 @@ export interface ProfileCaches {
 
 export interface Voter {
   uid: string;
-  /** The option index picked; −1 on a catalogue pick's row (D455), which
+  /** The option index picked; −1 on a catalogue pick's row (D456), which
    * every fold that reads 0/1 skips as it skips any foreign index. */
   optionIdx: number;
-  /** A catalogue pick's canonical entity key (D455) — the row's answer
+  /** A catalogue pick's canonical entity key (D456) — the row's answer
    * where a vote has its option index. */
   entity?: string;
   /** The cohort this answer was given from — frozen at vote time (D8). */
@@ -358,7 +358,7 @@ export async function fetchSampleDoc(
   for (const [uid, r] of Object.entries(rows)) {
     if (!uid) continue;
     // a vote's row carries its option; a catalogue pick's carries the
-    // entity instead (D455) and no option at all
+    // entity instead (D456) and no option at all
     const vote = typeof r?.o === "number";
     const pick = typeof r?.e === "string" && r.e !== "";
     if (!vote && !pick) continue;

@@ -40,20 +40,20 @@
 // engine keeps the prototype's own pool rule — two options, daily or core
 // feed. The candidate's is wider (the owner's call, 2026-09-06): every
 // option-shaped core item, the instrument items included, with ordinal
-// and one-hot encodings (patternsAls.ts's header) — and, since D454, the
+// and one-hot encodings (patternsAls.ts's header) — and, since D455, the
 // profile anchors as items: the values the scanned people carry, floored
 // and capped per dim, compiled from the people rather than the bank. The
 // compaction keeps each person's newest anchors on their state document
 // beside the answer map (`an`), the fit reads both, and the scorecard
 // solves a person from both — so a vector starts from the person's
 // demographics before their first answer, which is what the Oracle, the
-// People lens and the Map all read. And since D455 the catalogue picks:
+// People lens and the Map all read. And since D456 the catalogue picks:
 // a `pick` answer's canonical entity key rides the ledger entry as
 // `entity`, the compaction keeps each person's picks beside the map
 // (`p`), and every entity enough people picked is an item like an
 // anchor's value. The pick cards were tail by the bank's flag when
-// D455 admitted them on the owner's instruction, and are core since
-// D458 (the owner's word, 2026-09-10) — shipped whole to every device,
+// D456 admitted them on the owner's instruction, and are core since
+// D459 (the owner's word, 2026-09-10) — shipped whole to every device,
 // so their answerers are no longer interest-selected. PICK_QIDS stays
 // gated on the TYPE either way: a pick is never option-shaped, and the
 // flag is the serving rule, not this fold's.
@@ -184,7 +184,7 @@ export const PATTERNS_ITEMS: readonly ItemSpec[] = compileItems(V2_QUESTIONS);
  * PATTERNS_QIDS. */
 export const PATTERNS_ITEM_QIDS: ReadonlySet<string> = new Set(PATTERNS_ITEMS.map((s) => s.qid));
 
-/** The catalogue questions whose picks the compaction records (D455):
+/** The catalogue questions whose picks the compaction records (D456):
  * every `catalog` card in the bank. Gated on the type, not the flag —
  * see the header — so a pick on anything else is not one. */
 export const PICK_QIDS: ReadonlySet<string> = new Set(
@@ -213,7 +213,7 @@ export interface PatternsLedgerEntry {
   fromIdx?: number;
   /** The answer's frozen cohort chips (D8), for the voter samples (D397). */
   anchors?: Record<string, string>;
-  /** A catalogue pick's canonical entity key (D455), on catalog entries. */
+  /** A catalogue pick's canonical entity key (D456), on catalog entries. */
   entity?: string;
   /** The author's profile stamp (DATA-EFFICIENCY-RUNBOOK 2.1) — name,
    *  parsed core scores, logic percentile — present on a create the
@@ -245,7 +245,7 @@ export interface PatternsCandidate {
    * the reader's view of why `lambdaU` is what it is (the best link slope
    * for that ridge). */
   lambdaSweep?: Record<string, number>;
-  /** The link's slope this scorecard was measured at (D456): the guess is
+  /** The link's slope this scorecard was measured at (D457): the guess is
    * `marginal + tau·θ·L`, and the phone reads it beside `lambdaU`. */
   tau?: number;
   /** Pooled bits under each slope tried tonight, at that slope's best
@@ -268,7 +268,7 @@ export interface PatternsPublication {
   items?: Record<string, ItemMeta>;
   /** The device ridge the engine's scorecard was measured at. */
   lambdaU: number;
-  /** The link slope the engine's scorecard was measured at (D456); the
+  /** The link slope the engine's scorecard was measured at (D457); the
    * online engine's is the shipped 1. Absent on a document before it. */
   tau?: number;
   quality?: PatternsQuality;
@@ -298,7 +298,7 @@ export interface PatternsStore {
    *  (`citySampleId`), where one exists; and their writes. */
   getCitySamples(ids: string[]): Promise<Map<string, SampleDoc>>;
   putCitySamples(samples: Map<string, SampleDoc>): Promise<void>;
-  /** The world map's position documents (D458): one per country plus the
+  /** The world map's position documents (D459): one per country plus the
    *  world's own, keyed by document id. A set, like the samples — the
    *  document is rebuilt whole every night. */
   putWorldMaps(docs: Map<string, WorldMapDoc>): Promise<void>;
@@ -354,7 +354,7 @@ export interface PatternsRunSummary {
   /** Per-city samples merged (runbook 2.5). */
   citySamples: number;
   /** World-map documents written — one per country with anyone placed,
-   *  plus the world's own (D458). */
+   *  plus the world's own (D459). */
   worldMaps: number;
   /** People a position was published for. */
   worldPlaced: number;
@@ -429,7 +429,7 @@ export async function runPatternsFit(
   const alsStreakPrev = engine === "als" ? 0 : (prev?.candidates.als?.streak ?? 0);
   const alsLambdaPrev = engine === "als" ? (prev?.lambdaU ?? ALS_LAMBDAS_U[0]) : (prev?.candidates.als?.lambdaU ?? ALS_LAMBDAS_U[0]);
   const alsTauPrev = engine === "als" ? (prev?.tau ?? SGD_TAU) : (prev?.candidates.als?.tau ?? SGD_TAU);
-  // the (ridge, slope) grid the candidate is scored on (D395, D456)
+  // the (ridge, slope) grid the candidate is scored on (D395, D457)
   const gridKey = (lam: number, tau: number): string => `${lam}|${tau}`;
   const grid: { lam: number; tau: number }[] = [];
   for (const lam of ALS_LAMBDAS_U) for (const tau of ALS_TAUS) grid.push({ lam, tau });
@@ -441,7 +441,7 @@ export async function runPatternsFit(
   // The scorecard solves a person against the model as it stood BEFORE
   // the day, so its anchor items are the ones that model published; the
   // fit's own index is compiled below, from the people it is about to
-  // read (D454).
+  // read (D455).
   const index: ItemIndex = indexItems([...items, ...anchorSpecsOf(alsPrev?.items), ...pickSpecsOf(alsPrev?.items)]);
   const itemQids = new Set(items.map((s) => s.qid));
 
@@ -491,7 +491,7 @@ export async function runPatternsFit(
     // included — newest last, so the last write below is the person's
     // current answer, edits and all.
     const wide = dayEntries.filter((e) => itemQids.has(e.qid) && typeof e.optionIdx === "number" && e.optionIdx >= 0);
-    // The picks (D455): a catalogue card's entries, the entity where a
+    // The picks (D456): a catalogue card's entries, the entity where a
     // vote has its option — compacted beside the map, and sampled.
     const picks = dayEntries.filter((e) => PICK_QIDS.has(e.qid) && typeof e.entity === "string" && e.entity !== "");
     let refolded = 0;
@@ -559,7 +559,7 @@ export async function runPatternsFit(
     const answersByUid = new Map<string, AnswerMap>();
     const anchorsByUid = new Map<string, Record<string, Record<string, string>>>();
     // The person's NEWEST anchors of the day, kept to what the cube would
-    // count (D454) — a snapshot the compaction sets whole, last wins like
+    // count (D455) — a snapshot the compaction sets whole, last wins like
     // the answer map. Read off every entry of the day, the two-option
     // ones included: an anchor is on the answer whatever its question.
     const newestAnchors = new Map<string, AnchorMap>();
@@ -612,8 +612,8 @@ export async function runPatternsFit(
     // What else is known about a person before the day: their anchors —
     // the state's, else the ones on today's own entries, since the
     // profile precedes the answer and a newcomer's demographics are
-    // evidence one step ahead too (D454) — and their picks from before
-    // the day (D455; today's are not, since a pick and a vote on one day
+    // evidence one step ahead too (D455) — and their picks from before
+    // the day (D456; today's are not, since a pick and a vote on one day
     // have no order the ledger keeps).
     const known = new Map<string, PersonKnown>();
     for (const uid of uids) {
@@ -855,7 +855,7 @@ export async function runPatternsFit(
   // night instead of one; the model carries that (PATTERNS_SCAN_READS_PER_MAU).
   //
   // What the callback hands over is the whole person, not the answer map:
-  // the anchor items (D454) and the pick items (D455) are compiled from
+  // the anchor items (D455) and the pick items (D456) are compiled from
   // the values the population carries, so the compilation moved into the
   // streamed fit's own pass 0 — the buffered fit could be handed a
   // ready-made index because it had the crowd in hand, and this one has
@@ -999,7 +999,7 @@ export async function runPatternsFit(
     candidates: nextEngine === "als" ? { sgd: sgdCandidate } : { als: alsCandidate },
     ...(crossed ? { crossedAt: yesterday } : prev?.crossedAt ? { crossedAt: prev.crossedAt } : {}),
   };
-  // ── the world map's positions (D458) ──────────────────────────
+  // ── the world map's positions (D459) ──────────────────────────
   //
   // One more scan, and the only one that reads the people AFTER the rows
   // are final: every person is solved against the rows this publication
@@ -1193,9 +1193,9 @@ export function firestorePatternsStore(
               // into what this returns, so a read that dropped it would
               // publish a candidate fitted on yesterday alone, every night.
               ...(snap.get("a") ? { a: snap.get("a") as Record<string, number> } : {}),
-              // the anchors, both ways as well (D454) — same reason as `a`
+              // the anchors, both ways as well (D455) — same reason as `a`
               ...(snap.get("an") ? { an: snap.get("an") as Record<string, string> } : {}),
-              // and the picks (D455)
+              // and the picks (D456)
               ...(snap.get("p") ? { p: snap.get("p") as Record<string, string> } : {}),
             });
           }

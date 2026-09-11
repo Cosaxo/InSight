@@ -77,7 +77,7 @@ export function countryOf(city: string | undefined): string | null {
  * the component adapts; keeping the shape local keeps this module pure). */
 export interface PeopleItem {
   qid: string;
-  /** The question's surface, for the fetch order (D457): the daily is the
+  /** The question's surface, for the fetch order (D458): the daily is the
    * one question everyone answers, so its lists are where overlap lives. */
   surface?: string;
   /** The published loading vector. */
@@ -92,7 +92,7 @@ export interface PeopleItem {
   optionLabels: readonly string[];
 }
 
-/** One anchor row the fit published (D454): the breakdown dim, the value
+/** One anchor row the fit published (D455): the breakdown dim, the value
  * it stands for, its vector, and the crowd's mean of the encoded value. */
 export interface PeopleAnchorRow {
   dim: string;
@@ -128,7 +128,7 @@ export interface PlacedPerson {
    * is a rank, not a measurement. */
   many: boolean;
   /** Shared answers seen in the fetched samples — the stated basis.
-   * Zero on a person placed from the published position alone (D458),
+   * Zero on a person placed from the published position alone (D459),
    * whose card states their answer count and claims no agreement. */
   shared: number;
   agree: number;
@@ -179,7 +179,7 @@ export interface PeopleField {
 
 /**
  * Which questions' voter lists the lens asks for: the viewer's answered
- * pool questions — the DAILY's first (D457: everyone answers the same
+ * pool questions — the DAILY's first (D458: everyone answers the same
  * daily, so those lists are where two people's answers overlap however
  * large the feed grows, and `PEOPLE_MIN_SHARED` stays reachable), then
  * strongest loading basis. Recency would match Kindred's choice but the
@@ -245,7 +245,7 @@ export interface PeopleFoldOpts {
    * otherwise. Both solves — strangers' and the viewer's — use it. */
   lambda?: number;
   /**
-   * The anchor rows the fit published (D454). Each stranger's frozen
+   * The anchor rows the fit published (D455). Each stranger's frozen
    * chips are encoded against them exactly as the fit encoded everyone —
    * +1 carrying the value, −1 carrying the dim with another value,
    * nothing for a dim left empty — so a person's dot starts from their
@@ -255,7 +255,7 @@ export interface PeopleFoldOpts {
    */
   anchorRows?: readonly PeopleAnchorRow[];
   /**
-   * The nightly published positions for this population (D458) — every
+   * The nightly published positions for this population (D459) — every
    * person the fit placed, not only the ones whose answers you share.
    *
    * They are placed WHERE THE SERVER PUT THEM: the fit solved each person
@@ -338,7 +338,7 @@ export function foldPeople(
     }
   }
 
-  // the strangers' anchors as evidence (D454) — after the floor below has
+  // the strangers' anchors as evidence (D455) — after the floor below has
   // been decided on answers alone, which is why this adds to `obs` and to
   // nothing else
   const anchorRows = opts.anchorRows ?? [];
@@ -378,7 +378,7 @@ export function foldPeople(
     });
   }
 
-  // ── the published crowd (D458) ──────────────────────────────────
+  // ── the published crowd (D459) ──────────────────────────────────
   //
   // Everyone the nightly fit placed, minus the people the samples already
   // put on the field: a sample row carries the shared-answer count and the

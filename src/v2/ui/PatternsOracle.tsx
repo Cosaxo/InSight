@@ -58,7 +58,7 @@ const OR_MASS_FULL = 0.5;
 const OR_MASS_GAMMA = 0.62; // compresses the per-question jitter in that ramp
 const OR_LAND_MS = 780; // travel + settle, when the verdict glyph resolves
 // The record says how it is doing against plain guessing once it holds
-// this many graded answers with a base rate (D456) — the server
+// this many graded answers with a base rate (D457) — the server
 // scorecard's own floor (PATTERNS_QUALITY_FLOOR), so a person's number
 // is held to the same basis the crowd's is. Under it the sentence is not
 // printed: two answers is a coin's run, not a reading.
@@ -206,7 +206,7 @@ function OrDone({ log, qOf, anyOpen, skill }: {
   log: readonly OracleRecord[];
   qOf: (qid: string) => PoolItem | undefined;
   anyOpen: boolean;
-  /** The meter's verdict on this viewer (D456), printed with its basis
+  /** The meter's verdict on this viewer (D457), printed with its basis
    * once it has one. */
   skill?: string | null;
 }): React.ReactElement {
@@ -559,7 +559,7 @@ export default function PatternsOracle({ items, guide = false }: {
                       </div>
                     );
                   })}
-                  {/* the groups that carried the call (D453): the viewer's
+                  {/* the groups that carried the call (D454): the viewer's
                       own bucket in a dim, and of that cell's answers on this
                       question how many took the called side — the seal's
                       starting point, shown with its basis like the answers
@@ -601,7 +601,7 @@ export default function PatternsOracle({ items, guide = false }: {
         <div style={{ flex: "none", marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--rule)" }}>
           <div className="pt-kick">
             Your record · {log.length} answer{log.length === 1 ? "" : "s"}
-            {/* the verdict, once the record has a basis (D456): outside
+            {/* the verdict, once the record has a basis (D457): outside
                 the field, with its count, the reading of the marks */}
             {skillLine && <>{" · "}<span style={{ textTransform: "none", letterSpacing: 0 }}>{skillLine}</span></>}
             {guide && <>
