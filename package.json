@@ -105,6 +105,8 @@
     "check:pricing": "node scripts/check-pricing.mjs",
     "build:ask-pricing": "node scripts/build-ask-pricing.mjs",
     "check:ask-pricing": "node scripts/build-ask-pricing.mjs --check",
+    "build:ask-places": "node scripts/build-ask-places.mjs",
+    "check:ask-places": "node scripts/build-ask-places.mjs --check",
     "build:pricing-ts": "node scripts/gen-pricing-ts.mjs --write",
     "check:public-copy": "node scripts/check-public-copy.mjs",
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
