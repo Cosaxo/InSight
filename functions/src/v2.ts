@@ -1340,11 +1340,14 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    const answerRef = db.collection("v2_users").doc(event.params.uid).collection("answers").doc(qid);
     let logged: LogRow | null = null;
     await runAggTransaction(db, qid, async (tx) => {
       logged = null;
-      // One document, batched — same as the create path above.
-      const [seen, agg] = await tx.getAll(eventRef, pubRef);
+      // TWO documents and the answer, batched — same round trip the create
+      // path makes. The answer is re-read rather than taken from the event
+      // payload; the block below `retargetAnchors` has why.
+      const [seen, agg, live] = await tx.getAll(eventRef, pubRef, answerRef);
       if (seen.exists) return;
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
@@ -1362,11 +1365,45 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const total = (agg.exists && (agg.get("total") as number)) || 0;
       const by: BreakdownCounts =
         (agg.exists && (agg.get("by") as BreakdownCounts)) || {};
-      // The anchors snapshot is frozen (rules), so this lands in exactly
-      // the cells the create folded into — or skips a dimension where cap
-      // churn means the old vote is no longer represented (pure.ts has the
-      // accounting). Bucket totals never move.
-      retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      // THE ANCHORS ARE RE-READ, not taken from the event payload, and the
+      // difference is a hole anyone with a free account could walk through.
+      //
+      // This line read `after.get("anchors")` under a comment saying the
+      // snapshot "is frozen (rules), so this lands in exactly the cells the
+      // create folded into". Frozen it is — the rules refuse to change it.
+      // Honest it is not: the CREATE trigger is what makes it honest
+      // (D410), comparing the claim against the author's profile and
+      // rewriting the document when they differ. And an event payload is a
+      // point-in-time snapshot, so an edit written before that correction
+      // landed carries the claim the create already threw away.
+      //
+      // The create arm's own comment states the contract this broke:
+      // "onV2AnswerUpdated re-reads these anchors to retarget the -old/+new
+      // delta and must find the cells this create folded." Re-reads. It did
+      // not.
+      //
+      // MEASURED on the emulator with live triggers: an honest voter in
+      // 55-64 answers option 0; a second account whose profile says 25-34
+      // writes `anchors:{ageBand:"55-64"}` with option 0 and immediately
+      // edits to 1. The published breakdown came out
+      //     {"ageBand":{"55-64":{"1":1},"25-34":{"0":1}}}
+      // where the truth is {"55-64":{"0":1},"25-34":{"1":1}} — BOTH cells
+      // wrong, on a document every signed-in device reads, and the honest
+      // voter's answer moved between options in a band that is not theirs.
+      // The ledger row below carried the same invented chips onward into
+      // the nightly voter sample.
+      //
+      // The re-read costs nothing extra: the answer joins the getAll that
+      // was already fetching two documents. The counts guard above has
+      // already proved the create folded, so the correction is on the
+      // document by the time this runs — that is the same transaction.
+      //
+      // An answer that is GONE falls back to the payload: the only way it
+      // disappears between the edit and here is erasure, which scrubs this
+      // fold anyway, and a missing document is not a reason to skip the
+      // retarget and leave the counts split.
+      const anchors = live.exists ? live.get("anchors") : after.get("anchors");
+      retargetAnchors(by, anchors, fromIdx, toIdx);
       // …and the same move inside the tail (D400), for a bucket the hot
       // map does not hold: its shard is read (only then — capBoundShards
       // is empty for a bucket in the hot map or a dimension under the
@@ -1374,8 +1411,8 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // own skip rule. Read here, before the writes below, as a
       // transaction requires.
       const tailMoves = retargetTail(
-        await readOverflowShards(tx, db, qid, capBoundShards(by, after.get("anchors"))),
-        after.get("anchors"),
+        await readOverflowShards(tx, db, qid, capBoundShards(by, anchors)),
+        anchors,
         fromIdx,
         toIdx,
       );
@@ -1385,8 +1422,8 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
-      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors: after.get("anchors") });
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, anchors));
+      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors });
       // …and the map moves with the edit (runbook 3.2), after the retry
       // guard above, so a deferred edit moves it once, on the delivery
       // that actually moves the count.

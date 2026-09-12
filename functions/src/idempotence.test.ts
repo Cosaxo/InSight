@@ -112,9 +112,15 @@ async function deliverEdit(id: string, from: number, to: number, anchors?: Doc) 
   const doc = (optionIdx: number) => ({
     exists: true,
     // The anchors snapshot is FROZEN by rules, so the real edit event
-    // carries the same one the create did — and the breakdown retarget
-    // reads it off the `after` document. Optional here so the cases that
-    // are only about counts stay as small as they were.
+    // carries the same one the create did — the CLAIM, which is not the
+    // same thing as the honest set. This comment used to stop at "and the
+    // breakdown retarget reads it off the `after` document", which was
+    // true and was the bug: the create trigger corrects the stored anchors
+    // (D410) and an event payload is a point-in-time snapshot, so an edit
+    // written before that correction landed carries a cohort the create
+    // already threw away. The retarget re-reads the document now. Optional
+    // here so the cases that are only about counts stay as small as they
+    // were.
     get: (f: string) => ({ surface: "daily", optionIdx, ...(anchors ? { anchors } : {}) } as Doc)[f],
   });
   await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
@@ -446,6 +452,44 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
     const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
     expect(a?.anchors, "the catalog answer kept the cohort it invented")
       .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("retargets an EDIT into the profile's cohort, not the one the event carries", async () => {
+    // THE HOLE THIS CLOSES. The create arm corrects an invented cohort and
+    // rewrites the document; the edit arm then moved the -old/+new delta
+    // using the anchors on its own EVENT PAYLOAD, which is a snapshot from
+    // before that correction. So a second account could claim a stranger's
+    // band, answer, and immediately edit — and the move landed in the
+    // claimed band, taking a cell that belongs to someone else with it.
+    //
+    // Measured on the emulator with live triggers before the fix: an honest
+    // voter in 55-64 on option 0 and a liar from 25-34 editing 0→1 produced
+    //     {"ageBand":{"55-64":{"1":1},"25-34":{"0":1}}}
+    // where the truth is {"55-64":{"0":1},"25-34":{"1":1}} — both cells
+    // wrong on a world-readable document.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    // The create, with the lie. D410 folds it honestly and corrects the row.
+    await deliver("e-edit-lie-create", {
+      surface: "daily", optionIdx: 0,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const after0 = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(after0.ageBand["25-34"], "the create did not fold honestly — this case rests on it").toEqual({ "0": 1 });
+
+    // The edit, whose payload still carries the claim — which is exactly
+    // what a real Eventarc delivery looks like in that window.
+    await deliverEdit("e-edit-lie-update", 0, 1, { ageBand: "55-64", country: "JP" });
+
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.ageBand["25-34"], "the edit moved a band that is not the author's").toEqual({ "1": 1 });
+    expect(by.ageBand["55-64"], "the claimed band took the move anyway").toBeUndefined();
+    expect(by.country.NO).toEqual({ "1": 1 });
+    expect(by.country.JP, "the claimed country took the move anyway").toBeUndefined();
+    // …and the ledger row the nightly sample reads, which carried the
+    // invention onward.
+    const led = store.get("v2_agg_events/e-edit-lie-update") as Doc | undefined;
+    expect(led?.anchors, "the ledger published the invented cohort").toEqual({ ageBand: "25-34", country: "NO" });
   });
 
   it("writes NOTHING to an honest CATALOG answer either", async () => {
