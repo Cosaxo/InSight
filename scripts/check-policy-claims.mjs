@@ -364,8 +364,26 @@ export const CLAIMS = [
   // phrase that happens to break across a line is still on the page.
   ["D443 · your data can be downloaded as one JSON file, and it is the list deletion removes",
     /download\s+button[\s\S]{0,160}?one\s+JSON\s+file[\s\S]{0,900}?list\s+deletion\s+removes/i],
-  ["D443 · and the file says what it leaves out: the logic answer key, who reported you, the push token, the presence cell",
-    /leaves\s+four\s+things\s+out[\s\S]{0,200}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,160}?square\s+your\s+presence/i],
+  // FIVE, not four, and the correction is the lesson. This row was written
+  // from the PAGE rather than from `functions/src/exportAccount.ts`, so it
+  // pinned the page's own miscount and went green over it for the whole of
+  // D443's life. The export pushes six `omitted` entries — `collections.push`,
+  // `flags.received*`, `presence.cell` and `followers` unconditionally, plus
+  // `answerLog` when BigQuery is unreadable and `logicAttempt.seed` when an
+  // attempt exists — and the page named four, missing `followers` entirely
+  // while listing a conditional one as though it always applied. A reader
+  // who followed the policy and then opened their file met an omission the
+  // disclosure had not mentioned.
+  //
+  // STILL HAND-WRITTEN, and that is the remaining weakness: this row is a
+  // second copy of a list whose first copy is in the export, so the next
+  // `omitted.push` can drift it again. Deriving it — parse the `what:`
+  // literals out of exportAccount.ts and require each to be answered on the
+  // page — is the fix that ends the class, and it is its own change: the
+  // mapping from `collections.push` to "this phone's notification token" is
+  // prose, not a substring, so it needs a table this gate does not have yet.
+  ["D443 · and the file says what it leaves out: the logic answer key, who reported you, the push token, the presence cell, and that follows are counted not named",
+    /leaves\s+five\s+things\s+out[\s\S]{0,240}?answer\s+key[\s\S]{0,160}?who\s+reported\s+you[\s\S]{0,160}?notification\s+token[\s\S]{0,200}?square\s+your\s+presence[\s\S]{0,200}?who\s+follows\s+you/i],
   ["D443 · the byte bound is stated (8 MB), and the email route serves an export too",
     /over\s+8\s+MB[\s\S]{0,400}?email\s+route\s+serves\s+an\s+export/i],
 ];
