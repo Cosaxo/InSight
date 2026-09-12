@@ -51517,6 +51517,37 @@ Two are real and neither is this:
   indistinguishable, which is why the message names both. From inside the
   job it is decidable, and the annotation says which.
 
+  **The refresh is ON THE CLOCK ONLY, and that condition is a cost
+  decision with arithmetic.** `pulse.yml` also runs on every push to
+  main, and that is the dominant trigger by a wide margin: of its last
+  100 runs on main, 95 were pushes and 5 were the cron — 13 · 10 · 34 ·
+  14 · 13 · 15 runs a day over 09-06…09-11, ~17/day average. The fetch
+  pages the WHOLE `v2_question_aggs` collection (~1,536 documents at
+  pageSize 300), so firing it per push is ~26,000 billed reads a day —
+  about $0.50/month at $0.06–0.072 per 100k — to refresh a trail whose
+  newest row is a DAY old by construction. Once a day is the same signal
+  at 1/17th of the bill, and the guard's own window is 7 days
+  (`MEASURE_MAX_AGE_DAYS`), so nothing downstream can tell the
+  difference. `workflow_dispatch` is included because that is the
+  operator's "refresh it now" — the lever the gate's own message asks
+  for, hand-pulled rather than looping. The first draft of this change
+  had no condition, and the owner asking for the cost to be
+  double-checked is what found it: the measurement was the fix.
+
+  **And the arithmetic on the failures themselves, since the flood is
+  what prompted the question: they cost nothing.** The repository is
+  PUBLIC, and every `runs-on` in the tree is a standard label
+  (`ubuntu-latest` ×31, `macos-latest` ×3 — no larger runners, which are
+  the one thing a public repo still bills), so GitHub-hosted minutes are
+  free and unmetered however many runs go red. The path-named deploy
+  failures are stronger than that: each created ZERO jobs and ran zero
+  seconds (the logs endpoint 404s), so they would bill nothing even on a
+  private repo. A failing Pulse run is ~15 seconds of a free runner and
+  `pulse.mjs` makes no network call at all, so it reads nothing either.
+  And the broken deploy DEPLOYED NOTHING, so the outage's Firebase cost
+  is zero by construction — the bill did not move for 31 hours because
+  nothing ran, which is the same fact as the outage.
+
   What is NOT claimed: this has not been observed fetching. The key is a
   production variable and the trail's 8 days are contiguous up to the last
   fetch (`2026-08-18`…`2026-08-25`, `fetchedOn: 2026-08-26`), which is

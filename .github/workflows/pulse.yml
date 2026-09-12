@@ -117,7 +117,23 @@ jobs:
       # trail exactly as it was, and the gate below then reports the
       # staleness it was always going to report — so the signal degrades to
       # what it is today and never inverts.
+      # ON THE CLOCK ONLY, and this condition is the whole cost argument.
+      #
+      # This job also runs on every push to main, which is ~17 times a day
+      # measured (13 · 10 · 34 · 14 · 13 · 15 over 09-06..09-11, and the
+      # cron is 5 of the last 100 runs — the pushes dominate). The fetch
+      # pages the WHOLE v2_question_aggs collection, ~1,536 documents at
+      # pageSize 300, so running it per push is ~26,000 billed reads a day
+      # (~$0.50/month) to refresh a trail whose newest row is a DAY. One
+      # read set a day is the same signal for 1/17th of the bill, and the
+      # guard's own staleness window is 7 days (MEASURE_MAX_AGE_DAYS), so
+      # nothing downstream can tell the difference.
+      #
+      # workflow_dispatch is included deliberately: that is the operator's
+      # "refresh it now", which is exactly what the gate's message asks
+      # for, and it is a hand-pulled lever rather than a loop.
       - name: Refresh the engagement trail
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         id: refresh
         continue-on-error: true
         env:
@@ -151,9 +167,17 @@ jobs:
       # apart. From here it can: this line says which.
       - name: Say whether the trail moved
         run: |
-          if [ "${{ steps.refresh.outcome }}" = "failure" ]; then
-            echo "::warning::the engagement fetch FAILED — the usage guard below is pricing the trail as it was. Read its staleness as a fetch problem, not a digest one."
-          fi
+          case "${{ steps.refresh.outcome }}" in
+            failure)
+              echo "::warning::the engagement fetch FAILED — the usage guard below is pricing the trail as it was. Read its staleness as a fetch problem, not a digest one."
+              ;;
+            skipped)
+              # Not a fault: a push run deliberately does not fetch (see the
+              # condition above). Said out loud so a stale guard on a push
+              # run is not misread as a broken fetch.
+              echo "engagement refresh: skipped on a push run — the trail refreshes on the clock."
+              ;;
+          esac
           echo "Engagement refresh: ${{ steps.refresh.outcome }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Regenerate the console
