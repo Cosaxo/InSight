@@ -21,15 +21,21 @@ const S = vi.hoisted(() => ({
   asked: [] as string[][],
   perm: { location: "granted", coarseLocation: "granted" } as Record<string, string>,
   /** Every options object handed to getCurrentPosition. */
-  opts: [] as { enableHighAccuracy?: boolean }[],
+  opts: [] as { enableHighAccuracy?: boolean; maximumAge?: number }[],
   coords: { latitude: 59.9139, longitude: 10.7522, accuracy: 12 },
+  /** Per-call accuracy, for the cases about CONVERGING on a fix; null
+   *  leaves `coords` exactly as it is. */
+  accuracyOf: null as null | (() => number),
 }));
 
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => S.native } }));
 vi.mock("@capacitor/geolocation", () => ({
   Geolocation: {
     requestPermissions: async (o: { permissions: string[] }) => { S.asked.push(o.permissions); return S.perm; },
-    getCurrentPosition: async (o: { enableHighAccuracy?: boolean }) => { S.opts.push(o); return { coords: S.coords }; },
+    getCurrentPosition: async (o: { enableHighAccuracy?: boolean; maximumAge?: number }) => {
+      S.opts.push(o);
+      return { coords: S.accuracyOf ? { ...S.coords, accuracy: S.accuracyOf() } : S.coords };
+    },
   },
 }));
 // The catalogue is a real network-free list in the app; here it only has to
@@ -48,6 +54,7 @@ beforeEach(async () => {
   S.opts = [];
   S.perm = { location: "granted", coarseLocation: "granted" };
   S.coords = { latitude: 59.9139, longitude: 10.7522, accuracy: 12 };
+  S.accuracyOf = null;
   vi.resetModules();
   locate = await import("./locate");
 });
@@ -87,7 +94,30 @@ describe("a fix coarser than the cell is not a cell", () => {
     S.coords = { ...S.coords, accuracy: 2000 };
     const r = await locate.locateCell();
     expect(r.ok, "a ~2 km reading was folded into a ~200 m square").toBe(false);
-    expect(r.ok === false && r.reason, "the stall row needs this exact reason").toBe("unavailable");
+    // NOT "unavailable", which is what this asserted until 2026-09-11: the
+    // card renders that as "No location fix — try again outside", and this
+    // phone has a fix and is not helped by going outside. The refusal
+    // stands; the word for it names the approximate GRANT.
+    expect(r.ok === false && r.reason, "the failure row needs this exact reason").toBe("imprecise");
+  });
+
+  it("spends its retries before calling a first coarse reading imprecise", async () => {
+    // The first sample a cold phone produces is the wifi/cell estimate; the
+    // GNSS fix lands a beat later. Near shipped refusing on that first
+    // sample, which is how a phone that CAN do better never switched it on.
+    let n = 0;
+    S.accuracyOf = () => (++n < 3 ? 900 : 30);
+    const r = await locate.locateCell();
+    expect(r.ok, "a fix that converged inside the budget was still refused").toBe(true);
+    expect(n, "the retries were not fresh samples").toBeGreaterThan(1);
+    // …and every retry forbids the cache, or it is the same reading again.
+    expect(S.opts.slice(1).every((o) => o.maximumAge === 0), "a retry answered from the cache").toBe(true);
+  });
+
+  it("stops asking once a fix beats the cell", async () => {
+    S.coords = { ...S.coords, accuracy: 12 };
+    await locate.locateCell();
+    expect(S.opts, "a good first fix bought retries nobody needed").toHaveLength(1);
   });
 
   it("accepts a fix that beats the cell — the control", async () => {

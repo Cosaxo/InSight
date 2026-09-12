@@ -82,8 +82,19 @@ export function exemptionsOf(indexesJson, group) {
  * item metadata beside them, a scorecard with a per-question map, and
  * the benched engine's block carrying `candRows` rows of the same shape.
  * Keys are shaped like the real ones — a bank id, an option suffix, an
- * anchor's or a pick's — so the name bytes count as they would. */
-export function publicationOf({ rows, k = 8, candRows = 113, perQ = rows, ordShare = 0.4, meta = true } = {}) {
+ * anchor's or a pick's — so the name bytes count as they would.
+ *
+ * `candRows` DEFAULTS TO THE FULL SET, because that is what the publisher
+ * writes: `functions/src/patterns.ts` builds both candidates with `q:
+ * alsRowsOut` / `q: sgdRowsOut`, the same rows the engine block carries.
+ * It was pinned at 113 — which is not a candidate count at all but the
+ * ring's dot figure from PATTERNS-PLAN §7.2 — and that one default was
+ * the difference between a document this instrument called safe and the
+ * one the nightly actually writes. §7.1 names this exact case as the thing
+ * that crosses the wall ("a second engine carrying the full corpus in
+ * `candidates`"), so the instrument built to answer the question was
+ * assuming the answer away. */
+export function publicationOf({ rows, k = 8, candRows = rows, perQ = rows, ordShare = 0.4, meta = true } = {}) {
   const row = (i) => ({
     v: Array.from({ length: k }, (_, j) => Math.round(Math.sin(i + j) * 10000) / 10000),
     n: 40 + (i % 200),
@@ -132,10 +143,15 @@ export function rowsAt(limit = DOC_BYTES_LIMIT, opts = {}) {
  * twenty-four cards). Stated, not read — the instrument is about shape. */
 export const TODAY_ROWS = 545 + 100 + 240;
 
+/** The row count PATTERNS-PLAN §7.1 shards at. Shared with the test so the
+ * two cannot drift, and printed against the measured limit rather than
+ * asserted to be under it. */
+export const SHARD_AT = 1800;
+
 export function report(indexesJson) {
   const exempt = exemptionsOf(indexesJson, "v2_patterns");
   const lines = [];
-  for (const rows of [545, TODAY_ROWS, 2500, rowsAt()]) {
+  for (const rows of [545, TODAY_ROWS, SHARD_AT, rowsAt()]) {
     const doc = publicationOf({ rows });
     const bytes = documentBytes("v2_patterns/loadings", doc);
     lines.push({ rows, bytes, entriesIndexed: indexEntries(doc), entriesNow: indexEntries(doc, exempt) });
@@ -150,5 +166,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   console.log(`loadings budget — ${r.exempt.length ? `v2_patterns exempt on ${r.exempt.join(", ")}` : "v2_patterns NOT exempt"}; ceilings ${DOC_BYTES_LIMIT} bytes, ${INDEX_ENTRIES_LIMIT} index entries`);
   console.log("  rows   bytes     entries(indexed)  entries(as committed)");
   for (const l of r.lines) console.log(`  ${String(l.rows).padStart(5)}  ${String(l.bytes).padStart(8)}  ${String(l.entriesIndexed).padStart(16)}  ${String(l.entriesNow).padStart(21)}`);
-  console.log(`  1 MiB holds about ${r.rowsAt1MiB} rows of this shape; the plan shards at 2,500.`);
+  console.log(`  1 MiB holds about ${r.rowsAt1MiB} rows of this shape; the plan shards at ${SHARD_AT}.`);
+  // READ OFF THE MEASUREMENT, never asserted: the sentence this replaced
+  // said the trigger "stands inside the wall" while the model underneath
+  // it was benching the candidate engine at 113 rows.
+  console.log(r.rowsAt1MiB > SHARD_AT
+    ? `  The trigger is inside the wall, with ${r.rowsAt1MiB - SHARD_AT} rows of room.`
+    : `  THE TRIGGER IS OUTSIDE THE WALL: the write refuses ${SHARD_AT - r.rowsAt1MiB} rows before sharding starts.`);
 }

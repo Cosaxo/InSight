@@ -62,7 +62,7 @@ import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import { isStamped, playedIn } from "./pure";
-import { citySampleId } from "./patternsSamples";
+import { citySampleId, WORLD_SAMPLE_PAGE } from "./patternsSamples";
 import { fanoutBudgetId } from "./profileFanout";
 import { logWriter, type LogRow } from "./log";
 
@@ -91,6 +91,10 @@ export const TWIN: Record<string, string> = {
   ownSubtree: "legacy",
   aggEvents: "answerLedger",
   patternSamples: "voterSamples",
+  // 1a‴ — the world map's published positions (D462). Its own label since
+  // 2026-09-12: folded under `patternSamples`, it was a document family
+  // with an erasure arm, no export section, and nothing able to notice.
+  worldMapPositions: "worldMap",
   v2Subtree: "profile",
   logicAttempt: "logicAttempt",
   takesFlags: "takes",
@@ -341,17 +345,57 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
   //      to keep this callable away from. `sample-` ≤ id < `sample.` is
   //      the world family exactly ('.' follows '-' in ASCII).
   {
-    const world = await db.collection("v2_patterns")
+    //      AND PAGED (WORLD_SAMPLE_PAGE), which the id range alone did not
+    //      make it: the range keeps this callable away from the ~10,900
+    //      city documents, but the world family itself was still read
+    //      entire — 233 MiB retained at the 2026-09-11 corpus, in the 256
+    //      MiB this function runs on, and growing with the corpus. What
+    //      is kept is one row per document, so a page can go as soon as
+    //      it has been read.
+    let world = db.collection("v2_patterns")
       .where(FieldPath.documentId(), ">=", "sample-")
       .where(FieldPath.documentId(), "<", "sample.")
+      .orderBy(FieldPath.documentId())
+      .limit(WORLD_SAMPLE_PAGE);
+    const rows: { [k: string]: Plain } = {};
+    for (;;) {
+      const page = await world.get();
+      if (page.empty) break;
+      for (const snap of page.docs) {
+        if (!snap.exists) continue;
+        const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+        if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
+      }
+      if (page.size < WORLD_SAMPLE_PAGE) break;
+      world = world.startAfter(page.docs[page.size - 1]);
+    }
+    out.voterSamples = m.add(rows);
+  }
+
+  // 1a‴. The world map's published positions (D462): one row per
+  //      population this account was placed in — the world's document and
+  //      its country's — each holding two coordinates and the answer count
+  //      that earned them. WORLD-READABLE, under a display name, which is
+  //      why the omission mattered: this is the most public thing the app
+  //      computes about a person and the file that promises "everything
+  //      the account holds" did not carry it.
+  //
+  //      Same ID range as the erasure's own arm, and for the same reason
+  //      it gives: a person whose country chip has moved still has a row
+  //      under the old one until the next rebuild, so the current chip is
+  //      not a safe key to read by.
+  {
+    const world = await db.collection("v2_patterns")
+      .where(FieldPath.documentId(), ">=", "people-")
+      .where(FieldPath.documentId(), "<", "people.")
       .get();
     const rows: { [k: string]: Plain } = {};
     for (const snap of world.docs) {
       if (!snap.exists) continue;
       const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
-      if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
+      if (uid in all) rows[snap.id.slice("people-".length)] = toPlain(all[uid]);
     }
-    out.voterSamples = m.add(rows);
+    out.worldMap = m.add(rows);
   }
 
   // 1a″. The answer log (D447 phase A): the ledger's mirror in BigQuery —

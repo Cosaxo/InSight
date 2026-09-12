@@ -92,6 +92,10 @@ const STALL: Record<string, string> = {
   unavailable: "Couldn’t reach the count.",
   timeout: "The fix took too long — indoors it often does.",
   unsupported: "This device can’t share a location.",
+  // The fix is working and too wide to stand behind (locate.ts's
+  // `imprecise`). Its own sentence because the remedy is a switch in the
+  // OS, and none of the four above sends anyone to it.
+  imprecise: "Your location went approximate — Near needs Precise Location on.",
 };
 
 // How old, in the roughest terms that are still true. A count four minutes
@@ -201,6 +205,13 @@ function NearPresence() {
     unavailable: "No location fix — try again outside.",
     timeout: "Took too long — indoors it often does.",
     unsupported: "This device can't share a location.",
+    // REPORTED FROM A DEVICE: Near would not switch on, under "No location
+    // fix — try again outside", outdoors, on a phone whose location arrow
+    // was lit. The fix was there; it was wider than the presence square
+    // (locate.ts's `imprecise`), and the sentence sent the reader to the
+    // one place that could not help. Going outside is not the remedy for
+    // an approximate GRANT — the switch in the OS is.
+    imprecise: "Only an approximate location — Near needs Precise Location on.",
   };
 
   async function turnOn() {

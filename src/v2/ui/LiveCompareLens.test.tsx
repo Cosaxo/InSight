@@ -53,6 +53,9 @@ const LIVE = vi.hoisted(() => ({
   // Its people twin — every surface that mounts a similarity field
   // reads it now, so the stub belongs beside its sibling.
   kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // the CITY pass's own reading (live.ts): a second fan-out with a second
+  // failure, which the City field reads instead of the world pass's
+  cityKindredState: (): "loading" | "ready" | "failed" => "ready",
   subscribe: () => () => {},
   // RESOLVES TRUE — the store answers whether the read landed, and a
   // fixture resolving `undefined` reads as a failure. The shape is the
@@ -265,6 +268,57 @@ describe("reading is not empty", () => {
     render(lens({ basis: "people", uids: ["a"] }));
     expect(screen.getByText(/Fills in as you answer/)).toBeTruthy();
     expect(screen.queryByText("Reading…")).toBeNull();
+  });
+});
+
+/**
+ * The cells basis's reading signal belongs to the POPULATION, not to the
+ * basis.
+ *
+ * It was read off the basis name — `pop.basis === "cells" ?
+ * LIVE.testAggsState() : "ready"` — and `testAggsState` is a flag about
+ * `loadSimilarity()`, whose only call site is the constellation at the
+ * head of the City/Country/World stops. Circle is the SECOND stop and
+ * folds its cells from `LIVE.circle()`, which it loads itself; it never
+ * calls that loader. So the borrowed flag answered about a fetch Circle
+ * does not start: at its "loading" default it said "Reading…" and kept
+ * saying it, and after an unrelated failure it claimed a read had failed
+ * that was never attempted.
+ *
+ * The harness stubbed `testAggsState` "ready", which is why every case
+ * above passed over this. These three pin the three answers at the prop.
+ */
+describe("the cells basis asks the population, not the basis", () => {
+  it("a population that loads its own cells is ready, whatever the cohort loader is doing", () => {
+    // Circle's shape: no `cellsState`, no cells yet. The old code read
+    // LIVE.testAggsState() here and would have said "Reading…" forever.
+    LIVE.testAggsState = () => "loading";
+    LIVE.myTestResults = () => stored({ big5: { O: 90, C: 70, E: 50 } });
+    render(lens({ basis: "cells", cellOf: () => null, minAnswers: MIN_ANSWERS, minItems: MIN_ITEMS }));
+    expect(screen.queryByText("Reading…"), "a stop that does its own loading was told to wait for somebody else's").toBeNull();
+    expect(screen.getByText(OSLO_EMPTY)).toBeTruthy();
+  });
+
+  it("a population that declares itself loading says so", () => {
+    LIVE.testAggsState = () => "ready";
+    LIVE.myTestResults = () => stored({ big5: { O: 90, C: 70, E: 50 } });
+    render(lens({
+      basis: "cells", cellOf: () => null, minAnswers: MIN_ANSWERS, minItems: MIN_ITEMS,
+      cellsState: () => "loading",
+    }));
+    expect(screen.getByText("Reading…")).toBeTruthy();
+    expect(screen.queryByText(OSLO_EMPTY), "an absence was stated about cells still in flight").toBeNull();
+  });
+
+  it("…and one that declares itself failed says THAT, not that nobody answered", () => {
+    LIVE.testAggsState = () => "ready";
+    LIVE.myTestResults = () => stored({ big5: { O: 90, C: 70, E: 50 } });
+    render(lens({
+      basis: "cells", cellOf: () => null, minAnswers: MIN_ANSWERS, minItems: MIN_ITEMS,
+      cellsState: () => "failed",
+    }));
+    expect(screen.getByText(/Couldn’t read the scores here/)).toBeTruthy();
+    expect(screen.queryByText(OSLO_EMPTY), "a failed read still stated an absence").toBeNull();
   });
 });
 

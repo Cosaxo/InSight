@@ -50,7 +50,7 @@ const GUARD_CURRENCY = GUARD.budget?.currency ?? "USD";
 const NUMBER = "123456789012";
 // The topic the function listens on, as the API stores it on the budget.
 const TOPIC = "projects/prvfire33/topics/budget-alerts";
-// The detach line (D465), read off the function the way the script reads
+// The detach line (D471), read off the function the way the script reads
 // it — the one source. The list below is what the script must arm: the
 // four rules COSTS.md's shape gives, then the line billing goes down at.
 const DETACH = Number(readFileSync(join(root, "functions/src/budget.ts"), "utf8").match(/export const BUDGET_DETACH_AT = ([\d.]+);/)[1]);
@@ -217,7 +217,7 @@ describe("apply-budget", () => {
     expect(patch?.url).toBe(patchUrl);
     // The filter is deliberately outside the mask — a re-scoped budget must
     // not be silently re-narrowed by a retune that was about the amount.
-    // And so is the TOPIC once it matches (D465): naming it in the request
+    // And so is the TOPIC once it matches (D471): naming it in the request
     // is what makes the Budgets API demand pubsub.topics.setIamPolicy of
     // the caller, which is the 403 that stopped the 2026-09-10 dispatch.
     expect(Object.keys(patch.body)).toEqual(["amount"]);
@@ -225,7 +225,7 @@ describe("apply-budget", () => {
 
   it("a budget armed before the detach line — four rules and the topic attached — gains the fifth without touching the topic", async () => {
     // The budget as production holds it once the owner's console click has
-    // attached the topic: the retune that carries D465's rule must go
+    // attached the topic: the retune that carries D471's rule must go
     // through from the deploy credential, which the old always-everything
     // mask could not (the topic's 403, whether or not the topic changed).
     reply[key("GET", BUDGETS)] = {
@@ -318,7 +318,7 @@ describe("apply-budget", () => {
     expect(TOPIC.endsWith(`/topics/${inFn}`)).toBe(true);
   });
 
-  it("arms the detach line the function actually detaches at (D465)", () => {
+  it("arms the detach line the function actually detaches at (D471)", () => {
     // The function detaches on the ratio it computes; the script's top
     // rule is only the MAIL for it. Two figures, one wire: a rule armed at
     // some other line would mail "300 %" about a detach that happened at

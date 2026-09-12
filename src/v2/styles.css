@@ -1357,6 +1357,21 @@ button.card:active,
 }
 .wf-tileimg.is-in { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .wf-tileimg { transition: none; } }
+/* …with ONE exception, and it is about what the picture is OF. A duel tile's
+   photograph is a scene: cropping it to the tile loses some sky and the tile
+   is still the picture. A catalogue picture (D421) is a SUBJECT — one
+   Pokémon, one poster, one face — fitted inside a square by the builder
+   (catalog-art-lib's `fit: "inside"`), so the same crop rule takes the head
+   off it: a square drawn into the reveal's 2:1 face loses half its height,
+   dead centre, which is where the subject is. Reported from a device, on
+   Deoxys, with the arms left and the head gone.
+
+   So the subject fits INSIDE its face and the generated pattern frames what
+   is left over — which is the pattern's job everywhere else on these tiles
+   (PickArt's header: it is the permanent fallback, not a placeholder). Every
+   catalogue shape then survives one box: a square Pokémon, a 2:3 poster, a
+   3:2 flag. */
+.wf-tileimg.is-fit { object-fit: contain; }
 /* the band's scrim is set inline in renderDuel (one value over photography, a
    lighter one over generated art) — nothing to override here */
 

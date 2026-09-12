@@ -34,6 +34,15 @@ const LIVE = vi.hoisted(() => ({
 
 vi.mock("../data/live", () => ({ default: LIVE, LIVE }));
 
+// The nightly-published crowd (D462), which no case here could reach
+// before: the lens fetches it through this module, and a dot that arrives
+// this way carries a POSITION and nothing shared with the reader.
+const WORLD = vi.hoisted(() => ({ doc: null as null | { rows: { uid: string; x: number; y: number; n: number }[]; total: number; day: string } }));
+vi.mock("../data/worldPeople", () => ({
+  worldPositions: () => Promise.resolve(WORLD.doc),
+  worldDocId: (c: string | null) => (c ? `people-${c}` : "people-world"),
+}));
+
 const { default: PatternsPeople } = await import("./PatternsPeople");
 
 const item = (qid: string, mine: number | null = 1): PoolItem =>
@@ -71,6 +80,7 @@ beforeEach(() => {
   LIVE.follows = () => [];
   LIVE.followsLoading = () => false;
   LIVE.anchors = () => ({});
+  WORLD.doc = null;
 });
 afterEach(cleanup);
 
@@ -186,6 +196,30 @@ describe("the placed field", () => {
     render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     expect(document.querySelector(".ln-key")).toBeNull();
     expect(screen.queryByText(/everyone who answered at least/)).toBeNull();
+  });
+
+  it("never inks a nightly-placed stranger as disagreeing — nothing shared is not disagreement", async () => {
+    // A published dot carries `shared: 0`, and `agree / max(1, shared)`
+    // read that as 0 — the disagree step — so every stranger the fit
+    // placed was drawn in the same ink as someone who disagrees with the
+    // reader on every question they both answered, under a legend that
+    // says exactly that.
+    WORLD.doc = {
+      rows: [{ uid: "pub1", x: 0.2, y: -0.4, n: 42 }, { uid: "pub2", x: -0.3, y: 0.1, n: 61 }],
+      total: 900,
+      day: "2026-09-12",
+    };
+    const { container } = render(<PatternsPeople items={ITEMS} version={1} guide={true} onOracle={noop} />);
+    await screen.findByText(/900|people/);
+    const fills = [...container.querySelectorAll('svg g[role="button"] circle:last-of-type')]
+      .map((c) => c.getAttribute("fill"));
+    // the ten sampled people still split two ways; the two published ones
+    // are the only additions, and they must be the split ink
+    expect(fills.length).toBe(12);
+    expect(fills.filter((f) => f === "oklch(0.74 0.012 80)").length,
+      "a stranger placed from the nightly fit alone was inked by agreement")
+      .toBe(2);
+    expect(fills.filter((f) => f === "oklch(0.58 0.11 35)").length).toBe(5);
   });
 
   it("colours every dot by agreement, in three steps, and says so in words", () => {

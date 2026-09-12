@@ -101,6 +101,11 @@
       "id": "missions",
       "subject": "space",
       "label": "Space missions"
+    },
+    {
+      "id": "idioms",
+      "subject": "words",
+      "label": "Sayings & idioms"
     }
   ],
   "cards": [
@@ -1249,6 +1254,86 @@
       "p": 38,
       "k": "sixteen sunrises a day",
       "w": "At 28,000 km/h an orbit takes an hour and a half — the crew sees sixteen sunrises every day."
+    },
+    {
+      "id": "idm1",
+      "f": "idioms",
+      "q": "Telling an actor to “break a leg” means…",
+      "a": [
+        "Good luck",
+        "Get off the stage",
+        "Take a bow",
+        "An actual threat"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 26,
+      "k": "the lucky jinx-dodge",
+      "w": "Theatre superstition holds that wishing luck outright jinxes it — so the wish arrives in disguise."
+    },
+    {
+      "id": "idm2",
+      "f": "idioms",
+      "q": "The full, original form of “the proof is in the pudding” ends…",
+      "a": [
+        "…is in the eating",
+        "…is in the bowl",
+        "…is in the baking",
+        "There is no longer form"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 45,
+      "k": "proof means test",
+      "w": "You test a thing by using it — “proof” is the old word for trial, and the eating is the trial."
+    },
+    {
+      "id": "idm3",
+      "f": "idioms",
+      "q": "An “eleventh hour” rescue — the phrase comes from…",
+      "a": [
+        "Midnight duels",
+        "A Bible parable",
+        "Cinderella",
+        "Naval watches"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 55,
+      "k": "the vineyard’s last hires",
+      "w": "Matthew 20: workers hired at the eleventh hour are paid a full day — lateness that still counts."
+    },
+    {
+      "id": "idm4",
+      "f": "idioms",
+      "q": "In Aesop’s fable, the “lion’s share” was…",
+      "a": [
+        "Half",
+        "The biggest slice",
+        "Everything",
+        "The leftovers"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 62,
+      "k": "the lion takes it all",
+      "w": "The lion claims every quarter of the kill by turn of argument; the share the phrase remembers was the whole thing."
+    },
+    {
+      "id": "idm5",
+      "f": "idioms",
+      "q": "“Blood is thicker than water” originally carried a longer form about “the blood of the covenant”…",
+      "a": [
+        "True — family came second",
+        "No — a modern invention",
+        "Yes, from the Bible",
+        "Yes, from Shakespeare"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 70,
+      "k": "the covenant myth",
+      "w": "The saying appears by the 1600s meaning family first; the “covenant” version cannot be traced past the 1990s. A myth about a proverb."
     }
   ]
 }

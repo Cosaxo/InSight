@@ -43,7 +43,7 @@
 //
 // WHAT IT DOES NOT DO. It does not cap anything itself — a budget
 // notifies. What caps is the function its notifications reach (below):
-// the read breaker at 100 % and, since D465, the billing detach at
+// the read breaker at 100 % and, since D471, the billing detach at
 // BUDGET_DETACH_AT — three budgets, the owner's 1,500 NOK — which this
 // script carries as its top threshold rule so Google's own mail at that
 // line says what happened. And it is not on any pipeline — a control this
@@ -122,7 +122,7 @@ const AMOUNT = (() => {
 })();
 
 /** The share of the budget at which functions/src/budget.ts detaches
- *  billing (D465), read off that file the way cost-arith.mjs reads the
+ *  billing (D471), read off that file the way cost-arith.mjs reads the
  *  database's region off db.ts: a script cannot import a TypeScript
  *  module, and a second copy of the figure is how two copies drift.
  *  apply-budget.test.mjs pins the read. Comments stripped first (the
@@ -336,7 +336,7 @@ if (!existing) {
   // PATCH only the fields this script owns AND that differ. The filter is
   // deliberately never in the mask: a budget an operator re-scoped by hand
   // should not be silently re-narrowed by a retune that was about the
-  // amount. And a field that already matches is left out too, since D465:
+  // amount. And a field that already matches is left out too, since D471:
   // the Budgets API demands pubsub.topics.setIamPolicy of the caller
   // whenever notificationsRule.pubsubTopic is in the request — so a mask
   // that always carried the topic made every later retune (the detach

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// apply-monitoring.mjs — put the eleven alert policies in place, in one command.
+// apply-monitoring.mjs — put the twelve alert policies in place, in one command.
 //
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
-//   … --sms +4712345678 --apply             # and a phone, for the money policies (D465)
+//   … --sms +4712345678 --apply             # and a phone, for the money policies (D471)
 //   … --sms +4712345678 --sms-code 123456 --apply   # the code Google texted, next run
 //
 // WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
-// steps: a notification channel, eleven log-based metrics, and eleven policies
+// steps: a notification channel, twelve log-based metrics, and twelve policies
 // that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
@@ -76,7 +76,7 @@ const PROJECT = argOf("--project") || process.env.FIREBASE_PROJECT_ID || "prvfir
 const EMAIL = argOf("--email");
 const CHANNEL_NAME = argOf("--channel-name") || "InSight oncall";
 
-// THE PHONE (D465, the owner's rule of 2026-09-12: *"let the phone ring
+// THE PHONE (D471, the owner's rule of 2026-09-12: *"let the phone ring
 // only for money"*). Optional, E.164 — the only shape the API's `number`
 // label takes — and attached to the MONEY policies alone (MONEY_POLICIES
 // below): a runaway read rate, a runaway write rate, and the budget's own
@@ -150,6 +150,14 @@ const METRICS = [
     filter: 'jsonPayload.metric="velocity_scan"',
   },
   {
+    // The aggregate compactor's heartbeat (aggShards.ts, phase B / D467):
+    // every minute, idle runs included, because for a sharded question
+    // this run is the only writer of the document every client reads.
+    name: "agg_compact",
+    description: "compactAggShardsV2 completed a run — the daily's published aggregate is written by this schedule and nothing else since phase B",
+    filter: 'jsonPayload.metric="agg_compact"',
+  },
+  {
     name: "engagement_digest",
     description: "digestEngagementV2 completed the nightly engagement pipeline (02:23 UTC; the same pass carries the Patterns fit and the taste fold since D399)",
     filter: 'jsonPayload.metric="engagement_digest"',
@@ -172,7 +180,7 @@ const METRICS = [
   // policy (monitoring/onBudgetAlert-acted.json), all money: the read
   // breaker going up is ~80 % of per-user reads shed and every social
   // surface saying it is paused; the detach is the outage the owner chose
-  // over an invoice (D465); a refused detach is the ceiling not holding.
+  // over an invoice (D471); a refused detach is the ceiling not holding.
   // The breaker line is filtered to level 1 — the release, at level 0, is
   // the good news and needs no page.
   {
@@ -182,7 +190,7 @@ const METRICS = [
   },
   {
     name: "budget_billing_detach",
-    description: "onBudgetAlert is detaching the project's billing account — spend reached the detach line (D465); the app is down until the account is re-attached",
+    description: "onBudgetAlert is detaching the project's billing account — spend reached the detach line (D471); the app is down until the account is re-attached",
     filter: 'jsonPayload.metric="budget_billing_detach"',
   },
   {
@@ -206,6 +214,7 @@ const POLICIES = [
   "monitoring/fitPatternsV2-silent.json",
   "monitoring/ledgerVelocityScan-silent.json",
   "monitoring/digestEngagementV2-silent.json",
+  "monitoring/compactAggShardsV2-silent.json",
   // The odd one out, and deliberately so: the three above watch something
   // breaking, this one watches the app working expensively. It reads a
   // BUILT-IN Firestore metric rather than a log-based one, so it needs no
@@ -221,7 +230,7 @@ const POLICIES = [
   // "Writes are only 3% of the bill" is a statement about organic traffic,
   // not a bound during an incident.
   "monitoring/firestore-write-runaway.json",
-  // The budget's function acting (D332 C4, D465): the breaker up, billing
+  // The budget's function acting (D332 C4, D471): the breaker up, billing
   // detached, or the detach refused. The two runaway policies above say
   // the money is going; this one says the machine did something about it
   // — or could not.
@@ -320,7 +329,7 @@ if (channel && channel.labels?.email_address && channel.labels.email_address !==
   );
 }
 
-// ── 1b. the SMS channel (D465) ──────────────────────────────────────
+// ── 1b. the SMS channel (D471) ──────────────────────────────────────
 // Same matching as the email channel, a different type, and the one step
 // email never has: verification (see THE PHONE above). Its name is the
 // email channel's plus a suffix, so --channel-name renames both.

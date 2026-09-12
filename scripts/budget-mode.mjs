@@ -77,7 +77,7 @@ if (status) {
     + (current >= 1 ? " — the D98 social reads are PAUSED" : " — nothing paused")
     + (at?.toDate ? ` (set ${at.toDate().toISOString()}` : "")
     + (why ? `, reason: ${why})` : at?.toDate ? ")" : ""));
-  // The hard stop's latch (D465): functions/src/budget.ts writes it before
+  // The hard stop's latch (D471): functions/src/budget.ts writes it before
   // it detaches billing, and the line for the rest of that month is the
   // ratio it fired at plus the multiple — printed here because nothing on
   // a device reads it, and an operator who has just re-attached the
@@ -93,7 +93,7 @@ if (status) {
       + (detachedAt?.toDate ? ` on ${detachedAt.toDate().toISOString()}` : "")
       + ` (interval ${snap.get("billingDetachedInterval") || "?"}; ${snap.get("billingDetachedReason") || "no reason recorded"}).`
       + "\n  If the account is re-attached, the next detach this month is one more multiple past"
-      + " that ratio (D465, functions/src/budget.ts BUDGET_DETACH_AT).");
+      + " that ratio (D471, functions/src/budget.ts BUDGET_DETACH_AT).");
   }
   process.exit(0);
 }

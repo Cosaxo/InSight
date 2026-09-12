@@ -109,7 +109,7 @@ describe("a refusal is a result, not a crash", () => {
     for (const h of Object.keys(reply)) reply[h] = { status: 403, body: { error: { message: "denied" } } };
     const j = await asJson();
     // Eight probes now: the original four, D454's bigquery, D455's two
-    // backup readings, and D465's hard-stop grant. The count is the
+    // backup readings, and D471's hard-stop grant. The count is the
     // assertion — a run that quietly stopped making one would otherwise
     // still look green here.
     expect(j.blocked).toHaveLength(8);
@@ -402,10 +402,13 @@ describe("the money path, read from the deployment", () => {
   });
 
   it("answers CAN A SALE COMPLETE on the two that stop one, not on all three", async () => {
-    // ANTHROPIC_API_KEY unset removes the judgement half of the review and
-    // stops nothing, so folding it into the verdict would report a working
-    // loop as broken. Runbook 5.14 names it as the one to check rather than
-    // assume, which is a separate line, not a separate outcome.
+    // ANTHROPIC_API_KEY unset does not stop a sale, so folding it into the
+    // verdict would report a working loop as broken. Runbook 5.14 names it
+    // as the one to check rather than assume, which is a separate line, not
+    // a separate outcome. What that line SAYS moved at D456: a keyless
+    // deployed runtime defers the booking to the review Routine rather than
+    // approving it on gates that never read the words, and this assertion
+    // pinned the retired sentence.
     reply["cloudfunctions.googleapis.com"] = paidFns({
       STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x",
     });
@@ -414,7 +417,10 @@ describe("the money path, read from the deployment", () => {
     expect(j.paidPath.reviewJudged).toBe(false);
     const out = await observe();
     expect(out).toContain("A sale can complete today: YES");
-    expect(out).toContain("deterministic gates alone");
+    expect(out).toContain("HELD for the review Routine");
+    expect(out).toContain("paid_review_deferred");
+    expect(out, "the retired gates-only posture is still being reported")
+      .not.toContain("paid_review_gates_only");
   });
 
   it("says NO when the two that stop a sale are unset", async () => {
@@ -463,6 +469,14 @@ describe("the money path, read from the deployment", () => {
       expect(src).toContain(`process.env.${n}`);
     }
     expect(Object.keys(j.paidPath.secrets)).toContain("STRIPE_WEBHOOK_SECRET");
+    // …AND ONLY NAMES A DEPLOY CAN SET. The check above cannot fail in the
+    // over-scraping direction — every scraped name is in paid.ts by
+    // construction — which is how `FUNCTIONS_EMULATOR` joined the list at
+    // D456 and printed `NOT SET` on a working deployment forever. THREE is
+    // the number runbook 5.14 configures, and the count is what holds it.
+    expect(Object.keys(j.paidPath.secrets).sort(),
+      "a name no deploy can set is being reported as a missing secret")
+      .toEqual(["ANTHROPIC_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]);
   });
 
   it("counts a PARTIAL deploy rather than calling it set", async () => {
@@ -544,12 +558,12 @@ describe("the two BigQuery steps (runbook 5.11, 5.12)", () => {
   });
 });
 
-// The one reading D465 could not otherwise have: whether the billing detach
+// The one reading D471 could not otherwise have: whether the billing detach
 // is ARMED. The function detaches with a call its runtime account may not
 // make until it holds roles/billing.projectManager on the project, and the
 // only other test is a month at three budgets — so the IAM policy is read
 // and joined with the account the function actually runs as.
-describe("the hard-stop reading (D465)", () => {
+describe("the hard-stop reading (D471)", () => {
   const SA_EMAIL = "123456789012-compute@developer.gserviceaccount.com";
   const deployed = () => ({
     status: 200,

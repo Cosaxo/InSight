@@ -920,6 +920,32 @@ export let PICK_QS;
       209518: 2,    // Wayne Gretzky — below the floor
       0: 13,        // Not listed — the five-a-side friend who always shows up
     },
+    // daily catalog-question run, 2026-09-12 — the fourth films canon is
+    // the QUOTE: pk26 asks what you love, pk27 what you rewatch, pk31
+    // what broke you; this asks what lives in your MOUTH, which selects
+    // comedies and one-liners over dramas. The boards provably differ:
+    // Monty Python, Mean Girls, The Big Lebowski and Terminator 2 chart
+    // top-10 here and on no other film board, and the tear-jerkers that
+    // led pk31 are nowhere — nobody quotes The Green Mile at breakfast.
+    pk42: {
+      104123: 18,   // Pulp Fiction — the walking quote sheet
+      47703: 16,    // The Godfather — an offer this board can't refuse
+      17738: 14,    // Star Wars: A New Hope — the lines that left the cinema
+      25043: 12,    // Monty Python and the Holy Grail — flesh wounds, coconuts
+      337078: 10,   // The Big Lebowski — the Dude abides, daily
+      170564: 9,    // Terminator 2 — hasta la vista
+      163872: 8,    // The Dark Knight — why so serious
+      631103: 7,    // Mean Girls — still trying to make fetch happen
+      132689: 6,    // Casablanca — here's looking at you
+      83495: 6,     // The Matrix — there is no spoon
+      47221: 5,     // Taxi Driver — clears the floor, folds outside the top 10
+      181795: 5,    // The Empire Strikes Back — same; the father line files here
+      47075: 4,     // Scarface — below the floor
+      189505: 3,    // Jaws — below the floor; the bigger boat
+      0: 11,        // Not listed — the quote canon the sitelink top-1000
+                    // misses whole: Forrest Gump, Shrek, The Princess
+                    // Bride and Anchorman have no key to file under
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1421,6 +1447,20 @@ export let PICK_QS;
         Men: { 36159: 9, 615: 8, 41421: 6, 10132: 5, 134183: 4 },
       },
     },
+    pk42: {
+      ageBand: {
+        // what you quote is what you watched at fifteen: the young cell
+        // runs on Mean Girls and the Joker, the older on the Dude and
+        // the Corleones — reorder, never flip. Cell counts stay inside
+        // each film's crowd total (Mean Girls holds 7 whole).
+        '18-24': { 631103: 5, 163872: 4, 104123: 3, 17738: 3, 83495: 2 },
+        '25-34': { 104123: 8, 337078: 6, 47703: 6, 25043: 5, 170564: 4 },
+      },
+      gender: {
+        Women: { 104123: 6, 631103: 5, 17738: 4, 132689: 4, 163872: 3 },
+        Men: { 104123: 8, 47703: 7, 25043: 6, 337078: 5, 170564: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1597,6 +1637,7 @@ export let PICK_QS;
     { id: 'pk39', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'If the whole world had to share one language, which should it be?', n: 139 },
     { id: 'pk40', cat: 'fav', type: 'pick', domain: 'videogames', prompt: 'The game world you’d actually live in?', n: 133 },
     { id: 'pk41', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d want beside you, whatever the game?', n: 137 },
+    { id: 'pk42', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you quote the most?', n: 134 },
   ];
   window.PICK_QS = PICK_QS;
 })();

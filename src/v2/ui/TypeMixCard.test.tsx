@@ -35,6 +35,7 @@ vi.mock("../data/live", () => ({
     // store the two are one fact, and a fixture that lets them disagree
     // lets a case drive one while the card reads the other.
     kindredState: () => (LOADING ? "loading" : FAILED ? "failed" : "ready"),
+    cityKindredState: () => (LOADING ? "loading" : FAILED ? "failed" : "ready"),
     // A getter so the D332 case can flip it after the factory has run —
     // the closure reads the module-level flag at render time, the PEOPLE
     // pattern one line up.

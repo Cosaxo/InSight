@@ -159,8 +159,41 @@ export function render({ observe = null, observeRun = null, pulseRun = null, tra
       if (bill.enabled === false) flags.push("billing reports disabled");
     }
 
+    // WHETHER THE ONLY ASSET SURVIVES A BAD AFTERNOON. The probe has read
+    // recovery and the schedules since 2026-09-11 and this renderer printed
+    // neither, so a database with point-in-time recovery OFF and not one
+    // backup schedule rendered as a page with nothing to look at — the
+    // confident zero of D296, one reading over. Retention is printed
+    // because the probe went to the trouble of reading it back: "a schedule
+    // exists" is not the reading anybody wants.
+    const bk = r.backups;
+    if (!bk || bk.status !== "ok") {
+      out.push(`- **Backups: refused** — ${bk?.why ?? "no reading"}${bk?.http ? ` (${bk.http})` : ""}`);
+      flags.push("the backup reading is refused");
+    } else if (bk.pitr) {
+      out.push("- Backups: **point-in-time recovery ON**");
+    } else {
+      out.push("- **Backups: point-in-time recovery OFF** — there is no rolling window to recover into (runbook: Actions → Backups)");
+      flags.push("point-in-time recovery is off");
+    }
+
+    const sch = r.backupSchedules;
+    if (!sch || sch.status !== "ok") {
+      out.push(`- **Backup schedules: refused** — ${sch?.why ?? "no reading"}${sch?.http ? ` (${sch.http})` : ""}`);
+      flags.push("the backup-schedule reading is refused");
+    } else {
+      const missing = [!sch.daily && "daily", !sch.weekly && "weekly"].filter(Boolean);
+      const keeps = (sch.retention ?? []).length ? `, keeping ${sch.retention.join(", ")}` : "";
+      if (missing.length) {
+        out.push(`- **Backup schedules: no ${missing.join(" and ")} schedule** — ${sch.count} in place${keeps}`);
+        flags.push(`there is no ${missing.join(" or ")} backup schedule`);
+      } else {
+        out.push(`- Backup schedules: **${sch.count} in place** — daily and weekly${keeps}`);
+      }
+    }
+
     for (const b of observe.blocked ?? []) {
-      if (["alertPolicies", "functions", "billing"].includes(b.name)) continue;
+      if (["alertPolicies", "functions", "billing", "backups", "backupSchedules"].includes(b.name)) continue;
       out.push(`- **${b.name}: refused** — ${b.why}${b.http ? ` (${b.http})` : ""}`);
       flags.push(`the ${b.name} reading is refused`);
     }

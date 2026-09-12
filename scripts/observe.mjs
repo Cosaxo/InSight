@@ -191,14 +191,28 @@ async function metricResources() {
   return readings;
 }
 
-// THE MONEY PATH'S OWN THREE NAMES, read out of the module that reads them
+// THE MONEY PATH'S OWN SECRETS, read out of the module that reads them
 // (D200/D201) rather than retyped here. Retyping is how the third copy of a
 // list drifts, and this list has a specific way of drifting: a renamed
 // variable would leave this reader printing "unset" for a name nothing looks
 // for any more, which reads as a missing secret and is a missing READER.
+//
+// AND IT DRIFTED THE OTHER WAY. The scan takes every `process.env.X` in the
+// file, and since D456 `paid.ts` reads `FUNCTIONS_EMULATOR` — the variable
+// the emulator sets and, in that file's own words, "nothing can set into a
+// deployed runtime". So a perfectly configured deployment printed
+// `✗ FUNCTIONS_EMULATOR NOT SET` and read as one secret short of working,
+// with no deploy able to clear it. A name is a SECRET here only if the
+// deploy could put it in the runtime; the emulator's marker is a runtime
+// fact, which is the opposite thing. The guard that should have caught this
+// only asks whether each scraped name appears in paid.ts — true of this one
+// — so it cannot fail in the over-scraping direction, and the count below
+// is what closes that.
+const NOT_SECRETS = new Set(["FUNCTIONS_EMULATOR", "NODE_ENV", "GCLOUD_PROJECT", "K_SERVICE"]);
 const PAID_ENV_NAMES = (() => {
   const src = stripComments(readFileSync(join(root, "functions/src/paid.ts"), "utf8"));
-  return [...new Set([...src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map((m) => m[1]))];
+  const all = [...new Set([...src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map((m) => m[1]))];
+  return all.filter((n) => !NOT_SECRETS.has(n));
 })();
 
 // The functions paid.ts deploys. The dotenv the deploy writes is baked into
@@ -307,7 +321,7 @@ const results = await Promise.all([
           updateTime: f.updateTime || null,
           uri: f.serviceConfig?.uri || null,
           // Whose credentials the function runs with — the identity the
-          // hard stop's grant goes to (D465), read rather than assumed:
+          // hard stop's grant goes to (D471), read rather than assumed:
           // the gen-2 default is the Compute Engine default account, and a
           // deploy that set another would leave a typed default granting
           // the wrong principal.
@@ -336,7 +350,7 @@ const results = await Promise.all([
     "roles/billing.viewer",
     (b) => ({ enabled: b.billingEnabled === true, account: b.billingAccountName || null }),
   ),
-  // WHETHER THE HARD STOP IS ARMED (D465). functions/src/budget.ts detaches
+  // WHETHER THE HARD STOP IS ARMED (D471). functions/src/budget.ts detaches
   // billing at three budgets with one API call the functions' runtime
   // account may not make until it holds roles/billing.projectManager on
   // the project — and the only other way to learn whether it may is to
@@ -574,11 +588,11 @@ if (AS_JSON) {
       if (r.deployed === null) {
         console.log(`  ✓ hardStop       unreadable — the functions reading is not available, so which account to check is unknown`);
       } else if (!r.deployed) {
-        console.log("  ✓ hardStop       onBudgetAlert is not deployed — nothing to arm yet (D465)");
+        console.log("  ✓ hardStop       onBudgetAlert is not deployed — nothing to arm yet (D471)");
       } else if (!r.functionAccount) {
         console.log("  ✓ hardStop       onBudgetAlert is deployed but the API did not say which account it runs as");
       } else if (r.armed) {
-        console.log(`  ✓ hardStop       ARMED — onBudgetAlert runs as ${r.functionAccount}, which holds ${r.role} (D465)`);
+        console.log(`  ✓ hardStop       ARMED — onBudgetAlert runs as ${r.functionAccount}, which holds ${r.role} (D471)`);
       } else {
         console.log(`  ✓ hardStop       **NOT ARMED** — ${r.functionAccount} does not hold ${r.role} on ${PROJECT};`);
         console.log("      the detach at three budgets is refused until it does (LAUNCH-RUNBOOK 5.18):");
@@ -622,7 +636,23 @@ if (AS_JSON) {
     console.log(`    A sale can complete today: ${paidPath.canSell ? "YES" : "NO"}`
       + (paidPath.canSell ? "" : " — checkout answers `unavailable` and the webhook 503s,"));
     if (!paidPath.canSell) console.log("      so a buyer reaches an approved quote and a dead end, and nothing pages.");
-    console.log(`    Reviews use Claude's judgement: ${paidPath.reviewJudged ? "YES" : "NO — deterministic gates alone (paid_review_gates_only)"}`);
+    // WHAT "NO KEY" MEANS CHANGED THE SAME DAY THIS LINE WAS WRITTEN. D454
+    // printed "deterministic gates alone (paid_review_gates_only)", which
+    // was the behaviour until D456: the gates never read the WORDS, so a
+    // keyless deployment approved whatever arrived. D456 made a keyless
+    // runtime DEFER instead — the booking stays in `review`, which is the
+    // Routine's queue — and kept gates-only for the emulator alone, keyed
+    // on FUNCTIONS_EMULATOR, which nothing can set into a deployed
+    // runtime. So `paid_review_gates_only` can no longer appear in the
+    // runtime this script reads, and the old sentence told an operator
+    // that unreviewed questions were going out when the truth is the
+    // opposite and quieter: a queue nobody is emptying.
+    console.log(`    Reviews settle inside the request: ${paidPath.reviewJudged
+      ? "YES — Claude's judgement"
+      : "NO — every booking is HELD for the review Routine (paid_review_deferred)"}`);
+    if (!paidPath.reviewJudged) {
+      console.log("      Nothing publishes until that queue is emptied: `node scripts/paid-review.mjs --list`.");
+    }
   }
   if (paidPath.status === "ok" && paidPath.webhookUrl) {
     console.log(`\n    stripeWebhookV2 → ${paidPath.webhookUrl}`);

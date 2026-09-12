@@ -726,7 +726,17 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
             <div className="qm-opts">
               {(q.options ?? []).map((op) => (
                 <button key={op.id} className="qm-opt"
-                  onClick={() => { LIVE.vote(q.key, op.id); setBurst({ i: sel, t: Date.now() }); }}>
+                  // THE QID, NOT THE ROW KEY. A row's key is the qid only
+                  // for `bin` and `ord`; since D464 an `opt` row — one bead
+                  // per option of a multi-option question — is keyed
+                  // `qid~opt`. Voting on that filed an answer against an id
+                  // no question has: `dailyById`/`feedById` both miss, the
+                  // write claims `surface: "daily"`, and the rules' own
+                  // `get(v2_questions/$(aid))` errors on the missing
+                  // document, so the create is refused and `rollbackPending`
+                  // un-votes it. The reader taps an option on a bead card,
+                  // sees it register, and watches it vanish.
+                  onClick={() => { LIVE.vote(q.qid, op.id); setBurst({ i: sel, t: Date.now() }); }}>
                   {op.label}
                 </button>
               ))}

@@ -83,7 +83,16 @@ const AGREE_COL = {
  * count, so it lands in the split ink — the step that claims least — and
  * its card states the answer count instead of an agreement. */
 const stepOf = (p: { agree: number; shared: number }): keyof typeof AGREE_COL => {
-  const a = p.agree / Math.max(1, p.shared);
+  // NOTHING SHARED IS NOT DISAGREEMENT. The paragraph above has claimed
+  // the split ink for a nightly-placed dot since the lens was written, and
+  // the arithmetic below said otherwise: such a dot carries `shared: 0`
+  // (peopleMap.ts, the published loop), so `0 / max(1, 0)` is 0 and 0 is
+  // under the 0.4 step. Every stranger the fit placed — up to the world
+  // cap of them — was drawn in the same ink as someone who disagrees with
+  // you on every question you both answered, under a legend that spells
+  // that out in words. This is the line that makes the paragraph true.
+  if (!p.shared) return "mid";
+  const a = p.agree / p.shared;
   return a > 0.6 ? "yes" : a < 0.4 ? "no" : "mid";
 };
 

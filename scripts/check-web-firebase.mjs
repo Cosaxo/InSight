@@ -27,7 +27,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LIVE_MARKERS, missingLiveMarkers } from "./live-build-markers.mjs";
+import { LIVE_MARKERS, emulatorMarkersIn, missingLiveMarkers } from "./live-build-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
@@ -74,6 +74,11 @@ if ((process.env.VITE_V2_LIVE || "").trim() !== "true") {
 
 // An emulator build points every SDK at localhost. On a user's phone that is
 // not a degraded app, it is an app that cannot reach anything.
+//
+// KEPT, though §2 now asks the same question of dist/ and that is the
+// answer that counts: this one catches the mistake a step EARLIER, before
+// a build is even made, and its message names the variable rather than a
+// marker. It is the cheap half of the pair, not the load-bearing half.
 if ((process.env.VITE_USE_EMULATOR || "").trim() === "true") {
   errors.push(
     "VITE_USE_EMULATOR=true in a build meant for users — every SDK would be\n"
@@ -127,6 +132,27 @@ if (liveMissing.length) {
     + ".\n\n  This is read from the BUILD OUTPUT, so exporting VITE_V2_LIVE for this\n"
     + "  process will not change it — build again with the flag set. A stale\n"
     + "  dist/ from an earlier step is the usual cause, same as above.",
+  );
+}
+
+// …AND THE SAME QUESTION ASKED OF THE BUILD. §1 refuses the variable in
+// THIS process's environment, which is not where a build reads it from:
+// Vite reads `.env` and `process.env` does not, and docs/LOCAL-TESTING.md
+// prescribes `cp .env.emulator .env` — so a developer on the documented
+// local flow builds an emulator bundle and this gate saw nothing set.
+// Measured: such a build printed "live config inlined into 140 chunk(s)"
+// and exited 0. live-build-markers.mjs has the markers and why they are
+// decisive.
+const emuFound = emulatorMarkersIn(js);
+if (emuFound.length) {
+  errors.push(
+    "the built bundle was produced against the EMULATOR: dist/ carries "
+    + emuFound.map((m) => `\`${m}\``).join(", ")
+    + ".\n\n  Every SDK in it points at 127.0.0.1, which on a user's phone is not a\n"
+    + "  degraded app but one that can reach nothing. This is read from the BUILD\n"
+    + "  OUTPUT, so unsetting VITE_USE_EMULATOR for this process will not change\n"
+    + "  it — check for a `.env` (Vite reads it; this process does not) and build\n"
+    + "  again.",
   );
 }
 

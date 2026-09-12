@@ -41,7 +41,12 @@ export const PASSIVE = (function () {
   // live mode starts every test at its real zero — the stagger exists
   // only so the demo shows all progress states at once
   const SEED = new Proxy(DEMO_SEED, {
-    get(t, k) { return LIVE.enabled ? 0 : t[k]; },
+    // `demoInProd` with it: `enabled` is false both for a demo build and
+    // for a live build whose boot has not attached (D356), and only the
+    // first should see the stagger. Without it a real user's first
+    // seconds showed invented progress on four instruments they had not
+    // touched — the same read of the same flag as result-card.jsx's two.
+    get(t, k) { return (LIVE.enabled || LIVE.demoInProd) ? 0 : t[k]; },
   });
   let st = load();
   const subs = [];

@@ -1,7 +1,7 @@
 // budget.ts — the budget acts: a Cloud Billing budget notification that
 // reaches 100 % flips the read breaker, and one that reaches 300 % detaches
 // billing — the soft stop (COST-EXPOSURE.md §6 C4, built 2026-09-09) and
-// the hard one (D465, the owner's ruling of 2026-09-12).
+// the hard one (D471, the owner's ruling of 2026-09-12).
 //
 // WHY. A budget notifies; nothing in it caps (COSTS.md § The controls that
 // are not in this repository). D332 built the read breaker — one field,
@@ -18,7 +18,7 @@
 // budget, in the same fields the script writes, so `--status` and
 // `--level 0` read and release it exactly as before.
 //
-// THE HARD STOP (D465). Google has no spend limit for Firestore; its
+// THE HARD STOP (D471). Google has no spend limit for Firestore; its
 // documented ceiling is this same notification calling
 // projects.updateBillingInfo with an empty billing account, which stops
 // every paid service with the spend — in Google's own words, billable
@@ -89,7 +89,7 @@ export const BUDGET_TOPIC = "budget-alerts";
  *  wrong (COSTS.md § control 1). */
 export const BUDGET_ACT_AT = 1.0;
 /** The share of the budget at which billing is DETACHED — the hard stop
- *  (D465). Three budgets: 1,500 NOK on the 500 NOK budget the tree arms,
+ *  (D471). Three budgets: 1,500 NOK on the 500 NOK budget the tree arms,
  *  the owner's figure of 2026-09-12. A multiple rather than an amount so
  *  a retuned budget moves the ceiling with it — the same discipline that
  *  keeps the budget and the pulse guard on one figure (D332) — and pinned

@@ -965,7 +965,113 @@ const MAX_TOTAL_JS_KB = 2440;
 // after first paint. Deferring it the way D122's handles and invitations
 // are deferred, one file over, is the next change to this graph — its
 // own change, not a rider on a feature.
-const MAX_EAGER_KB = 553;
+//
+// AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D468), landing
+// the same evening from another branch and measured on the merge: the
+// catalogue's who-picked-what sheet costs 112 bytes here — 95 in
+// data/voters.ts, where the voter query stopped DROPPING catalogue
+// answers (it skipped any row without an `optionIdx`, which is every
+// pick, so a catalogue question was the one kind in the app with no
+// answer to "who picked what"); 10 in data/live.ts, where Kindred reads
+// a pick's entity instead of its permanent -1; and the rest in the cohort
+// chunk. Nothing new joined the eager graph — no new module and no new
+// preload — and there was nothing to defer: the bytes are a field on a
+// row inside a query function that data/live.ts calls.
+//
+// Recorded rather than folded into the entry above, because the two are
+// independent measurements of the same ceiling: D464 raised it for the
+// Map's dots, this arrived at the raised number, and the merged tree is
+// measured below both. The owed headroom is the same headroom, and the
+// two branches found it independently — which is the strongest argument
+// yet for spending it: `data/voters`' query half, deferred.
+//
+// 553 → 554 (2026-09-12), AND A THIRD BRANCH IN THE SAME DAY. Phase B
+// (D467) sharded the daily lane's aggregate and its compactor read landed
+// in `data/live.ts`, which is eager. Measured on separate builds rather
+// than attributed by reading diffs:
+//
+//   main alone (aaf72f2)            565,967 bytes — 305 under 553 KB
+//   main + this branch's feature    566,353 bytes —  81 OVER
+//   so this branch's own cost is       386 bytes
+//
+// Phase B spent the 413 this branch had measured hours earlier, and 386
+// does not fit in the 305 it left. Neither change is the one at fault:
+// each was green on the tree it was written against, and the merge is
+// where they meet. Note that 386 supersedes the 112 recorded six
+// paragraphs up — that figure was the two source files' own delta, and
+// the whole-graph measurement includes the chunk boundaries moving under
+// it. The source attribution stands; the total was too small.
+//
+// WHY THE CEILING MOVES INSTEAD OF THE CODE. The trim available is 81
+// bytes of minified output, which is not a change anyone can defend next
+// week — it is golf against a number, and the next commit undoes it. The
+// change that IS available is the one two notes above already name, and
+// it is worth 6 KB rather than 81 bytes. It stays out of this merge for
+// the reason it was written down: it is its own change, not a rider on a
+// feature, and least of all a rider bolted onto a conflict resolution.
+//
+// THIS IS THE THIRD RAISE IN A DAY (552 → 553 → 554) and that is the
+// number to watch, not the KB. Three unrelated branches each arrived at
+// a ceiling with single-digit-byte headroom, which means the gate is
+// measuring exactly and defending nothing: a budget with no slack fails
+// whichever branch merges last, and says nothing about which one grew
+// the app. The deferral below is what turns it back into a budget.
+//
+// AND THESE TWO NOTES ARE TWO DIFFERENT RAISES THAT LANDED ON THE SAME
+// NUMBER. The block above is #501's, the block below is the night
+// review's, and each measured 554 against a tree without the other. The
+// merged figure is measured at the bottom of the review's block. That
+// makes it the FOURTH raise in a day by the count above, and the
+// strongest argument yet for the deferral it keeps naming: two branches
+// cannot both spend the same kilobyte, and a ceiling pinned at the
+// measurement makes every merge a renegotiation.
+// 553 -> 554 (2026-09-12): THE FIRST RAISE NEITHER CHANGE ASKED FOR. The
+// 2026-09-12 night review composed two shifts, and the eager graph on the
+// composed tree is bigger than on either branch alone -- measured, all
+// four on the same `VITE_V2_LIVE=true` build with a DSN:
+//
+//   main            552.22     A  552.96 (+0.74, passes with 0.04 to spare)
+//   composed        553.30     B  552.34 (+0.12)
+//
+// …then 553.79, because `main` moved again while the review ran (#497's
+// phase B and #502) and took another 0.49 KB. Then **554.17**, because
+// `main` moved a THIRD time (#501) and took 0.38 more — and #501 had
+// spent its own night raising this ceiling to 554 against a tree with
+// none of the above in it. That is what the joining note means by two
+// branches spending the same kilobyte.
+//
+// 554.17 is the figure this ceiling is finally set against. 555, which
+// is the measurement rounded up and nothing more: adding a comfort band
+// here would be quietly redefining a budget in a conflict resolution,
+// which is the one place it should never happen. The slack is not the
+// fix and was never going to be — the 8 KB below is, and after four
+// raises in one day it is no longer a nice-to-have that keeps getting
+// deferred to its own change. It IS the next change to this graph.
+//
+// The parts add up to +0.86 and the composition costs +1.08. The extra
+// 0.22 KB is the two shifts' edits meeting in the bundler, so no commit
+// on either branch owns it and neither shift could have measured it: A
+// spent main's headroom down to 0.04 KB and B's twelfth of a kilobyte
+// then tipped it. This is the class the night review exists to catch, in
+// the one gate that can only see it on a tree nobody built until morning.
+//
+// WHAT IT IS. +709 bytes of `data/live.ts` and +128 of the entry: six
+// boot-path defect fixes -- an offline answer counted twice after a
+// relaunch, a refused deck frozen for the session, two midnights serving
+// yesterday's question, a city whose every query failed reported as a
+// city nobody answers, a sealed pick naming whoever inherited the seat,
+// and an account panel telling a returning member their answers live on
+// this phone only. None of it is deferrable: `live.ts` IS the store the
+// app boots on, and `check:eager-content` is green, so no content entered
+// the graph -- which is the thing that warning is actually about.
+//
+// THE HEADROOM ABOVE IS NOW OVERDUE, not merely owed. `data/voters` is
+// still ~8 KB of this graph for uses that all run long after first paint,
+// and it is still its own change: nine value imports moved into the
+// methods that use them, in the boot store, is not a rider on a merge of
+// 63 commits either. It would return this constant to 546 and end the
+// every-byte alarm this block has now called out twice.
+const MAX_EAGER_KB = 555;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
@@ -1051,6 +1157,29 @@ const kbOf = (dir, re) => {
 };
 const cssKb = kbOf(ASSETS, /\.css$/);
 const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
+
+// ZERO FONTS IS NOT A PASS. `kbOf` answers 0 on any read failure — its
+// catch was written for "a demo build may not emit either", and that is
+// true of CSS and false of fonts: `public/fonts` is committed, so every
+// build copies the faces into dist/ and a total of zero can only mean
+// this budget measured nothing. Measured 2026-09-12: with dist/fonts
+// moved aside the gate printed "0 KB fonts (max 96)" and exited 0, which
+// is a budget reporting success about a directory it could not find.
+//
+// The two sibling budgets in this file already refuse exactly this — the
+// render-blocking CSS one exits 1 when index.html links no stylesheet
+// ("the emit shape changed and this budget is measuring nothing"), and
+// the eager one exits 1 on a name with no file rather than counting it as
+// 0. This is that guard, for the third.
+if (fontKb === 0) {
+  console.error(
+    "check-bundle: dist/ contains no font files at all.\n"
+    + "public/fonts is committed, so every build copies them — a zero here\n"
+    + "means this budget is measuring nothing rather than that the bundle\n"
+    + "carries no faces. Check that the build ran and that dist/ is whole.",
+  );
+  process.exit(1);
+}
 
 // ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
 //

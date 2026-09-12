@@ -17,9 +17,15 @@
 // are answered here; the fourth, rotation, is answered by the publication
 // path itself (see `worldPositions`' comment in patterns.ts).
 //
-// This module is pure: bucketing, the caps, and the rounding. The solve
-// and the write live in patterns.ts, beside the fit whose rows they read.
+// This module is pure: bucketing, the caps, the rounding, and the
+// per-person ridge solve. `positionTheta` was lifted out of the fold and
+// into this file so that ONE function owns the regularisation convention
+// the device also uses — the two solves drifting apart is the defect it
+// exists to prevent, and a test can reach it here without booting the
+// fit. What stays in patterns.ts is the WRITE: the publication path,
+// beside the fit whose rows it reads.
 import type { AlsModel, AlsRow, ItemMeta } from "./patternsAls";
+import { ridgeTheta } from "./patternsAls";
 
 /** Rows kept per document. The cap is a DRAWING bound, not a privacy one:
  * a disc of 352 px holds a few hundred dots before it is ink, the Map's
@@ -105,6 +111,33 @@ export const roundPos = (v: number): number => {
  * against the rows the phone is about to draw, which is the whole point:
  * a position in another frame is a dot in the wrong place.
  */
+/**
+ * A published dot's direction, under the SAME ridge the phone uses.
+ *
+ * THE TWO SOLVES HAVE TO AGREE OR THE PICTURE IS TWO PICTURES. The lens
+ * draws three kinds of dot on one canvas: the viewer's own, every stranger
+ * placed from fetched answers, and the crowd this fold publishes. The
+ * first two are solved on the device by `estimateTheta` →
+ * `ridgeSolve(obs, k, PATTERNS.lambdaU())` — the published lambda, added
+ * to the diagonal as it stands. This fold solved the third with
+ * `lambdaU * obs.length + 0.5`, a ridge that grows with the answer count,
+ * so the same evidence landed in a different DIRECTION (and further out)
+ * than the phone would put it. The scaled form belongs to the ALS fit's
+ * own item/person alternation, where the constant is `ALS_LAMBDA` and not
+ * this one; `alsScoreDay`, which is what tunes `lambdaU` in the first
+ * place, uses it raw like the device.
+ *
+ * One function so the convention has one home, and a caller cannot pick a
+ * different one without editing the sentence above.
+ */
+export function positionTheta(
+  obs: readonly { L: readonly number[]; r: number }[],
+  k: number,
+  lambdaU: number,
+): number[] {
+  return ridgeTheta(obs, k, lambdaU);
+}
+
 export function positionModel(
   k: number,
   rows: Record<string, { v: number[]; n: number; sum: number; sd?: number }>,

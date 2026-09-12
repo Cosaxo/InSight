@@ -89,7 +89,7 @@ beforeAll(async () => {
         body,
       });
       // A reply may be a FUNCTION of the request body: the two channel
-      // POSTs (email, then SMS since D465) share one URL and differ only
+      // POSTs (email, then SMS since D471) share one URL and differ only
       // in what they send, and a stub that answered both with the email
       // channel would hand the SMS steps the wrong id.
       const entry = reply[key(req.method, req.url)];
@@ -416,7 +416,7 @@ describe("--channel-name", () => {
   });
 });
 
-describe("--sms (D465): the phone, for the money policies only", () => {
+describe("--sms (D471): the phone, for the money policies only", () => {
   const NUMBER = "+4712345678";
   const SMS_ID = "projects/prvfire33/notificationChannels/9002";
   const smsChannel = (over = {}) => ({

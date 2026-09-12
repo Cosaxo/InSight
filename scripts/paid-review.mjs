@@ -174,11 +174,21 @@ async function verdict(bid, call, reason) {
   if (!res.ok) die(`write failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
   console.log(`paid-review: ${bid} → ${call === "approve" ? "approved" : "declined"}.`);
   if (call === "approve") {
-    // The QUOTE is locked at approval by the function's own path, and this
-    // one does not write it. Said out loud rather than left to be noticed:
-    // a booking approved here is payable, and `createPaidCheckoutV2` reads
-    // `quote` off the doc.
-    console.log("  note: the buyer can now pay. The quote on the doc is what they are charged.");
+    // WHERE THE PRICE COMES FROM, and it is not this document. The quote
+    // is locked inside the verdict transaction of the function's own
+    // review path — which is exactly the path that did NOT run for a
+    // booking sitting in this queue: a keyless runtime defers instead of
+    // reviewing (D456), so a booking approved from here has no quote on
+    // it at all. `createPaidCheckoutV2` prices it at the first press of
+    // Pay, off the same committed card the door quoted from
+    // (`quoteForCheckout`, and it logs `paid_quote_late` when it does).
+    //
+    // This note said the opposite until 2026-09-12 — "the quote on the
+    // doc is what they are charged" — which is a promise about a field
+    // that is not there, on the one surface where a human is deciding
+    // whether to let a purchase through.
+    console.log("  note: the buyer can now pay. This booking carries no quote, so the price is");
+    console.log("        set at checkout off the committed card — the same figure the door showed.");
   }
 }
 

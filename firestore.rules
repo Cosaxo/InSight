@@ -154,6 +154,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The daily lane's counter shards (phase B, D467): the answer trigger's
+    // blind increments for a question the daily bank names, `{qid}-{s}` by
+    // person hash plus a `{qid}-base` the compactor migrates the published
+    // document into. Working state, not a reading — the compactor sums
+    // them into v2_question_aggs above once a minute, which is what every
+    // client reads — so nobody reads them and nothing but the Admin SDK
+    // writes them. No uid, no timing: counts, uncapped.
+    match /v2_agg_shards/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
     // sponsored questions. An ad is a CARD: text, an advertiser, a window.
     // It takes no answer, so there is no answer arm anywhere in this file
@@ -804,7 +816,7 @@ service cloud.firestore {
         // (surface group/duo) is sealed until its round's reveal — that
         // is the game, the same way a hand of cards is face-down. Public
         // duel answers would not link any data the reveal does not
-        // publish a day later; they would just let a member read the
+        // publish when the round is out; they would just let a member read the
         // room before playing. The owner still reads their own, and the
         // reveal doc publishes the whole table on schedule.
         //
@@ -1489,8 +1501,16 @@ service cloud.firestore {
         && resource.data.to == request.auth.uid;
     }
 
-    // App/content metadata — contentRev (bank cache invalidation),
-    // latestBuild/minBuild (update prompts). Operator/seed-written.
+    // App/content metadata. `app` began as contentRev (bank cache
+    // invalidation) and latestBuild/minBuild (update prompts), and is a
+    // NIGHTLY PUBLICATION SURFACE now: the patterns mount gate (D265), the
+    // attention sample rate, the budget mode and the taste fold's cursor
+    // are all written here by Cloud Functions — and `pricing` is a second
+    // document this comment did not name, written by the pricing fold and
+    // read by the buy door. So the deny below is not housekeeping: it is
+    // what stops a client forging the gate that mounts a tab, the rate the
+    // whole attention channel is weighted by, and the public price card.
+    // "Operator/seed-written" described this collection until 2026-09-12.
     match /v2_meta/{docId} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -1613,8 +1633,14 @@ service cloud.firestore {
       // would be a lock on a door with no wall.
       //
       // What the reveal still does is TIMING and convenience — it is
-      // written the day after play, which is what keeps the seal above
-      // meaningful, and it is one document instead of N answer reads.
+      // written when the ROUND is out (everybody has played, or the
+      // round's 48-hour deadline has passed — D426/D437 took the calendar
+      // day out of this), which is what keeps the seal above meaningful,
+      // and it is one document instead of N answer reads. "The day after
+      // play" stood here until 2026-09-12: a 1v1 can reveal seconds after
+      // the partner answers, and a circle can stay sealed for two days.
+      // The round bound in the seal itself has been round-keyed since
+      // D426; only these two sentences still named a day.
       match /reveals/{revealId} {
         allow read: if request.auth != null;
         allow write: if false;
@@ -1791,9 +1817,14 @@ service cloud.firestore {
     // authors raises the stakes rather than lowering them, so that stays.
 
     match /v2_takes/{takeId} {
-      // Circle members read the circle's takes — except a mod-hidden take,
+      // ANY SIGNED-IN READER reads a take — except a mod-hidden one,
       // which only its author still sees (the honest soft-hide: the author
-      // can appeal what they can still read; the circle is protected).
+      // can appeal what they can still read; everyone else stops seeing
+      // it). D98 collapsed the audience arms — the paragraph further down
+      // says so, and this opening sentence went on naming a circle scope
+      // this rule does not test until 2026-09-12. It tests `hidden` and
+      // authorship and nothing else: the `gid` equality a world list
+      // carries is the client's and the index's, not this rule's.
       //
       // `hidden` is a REQUIRED BOOLEAN, and both of those words are load-
       // bearing. This gate used to read `!("hidden" in resource.data)`,

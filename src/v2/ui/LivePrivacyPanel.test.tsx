@@ -62,6 +62,10 @@ const LIVE = vi.hoisted(() => ({
   // that is what a store build produces: D219 took the wall down, so an
   // account is anonymous until someone taps this row.
   linked: false,
+  // …and whether the auth observer has spoken at all. SETTLED here, so
+  // the cases below are about a known account; the restore window has its
+  // own pair at the end of this file.
+  authKnown: true,
   linkGoogle: vi.fn(async () => {}),
   politicalConsented: vi.fn(() => true),
   setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
@@ -97,6 +101,7 @@ const { default: LivePrivacyPanel } = await import("./LivePrivacyPanel");
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.linked = false;
+  LIVE.authKnown = true;
   LIVE.linkGoogle.mockReset();
   LIVE.linkGoogle.mockResolvedValue(undefined);
   LIVE.deleteAccount = async () => {};
@@ -422,6 +427,38 @@ describe("LivePrivacyPanel · the sign-in row", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/already has an InSight history/));
     expect(screen.queryByRole("button", { name: /leave this phone/i })).toBeNull();
+  });
+
+  it("says nothing about the account while auth has not spoken", () => {
+    // `linked` is false for the whole auth restore, and since D453 that
+    // window is ON SCREEN: the wall passes on its mirror rather than
+    // waiting, so this panel is reachable inside it. Stating `linked`
+    // there told a RETURNING, LINKED user that their answers live on this
+    // phone only and offered them a button whose only possible answer is
+    // `provider-already-linked` — a stake sentence that is false and a
+    // control that cannot work.
+    LIVE.authKnown = false;
+    LIVE.linked = false;
+    render(<LivePrivacyPanel />);
+    expect(
+      screen.queryByText(/live on this phone only/i),
+      "a session nobody has asked about was called phone-only",
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Continue with Google/i }),
+      "a link button was offered before auth said whether it was needed",
+    ).toBeNull();
+    expect(screen.getByText(/Checking/i)).toBeTruthy();
+  });
+
+  it("…and says it the moment auth does speak — the control", () => {
+    // Without this, "never say anything" would satisfy the case above and
+    // take the offer off the row for good.
+    LIVE.authKnown = true;
+    LIVE.linked = false;
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText(/live on this phone only/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Continue with Google/i })).toBeTruthy();
   });
 
   it("reads as a settled fact once linked, with no control", () => {

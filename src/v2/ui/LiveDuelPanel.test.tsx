@@ -35,11 +35,18 @@ const LIVE = vi.hoisted(() => {
     // Request 12: my answer and call on a given round — the sealed list's
     // "you: Coffee · called Tea". Follows myDuelVote by default, so a case
     // that seals the open round sees its own pick in the list.
+    // `pickUid` since 2026-09-12: a pick round's options are the roster, so
+    // the card names WHO the answer snapshotted rather than re-reading the
+    // index against a roster that may have shrunk. Null here by default —
+    // the index fallback — and a case that is about the roster sets it.
     myDuelCall: (gid: string, round: number) => {
       void round;
       const v = social.myDuelVote(gid);
-      return v ? { optionIdx: v.optionIdx, guessIdx: null as number | null } : null;
+      return v
+        ? { optionIdx: v.optionIdx, guessIdx: null as number | null, pickUid: social.myPickUid }
+        : null;
     },
+    myPickUid: null as string | null,
     // Rounds (ROUNDS-PLAN, D426). The fixture's world is "one round is the
     // lead": a sealed answer to the open round means nothing further to
     // answer, which is the card's waiting state — the state every case
@@ -59,7 +66,12 @@ const LIVE = vi.hoisted(() => {
     // for both — empty by default, because every case below is about one
     // day and a seeded history would put dots under all of them.
     revealHistory: () => [] as Array<Record<string, unknown>>,
-    loadRevealHistory: async (gid: string) => { void gid; },
+    // ANSWERS, not throws: `RevealHistoryRead` is "ok" | "failed" | "busy"
+    // (live.ts), and the panel reads that word. The stub declared
+    // `Promise<void>`, which is why a case could not hand it a "failed"
+    // without tsc refusing the assignment — and why nothing here had ever
+    // tried, which is how the voided read stayed unnoticed.
+    loadRevealHistory: async (gid: string): Promise<"ok" | "failed" | "busy"> => { void gid; return "ok"; },
     // The create-or-join pair. Both take the display name as an OPTIONAL
     // third argument since D190 — the screen sends one only when it had to
     // ask, and the callable reads the profile otherwise.
@@ -169,6 +181,14 @@ beforeEach(() => {
     ? { open: 1, next: null, sealed: [1], lead: 5 }
     : { open: 1, next: 1, sealed: [], lead: 5 });
   LIVE.social.myDuelVote = () => null;
+  // Reset beside the vote it belongs to: a case about the roster sets it,
+  // and leaking a pick's uid into the next case would name a member in an
+  // answer that has none.
+  LIVE.social.myPickUid = null;
+  // …and the question a sealed round draws, for the same reason: a case
+  // that seals a ROLE round would otherwise leave the role question
+  // standing under every later case's sealed line.
+  LIVE.social.roundQ = () => Q;
   LIVE.social.revealFor = () => null;
   LIVE.social.romanticPoolReady = () => false;
   LIVE.social.setDuoMode = async () => {};
@@ -364,6 +384,60 @@ describe("LiveDuelPanel · the group as a cast (D434)", () => {
     options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"],
   };
   beforeEach(() => { LIVE.social.groups = () => [CREW]; });
+
+  // THE ROSTER MOVED UNDER A SEALED PICK. A pick round's options ARE the
+  // members, in order (`duelQFor`), so when somebody leaves every later
+  // member shifts down one — and the index this device sealed now points
+  // at a different person, for as long as the round stays open, on a card
+  // whose "Leave group" is one tap away. The answer has snapshotted WHO
+  // since D224; until 2026-09-12 this card read the index anyway.
+  const CREW_AFTER = { ...CREW, memberUids: ["u_me", "u_bo"], memberNames: { u_me: "Me", u_bo: "Bo" } };
+  const ROLE_AFTER = { ...ROLE, options: ["Me", "Bo"] };
+
+  it("still names the member you picked after somebody ahead of them leaves", () => {
+    LIVE.social.groups = () => [CREW_AFTER];
+    LIVE.social.roundQ = () => ROLE_AFTER;
+    LIVE.social.myDuelVote = () => ({ optionIdx: 2 });   // Bo, when there were three
+    LIVE.social.myPickUid = "u_bo";
+    render(<LiveDuelPanel mode="group" />);
+    const text = document.body.textContent || "";
+    // THE SEALED LINE, named exactly — this fixture renders that receipt
+    // and not the wait block, so the looser "either receipt" regex it
+    // replaced could have been satisfied by the other one. Both receipts
+    // resolve their label through the same helper now (`pickLabel`), which
+    // is the structural half of the same guarantee.
+    expect(text, "the sealed line lost the member it named").toMatch(/you:\s*Bo/);
+  });
+
+  it("names an UNNAMED member the way the ballot does, not as nobody", () => {
+    // A member can have no display name at all — the server writes an
+    // empty string when it cannot find one — and the ballot labels them
+    // "Member 2". Reading the name map directly gave "" (an empty label,
+    // and a sealed line with its clause dropped) or, for a member with no
+    // row at all, the dash that is supposed to mean they have LEFT.
+    LIVE.social.groups = () => [{ ...CREW, memberNames: { u_me: "Me", u_ada: "", u_bo: "Bo" } }];
+    LIVE.social.roundQ = () => ({ ...ROLE, options: ["Me", "Member 2", "Bo"] });
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    LIVE.social.myPickUid = "u_ada";
+    render(<LiveDuelPanel mode="group" />);
+    const text = document.body.textContent || "";
+    expect(text, "an unnamed member on the roster was named as nobody").not.toMatch(/you:\s*—/);
+    expect(text).toMatch(/you:\s*Member 2/);
+  });
+
+  it("says nobody rather than somebody else when the member you picked has left", () => {
+    // The dangerous half: the index the answer holds now belongs to a
+    // DIFFERENT member, so reading it puts a name in the voter's mouth
+    // that they never said.
+    LIVE.social.groups = () => [CREW_AFTER];
+    LIVE.social.roundQ = () => ROLE_AFTER;
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });   // Ada, when there were three
+    LIVE.social.myPickUid = "u_ada";
+    render(<LiveDuelPanel mode="group" />);
+    const text = document.body.textContent || "";
+    expect(text, "a departed member's seat was credited to whoever inherited the index")
+      .not.toMatch(/you(?: named|:)\s*Bo/);
+  });
 
   it("a role vote names its pack in the kicker, leads every option with its member, and seals on the one tap", async () => {
     LIVE.social.todayQ = () => ROLE;
@@ -1272,7 +1346,7 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     // REVEAL_HIST_CAP doc reads per circle per session, on the app's FIRST
     // screen. Anyone with three circles would pay for forty documents to
     // look at today's question.
-    const load = vi.fn(async (gid: string) => { void gid; });
+    const load = vi.fn(async (gid: string) => { void gid; return "ok" as const; });
     LIVE.social.loadRevealHistory = load;
     LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
     render(<LiveDuelPanel mode="duo" />);
@@ -1280,12 +1354,47 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
   });
 
   it("fetches them on the tap that asks for them", async () => {
-    const load = vi.fn(async (gid: string) => { void gid; });
+    const load = vi.fn(async (gid: string) => { void gid; return "ok" as const; });
     LIVE.social.loadRevealHistory = load;
     LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
     render(<LiveDuelPanel mode="duo" />);
     fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
     await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+  });
+
+  it("says a failed tap failed, and lets you ask again", async () => {
+    // `loadRevealHistory` ANSWERS "failed" rather than throwing, so a
+    // `void`ed call read as success: the tap set `histAsked`, the button
+    // disappeared, the rounds never arrived and nothing on screen said
+    // why. There was no way to ask again without leaving the room.
+    // LiveGroupsMirrorBody reads the same answer correctly; this is that
+    // reading, at the tap.
+    const load = vi.fn(async (gid: string) => { void gid; return "failed" as const; });
+    LIVE.social.loadRevealHistory = load;
+    LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
+    await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+    await waitFor(() => expect(screen.getByText(/Couldn.t read the older rounds/i)).toBeTruthy());
+    // …and the affordance is back, or "try again" is a sentence with no
+    // control under it.
+    expect(
+      screen.getByRole("button", { name: /Load older rounds/i }),
+      "the button stayed gone after a failed read — nothing left to tap",
+    ).toBeTruthy();
+  });
+
+  it("a busy answer is not a failure — the history is in hand or on its way", async () => {
+    // The other two answers `loadRevealHistory` gives. "busy" means the
+    // read is already done or already running, which is exactly what the
+    // button asked for, so it must not draw a failure.
+    const load = vi.fn(async (gid: string) => { void gid; return "busy" as const; });
+    LIVE.social.loadRevealHistory = load;
+    LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
+    await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+    expect(screen.queryByText(/Couldn.t read the older rounds/i)).toBeNull();
   });
 
   // Dates RELATIVE TO NOW, not literals. The labels are a claim about how

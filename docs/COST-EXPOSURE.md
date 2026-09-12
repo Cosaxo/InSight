@@ -192,7 +192,7 @@ the switch closed.
    `budgetMode` to 1 (§6 C4). The same function calling
    `projects.updateBillingInfo` with an empty billing account at a higher
    threshold is Google's documented hard stop — an outage, and the
-   owner's call. *Made 2026-09-12 (D465): three budgets, 1,500 NOK, the
+   owner's call. *Made 2026-09-12 (D471): three budgets, 1,500 NOK, the
    same function; the arithmetic the owner ruled on is in that record.*
 3. **Query-size conditions in the rules** — `request.query.limit <= 200`
    on the `answers` collection-group list and the other D98 lists — bound
@@ -417,7 +417,7 @@ default to the billing account's admins and users. Both are §6 O4.
 
 | # | Gap | If it bites | Fix | Who | 2026-09-09 |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); the attach is the owner's console click (2026-09-10); the detach **built 2026-09-12 at three budgets (D465)**, armed by one IAM grant that is the owner's |
+| 1 | Nothing acts on a budget threshold | hours to days of unanswered spend | Pub/Sub → function → `budgetMode`; billing detach at a high threshold if the owner says so | code, then owner | **built** (C4); the attach is the owner's console click (2026-09-10); the detach **built 2026-09-12 at three budgets (D471)**, armed by one IAM grant that is the owner's |
 | 2 | No project-wide cap on Anthropic calls; key may be unset | accounts × 30 Opus calls a day | workspace spend limit; global counter; a real `max_tokens` | owner + code | **code done** (C3: 50 calls a day, 1,024 tokens); O1 still the owner's |
 | 3 | `resultsPageV2` inherits `maxInstances: 10` | ~$10–20 a day under a hammer | `maxInstances: 2` — **done 2026-09-08** | code | done |
 | 4 | The model nets a free tier the database does not have; two stale rows | wrong sentences, under $1 | `cost-arith.mjs` reads the database id; regenerate | code | **done** (C1) |
@@ -483,7 +483,7 @@ default to the billing account's admins and users. Both are §6 O4.
 - **C4 · The budget acts** — **built 2026-09-09**; the attach is one
   click of the owner's, in the console (§8.1, measured 2026-09-10); the
   detach was an owner row until 2026-09-12, when the owner named the
-  threshold — three budgets — and it was **built** (D465): one more
+  threshold — three budgets — and it was **built** (D471): one more
   branch of `budgetDecision`, a latch that ratchets the line after a
   re-attach, one IAM grant (`LAUNCH-RUNBOOK.md` 5.18).
   `scripts/apply-budget.mjs` adds a
@@ -686,7 +686,7 @@ what stands in the way of each:
 The hard stop — detaching billing from the same notification at a higher
 threshold — was still not built when this section was written, still
 Google's documented shape, and still the owner's call. **The owner made
-it on 2026-09-12 and it is built (D465):** three budgets, 1,500 NOK on the
+it on 2026-09-12 and it is built (D471):** three budgets, 1,500 NOK on the
 500, the same function, one IAM grant to arm it. With it, every vector
 in the table above has a ceiling that holds when the model is wrong —
 which is the one property none of the bounds could offer, and the reason

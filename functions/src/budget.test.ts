@@ -2,7 +2,7 @@
 // line, releases only what it set and only in a new month, and leaves a
 // hand-set level alone (COST-EXPOSURE.md §6 C4) — and detaches billing at
 // the second line, once per re-attach, with the latch written first and
-// cleared on a refusal (D465).
+// cleared on a refusal (D471).
 import { describe, expect, it } from "vitest";
 import {
   BUDGET_ACT_AT, BUDGET_DETACH_AT, BUDGET_MODE_BY, applyBudgetMessage, budgetDecision, detachLine,

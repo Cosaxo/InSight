@@ -100,7 +100,7 @@ jobs:
             echo "cannot satisfy it — budgets are a billing-account resource."
             echo ""
             echo "A budget notifies; what caps is the function its notifications reach"
-            echo "(docs/COSTS.md, control 1): the read breaker at 100 %, and since D465"
+            echo "(docs/COSTS.md, control 1): the read breaker at 100 %, and since D471"
             echo "the billing detach at 300 % — the top threshold rule this run arms is"
             echo "the MAIL for that line, not the line itself. Its emails go to the"
             echo "billing account's admins and users — owning the account is the"
