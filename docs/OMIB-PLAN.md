@@ -340,7 +340,9 @@ page that says "too early" with its numbers showing.
 
 Written out so the scope is visible: the two callables and their names;
 the attempt document and its rules (`v2_logic_attempts`, never readable);
-`LOGIC_MAX_STARTS_PER_DAY`, the cooldown, `LOGIC_DEADLINE_MS`; the effort
+the cooldown (one attempt every 30 days from the START of the last,
+D478 — `LOGIC_MAX_STARTS_PER_DAY` went with that change and is named in
+§5, not here); `LOGIC_DEADLINE_MS`; the effort
 floor and the phantom-scorer fix (D402); the private/public norms
 documents and their mirror cadence; the `testResults.logic` write and
 `saveTestResultV2`'s bounds (D431); the D227 logic bands, which read a
