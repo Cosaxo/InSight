@@ -254,8 +254,8 @@ import './spec/passive-meter.jsx';
 // by name. It renders MirrorSlot now, which takes the module off
 // data/mirrorChunk when the prewarm has landed it — the same tick as the
 // tap, no blank frame — and imports it itself when it has not.
-// The Map's seven modules (map-bottom-card, map-learn-card, map-people,
-// map-layout, map-groups, map-chiprow, map-tab) left this list for
+// The Map's eight modules (map-bottom-card, map-learn-card, map-people,
+// map-layout, map-groups, map-chiprow, map-find, map-tab) left this list for
 // loadMapTab() at the foot of this file (v28 §5): the Map is a Mirror-tab
 // destination, not a first-paint surface, and ~93 KB of source was the
 // eager graph's single cheapest win. Their order now lives as static

@@ -716,6 +716,42 @@ const pastFirstPaintFiles = harnessFiles - smokeMountFiles;
 // and world-subtopics joined the loader. `spec-index.js`'s own comment
 // corrects itself in place; the prose never got the same edit, which is
 // the documentation error this repo keeps re-committing (D39).
+// THE MAP'S DEFERRED FAMILY, computed rather than counted — and the reason
+// this entry exists is that it was counted, twice, and drifted the first
+// time anything joined it. `loadMapTab()` names only map-tab.jsx and that
+// file's own static imports carry the rest, so the family is map-tab plus
+// every `map-*` sibling it pulls MINUS the three that are eager anyway
+// (map-branches, map-anchors, map-group-stats — daily-questions, the
+// profile and its stats read them on first-paint surfaces, which is why
+// spec-index.js's own note carves them out).
+//
+// `map-find.jsx` arrived on 2026-09-12 and made every "seven" in the tree
+// an eight, in CLAUDE.md and in spec-index.js's comment, with nothing able
+// to see it: this gate computed the FEED's thirteen and had no entry for
+// the Map's or the Mirror's, so those two were the hand-maintained figures
+// in the one paragraph that warns against hand-maintained figures.
+const EAGER_MAP_SIBLINGS = new Set(["map-branches.js", "map-anchors.js", "map-group-stats.js"]);
+const mapTabDeferred = (() => {
+  const idx = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
+  if (!idx.includes("export const loadMapTab")) {
+    throw new Error(
+      "check-figures: no loadMapTab in spec-index.js — the loader was renamed "
+      + "or reshaped. Fix this derivation rather than dropping the figure.",
+    );
+  }
+  // STRIPPED, because a commented-out import is not an import. A superseded
+  // line parked above the live one is exactly what this derivation would
+  // otherwise count, and scripts/source-pins.test.mjs holds a ceiling on
+  // gates that read a file and match against it without stripping — it
+  // caught this one on the commit that added it.
+  const src = stripComments(readFileSync(join(root, "src/v2/spec/map-tab.jsx"), "utf8"));
+  const sibs = new Set(
+    [...src.matchAll(/from '\.\/(map-[a-z0-9-]+\.jsx?)'/g)].map((m) => m[1]),
+  );
+  for (const e of EAGER_MAP_SIBLINGS) sibs.delete(e);
+  return sibs.size + 1; // + map-tab.jsx itself
+})();
+
 const worldFeedDeferred = (() => {
   const src = readFileSync(join(root, "src/v2/spec-index.js"), "utf8");
   const a = src.indexOf("export const loadWorldFeed");
@@ -1032,6 +1068,20 @@ const FIGURES = [
     re: /and (\w+) that go PAST first paint/,
     actual: word(pastFirstPaintFiles),
     fix: (n) => `"and ${n} that go PAST first paint"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "spec modules loadMapTab() defers, map-tab.jsx included (§1)",
+    re: /The Map's (\w+) defer/,
+    actual: word(mapTabDeferred),
+    fix: (n) => `"The Map's ${n} defer too since v28 §5"`,
+  },
+  {
+    file: "src/v2/spec-index.js",
+    what: "the same family, in the comment that used to hold their order",
+    re: /The Map's (\w+) modules \(map-bottom-card/,
+    actual: word(mapTabDeferred),
+    fix: (n) => `"The Map's ${n} modules (map-bottom-card, …)"`,
   },
   {
     file: "CLAUDE.md",

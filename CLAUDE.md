@@ -223,10 +223,15 @@ just awaited in sequence instead of imported at the top. (This said
 stack, `pick-data.js`, `world-catalogs.js` and `world-subtopics.js`
 joined the loader afterwards. `spec-index.js`'s own comment corrects
 itself in place and this sentence never got the same edit, which is why
-`check:figures` holds it now.) The Map's seven defer
+`check:figures` holds it now.) The Map's eight defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
-and that file's own static imports carry the other six in order — see the
-comment where the eager list used to hold them. The Mirror's thirteen
+and that file's own static imports carry the other seven in order — see the
+comment where the eager list used to hold them. (This said seven until
+`map-find.jsx` joined the family on 2026-09-12. `check:figures` computes
+it now, from map-tab.jsx's own imports minus the three siblings that are
+eager anyway, so it is the gate's number rather than a hand count — which
+is what the paragraph above says to do and what this sentence was not
+doing.) The Mirror's thirteen
 defer the same way since D355 (`loadMirrorTab()` names only
 `mirror-tab.jsx`), and the tab mounts through a slot that renders in the
 tap's own tick once the prewarm has landed — `src/v2/README.md` § the
