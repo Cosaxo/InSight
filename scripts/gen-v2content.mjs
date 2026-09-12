@@ -709,6 +709,16 @@ export function buildEntries(content = loadContent()) {
       topic: null,
       axis: null,
       test: null,
+      // THE DAY IT STARTED ASKING (D479), emitted because the device
+      // reads it: `startedOn` parses it and `asksOn` is what keeps the
+      // 21-day reading from calling the days before a pulse existed
+      // misses. `check:quality` hard-fails a NEW pulse without one, and
+      // the five shipped pulses correctly carry none — so a lane could
+      // author `since`, pass the gate, and have this emitter drop it
+      // silently on the way to the device, which is the producer-in-the-
+      // middle hole D280 keeps re-finding. Emitted only when set, like
+      // `flags` above, so the shipped five are byte-for-byte unchanged.
+      ...(q.since ? { since: q.since } : {}),
       ...flags(q),
     });
   });

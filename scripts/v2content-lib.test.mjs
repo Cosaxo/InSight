@@ -23,7 +23,7 @@
 // read back exactly, and no slice may exceed the bound the compiler limit
 // is being kept under.
 import { describe, it, expect } from "vitest";
-import { generate, buildEntries, BANK_SLICE } from "./gen-v2content.mjs";
+import { generate, buildEntries, loadContent, BANK_SLICE } from "./gen-v2content.mjs";
 import { bankArray } from "./v2content-lib.mjs";
 
 const generated = generate();
@@ -75,5 +75,48 @@ describe("the parser refuses a shape it cannot read", () => {
   it("throws when a slice is missing from the middle", () => {
     const withoutFirst = generated.replace(/^const BANK_0: V2SeedQuestion\[\] = /m, "const GONE = ");
     expect(() => bankArray(withoutFirst)).toThrow(/out of order/);
+  });
+});
+
+// ── a pulse's window start reaches the device ─────────────────────────
+//
+// `since` is the only input to `asksOn` (src/v2/data/pulse.ts), which is
+// what stops a 21-day reading from counting the days before a pulse
+// existed as misses — and `check:quality` hard-fails any NEW pulse that
+// does not carry one. The emitter built each pulse doc from a closed
+// field list that had no `since` in it, so a lane could author the field,
+// satisfy the gate, and have it dropped here on the way to
+// `v2_questions`: `startedOn` null, `asksOn` true for all 21 days, and
+// the pre-history drawn as a broken streak. The producer in the middle is
+// the half no gate was looking at.
+//
+// Driven through a SYNTHETIC pulse rather than the shipped five, which
+// carry no `since` and correctly never will — a pin off the real content
+// would pass by having nothing to carry.
+describe("a pulse's window start survives the emitter", () => {
+  const withPulse = (q) => {
+    const real = loadContent();
+    return { ...real, pulse: { ...(real.pulse || {}), questions: [q] } };
+  };
+  const PULSE = {
+    id: "probe", prompt: "How did the probe go?",
+    options: [{ id: "a", label: "Badly" }, { id: "b", label: "Well" }],
+    since: "2026-09-20",
+  };
+
+  it("emits `since` on a pulse that carries one", () => {
+    const entry = buildEntries(withPulse(PULSE)).find((e) => e.id === "pulse-probe");
+    expect(entry, "the synthetic pulse never reached the bank — this case is pinning nothing").toBeTruthy();
+    expect(entry.since, "the day the pulse starts asking was dropped between the file and the device").toBe("2026-09-20");
+  });
+
+  it("emits no `since` key at all for a pulse without one", () => {
+    // The other half, and the reason for the conditional spread: the five
+    // shipped pulses predate any window that can be drawn, and the drift
+    // gate compares bytes.
+    const { since: _drop, ...bare } = PULSE;
+    const entry = buildEntries(withPulse(bare)).find((e) => e.id === "pulse-probe");
+    expect(Object.prototype.hasOwnProperty.call(entry, "since"),
+      "an empty `since` was emitted, which moves every shipped pulse's bytes").toBe(false);
   });
 });
