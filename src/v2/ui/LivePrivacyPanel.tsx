@@ -375,6 +375,19 @@ function LivePrivacyPanel() {
           <span style={{ color: "var(--ink-3)", padding: "0 7px" }}>·</span>
           <a href={`${LP_SITE}/terms.html`} target="_blank" rel="noreferrer noopener"
             style={{ color: "var(--accent)", textDecoration: "none" }}>Terms</a>
+          {/* The root, beside the two pages that were the app's only links
+              out (D467). It is the address both stores already hold as the
+              privacy and support URL, and since D466 its first row is the
+              door to the web ask page. This link is labelled what it is and
+              goes where it says — every app links its own website, and
+              Apple's rule is about buttons that lead to a purchase, not
+              about a site that sells something two taps in. The label is
+              deliberately not "Ask a question": the Android header carries
+              that (askDoor.ts), and here the iOS build must carry nothing
+              of the kind (smoke-live, ask-door-platform). */}
+          <span style={{ color: "var(--ink-3)", padding: "0 7px" }}>·</span>
+          <a href={`${LP_SITE}/`} target="_blank" rel="noreferrer noopener"
+            style={{ color: "var(--accent)", textDecoration: "none" }}>Website</a>
         </div>
       </div>
 

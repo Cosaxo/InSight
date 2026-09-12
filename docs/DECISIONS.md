@@ -51687,3 +51687,118 @@ Three, all on `OWNER-LIST.md` rather than taken by a routine:
    the door on them reaches people who are *sent* a link and nobody who
    searches. Lifting it widens what D379 deliberately narrowed and makes
    a buyer's name searchable — a D334 ask, not a routine's call.
+
+
+## D467 · The door comes back on Android and the account panel links the site: the owner's four answers on D466's open row
+
+**2026-09-12.** **Status:** binding, BUILT. The owner, on being told
+the four web routes made the door reachable but not findable — *"so
+pepole cant go from the app to the website then it is useless?"* — and
+then, on Apple's anti-steering rule: *"we cant even have a 'call to
+action' that does not mention anything about a sale there has to be a
+way around that?"*
+
+**The rule, stated so the way around is visible.** Apple judges where a
+button GOES, not what it says. A control labelled "Ask a question" that
+opens a page with a price and a pay tap is a purchase link whatever the
+label — that is Meta's "Boost Post" shape and Meta lost it. So the way
+around is not wording; it is making the thing in the app genuinely not a
+purchase, or putting the door on the platform whose store does not
+police it. Four shapes were put to the owner with what each costs, and
+the owner ruled on each:
+
+| shape | the owner | why |
+| --- | --- | --- |
+| free "Suggest a question" in the app, the paid door for deliberate buyers | **no** — *"that like giving away youtube premium for free thats suposd to be the income source"* | asking is the product, not a funnel to it |
+| a "Website" link beside Privacy and Terms in the account panel | **yes** — *"tell me more"*, then *"go build both"* | a website link is a website link; the root now carries the door (D466) |
+| the header "+" back, on Android only, opening the WEB door | **yes** — *"agree"* | Play does not police ad-type spend the way Apple does |
+| email or opted-in push to signed-in users, which Apple explicitly allows | **no** — *"acouts should be anonymous"* | D3, and a reach of nearly nobody |
+
+The three suggestion callables therefore stay callerless and the
+OWNER-LIST row on retiring them stands; the free path is not coming
+back as a product.
+
+### What was built
+
+**`src/v2/data/askDoor.ts` — the rule, one platform in.**
+`askDoorOffered()` is `platform === "android"`, read off the
+`window.Capacitor` global the runtime injects (engagement.ts's reason:
+import-free for node tests, and a mount test sets the platform with one
+assignment). iOS, web, no bridge, a throwing bridge — all off. The
+build is one bundle for both stores, so the iOS build cannot leave the
+door out at build time; it leaves it out at render time, and the test
+below is what makes that a fact rather than a hope. `openAskDoor()` is
+`window.open(ASK_URL, "_blank", "noopener,noreferrer")` — the same hop
+the pre-D368 pay tap made to Stripe.
+
+**The header "+", Android only** (`app-shell.jsx`, where D368's comment
+said the door used to be). Same class and glyph weight as Search — a
+peer, not a promotion. It opens the web page that already carries the
+menu, the audience, the quote and the pay tap (D369–D378, D455): no
+composer, no billing code, no product change in the binary.
+`STORE-CUT-PLAN.md` §3 priced shape B as *"two code paths forever"*;
+this is shape B at one boolean, because the web door IS the second
+path and it exists anyway.
+
+**"Website" beside Privacy policy and Terms** (`LivePrivacyPanel.tsx`).
+Opens the root — the address both stores already hold as the privacy
+and support URL, whose first row since D466 is the door. Labelled what
+it is and going where it says. Deliberately not "Ask a question": that
+name is the Android header's, and the iOS build must carry nothing of
+the kind.
+
+### What pins it, and what was proved by breaking it
+
+- `askDoor.test.ts` — the rule on every platform value and on a bridge
+  that throws or lacks `getPlatform`; the URL; the open call's three
+  arguments.
+- `ask-door-platform.test.jsx` — the whole App through the smoke
+  harness three times: as **Android**, exactly one door, in the header,
+  `.icon-btn`, a click calls `window.open(ASK_URL, "_blank")` and opens
+  nothing inside the app; as **iOS**, zero controls named ask-a-question
+  while Search is still there (so the absence is the door's, not the
+  header's); with **no platform**, zero. Mutation-tested: letting iOS
+  through the rule fails the iOS case; taking the button out of the
+  header fails the Android case.
+- `LivePrivacyPanel.test.tsx` — the three links, their hrefs, `_blank`
+  and `noopener`, and no link or button named ask on the panel.
+- `smoke-live.test.jsx`'s two inverted cases (D368) are **narrowed, not
+  reversed**: jsdom has no Capacitor, so they mount as the web build and
+  still hold — and now they prove the door does not leak onto a
+  platform nobody set, while the iOS assertion a reviewer's phone makes
+  is this file's. Their comments say so.
+- `CLAUDE.md`'s suite count moved eleven → twelve and `check:figures`
+  caught it before the commit, which is the gate doing what D39 built
+  it for.
+
+### What is exposed, and to whom
+
+Nothing new. The button and the link open pages every stranger on the
+web can already open; the app learns nothing from either (the webhook
+is the truth, Asked by you reads it). No data is collected, so the
+store forms move by nothing — but `PLAY-RELEASE.md` §3.4's question is
+LIVE again rather than moot, and only for Play: the thing bought is
+served inside the app, which makes Google's "consumed outside the app"
+exemption a read in the Play Console policy flow before first
+submission, not an engineer's conclusion. `STORE-CUT-PLAN.md` §3 called
+shape B *"Play risk retained"*; this record keeps that phrase rather than
+the softer one the owner was first given (*"Google doesn't police
+this"*), which is the plan's claim and not a policy read. It goes to
+`OWNER-LIST.md`, and `askDoorOffered` is one boolean from off if the
+read says so.
+
+On Apple's side the residual is the one every app with a website link
+carries: review is a person, and a reviewer who taps Website → Ask a
+question → sees a price could call the settings link a disguised
+checkout. Unlikely — the label is honest and the destination is the
+root Apple already has on file — and not zero.
+
+### What this reshapes, and what it does not
+
+- D368's amendment removed *"all five"* entry points; one returns, on
+  one platform, opening the web rather than a composer. D368 itself is
+  untouched: buying stays on the web, the funnel stays out of the iOS
+  binary, and the reason (IAP has no partial-refund primitive) stands.
+- D466's three open calls stand as written: the domain, the `/q/`
+  `noindex`, and — now answered — the in-app path.
+- The Play policy read joins them.

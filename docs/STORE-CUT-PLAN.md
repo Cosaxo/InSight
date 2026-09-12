@@ -125,6 +125,17 @@ injunctions do. B is a real option if in-app Android conversion turns
 out to matter, but it buys a second code path against a risk Play has
 never actually enforced.
 
+**A plus B, at one boolean — DECIDED, D467 (2026-09-12).** Once the
+web door existed, B stopped costing a second code path: the Android
+build's header "+" simply opens `web/ask.html` in the system browser
+(`src/v2/data/askDoor.ts`, `platform === "android"`), so the composer,
+the billing and the refund all stay where A put them and the iOS build
+still draws nothing — proved on the mounted App by
+`ask-door-platform.test.jsx`. The price cut (D373/D376) is what made
+the Android door worth having: at €10 the buyer is in the app. "Play
+risk retained" is still the honest phrase — `PLAY-RELEASE.md` §3.4's
+read is now live rather than moot, and is on `OWNER-LIST.md`.
+
 **Two facts make A nearly free today, and both expire.** There are
 **zero sales** — every `booked` array in `content/pricing.json` is empty
 and every cohort sits at the floor index — so nothing migrates and no
