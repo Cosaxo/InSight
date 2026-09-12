@@ -34,6 +34,15 @@ import { sharePcts } from "../data/pct";
 // door (a different lazy chunk) renders it too, and CurSwitch.tsx's
 // header says why an import between the two overlays was the wrong wire.
 import { CurSwitch } from "./CurSwitch";
+// The dialog props every other full-screen overlay spreads onto its own
+// `.overlay` root — Escape, the focus move in, the trap, and the return to
+// whatever opened it. This file went without them from the day it shipped:
+// nothing enumerates the overlays, so a new one is invisible to every gate
+// (check:a11y's own header says focus containment is runtime, and
+// dialog.test.jsx's SCOPE note says it deliberately covers only the two
+// header-reachable overlays).
+// @ts-expect-error TS7016 — untyped spec module (the LiveWalkthrough pattern)
+import { useDialog } from "../spec/primitives.jsx";
 
 const SANS = "var(--sans)";
 const K: React.CSSProperties = { fontFamily: SANS, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--ink-3)" };
@@ -211,6 +220,7 @@ function AdPurchaseCard({ p }: { p: Purchase }): React.ReactElement {
 
 export default function AskedByYouOverlay({ onClose }: { onClose: () => void }): React.ReactElement {
   useCur();
+  const dlg = useDialog(onClose, "Asked by you");
   const [, bump] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
     if (!LIVE.enabled) return; // a demo build has no ledger to read
@@ -226,7 +236,7 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
   const adRows = (rows || []).filter((p) => p.kind === "ad");
   const subsRows = (rows || []).filter((p) => p.kind === "subscription");
   return (
-    <div className="overlay">
+    <div className="overlay" {...dlg}>
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose} aria-label="Close">✕</button>
         <div className="h-title">Asked by <em>you</em></div>
@@ -237,7 +247,11 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
           Everything this account has bought — with its live public numbers and the report shelf. Reports are picked up here (no bells, no email — by design).
         </div>
         {rows == null ? (
-          <div style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>
+          // role="status" because this line CHANGES under the reader —
+          // "Reading your contracts…" becomes "Couldn't read…" when the
+          // load fails, and without a live region the failure is silent to
+          // anyone not watching this spot.
+          <div role="status" style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>
             {mineFailed() ? "Couldn’t read your contracts. Close and reopen to try again." : "Reading your contracts…"}
           </div>
         ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (

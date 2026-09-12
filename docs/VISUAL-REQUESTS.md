@@ -475,7 +475,7 @@ that lets a buyer read them.
 
 ## Built
 
-### 13 · The logic test's answer, built rather than picked — OMIB's construction format
+### 14 · The logic test's answer, built rather than picked — OMIB's construction format
 
 - **title · asked by** — *Build the missing cell* · the owner, 2026-09-11,
   choosing the Open Matrices Item Bank over three alternatives (D471),
@@ -529,7 +529,7 @@ that lets a buyer read them.
   the owner asked for, and the construction format is the price the bank
   charges. The return is on the scale itself — six options put ~4.2 of 25
   in the guessing floor, and a constructed answer puts it near zero.
-- **status** — `built` 2026-09-12 (D473), the same day it was designed. `src/v2/spec/logic-test.jsx` is the screen: the board composing the goal cell live from `src/v2/data/omib-shapes.ts`, the palette laid out column = family / row = member with tap-to-toggle, Clear appearing once something is placed, Done committing (dormant while empty, pressable throughout — an item a taker cannot solve is skipped by committing the empty cell rather than by waiting out the clock), the current segment draining over its 90 s with the numeral in the final 20 s, the sitting's remainder in the header, and a time-out that commits the cell as it stands. Both modes on the one screen (D472): practice through `logicPracticeV2`, verified through `logicStartV2`/`logicSubmitV2`, the cells the only payload. The two build notes were honoured — the shapes are the bank's, in the bank's order, arrows out (`omib-shapes.test.ts`). Eleven cases in `logic-overlay.test.jsx`; the smoke mount renders the example. What was designed and NOT built: the graded haptics (the web overlay has no haptic channel; Capacitor's is a later increment) and the drag alternative, which the design itself put second.
+- **status** — `built` 2026-09-12 (D473), the same day it was designed. Numbered 13 until the 2026-09-12 merge into `main`, where the Map ring's 13 (D464) had landed first — the D299 rule, one register over. `src/v2/spec/logic-test.jsx` is the screen: the board composing the goal cell live from `src/v2/data/omib-shapes.ts`, the palette laid out column = family / row = member with tap-to-toggle, Clear appearing once something is placed, Done committing (dormant while empty, pressable throughout — an item a taker cannot solve is skipped by committing the empty cell rather than by waiting out the clock), the current segment draining over its 90 s with the numeral in the final 20 s, the sitting's remainder in the header, and a time-out that commits the cell as it stands. Both modes on the one screen (D472): practice through `logicPracticeV2`, verified through `logicStartV2`/`logicSubmitV2`, the cells the only payload. The two build notes were honoured — the shapes are the bank's, in the bank's order, arrows out (`omib-shapes.test.ts`). Eleven cases in `logic-overlay.test.jsx`; the smoke mount renders the example. What was designed and NOT built: the graded haptics (the web overlay has no haptic channel; Capacitor's is a later increment) and the drag alternative, which the design itself put second.
 
 ### 8 · The logic test's worked example — one solved matrix before item 1
 
@@ -579,6 +579,190 @@ that lets a buyer read them.
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
 - **status** — `built` 2026-09-12 (D473), in the same artboard and the same commit as 13, which is what kept it from teaching a screen that no longer exists. On a first open the overlay shows the design's own addition puzzle SOLVED — not a bank item, so it teaches without leaking — over the resting palette, one sentence (*Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.*), and Start, which is the first call to the server; no clock runs. Reachable again from the result screen (*See how a puzzle works*) with a way back. The optional tap-to-explain on struck options was not built: there are no struck options in a constructed-response format, which is the request's own §4 premise dissolving rather than a cut.
+
+### 13 · A node with more than two answers on the Map ring
+
+- **asked by** — the owner, 2026-09-09 (*"could add the catalog picks to
+  the question map"*), through `PATTERNS-PLAN.md` §5. The owner-list row
+  on instrument and multi-option items (D395, D396) already said a
+  wider Map is a visual and goes through this file; this is that
+  request.
+- **surface** — the **patterns** tab, Map lens as built: every
+  two-option core question a dot on the rim grouped by topic, a tie a
+  chord through the middle, and the card under the field saying *Pick
+  this here — and 78% pick that* (`ui/PatternsMap.tsx`,
+  `design/standalone-2026-09-02/question-map.jsx`). The request is the
+  dot and the card for a question whose answers are not two: a
+  three-or-four-option choice, a five-, ten- or twelve-point scale, and
+  a catalogue pick — one of about a thousand.
+- **data and basis** — the candidate engine's rows on
+  `v2_patterns/loadings`: `ord` (one row per scale question, with its
+  `sd`), `opt` (one row per option), and under the plan's §5 the
+  catalogue's per-entity rows above a floor plus one *everyone else*
+  row. What the card can say, exactly: for an option or an entity, the
+  same 2×2 count as today over the two bounded samples — *Pick Pikachu
+  here, and 64% pick tea*, basis stated (D146); for a scale, a lean
+  split at the median — *people who rate this high pick tea more often:
+  71% against 52%* — and the basis sentence must say it is a split. A
+  row under `PATTERNS_MIN_BASIS` draws no chord; an entity under the
+  entity floor is in *everyone else* and is never named.
+- **states** — the question's dot always; its chords only for rows
+  with basis; a catalogue with no entity above the floor: the dot, and
+  under it *no pick is common enough to say anything yet*; demo: never
+  — live only, like the rest of the tab (D167).
+- **interaction** — tap the dot and the card lists its ties. A question
+  with several answers first needs to know WHICH answer the ties are
+  about: the viewer's own if answered, else the most common, with a
+  chip row of the answers and the ties re-read on the chip. A chord's
+  sign — solid together, dashed opposite — is per answer, so a
+  four-answer question has four chord sets; the design decides whether
+  the rim shows the strongest answer's set at rest, or none until a
+  chip is chosen. A scale question's chip row is a low · mid · high
+  triplet, not twelve chips.
+- **vocabulary** — the ring and its ink-in family (`patterns.css`), the
+  tap card's rows, the guide ⓘ of 2026-09-06 (a basis sentence may move
+  behind it, never be deleted — D146), the copy rule D182.
+- **constraints** — no new reads: the rows are on the loadings
+  document and the 2×2 comes from the nightly samples the pair card
+  already shares; the ring's dot budget (`PATTERNS-PLAN.md` §7.2 — a
+  thousand dots on a rim of radius 131 is a line); tap targets
+  (`check:tap-targets`).
+- **why** — the app connects data and draws the connection where
+  someone can read it (CLAUDE.md, the first paragraph); half the core
+  corpus and every catalogue pick is invisible on the Map today, and
+  the owner's own example — *Pikachu and strawberries* — cannot be
+  drawn until this exists.
+- **status** — `built` 2026-09-11 (D464). **The canvas:**
+  <https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523>,
+  drafted 2026-09-10 and **accepted by the owner 2026-09-11** — *"its fine
+  how it is now"* — with the same word telling the session to build it. The
+  eight artboards are extracted at `design/map-ring-2026-09-11/`, which is
+  the durable record; the canvas is ephemeral. What the draft chose where
+  the plan left the choice to it, all four built as drawn: the You arc
+  inside the rim, pictures on the tapped card's chips and not on the rim, a
+  trimmed group folded into a `+n` at its place, groups parted by a
+  hairline tick. The owner's answers of 2026-09-10 are in it: profile
+  values MAY be drawn (the You arc, off by default), and *"lets plan a way
+  to include all types in a efficent and smart way"* was the brief.
+
+#### The plan (2026-09-10) — one rule for every type
+
+**The rule: a dot is an answer-axis, which is a row in the fit.** Every
+row the nightly fit publishes is one direction people can lean in, with
+a vector; the Map's chords are cosines between rows already
+(`data/patternsMap.ts`, `edgesOf`). Today the Map draws one dot per
+two-option QUESTION, which happens to equal one dot per row. Keeping
+the equality and letting every kind of row be a dot is the whole
+design, and it costs no new arithmetic and no new read:
+
+| Kind of question | Rows the fit publishes | Dots on the ring | The dot means |
+| --- | --- | --- | --- |
+| two-option | one (`bin`) | one | the question; its two answers are one axis, the chord's dash says which pairs |
+| scale · rating · dial | one (`ord`) | one | the question; low↔high is one axis |
+| choice (3–4 options) | one per option (`opt`) | one per option, a bead group | *picked this* |
+| catalogue pick | one per popular entity (`pick`, ≤ 10) | one per popular entity, a bead group | *picked this one* |
+| profile value (D458) | one per value (`anc`) | one, on the You arc | *is this* |
+
+**Bead groups.** The dots of one question sit together on the rim, in
+their topic's arc, with a hairline tick between groups and a plain gap
+between topics — so a four-option question reads as one place with
+four beads, and a catalogue card as one place with up to ten. A bead
+is the size of every other dot; solid if the viewer gave THAT answer,
+hollow otherwise (a two-option dot is solid when answered, as today).
+A group's beads share the topic hue; the design decides whether a
+bead carries a letter, a short answer word on tap, or (for a catalogue)
+the entity's own picture from `web/catalog-art/` at bead size (D421 —
+the pictures exist; whether they read at 6 px is the design's call,
+with a plain bead the fallback).
+
+**The You arc (the owner's yes, 2026-09-10).** The profile values are
+rows too, and they are drawn — as a separate arc outside the topics,
+labelled *You*, holding one bead per value the crowd carries (age
+bands, genders, countries, education, relationship, height, work; at
+most 24 per dim, the cube's cap), the viewer's own values solid. Behind
+a toggle in the topic control, OFF by default: the map is a map of
+questions until asked, and a map of questions and who-gives-them when
+asked, and the toggle is the honest way to say which picture is on
+screen. A chord from a You bead to a question says *being 65+ goes with
+answering this that way*.
+
+**Chords, unchanged in kind.** A line joins two dots when people who
+lean one way on one lean a predictable way on the other; solid =
+together, dashed = opposite; thicker = stronger; at rest the strongest
+ten speak. With beads the ten are over beads, so a catalogue's
+strongest entity can be one of them. Tapping a bead lights ITS three
+ties (`nearOf` over rows, as today).
+
+**The card under the field, per kind — every sentence with its basis
+(D146).** The sentence is the exact count, not the cosine:
+
+- two-option, as today: *Pick Tea here — and 78% pick Morning on "…"* ·
+  *usually 61%* · *of the 143 in both samples*.
+- choice or catalogue bead: the same 2×2 with *picked this* as the
+  side: *Pick Pikachu here — and 64% pick Tea on "…"* — the samples
+  carry the entity since D459 (`e` rows), so the count is the same
+  fetch the pair card already shares. The chip row above the ties
+  restates the group's beads; tapping a chip re-reads the ties for that
+  answer.
+- scale bead: split at the crowd's median from the sample's `o`
+  indexes: *Rate this high — and 71% pick Tea; 52% of the low half do*
+  — the basis line must say *split at the middle*.
+- You bead: from the cube's own cells, exact and already on the device
+  (`agg.by`): *65+ here: 61% pick Tea · of 312 answers from that group*.
+  No sample needed.
+- a bead under the basis floor (`PATTERNS_MIN_BASIS`) is not drawn; a
+  catalogue entity under the entity floor is in *everyone else* and is
+  never named; a question none of whose beads has basis is not drawn.
+
+**The hub** keeps counting QUESTIONS answered of the pool, not beads.
+
+**The dot budget (D461) with beads.** Beads count as dots. Over
+`MAP_DOT_BUDGET` each topic keeps its strongest hubs in proportion,
+and a bead group is trimmed AS A GROUP: its strongest bead stays and a
+small *+3* sits at the group's place; tap opens the whole group in the
+card. The sentence under the field says *300 of 885 drawn*. Under
+"answered" the ring holds the viewer's own beads: the answers they gave,
+which for a catalogue card is the one entity they picked.
+
+**States.** Idle: the ring with the strongest ten chords. A topic: that
+topic's beads only (D461). You off: no arc; on: the arc with the
+viewer's values solid. A bead tapped: its ties, the chip row, the
+card. A catalogue group with no entity above the floor: the card says
+*no pick is common enough to say anything yet*. Demo: never — live
+only, like the rest of the tab (D167).
+
+**Interaction.** Tap a bead: select it (its answer active). Tap a chip
+in the card: move the selection to that bead. Tap the field: clear.
+The *You* toggle and the topic select are one control row
+(`ui/PatternsTab.tsx`, the chip row that exists). A long press on a
+bead does nothing new.
+
+**Copy for the guide ⓘ (D182, D146).** *a dot is an answer: a question
+with several answers is a row of dots · a line joins two answers when
+people who give one tend to give the other · thicker = stronger ·
+dashed = go opposite ways · solid dot = you gave it · "You" is who
+gives them, when it's on.*
+
+**What it costs to build, after the design.** `PatternsMap.tsx`: the
+ring over rows instead of pool items (the pool grows a `rows()` view:
+every published row the bank can name, grouped by question — one pure
+function beside `pool()`), the bead-group ticks in `ringOf`, the chip
+row, the four card sentences (`say()` over `e` rows and the median
+split are the two new counts, both on cached samples), the You toggle.
+`edgesOf` over ~900 rows is a few million multiplies, under a hundred
+milliseconds on a phone; the loadings document is already on the
+device. No new reads anywhere.
+
+**What this plan does not decide, for the design.** Whether a bead
+carries a picture; how the *+3* fold reads; whether the You arc sits
+outside the rim or inside it; the exact tick between groups. Those are
+what the canvas is for.
+
+**Artboards to draft.** 1 · the ring at rest with bead groups, You
+off. 2 · You on. 3 · a choice question tapped: chip row, three ties.
+4 · a catalogue card tapped: beads with pictures, the *+7*, the
+Pikachu sentence. 5 · a scale tapped: high/low. 6 · a You bead tapped.
+7 · over budget: *300 of 885 drawn*. 8 · the guide legend.
 
 
 ### 5 · The 1v1 and group profile — three instruments, and the pair's card

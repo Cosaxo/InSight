@@ -847,8 +847,6 @@ function PersonMindMap({ p, following, centerName, still }) {
   );
 }
 
-window.PersonMindMap = PersonMindMap;
-
   PersonMindMapImpl = PersonMindMap;
 })();
 

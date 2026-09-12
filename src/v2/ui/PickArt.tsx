@@ -10,6 +10,15 @@
 // `position: relative; overflow: hidden`; this is an absolutely
 // positioned child of it.
 //
+// FITTED, NOT CROPPED (.is-fit), which is the half of that treatment a
+// catalogue picture cannot share. The duel's photograph is a scene and
+// survives a crop; this is a SUBJECT, and the builder has already fitted
+// it inside a square, so cover-cropping it into a wide face cuts the
+// subject's middle out — the reveal's two faces are 2:1, and a square
+// Pokémon lost its head there. The pattern behind it frames whatever the
+// aspect leaves over, which is the same job it does when there is no
+// picture at all.
+//
 // Decorative to assistive tech on purpose: every surface that draws it
 // already names the entry beside it (the tile's aria-label, the reveal's
 // caption), so `alt=""` is the honest description and a second name would
@@ -26,7 +35,7 @@ export default function PickArt({ domain, id }: { domain: string; id: number }) 
   if (!url || failed === url) return null;
   return (
     <img
-      className="wf-tileimg"
+      className="wf-tileimg is-fit"
       data-pick-art=""
       src={url}
       alt=""

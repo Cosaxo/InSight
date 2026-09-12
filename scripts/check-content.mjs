@@ -372,8 +372,20 @@ for (const q of entries) {
     else if (!existsSync(join(root, "public", file))) {
       errors.push(`${q.id}: domain ${q.domain} has no committed catalogue (public/${file}) — the picker would open into its error state`);
     }
-    if (q.core === true) {
-      errors.push(`${q.id}: a catalog question is never core — an entity answer has no option share for a cohort fold to read (D161)`);
+    // CORE, since D462 (2026-09-10, the owner's word). This rule used to
+    // refuse the flag — "an entity answer has no option share for a cohort
+    // fold to read (D161)" — which was true of the Mirror's fold and said
+    // nothing about serving: the flag is ALSO what ships a card whole to
+    // every device at boot (D321), and without it the pick cards were a
+    // page of the fav topic's tail, sized by interest, so who answered
+    // "Favourite Pokémon?" was interest-selected — D161's own bias. The
+    // Mirror never reads a pick (its readers walk the daily archive), the
+    // fit reads picks since D459, and the owner expected every card to
+    // reach every person. So the generator sets the flag and this rule
+    // holds it the other way: a pick card that fell out of the core would
+    // be a card some people never see, silently.
+    if (q.core !== true) {
+      errors.push(`${q.id}: a catalog question is core (D462) — it ships whole to every device; the Mirror never folds it and its readers never see it, so the flag is the serving rule alone`);
     }
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);
@@ -688,7 +700,7 @@ const NOT_SEEDED = {
     + "difficulty each was calibrated to before we shipped a line, built by "
     + "scripts/build-omib.mjs and gated by check:omib against the published "
     + "archive under content/omib-source/. Nothing reads it YET: the screen "
-    + "that would is visual request 13, which D352 sends to a design first, "
+    + "that would is visual request 14, which D352 sends to a design first, "
     + "and a bank committed ahead of its screen is the honest order here",
   "omib-key.json":
     "the same bank's ANSWER KEY, and the reason it is a separate file (D471) "

@@ -550,22 +550,7 @@
     },
     {
       "collectionGroup": "v2_patterns",
-      "fieldPath": "rows",
-      "indexes": []
-    },
-    {
-      "collectionGroup": "v2_patterns",
-      "fieldPath": "n",
-      "indexes": []
-    },
-    {
-      "collectionGroup": "v2_patterns",
-      "fieldPath": "qid",
-      "indexes": []
-    },
-    {
-      "collectionGroup": "v2_patterns",
-      "fieldPath": "at",
+      "fieldPath": "*",
       "indexes": []
     },
     {
@@ -616,6 +601,31 @@
     {
       "collectionGroup": "v2_agg_events",
       "fieldPath": "l",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "by",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "counts",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "edits",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "total",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "v2_agg_shards",
+      "fieldPath": "s",
       "indexes": []
     }
   ]

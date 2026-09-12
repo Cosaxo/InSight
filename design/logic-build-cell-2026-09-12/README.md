@@ -1,7 +1,7 @@
 # Build the missing cell — the logic test's answer screen (2026-09-12)
 
 The owner's `InSight_Logic_Test_-_Build_the_Cell.html` upload of
-2026-09-12, answering **visual request 13** (D471): the Open Matrices
+2026-09-12, answering **visual request 14** (D471): the Open Matrices
 Item Bank is answered by CONSTRUCTING the missing cell out of twenty
 shapes, not by tapping one of six finished tiles, so the item screen is
 a new interaction rather than a new control. The upload is ephemeral;

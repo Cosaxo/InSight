@@ -137,3 +137,29 @@ describe("verdict — the ratchet, in both directions", () => {
     expect(v.message).toMatch(/test:rules:baseline/);
   });
 });
+
+// ── a baseline the ratchet cannot read is not a pass ───────────────────
+//
+// Both comparisons in `verdict` are `>` and `<`, and both are false
+// against `undefined` or `NaN`, so an unreadable baseline fell through to
+// the OK arm — printing "(baseline undefined)" inside a line that says
+// the ratchet held. Every other way this gate can lose its subject
+// already refuses loudly; this was the one that did not.
+describe("the baseline itself", () => {
+  it("refuses anything that is not a count, rather than passing", () => {
+    for (const bad of [undefined, NaN, null, "7", -1, 1.5]) {
+      const r = verdict(7, 300, bad);
+      expect(r.ok, `a baseline of ${JSON.stringify(bad)} was read as a pass`).toBe(false);
+      expect(r.message).toMatch(/is not a count/);
+    }
+  });
+
+  it("still passes on a real one, and still ratchets in both directions", () => {
+    // The control: a guard that refused everything would satisfy the case
+    // above and delete the gate.
+    expect(verdict(7, 300, 7).ok).toBe(true);
+    expect(verdict(8, 300, 7).ok, "a predicate that stopped refusing was let through").toBe(false);
+    expect(verdict(6, 300, 7).ok, "the ratchet was not asked to tighten").toBe(false);
+    expect(verdict(0, 300, 0).ok, "a zero baseline is a real one").toBe(true);
+  });
+});

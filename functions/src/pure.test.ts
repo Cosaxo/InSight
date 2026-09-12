@@ -22,6 +22,7 @@ import {
   prunePlayed,
   mergePlayed,
   roundsWaitingFor,
+  turnBody,
   turnRecipients,
   isStamped,
   roundComplete,
@@ -2480,6 +2481,24 @@ describe("turns — who is told 'your turn' (ROUNDS-PLAN §7.4)", () => {
     const played = { r7: ["ada", "bo"] };
     expect(turnRecipients(played, 7, ["ada", "bo", "cy", "di"], { di: 1 }, "bo"))
       .toEqual([{ uid: "cy", waiting: 1 }]);
+  });
+
+  it("the nudge credits the sender with answering and nobody with the count", () => {
+    // THE TWO FACTS ARE NOT ONE. `waiting` counts the rounds SOMEBODY ELSE
+    // sealed, which in a 1v1 is always the sender and in a circle of three
+    // is usually not: Leo answers one round, Ada answers two, and the body
+    // said "Leo played 3 rounds". True for pairs, false for every room
+    // bigger than a pair, and nothing covered a room bigger than a pair.
+    const played = { r7: ["ada", "bo"], r8: ["ada"], r9: ["ada"] };
+    const [cy] = turnRecipients(played, 7, ["ada", "bo", "cy"], undefined, "bo");
+    expect(cy).toEqual({ uid: "cy", waiting: 3 });
+    const body = turnBody("Bo", cy!.waiting);
+    expect(body, "the sender was credited with rounds somebody else played")
+      .not.toMatch(/Bo played/);
+    expect(body).toBe("Bo answered — 3 rounds waiting for you.");
+    // …and the single-round body is unchanged, which is the 1v1's whole
+    // case and the one this sentence was written for.
+    expect(turnBody("Leo", 1)).toBe("Leo answered — your turn.");
   });
 
   it("never nudges the sender, and nobody when nothing waits", () => {

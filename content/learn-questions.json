@@ -101,6 +101,11 @@
       "id": "missions",
       "subject": "space",
       "label": "Space missions"
+    },
+    {
+      "id": "idioms",
+      "subject": "words",
+      "label": "Sayings & idioms"
     }
   ],
   "cards": [
@@ -4418,6 +4423,486 @@
       "p": 44,
       "k": "Hillary and Tenzing, 1953",
       "w": "Whether Mallory reached the top in 1924 stays unknown; Hillary and Tenzing Norgay came back to say so."
+    },
+    {
+      "id": "idm1",
+      "f": "idioms",
+      "q": "Telling an actor to “break a leg” means…",
+      "a": [
+        "Good luck",
+        "Get off the stage",
+        "Take a bow",
+        "An actual threat"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 26,
+      "k": "the lucky jinx-dodge",
+      "w": "Theatre superstition holds that wishing luck outright jinxes it — so the wish arrives in disguise."
+    },
+    {
+      "id": "idm2",
+      "f": "idioms",
+      "q": "The full, original form of “the proof is in the pudding” ends…",
+      "a": [
+        "…is in the eating",
+        "…is in the bowl",
+        "…is in the baking",
+        "There is no longer form"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 45,
+      "k": "proof means test",
+      "w": "You test a thing by using it — “proof” is the old word for trial, and the eating is the trial."
+    },
+    {
+      "id": "idm3",
+      "f": "idioms",
+      "q": "An “eleventh hour” rescue — the phrase comes from…",
+      "a": [
+        "Midnight duels",
+        "A Bible parable",
+        "Cinderella",
+        "Naval watches"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 55,
+      "k": "the vineyard’s last hires",
+      "w": "Matthew 20: workers hired at the eleventh hour are paid a full day — lateness that still counts."
+    },
+    {
+      "id": "idm4",
+      "f": "idioms",
+      "q": "In Aesop’s fable, the “lion’s share” was…",
+      "a": [
+        "Half",
+        "The biggest slice",
+        "Everything",
+        "The leftovers"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 62,
+      "k": "the lion takes it all",
+      "w": "The lion claims every quarter of the kill by turn of argument; the share the phrase remembers was the whole thing."
+    },
+    {
+      "id": "idm5",
+      "f": "idioms",
+      "q": "“Blood is thicker than water” originally carried a longer form about “the blood of the covenant”…",
+      "a": [
+        "True — family came second",
+        "No — a modern invention",
+        "Yes, from the Bible",
+        "Yes, from Shakespeare"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 70,
+      "k": "the covenant myth",
+      "w": "The saying appears by the 1600s meaning family first; the “covenant” version cannot be traced past the 1990s. A myth about a proverb."
+    },
+    {
+      "id": "idm6",
+      "f": "idioms",
+      "q": "To “beg the question”, strictly, is to…",
+      "a": [
+        "Raise an obvious question",
+        "Dodge a question",
+        "Assume the thing being proved",
+        "Ask twice"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 72,
+      "k": "circular reasoning, not curiosity",
+      "w": "A logic term: smuggling the conclusion into the premise. Everyday use drifted to “invites the question” — careful writers keep the original."
+    },
+    {
+      "id": "mis7",
+      "f": "missions",
+      "q": "The first animal to orbit Earth was…",
+      "a": [
+        "A chimpanzee",
+        "Laika the dog",
+        "A tortoise",
+        "A mouse"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 32,
+      "k": "Laika, 1957",
+      "w": "Sputnik 2 carried the Moscow street dog a month after the first satellite. The chimps came later, with America."
+    },
+    {
+      "id": "mis8",
+      "f": "missions",
+      "q": "Apollo 11’s onboard computer had memory measured in…",
+      "a": [
+        "Gigabytes",
+        "Megabytes",
+        "Kilobytes",
+        "It flew without one"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 48,
+      "k": "kilobytes to the Moon",
+      "w": "About 72 KB of fixed memory and 4 KB of RAM, woven by hand — enough to fly the landing."
+    },
+    {
+      "id": "mis9",
+      "f": "missions",
+      "q": "How many people have walked on the Moon?",
+      "a": [
+        "24",
+        "6",
+        "12",
+        "Just Neil and Buzz"
+      ],
+      "c": 2,
+      "t": 3,
+      "p": 60,
+      "k": "twelve moonwalkers",
+      "w": "Six landings, two walkers each, 1969–1972. Twenty-four flew to the Moon; half got to step out."
+    },
+    {
+      "id": "mis10",
+      "f": "missions",
+      "q": "Voyager’s “Pale Blue Dot” photo shows Earth from…",
+      "a": [
+        "The Moon",
+        "About 6 billion kilometres away",
+        "Mars orbit",
+        "A weather satellite"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 74,
+      "k": "a pixel from the edge",
+      "w": "1990, past Neptune, cameras turned home at Sagan’s urging: Earth under a pixel. The Moon shot people picture is Earthrise, 1968."
+    },
+    {
+      "id": "med11",
+      "f": "medieval",
+      "q": "The English longbows raised from the Mary Rose drew at roughly…",
+      "a": [
+        "20 pounds",
+        "40 pounds",
+        "100 pounds or more",
+        "They were crossbows"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 58,
+      "k": "a lifetime’s draw weight",
+      "w": "Modern hobby bows pull 30–40; war bows twice and three times that. Archers’ skeletons show the training in their bones."
+    },
+    {
+      "id": "med12",
+      "f": "medieval",
+      "q": "Crowned emperor in Rome on Christmas Day, 800:",
+      "a": [
+        "Julius Caesar",
+        "Charlemagne",
+        "William the Conqueror",
+        "Constantine"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Christmas coronation, 800",
+      "w": "The pope crowned the Frankish king emperor — the Roman title reborn three centuries after the west fell. Caesar was eight centuries early."
+    },
+    {
+      "id": "med13",
+      "f": "medieval",
+      "q": "A medieval “moment” was a real unit of time — about…",
+      "a": [
+        "A heartbeat",
+        "90 seconds",
+        "15 minutes",
+        "An hour"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 72,
+      "k": "forty moments an hour",
+      "w": "Medieval timekeepers cut the hour into forty momenta. “Wait a moment” once meant a minute and a half."
+    },
+    {
+      "id": "med14",
+      "f": "medieval",
+      "q": "Medieval European universities taught in…",
+      "a": [
+        "Each country’s own language",
+        "Latin",
+        "Greek",
+        "French everywhere"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 36,
+      "k": "one classroom language",
+      "w": "Bologna, Paris, Oxford — one shared scholars’ tongue, so a student could move between them. Lectures in local languages came centuries later."
+    },
+    {
+      "id": "flag15",
+      "f": "flag",
+      "q": "Chad’s flag and Romania’s flag are…",
+      "a": [
+        "Mirror images",
+        "Nearly identical",
+        "The same country’s, once",
+        "Totally different"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 56,
+      "k": "the twin tricolours",
+      "w": "Both fly blue-yellow-red; Chad’s blue is marginally darker. Occasional diplomatic grumbles, no change — neither will blink."
+    },
+    {
+      "id": "flag16",
+      "f": "flag",
+      "q": "The only plain, one-colour national flag ever flown:",
+      "a": [
+        "Japan’s white",
+        "France’s blue",
+        "Libya’s green, 1977–2011",
+        "It has never happened"
+      ],
+      "c": 2,
+      "t": 3,
+      "p": 64,
+      "k": "the all-green flag",
+      "w": "Gaddafi’s Libya flew solid green for 34 years — no emblem, no stripe, the only such national flag in history."
+    },
+    {
+      "id": "flag17",
+      "f": "flag",
+      "q": "The motto written across Brazil’s flag reads…",
+      "a": [
+        "“Liberdade”",
+        "“Deus e o Brasil”",
+        "“Amazonia”",
+        "“Ordem e Progresso”"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 50,
+      "k": "order and progress",
+      "w": "“Ordem e Progresso”, from positivist philosophy, on the celestial globe — the stars map Rio’s sky on the republic’s first morning."
+    },
+    {
+      "id": "flag18",
+      "f": "flag",
+      "q": "Australia’s flag and New Zealand’s differ by…",
+      "a": [
+        "Nothing — they are identical",
+        "Star colour and count",
+        "The Union Jack",
+        "A kiwi silhouette"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 44,
+      "k": "six white vs four red",
+      "w": "Australia: six white stars. New Zealand: four red ones. Both keep the Union Jack — and each is forever mistaken for the other."
+    },
+    {
+      "id": "cap19",
+      "f": "capitals",
+      "q": "South Africa has how many capitals?",
+      "a": [
+        "One — Johannesburg",
+        "One — Cape Town",
+        "Two",
+        "Three"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 38,
+      "k": "three-capital country",
+      "w": "Pretoria governs, Cape Town legislates, Bloemfontein judges. Johannesburg — the biggest city — is none of them."
+    },
+    {
+      "id": "cap20",
+      "f": "capitals",
+      "q": "The capital of India is…",
+      "a": [
+        "Mumbai",
+        "New Delhi",
+        "Kolkata",
+        "Bangalore"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 68,
+      "k": "Delhi, not Mumbai",
+      "w": "Mumbai is the biggest city and the money; New Delhi, purpose-built beside Old Delhi, has been the capital since 1931."
+    },
+    {
+      "id": "cap21",
+      "f": "capitals",
+      "q": "The capital of Ecuador is…",
+      "a": [
+        "Guayaquil",
+        "Lima",
+        "Quito",
+        "Bogotá"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 33,
+      "k": "Quito, high and old",
+      "w": "Guayaquil is bigger and richer; Quito, at 2,850 metres, was among the first cities UNESCO listed whole."
+    },
+    {
+      "id": "cap22",
+      "f": "capitals",
+      "q": "The capital of the Philippines is…",
+      "a": [
+        "Manila",
+        "Quezon City",
+        "Cebu City",
+        "Davao"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 47,
+      "k": "Manila, again",
+      "w": "Quezon City actually held the title from 1948 to 1976 — and is still the bigger city — before Manila took it back."
+    },
+    {
+      "id": "cell19",
+      "f": "cell",
+      "q": "Mitochondria carry their own…",
+      "a": [
+        "DNA",
+        "Nucleus",
+        "Cell wall",
+        "Nothing — only enzymes"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 62,
+      "k": "the organelle with its own genes",
+      "w": "A small circular genome, inherited from your mother — the relic of a free-living bacterium your cells absorbed two billion years ago."
+    },
+    {
+      "id": "cell20",
+      "f": "cell",
+      "q": "Apoptosis is…",
+      "a": [
+        "A cell disease",
+        "Programmed cell death",
+        "Cell division",
+        "A cell’s movement"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 50,
+      "k": "death on schedule",
+      "w": "Cells dismantle themselves tidily, on instruction — it sculpted the gaps between your fingers before you were born."
+    },
+    {
+      "id": "cell21",
+      "f": "cell",
+      "q": "The longest cells in your body are…",
+      "a": [
+        "Egg cells",
+        "Muscle fibres",
+        "Nerve cells — up to a metre",
+        "Skin cells"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 44,
+      "k": "a metre-long cell",
+      "w": "The egg is the biggest by volume; the length record goes to neurons running from spine to toe in one unbroken thread."
+    },
+    {
+      "id": "cell22",
+      "f": "cell",
+      "q": "Bacterial cells in and on your body, versus your own cells:",
+      "a": [
+        "Ten times as many",
+        "About as many",
+        "Far fewer",
+        "A thousand times as many"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 78,
+      "k": "roughly one to one",
+      "w": "The famous 10:1 was a 1970s rough guess; the 2016 recount lands near 1.3 bacteria per human cell. Still trillions of passengers."
+    },
+    {
+      "id": "con19",
+      "f": "confused",
+      "q": "A “flammable” liquid and an “inflammable” one…",
+      "a": [
+        "Inflammable resists fire",
+        "Flammable burns hotter",
+        "Both burn — same word",
+        "Neither burns"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 56,
+      "k": "in- here is not “not”",
+      "w": "Both mean catches fire; the in- is an intensifier, as in “inflame”. Safety labels prefer “flammable” precisely because people read the other as fireproof."
+    },
+    {
+      "id": "con20",
+      "f": "confused",
+      "q": "Rain that keeps stopping and starting is, strictly…",
+      "a": [
+        "Continuous",
+        "Continual",
+        "Both equally",
+        "Intermittent is wrong too"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 35,
+      "k": "continual pauses, continuous doesn’t",
+      "w": "Continual means repeated with breaks; continuous means unbroken. A continuous drizzle never lets up."
+    },
+    {
+      "id": "con21",
+      "f": "confused",
+      "q": "Feeling sick, you are — by the traditional rule —",
+      "a": [
+        "Nauseous",
+        "Nauseating",
+        "Nauseated",
+        "Nauseal"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 48,
+      "k": "nauseous causes it",
+      "w": "The old rule: nauseous means sickening, nauseated means sickened. Usage has moved on, but the distinction still earns marks."
+    },
+    {
+      "id": "con22",
+      "f": "confused",
+      "q": "A koala is…",
+      "a": [
+        "A small bear",
+        "A rodent",
+        "A primate",
+        "A marsupial"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 29,
+      "k": "no bear at all",
+      "w": "“Koala bear” stuck because of the face; it carries its young in a pouch and is kin to wombats, not to any bear."
     }
   ]
 }

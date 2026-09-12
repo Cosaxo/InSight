@@ -25,8 +25,8 @@ still excuses it for an iOS build. **For an iOS launch the count is
 zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 142
-questions of 1536 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 144
+questions of 1577 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -209,7 +209,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      1536 questions land in `v2_questions` — idempotent and, since D34,
+      1577 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -220,7 +220,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **1536** after the K=5 test expansion, D103's
+      and the bank is **1577** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -1146,7 +1146,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 1536 seeded questions are live regardless.
+      working, not a leak — the 1577 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1555,6 +1555,29 @@ That is a tester-count problem, not a workflow problem.
       whether one is enabled, so the verification above lives in D333
       rather than in a gate.
 
+- [ ] **5.1b A FOURTH collection group stamps `expireAt` — `v2_paid_bookings`
+      (D456).** One command, the same shape as 5.1's, and it is not
+      covered by that ticked box: a TTL policy is per collection group, so
+      the three that are `ACTIVE` say nothing about this one.
+
+      ```bash
+      gcloud firestore fields ttls update expireAt \
+        --collection-group=v2_paid_bookings --enable-ttl --project=prvfire33 \
+        --database=insight
+      ```
+
+      **Why it appeared.** A booking never expired. That was survivable
+      while the door demanded App Check from an attested app; D455 opened
+      it to a browser and D456 removed the reCAPTCHA in front of it, so an
+      unpaid booking is now the only thing an unguarded caller can leave
+      behind. `bookPaidQuestionV2` stamps 60 days, and `goLive` DELETES the
+      field on the paying webhook so a sold campaign is never swept — the
+      closer computes its refund off that record months later.
+
+      Until this is run the field is inert, exactly as 5.1 says: the
+      documents accumulate and nothing sweeps them. Nothing costly happens
+      meanwhile, which is why it is a box rather than a blocker.
+
       This step named `v2_agg_events` alone until 2026-08-26, which
       under-counted the console work by two and left out the half with a
       promise attached:
@@ -1710,7 +1733,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+- [ ] **5.5b Apply the eleven monitoring alerts — nine are armed (5.5); the
       TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
       committed and not applied.** The breakdown cap's `agg_evict`
       metric and its policy landed after run 16 verified the nine, so
@@ -2116,6 +2139,14 @@ That is a tester-count problem, not a workflow problem.
       dataset, and the `production` environment's approval in front of any
       workflow that uses it.
 
+      **Whether it is ON is now a reading.** Actions → **Observe
+      production** lists every BigQuery dataset with its location and says
+      whether a `gcp_billing_export_*` table exists in any of them. Keyed
+      on the TABLE names rather than the dataset's, because this step lets
+      you choose the dataset name — so a reader keyed on the name would
+      report any dataset as the export. The location is printed beside it,
+      which is the half D165's residency argument is actually about.
+
       **Not built yet, deliberately.** The collector that reads this is
       worth writing against the real dataset rather than against an assumed
       schema — this session has already spent one round on a workflow that
@@ -2227,6 +2258,13 @@ That is a tester-count problem, not a workflow problem.
       at `answersCounted: 0`, and an extension streaming an empty
       collection is a monthly line item and a thing to forget about.
 
+      **Whether it is installed is now a reading**, and it is answered by
+      the extension's own FUNCTIONS (`ext-firestore-bigquery-export-*`) in
+      Actions → **Observe production** — authoritative in a way a dataset
+      name is not, since anyone can create a dataset called
+      `firestore_export`. The line also carries this step's timing
+      argument, so the box cannot be read as *install it now*.
+
       **What it buys:** SQL over the archive without touching the app. It is
       what answers "which questions bore people" and the rest of
       `ENGAGEMENT-PLAN.md`'s rungs 1–2 without building either, and it is
@@ -2278,12 +2316,73 @@ That is a tester-count problem, not a workflow problem.
          absence does not stop the loop, which makes it the one to check
          rather than assume.
 
+      **You no longer have to hunt for any of this.** Actions → **Observe
+      production** prints, from the deployment itself: which of the three
+      names are present in the runtime, the verdict *A sale can complete
+      today: YES/NO*, whether reviews have Claude's judgement or only the
+      gates, and **`stripeWebhookV2`'s URL** — which is step 2's whole
+      input, and used to read *run `gcloud functions describe`*, a laptop
+      with a credential on it. Presence only: the value never leaves the
+      probe, and `scripts/observe.test.mjs` plants a fake `sk_live_` and
+      asserts it reaches no line of any output mode. An Actions log is
+      readable by everyone with repo read and kept for months.
+
+      A name the API cannot report reads **UNREADABLE**, never *unset* —
+      the two have opposite fixes, and folding them is how an instrument
+      invents a measurement (D296).
+
       **Rehearse on test keys before live ones.** The path has never run
       against real Stripe. The one alert that watches it
       (`monitoring/paid-refund-stuck.json`, 5.5) has been armed since
       2026-09-06, so a stuck refund would now page — which says nothing
       about whether the path works, only that its one known failure is
       no longer silent. (Until that day it was silent twice over.)
+
+      **THE APP CHECK BLOCKER IS GONE, and it was the bigger half.**
+      This step used to end by saying the secrets alone would not produce
+      a sale, because both callables demanded App Check and a browser
+      cannot produce it. D455 opened the door and wired the page; D456
+      settled what guards it — the per-account booking budget, owning the
+      booking, and the payment itself — on the owner's ruling that a
+      BUYER's humanity needs no proving where a VOTER's does.
+
+      **It is TWO keys now, not five.** D456 removed the reCAPTCHA pair
+      and moved the question review to a Claude Code Routine, which is
+      what retires `ANTHROPIC_API_KEY`.
+
+      **The order, and every step is yours:**
+
+      1. **Stripe account** (`stripe.com`). Test keys work the moment the
+         account exists; live keys wait on business verification, which
+         in Norway wants an organisation number. Rehearse on `sk_test_`.
+      2. **GitHub → Settings → Environments → `production`.** Secrets:
+         `STRIPE_SECRET_KEY` for now; `STRIPE_WEBHOOK_SECRET` at step 5.
+         Variable: `VITE_FIREBASE_API_KEY`, if it is not already set —
+         the buy page needs it to sign a buyer in, and it is public by
+         design.
+      3. **Run Deploy Firebase backend.** Nothing reaches the runtime
+         until a deploy writes the dotenv; the run warns for each key it
+         did not get.
+      4. **Actions → Observe production**, and read `stripeWebhookV2`'s
+         URL off the summary.
+      5. **Stripe dashboard → Webhooks**, endpoint at that URL, **three**
+         events (below). Store the `whsec_…` as `STRIPE_WEBHOOK_SECRET`.
+      6. **Deploy again** — the value only reaches the runtime through the
+         dotenv the deploy writes.
+      7. **Observe production again**: it should say *A sale can complete
+         today: YES*. Then buy something with a Stripe test card.
+
+      **Also yours, once:** 5.1b's TTL command, and the review Routine in
+      `docs/ROUTINES.md`. Neither blocks a sale; the first bounds junk
+      bookings and the second is what answers a buyer at all.
+
+      **What is no longer on this list, because it is built:** the page
+      itself. It signs in anonymously, mints a token, books, waits for the
+      reviewer's verdict on the buyer's own booking document, mints a
+      second token and opens Stripe. The city picker is part of that and
+      is not cosmetic — a booking carries the catalogue key an answer's
+      anchor holds (`"Oslo, NO"`), so the old free-text idea would have
+      charged €320 for a campaign that reached nobody.
 
       **This step does not decide WHETHER the door ships** — that is 6.0,
       and it comes first. If 6.0 takes shape A the door leaves the binary

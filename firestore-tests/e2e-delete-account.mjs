@@ -149,6 +149,19 @@ await adb.doc("v2_patterns/sample-daily-000").set({
   },
   n: 2,
 });
+// A SECOND world sample, so the scrub's walk crosses more than one
+// document. The arm reads the `sample-` family by id range and PAGES it
+// (patternsSamples.WORLD_SAMPLE_PAGE) — with one document the loop
+// cannot tell a correct `startAfter` from a missing one, and the walk
+// that ships holds hundreds. This one carries only the erased account,
+// so a scrub that stops after the first document leaves a row here.
+await adb.doc("v2_patterns/sample-daily-001").set({
+  qid: "daily-001",
+  rows: {
+    [uid]: { o: 2, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
+  },
+  n: 1,
+});
 // …and the per-city sample (DATA-EFFICIENCY-RUNBOOK 2.5), which the arm
 // reaches through the account's own answers rather than by listing the
 // collection. Its id is the server's `citySampleId` — pinned here as the
@@ -163,6 +176,20 @@ await adb.doc(CITY_SAMPLE).set({
   },
   n: 2,
 });
+// …and the world map's position documents (D462): the country's and the
+// world's, the same rows-keyed-by-uid shape, reached by the id range
+// rather than by this account's own chip.
+const WORLD_DOCS = ["v2_patterns/people-NO", "v2_patterns/people-world"];
+for (const path of WORLD_DOCS) {
+  await adb.doc(path).set({
+    id: path.split("/")[1],
+    ...(path.endsWith("people-NO") ? { country: "NO" } : {}),
+    rows: { [uid]: { x: 0.4, y: -0.2, n: 31 }, [OTHER]: { x: -0.1, y: 0.3, n: 12 } },
+    n: 2,
+    total: 2,
+    day: DAY,
+  });
+}
 // …and the fit's per-person state, with the answer map the samples were
 // built beside — under the subtree the recursive delete takes
 await adb.doc(`v2_users/${uid}/patterns/state`).set({ v: [0, 0, 0, 0, 0, 0, 0, 0], n: 1, d: DAY, a: { "daily-000": 1 } });
@@ -307,9 +334,27 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
 
 // a group they LEAVE before deleting — the group survives with the other
 // member, and the reveal keeps naming them until erasure reaches it
+//
+// WITH AN OPEN ROUND THE SURVIVOR HAS ALREADY PLAYED, because a roster
+// change can complete a round and nothing used to look. `roundComplete`
+// is `played >= members`, so round 2 below is complete the instant the
+// doomed account is off `memberUids` — and until 2026-09-12 the only
+// callers of the reveal check were the answer trigger and the two-hourly
+// scan, neither of which fires on a membership change. The survivor's
+// sealed answer sat there until the 48-hour deadline brought the room
+// into an indexed scan. The deadline here is deliberately in the FUTURE
+// so the scan cannot be what reveals it.
+await adb.doc(`v2_users/${OTHER}/answers/g_${LEFT}_r2`).set({
+  gid: LEFT, round: 2, qid: "group-gu0", optionIdx: 0,
+  answeredAt: new Date(), anchors: {},
+});
 await adb.doc(`v2_groups/${LEFT}`).set({
   name: "Left", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER],
   memberNames: { [uid]: "Doomed", [OTHER]: "Survivor" }, streak: 5,
+  round: 2,
+  played: { r2: [OTHER] },
+  roundOpenedAt: Date.now() - 60_000,
+  roundDeadlineAt: Date.now() + 47 * 60 * 60 * 1000,
   // Leaving takes the leaver's ledger row with them (D445) — every
   // per-member map on this document goes on both paths — and leaves
   // the survivor's where it is.
@@ -657,6 +702,22 @@ if (!(leftReveal.get("names") || {})[uid])
   fail("leaveGroupV2 rewrote a past reveal — leaving is not erasure (see index.ts phase 1c-bis)");
 ok("left a group: membership gone, the shared reveal deliberately untouched");
 
+// …AND THE ROUND THE LEAVER WAS HOLDING UP IS OUT. The survivor answered
+// round 2 and the doomed account never did; leaving makes the round
+// complete, and the deadline is two days off, so nothing else could have
+// revealed it. Before 2026-09-12 this assertion failed: `revealDueRounds`
+// was reachable only from the answer trigger and the two-hourly scan, so
+// the survivor waited out the deadline for a round everybody had played.
+const leftRound2 = await adb.doc(`v2_groups/${LEFT}/reveals/r2`).get();
+if (!leftRound2.exists)
+  fail("leaving did not reveal the round it completed — the survivor waits for the 48-hour deadline");
+if (!(leftRound2.get("votes") || {})[OTHER])
+  fail("the round revealed without the survivor's vote in it");
+const leftNow = await adb.doc(`v2_groups/${LEFT}`).get();
+if (Number(leftNow.get("round") || 0) <= 2)
+  fail("the round revealed but the next one never opened");
+ok("leaving completed the open round, and it revealed at once rather than at the deadline");
+
 // …and the pick that names them in a circle they are not in is really there
 // before the call, or the assertion after it proves nothing.
 const pickedBefore = await adb.doc(`v2_groups/${PICKED_ONLY}/reveals/${DAY}`).get();
@@ -797,6 +858,14 @@ if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
 if (sampleAfter.get("n") !== 1)
   fail("the sample's basis did not follow the scrub: n is " + sampleAfter.get("n"));
 ok("the voter sample no longer names the erased account, and the other voter's row is intact");
+const secondAfter = await adb.doc("v2_patterns/sample-daily-001").get();
+if (!secondAfter.exists)
+  fail("the second world sample was deleted outright rather than scrubbed");
+if (secondAfter.get("rows")?.[uid] !== undefined)
+  fail("the scrub stopped at the first world sample — a row survived in the second (the paged walk)");
+if (secondAfter.get("n") !== 0)
+  fail("the second sample's basis did not follow the scrub: n is " + secondAfter.get("n"));
+ok("the scrub crossed both world samples, which is what the paged walk has to do");
 const citySampleAfter = await adb.doc(CITY_SAMPLE).get();
 if (!citySampleAfter.exists)
   fail("the per-city voter sample was deleted outright — it is everyone else's list");
@@ -807,6 +876,24 @@ if (citySampleAfter.get("rows")?.[OTHER]?.o !== 0)
 if (citySampleAfter.get("n") !== 1)
   fail("the city sample's basis did not follow the scrub: n is " + citySampleAfter.get("n"));
 ok("the per-city voter sample no longer names the erased account either");
+
+// ── the world map's position: gone at once, not at the next rebuild ──
+//
+// The privacy page promises "deleting your account removes it at once"
+// (check:policy-claims pins the sentence). A nightly rebuild would drop
+// the row eventually; this is the arm that makes the page true at 09:00.
+for (const path of WORLD_DOCS) {
+  const after = await adb.doc(path).get();
+  if (!after.exists)
+    fail(`${path} was deleted outright — it is everyone else's map`);
+  if (after.get("rows")?.[uid] !== undefined)
+    fail(`the erased account's position survived in ${path} (D462)`);
+  if (after.get("rows")?.[OTHER]?.n !== 12)
+    fail(`the position scrub removed more than the one row in ${path}`);
+  if (after.get("n") !== 1)
+    fail(`${path}'s basis did not follow the scrub: n is ` + after.get("n"));
+}
+ok("the world map no longer carries the erased account's position, and the other person's stands");
 
 // ── every seeded phase must be gone ──
 for (const [path, label] of [

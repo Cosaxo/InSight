@@ -85,7 +85,7 @@ type LogRowT = import("./log").LogRow;
  *  none on the redelivery the ledger mark turns away (log.ts, D447). */
 function fakeLog() {
   const rows: LogRowT[] = [];
-  setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUsers() { return "done" as const; }, async tableBytes() { return null; }, async rowsFor() { return null; } } as never);
+  setLogWriterForTest({ enabled: true, rows: undefined, async append(r: readonly LogRowT[]) { rows.push(...r); }, async presentIds() { return new Set<string>(); }, async deleteUsers() { return "done" as const; }, async tableBytes() { return null; }, async rowsFor() { return null; }, async shadowRows() { return null; }, async shadowFold() { return null; } } as never);
   return rows;
 }
 
@@ -112,9 +112,15 @@ async function deliverEdit(id: string, from: number, to: number, anchors?: Doc) 
   const doc = (optionIdx: number) => ({
     exists: true,
     // The anchors snapshot is FROZEN by rules, so the real edit event
-    // carries the same one the create did — and the breakdown retarget
-    // reads it off the `after` document. Optional here so the cases that
-    // are only about counts stay as small as they were.
+    // carries the same one the create did — the CLAIM, which is not the
+    // same thing as the honest set. This comment used to stop at "and the
+    // breakdown retarget reads it off the `after` document", which was
+    // true and was the bug: the create trigger corrects the stored anchors
+    // (D410) and an event payload is a point-in-time snapshot, so an edit
+    // written before that correction landed carries a cohort the create
+    // already threw away. The retarget re-reads the document now. Optional
+    // here so the cases that are only about counts stay as small as they
+    // were.
     get: (f: string) => ({ surface: "daily", optionIdx, ...(anchors ? { anchors } : {}) } as Doc)[f],
   });
   await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
@@ -448,6 +454,77 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       .toEqual({ ageBand: "25-34", country: "NO" });
   });
 
+  it("retargets an EDIT into the profile's cohort, not the one the event carries", async () => {
+    // THE HOLE THIS CLOSES. The create arm corrects an invented cohort and
+    // rewrites the document; the edit arm then moved the -old/+new delta
+    // using the anchors on its own EVENT PAYLOAD, which is a snapshot from
+    // before that correction. So a second account could claim a stranger's
+    // band, answer, and immediately edit — and the move landed in the
+    // claimed band, taking a cell that belongs to someone else with it.
+    //
+    // Measured on the emulator with live triggers before the fix: an honest
+    // voter in 55-64 on option 0 and a liar from 25-34 editing 0→1 produced
+    //     {"ageBand":{"55-64":{"1":1},"25-34":{"0":1}}}
+    // where the truth is {"55-64":{"0":1},"25-34":{"1":1}} — both cells
+    // wrong on a world-readable document.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    // The create, with the lie. D410 folds it honestly and corrects the row.
+    await deliver("e-edit-lie-create", {
+      surface: "daily", optionIdx: 0,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const after0 = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(after0.ageBand["25-34"], "the create did not fold honestly — this case rests on it").toEqual({ "0": 1 });
+
+    // The edit, whose payload still carries the claim — which is exactly
+    // what a real Eventarc delivery looks like in that window.
+    await deliverEdit("e-edit-lie-update", 0, 1, { ageBand: "55-64", country: "JP" });
+
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.ageBand["25-34"], "the edit moved a band that is not the author's").toEqual({ "1": 1 });
+    expect(by.ageBand["55-64"], "the claimed band took the move anyway").toBeUndefined();
+    expect(by.country.NO).toEqual({ "1": 1 });
+    expect(by.country.JP, "the claimed country took the move anyway").toBeUndefined();
+    // …and the ledger row the nightly sample reads, which carried the
+    // invention onward.
+    const led = store.get("v2_agg_events/e-edit-lie-update") as Doc | undefined;
+    expect(led?.anchors, "the ledger published the invented cohort").toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("folds the profile's cohort on a RANK answer too, and corrects that answer", async () => {
+    // THE THIRD ARM, and the one that had no check at all. A rank answer
+    // folds position sums with no `by` map, so there is no aggregate to
+    // corrupt — but the ROW is world-readable (D98) and the People lens
+    // reads other users' anchors off answer rows to say who someone is.
+    // The vote arm's own comment gives that as the reason it corrects the
+    // document and not only the fold; rank was the arm that did neither.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("e-rank-lie", {
+      surface: "daily", order: [2, 0, 1],
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    // The rank fold itself is unchanged — this is not a behaviour change
+    // to what publishes, and asserting it keeps the case honest about that.
+    expect(store.get(AGG)?.total, "the rank fold stopped working").toBe(1);
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the rank answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes NOTHING to an honest RANK answer either", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("e-rank-true", {
+      surface: "daily", order: [2, 0, 1], anchors: { ageBand: "25-34", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest rank answer was rewritten for nothing").toBe(false);
+  });
+
   it("writes NOTHING to an honest CATALOG answer either", async () => {
     store.clear();
     store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
@@ -467,6 +544,54 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
     await deliver("e-true", vote);
     expect(store.has(`v2_users/u1/answers/${QID}`),
       "an honest answer was rewritten for nothing").toBe(false);
+  });
+
+  // ── the CATALOG arm, which had none of this until 2026-09-09 ──────────
+  //
+  // The three cases above are the vote arm's, and for as long as they have
+  // existed the catalog arm folded `snap.get("anchors")` — the raw claim —
+  // straight into `entBy`, published it as `by`, and never read the profile
+  // at all. D410 binds "the fold … which builds the published aggregate
+  // every Mirror cut is drawn from" and never scoped this arm out; it was
+  // simply a second fold nobody went back for, on 24 shipped pick questions.
+  //
+  // It is not an invisible cell either: `pickSegs`/`pickSeg` in live.ts read
+  // this `by` map to draw the pick card's segment chips and that segment's
+  // ordering of the board, so an invented city was a chip and a ranking.
+  it("folds the profile's cohort on the CATALOG arm too", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-pick-lie", {
+      surface: "daily", entity: 25,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.country.NO, "the profile's country took the pick").toEqual({ "25": 1 });
+    expect(by.country.JP, "the claimed country got a segment anyway").toBeUndefined();
+    expect(by.ageBand["25-34"]).toEqual({ "25": 1 });
+    expect(by.ageBand["55-64"]).toBeUndefined();
+    // …and the row, for the reason the vote arm's case gives: answers are
+    // public, so the invention stays readable until the document moves.
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the catalog answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes nothing on the CATALOG arm when the claim is honest", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-pick-true", {
+      surface: "daily", entity: 25,
+      anchors: { ageBand: "25-34", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest pick was rewritten for nothing").toBe(false);
+    // The vacuity guard: the fold has to have HAPPENED for the absence of a
+    // correction to mean anything.
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>>;
+    expect(by.country.NO).toEqual({ "25": 1 });
   });
 
   it("keeps a WITHHELD anchor withheld rather than filling it in", async () => {
@@ -513,5 +638,108 @@ describe("the answer log mirrors the ledger, once per commit (D447 phase A)", ()
     } finally {
       setLogWriterForTest(null);
     }
+  });
+});
+
+// ── the sharded lane (aggShards.ts, phase B / D467) ─────────────
+//
+// A question the daily bank names takes the other path: no read of the
+// published document, no write to it — a blind increment on the person's
+// counter shard, in the same transaction as the ledger mark and the map,
+// so the idempotence above holds for it by the same mark. The qid is a
+// REAL daily id off the compiled bank, because that is what decides the
+// path (never the answer's own `surface` claim).
+const { V2_QUESTIONS } = await import("./v2content");
+const { shardOf, AGG_SHARDS_COLLECTION } = await import("./aggShards");
+const { FieldValue } = await import("firebase-admin/firestore");
+const DAILY = V2_QUESTIONS.find((q) => q.surface === "daily")!.id;
+const SHARD = `${AGG_SHARDS_COLLECTION}/${DAILY}-${shardOf("u1")}`;
+
+async function deliverDaily(id: string, data: Doc) {
+  await (onV2AnswerCreated as unknown as { run: (e: unknown) => Promise<void> }).run({
+    id, params: { uid: "u1", qid: DAILY },
+    data: { exists: true, ref: ref(`v2_users/u1/answers/${DAILY}`), get: (f: string) => data[f] },
+  });
+}
+async function deliverDailyEdit(id: string, from: number, to: number, anchors: Doc) {
+  const doc = (optionIdx: number) => ({ exists: true, get: (f: string) => ({ surface: "daily", optionIdx, anchors } as Doc)[f] });
+  await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
+    id, params: { uid: "u1", qid: DAILY }, data: { before: doc(from), after: doc(to) },
+  });
+}
+const inc = (v: unknown, n: number) => v instanceof FieldValue && v.isEqual(FieldValue.increment(n));
+
+describe("the sharded lane: a daily answer never touches the published document", () => {
+  it("a first answer is one blind increment on the person's shard, with the ledger mark and the map", async () => {
+    const rows = fakeLog();
+    await deliverDaily("evt-s1", vote);
+    expect(store.has(`v2_question_aggs/${DAILY}`), "the published document was written on the hot path").toBe(false);
+    const shard = store.get(SHARD)!;
+    expect(shard).toMatchObject({ qid: DAILY, s: shardOf("u1") });
+    expect(inc(shard.total, 1)).toBe(true);
+    expect(inc((shard.counts as Doc)["1"], 1)).toBe(true);
+    expect(inc(((shard.by as Doc).ageBand as Doc)["25-34"] && (((shard.by as Doc).ageBand as Doc)["25-34"] as Doc)["1"], 1)).toBe(true);
+    expect(typeof shard.dirtyAt).toBe("number");
+    expect(store.has("v2_agg_events/evt-s1")).toBe(true);
+    expect((store.get("v2_users/u1/public/answers")?.a as Doc)[DAILY]).toBe(1);
+    expect(rows.map((r) => r.qid)).toEqual([DAILY]);
+  });
+
+  it("a redelivery writes nothing — the ledger mark turns it away before the shard", async () => {
+    const rows = fakeLog();
+    await deliverDaily("evt-s2", vote);
+    const first = JSON.stringify(store.get(SHARD));
+    store.set(SHARD, { ...store.get(SHARD)!, total: "sentinel" }); // any second write would replace this
+    await deliverDaily("evt-s2", vote);
+    expect(store.get(SHARD)!.total).toBe("sentinel");
+    expect(rows).toHaveLength(1);
+    expect(first).toContain(DAILY);
+  });
+
+  it("an edit is -old/+new on the shard with the total untouched, and no refusal when it lands before its create", async () => {
+    // No create delivered at all: the hot path would throw and retry
+    // (retargetCounts); the shard takes the move and the sum absorbs it.
+    await deliverDailyEdit("evt-s3", 1, 0, { country: "NO" });
+    const shard = store.get(SHARD)!;
+    expect(inc((shard.counts as Doc)["1"], -1)).toBe(true);
+    expect(inc((shard.counts as Doc)["0"], 1)).toBe(true);
+    expect(inc((((shard.by as Doc).country as Doc).NO as Doc)["0"], 1)).toBe(true);
+    expect(inc(((shard.edits as Doc)["1"] as Doc)["0"], 1)).toBe(true);
+    expect("total" in shard).toBe(false);
+    expect(store.has(`v2_question_aggs/${DAILY}`)).toBe(false);
+    expect((store.get("v2_users/u1/public/answers")?.a as Doc)[DAILY]).toBe(0);
+  });
+
+  it("retargets an EDIT into the profile's cohort here too, not the one the event carries", async () => {
+    // THE HOT PATH'S HOLE, ONE LANE OVER — and this lane is the reachable
+    // one, because the daily bank is exactly what shards. The create arm
+    // corrects an invented cohort and rewrites the answer row (D410); this
+    // lane then moved -old/+new using the anchors on its own EVENT
+    // PAYLOAD, a snapshot from before that correction. The hot path's own
+    // case cannot see it: that describe's qid is deliberately NOT a daily
+    // id, so it never enters this branch. Found composing the 2026-09-12
+    // night shifts — the fix landed on the hot path the same night phase B
+    // gave this lane a second copy of the line.
+    //
+    // The row is seeded as the create's correction leaves it — honest —
+    // while the edit's payload still carries the claim, which is the whole
+    // difference the re-read makes. Only the edit is delivered, as the
+    // case above does, because the fake store merges one level deep and a
+    // create's own cells would be replaced rather than added to.
+    store.set(`v2_users/u1/answers/${DAILY}`, { anchors: { ageBand: "25-34", country: "NO" } });
+    await deliverDailyEdit("evt-s5", 0, 1, { ageBand: "55-64", country: "JP" });
+    const by = store.get(SHARD)!.by as Doc;
+    expect(inc(((by.ageBand as Doc)["25-34"] as Doc)?.["1"], 1),
+      "the edit did not land in the author's real band").toBe(true);
+    expect((by.ageBand as Doc)["55-64"],
+      "the claimed band took a cell on the shard").toBeUndefined();
+    expect((by.country as Doc).JP,
+      "the claimed country took a cell on the shard").toBeUndefined();
+  });
+
+  it("the hot path is untouched for a question the daily bank does not name — the control", async () => {
+    await deliver("evt-s4", vote);
+    expect(store.get(AGG)?.total).toBe(1);
+    expect([...store.keys()].some((k) => k.startsWith(`${AGG_SHARDS_COLLECTION}/`))).toBe(false);
   });
 });

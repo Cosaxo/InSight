@@ -118,6 +118,20 @@ const LEVERS = [
     effort: "days — a trigger change",
     risk: "medium",
     notices: "the live count steps in fives; no privacy claim attached (D98 retired that)",
+    // Worth NOTHING against the app as built, and that is a fact about the
+    // app rather than about the lever. `publishEvery` divides the fan-out
+    // term only on cost-arith's `streamAggs` branch (cost-arith.mjs:937):
+    // batching a publish saves the deliveries it would have caused, and
+    // since D129 shipped polling there are no deliveries. The lever stays
+    // listed because it becomes the largest architectural saving again the
+    // moment anything re-attaches a listener to an aggregate — which is
+    // also why it must not be silently dropped the way the Circle cap was.
+    //
+    // docs/COST-REDUCTION.md billed this at -26%/-65%/-78% for a year. Those
+    // figures were computed pre-D129 and were never re-printed, because the
+    // script that prints them died at 580f388 and nothing ran it. That is
+    // the exact folklore this file's header says it exists to prevent.
+    supersededBy: "D129 — nothing streams, so there is nothing to batch",
   },
   {
     band: "architecture",
@@ -176,7 +190,16 @@ for (const L of LEVERS) {
   const saved = SIZES.map((s) => (L.shipped
     ? cut(evaluate(s.dau, s.mature, L.opts), evaluate(s.dau, s.mature))
     : cut(evaluate(s.dau, s.mature), evaluate(s.dau, s.mature, L.opts))));
-  console.log(`[${L.band[0].toUpperCase()}] ${L.name}`.padEnd(46) + saved.map((v) => v.padStart(11)).join(""));
+  // A superseded lever prints its zeros with a marker rather than silently,
+  // because an unmarked row of -0.0% reads as "measured and worthless" when
+  // it means "the baseline moved out from under it". The suite holds every
+  // UNMARKED lever to a non-zero saving somewhere, so an opt the model stops
+  // reading fails there instead of printing a quiet zero here.
+  const mark = L.supersededBy ? " †" : "";
+  console.log(`[${L.band[0].toUpperCase()}] ${L.name}${mark}`.padEnd(46) + saved.map((v) => v.padStart(11)).join(""));
+}
+for (const L of LEVERS.filter((x) => x.supersededBy)) {
+  console.log(`  † ${L.name} — ${L.supersededBy}`);
 }
 console.log("\n  Percentages, not dollars, because the dollars differ by four orders of");
 console.log("  magnitude across this row and the SHAPE is the thing to read: the social");
@@ -212,7 +235,26 @@ console.log("  is `fanOut` — quadratic in DAU, moved only by publishing or lis
 // whether other people's votes land on the card while you watch — and that
 // one property is worth 98% of the bill at 500 k DAU. A and B differ from
 // them by whether the caps a Mirror stop reads are allowed to move.
-const pick = (...names) => merge(...names.map((n) => LEVERS.find((L) => L.name === n).opts));
+// Named, not `undefined.opts`. A lever that LEAVES this file — because it
+// shipped, like "Refresh only today on foreground" and the Circle read cap —
+// leaves a PATHS entry pointing at nothing, and the bare `.opts` reported
+// that as a TypeError two sections into the output, after the run had
+// already printed two tables that looked fine. That is the shape a printer
+// fails in when nothing runs it: `npm run costs:levers` was dead on main
+// from 580f388 until 2026-09-11 and no gate could say so. The message names
+// the lever so the next removal is a sentence rather than a stack trace.
+const pick = (...names) => merge(...names.map((n) => {
+  const L = LEVERS.find((L) => L.name === n);
+  if (!L) {
+    throw new Error(
+      `cost-levers: PATHS asks for the lever "${n}", which LEVERS no longer defines.\n`
+      + "  A lever that shipped should leave BOTH lists — drop the name from the path\n"
+      + "  and say why in a comment there, the way the two before it did.\n"
+      + `  Defined today: ${LEVERS.map((x) => `"${x.name}"`).join(", ")}`,
+    );
+  }
+  return L.opts;
+}));
 
 const PATHS = [
   // Z first, because it is the one that answers "will this remove
@@ -237,21 +279,28 @@ const PATHS = [
   },
   {
     name: "A · Keep it live",
+    // "Circle reads 100 answers/member" was a lever here until runbook 3.5
+    // shipped the change it proposed: cost-arith's `circle` term is now
+    // `circleOpens × circleFollows` — ONE document per member — so
+    // CIRCLE_ANSWER_CAP no longer prices a Circle stop open and
+    // `socialTerms` does not read a `circleAnswerCap` opt at all. Removed
+    // from LEVERS at 580f388; these three paths kept asking for it, which
+    // is what killed the run. Restoring it would be worse than the crash —
+    // a lever the model cannot act on saves a silent 0%.
     opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Batch the mirror publish (x5)",
-      "Serve the bank off Hosting"),
+      "Batch the mirror publish (x5)", "Serve the bank off Hosting"),
     note: "the cap trims on top of what shipped — the product-degrading path",
   },
   {
     name: "B · Go polled",
     opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
+      "Serve the bank off Hosting"),
     note: "same as A without the publish batching",
   },
   {
     name: "C · B + single region",
     opts: merge(pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
+      "Serve the bank off Hosting"),
     { regional: true }),
     note: "the same, on a single-region database — decide before the seed",
   },
@@ -280,13 +329,18 @@ for (const P of PATHS) {
 console.log("\n\n4 · Did it fix the SLOPE? ($/DAU/mo, and the 500 -> 500 k multiple)");
 console.log("path                          " + SIZES.map((s) => int(s.dau).padStart(11)).join("") + "    500->500k");
 console.log("-".repeat(30 + 11 * SIZES.length + 13));
+const mult = (v) => (Number.isFinite(v) ? `${Math.round(v * 10) / 10}x` : "—");
 {
   const row = (label, opts) => {
     const pd = SIZES.map((s) => evaluate(s.dau, s.mature, opts) / s.dau);
     const lo = pd[SIZES.findIndex((s) => s.dau === 500)];
     const hi = pd[SIZES.length - 1];
+    // ONE DECIMAL, because whole numbers erased this column. Every path
+    // in the current model lands between 0.7 and 0.8, and rounding each of
+    // them to "1x" printed a table whose last column said the same thing
+    // about every row — including the rows that differ from each other.
     return label.padEnd(30) + pd.map((v) => unit(v).padStart(11)).join("") +
-      (Math.round(hi / lo) + "x").padStart(13);
+      (mult(hi / lo)).padStart(13);
   };
   console.log(row("as built", {}));
   for (const P of PATHS) console.log(row(P.name, P.opts));
@@ -297,23 +351,57 @@ console.log("-".repeat(30 + 11 * SIZES.length + 13));
 // a stale figure would be least likely to be noticed and most likely to be
 // quoted.
 {
-  const A = PATHS[0];
+  // BY NAME, NOT BY POSITION. This paragraph is about path A and every
+  // figure in it came from PATHS[0], which is "R · Region only" — a flat
+  // price multiplier, so the slope it printed was 1x -> 1x, a sentence
+  // claiming the slope got worse while showing it unchanged. The note two
+  // lines up is right that a figure here would be quoted and not checked;
+  // it guarded against typing the numbers and not against reading them off
+  // the wrong row. A rename now throws rather than re-pointing the prose at
+  // whatever happens to be first — cost-levers.test.mjs runs this script to
+  // completion, so the throw is the gate.
+  const A = PATHS.find((p) => /^A\b/.test(p.name));
+  if (!A) throw new Error("cost-levers: no path A — the slope paragraph names one; rename the path back or rewrite the paragraph.");
   const small = SIZES.find((s) => s.dau === 500);
   const big = SIZES[SIZES.length - 1];
   const slope = (opts) =>
     (evaluate(big.dau, big.mature, opts) / big.dau) / (evaluate(small.dau, small.mature, opts) / small.dau);
-  console.log("\n  This is the column that matters, and path A's entry LOOKS LIKE A BUG.");
-  console.log("  It is not. Path A cuts every absolute figure — " +
+  // THE DIRECTION IS READ OFF THE NUMBERS, not written in. This paragraph
+  // asserted that path A makes the slope worse, and went on printing that
+  // sentence after the model stopped agreeing with it — beside a figure
+  // that said the slope had not moved. A claim about arithmetic that the
+  // arithmetic can settle belongs to the arithmetic. Rounded to what the
+  // table SHOWS, so the sentence can never disagree with the column the
+  // reader is looking at.
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const before = r1(slope({}));
+  const after = r1(slope(A.opts));
+  console.log("\n  This is the column that matters, and path A is what it is for.");
+  console.log("  Path A cuts every absolute figure — " +
     cut(evaluate(small.dau, small.mature), evaluate(small.dau, small.mature, A.opts)).slice(1) +
     " at " + int(small.dau) + " DAU, " +
     cut(evaluate(big.dau, big.mature), evaluate(big.dau, big.mature, A.opts)).slice(1) + " at " +
     int(big.dau) + " —");
-  console.log("  and makes the SLOPE worse (" + Math.round(slope({})) + "x -> " +
-    Math.round(slope(A.opts)) + "x), because the social trims shrink the flat");
-  console.log("  baseline far harder than the batching shrinks the quadratic term. Divide");
-  console.log("  the small end by more than the big end and the ratio between them rises.");
-  console.log("  Path A buys time; it does not fix the shape. Only the paths that stop");
-  console.log("  streaming flatten the curve.");
+  if (after > before) {
+    console.log("  and makes the SLOPE worse (" + mult(before) + " -> " + mult(after) +
+      "), because the trims shrink the flat");
+    console.log("  baseline harder than the batching shrinks the quadratic term. Divide");
+    console.log("  the small end by more than the big end and the ratio between them rises.");
+    console.log("  Path A buys time; it does not fix the shape.");
+  } else if (after < before) {
+    console.log("  and flattens the curve with it (" + mult(before) + " -> " + mult(after) + ").");
+  } else {
+    console.log("  and leaves the SLOPE where it was (" + mult(before) + " -> " + mult(after) +
+      "). It buys time; it moves the");
+    console.log("  height of the curve and not its shape.");
+  }
+  // Which path is flattest is a row of the table above, so it is read from
+  // the table rather than remembered: the sentence here used to name a
+  // family ("the paths that stop streaming"), which was true of a model
+  // that has since changed twice.
+  const curves = PATHS.map((P) => ({ name: P.name, m: r1(slope(P.opts)) }));
+  const flattest = curves.reduce((a, b) => (b.m < a.m ? b : a), { name: "as built", m: r1(slope({})) });
+  console.log("  The flattest curve on offer is " + flattest.name + " at " + mult(flattest.m) + ".");
 }
 
 // ── 5. what none of this touches ────────────────────────────────

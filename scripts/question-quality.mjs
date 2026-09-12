@@ -403,6 +403,65 @@ const CIVIC = /\b(ban|bans|banned|tax|taxes|law|laws|government|mayor|council|ci
 // Scoped per finding, the neighbors-ALLOW discipline: waiving one judged
 // false positive must not silence every other rule for that question
 // forever. Empty today; the corpus passes every bound.
+// ── naming the thing, not its class (2026-09-11, the owner's report) ──
+//
+// "in a lot of questions you are a bit too general like what type of
+// movie instead of concrete movies same with other things like famous
+// persons" — read against `Rank by rewatchability → Comedies · Thrillers ·
+// Sci-fi · Documentaries`, and against a run of questions that ask about
+// famous people without naming one ("A scientist you admire", "A musician
+// you love", "Someone famous").
+//
+// This is a WARNING and cannot become an error, because the judgement it
+// wants is one a word list cannot make. An abstraction is the right answer
+// whenever the question is about a STANCE — "Musicals: joy, or endurance?"
+// is asking which you are, and a named musical would ruin it — and it is
+// the wrong answer whenever the question is about things in the world and
+// answers with their category. The lists below catch the second case's
+// common shapes on the topics where the app can name the thing instead;
+// the writer decides, which is what a warning is for.
+//
+// Two shapes, measured against the corpus rather than imagined:
+//   · a GENRE as an option — the movie/music class nouns, where naming
+//     four films or four bands is the sharper question and the one the
+//     catalogue cards already ask (docs/CATALOG-QUESTIONS.md);
+//   · a PERSON CLASS as an option — "a scientist", "someone famous", "an
+//     athlete" — where a name would be a better question and the bank is
+//     already full of them (Mozart or Beethoven; Dolly Parton, Keanu
+//     Reeves, David Attenborough or Michelle Obama).
+// The genre list reads only where a genre IS the class it stands in for.
+// Measured: on `people` it called Dwayne Johnson a music genre ("The Rock"
+// → rock), and on `culture` it called a chess time control one ("Blitz or
+// classical?"). A word list that fires on real names is one whose warnings
+// stop being read, so the two lists carry their own topics.
+const GENRE_TOPICS = new Set(["movies", "music"]);
+const PERSON_TOPICS = new Set(["movies", "music", "people", "sport", "culture"]);
+const GENRE_OPTION = new Set([
+  "comedy", "comedies", "thriller", "thrillers", "sci-fi", "scifi", "science fiction",
+  "documentary", "documentaries", "drama", "dramas", "horror", "romance", "rom-com",
+  "romcom", "action", "fantasy", "western", "westerns", "animation", "musicals",
+  "pop", "rock", "jazz", "classical", "hip-hop", "hiphop", "rap", "metal", "country",
+  "techno", "folk", "blues", "reggae", "punk", "indie",
+]);
+const PERSON_CLASS = /^(a|an|some|someone|the)\s+(famous\s+)?(scientist|musician|artist|athlete|author|writer|actor|singer|leader|politician|celebrity|comedian|director|chef|philosopher|inventor|explorer|player)\b|^someone famous\b/i;
+
+/** The options that name a class where this app could name the thing. */
+export function classOptions(q, surface) {
+  if (surface === "learn" || surface === "pulse") return [];
+  const topic = String(q.cat || q.topic || "");
+  const genre = GENRE_TOPICS.has(topic);
+  const person = PERSON_TOPICS.has(topic);
+  if (!genre && !person) return [];
+  const labels = [
+    ...(q.options || []).map((o) => (o && typeof o === "object" ? o.label : o)),
+    ...(q.items || []),
+  ].map((o) => String(o || "").trim()).filter(Boolean);
+  // The genre match is on the label WHOLE — no leading article stripped.
+  // "The Rock" is a person and "Rock" is a genre, and the strip turned the
+  // first into the second.
+  return labels.filter((o) => (genre && GENRE_OPTION.has(o.toLowerCase())) || (person && PERSON_CLASS.test(o)));
+}
+
 const ALLOW = new Map([]);
 
 // ── headroom tripwires ──
@@ -762,6 +821,18 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!sentences && String(o).length > OPTION_MAX) {
       err("option-length", `option ${JSON.stringify(String(o))} is ${String(o).length} chars (max ${OPTION_MAX})`);
     }
+  }
+
+  // Name the thing, not its class — a warning, never an error (the list's
+  // own header has why). Reported with the offending labels so the writer
+  // can see whether the question is about a stance (keep them) or about
+  // things in the world (name them, or make it a catalogue card).
+  const classy = classOptions(q, surface);
+  if (classy.length) {
+    warn.push(
+      `names a class where this app can name the thing: ${classy.map((o) => JSON.stringify(o)).join(", ")}` +
+      " — concrete beats general on an entity topic (a stance question is the exception, and this is only a warning)",
+    );
   }
 
   // Hard rule 6 is an OPINION-surface rule and does not reach learn, which is

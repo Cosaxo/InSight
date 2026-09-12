@@ -168,7 +168,7 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Eleven jobs — verified rather than assumed,
+**What the environment gates.** Twelve jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
@@ -180,7 +180,12 @@ the commit that added it, which is the first time this count moved without
 a person noticing it had. It caught the seventh, `auth-config.yml`, the
 same way and in the same commit — and the ninth and tenth,
 `apply-bigquery.yml` and `backfill-log.yml`, on 2026-09-09, and the
-eleventh, `delete-retired-functions.yml`, on 2026-09-10.)
+eleventh, `delete-retired-functions.yml`, on 2026-09-10, and the twelfth,
+`backups.yml`, on 2026-09-11.) **The table below had drifted the other
+way** — it is supposed to be the list, and it was missing
+`apply-bigquery.yml` and `backfill-log.yml` from the day they were counted
+in the prose above, because `check:figures` holds the COUNT and nothing
+holds the ROWS. Both added 2026-09-11 with `backups.yml`.
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -192,6 +197,10 @@ eleventh, `delete-retired-functions.yml`, on 2026-09-10.)
 | `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 | `appcheck.yml` | `appcheck` | registering a debug token, and flipping App Check enforcement |
 | `auth-config.yml` | `configure` | the verification mail's sender name, and the App Review demo account (D414) |
+| `apply-bigquery.yml` | `apply` | creating the BigQuery dataset and tables the answer log writes to |
+| `backfill-log.yml` | `backfill` | replaying existing answers into the log — once, dry then `apply` |
+| `delete-retired-functions.yml` | `delete` | removing a deployed function the tree no longer exports |
+| `backups.yml` | `arm` | point-in-time recovery and the two backup schedules — the only copy of the answers there is (D451) |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -326,6 +335,12 @@ webhook endpoint for **three** events — `checkout.session.completed`,
 `gcloud functions describe stripeWebhookV2 --gen2 --region europe-west1
 --format="value(serviceConfig.uri)"`), then store its signing secret as
 `STRIPE_WEBHOOK_SECRET` and re-run the deploy so the dotenv carries it.
+
+**Whether the keys arrived is a reading, not a belief.** Actions →
+**Observe production** prints each name's presence in the deployed runtime,
+the verdict *A sale can complete today*, and the webhook's URL — so the
+`gcloud functions describe` above is a fallback rather than the only way to
+get it. Presence only; the values never leave the probe.
 
 The last two matter because the checkout is created without
 `payment_method_types`, so Stripe's dynamic methods apply — and EUR's
@@ -479,6 +494,62 @@ window. Aggregates already double-counted are NOT self-healing: the
 ledger says the work was done. `## Correcting aggregates after a
 fake-account ring (D28)` below is the closest thing to a repair path, and
 it is a rebuild rather than an undo.
+
+## Backups and point-in-time recovery (D451)
+
+**Rolling back a deploy is not the same as getting the data back, and
+until 2026-09-11 this document only had the first.** There were no
+backups and no PITR. The repository knew it as two lines in
+`docs/COST-EXPOSURE.md` §7 under *"what this page could not verify from
+here"*, filed as a COST footnote — so the fact that the only asset had no
+copy read as an unpriced line rather than as an unprotected database.
+
+**Why this outranks every other recovery path written down here.** D290's
+invariant makes the answer document the source of truth and every
+aggregate a projection rebuilt from it. `## Correcting aggregates after a
+fake-account ring (D28)` and `functions/src/replay.ts` both obey it: they
+rebuild aggregates **out of** `v2_users/{uid}/answers`. So every repair
+path in this file assumes the answers survived. Nothing made that true.
+
+### Arming it
+
+    npm run backups            # report: PITR, both schedules, and what is restorable
+    npm run backups -- --apply # create them
+
+or **Actions → Backups**, `apply` off first — dispatch-only behind the
+`production` environment, so it can only run from `main`. Three things, in
+this order:
+
+| | What | Why this one |
+| --- | --- | --- |
+| 1 | Point-in-time recovery, 7 days | The only one that recovers from *"the backfill ran with the wrong predicate at 02:00"*. A daily snapshot either predates that and loses a day of answers, or postdates it and contains the damage. |
+| 2 | Daily schedule, 7-day retention | The coarse net. |
+| 3 | Weekly schedule, 14-week retention | This repo's failure mode is quiet — a retirement, a purge, a moderation sweep. Seven days is not long enough to notice one. |
+
+**Not on the deploy path, and it must not become one** — `monitoring.yml`'s
+rule, for the same reason: a pipeline that can create a backup schedule
+can delete one, in a deploy that was about something else, and the blast
+radius here is the whole product.
+
+### Reading it back
+
+`npm run observe` reports `backups.pitr`, and `backupSchedules` with the
+retention read back rather than assumed — a schedule created with the
+wrong duration is accepted, listed, and quietly keeps three hours.
+*"A schedule exists"* is not the reading anybody wants; *"how far back can
+I go"* is.
+
+The script's `restorable now` line is the only output that is evidence
+rather than a promise. A schedule takes up to a day to produce its first
+backup, so a run immediately after arming reports **nothing**, and that is
+correct.
+
+### What is still owed
+
+**A schedule is not a restore.** Nothing here has been restored into a
+scratch database and a row read back, so recovery is a well-evidenced
+belief rather than a fact. That is the next row on this page, and the only
+thing that turns it into one is doing it once.
 
 ## Rolling back a bad deploy
 
@@ -655,7 +726,15 @@ operationally:
   `erased`, `passes` — a warning when `missing` is not zero, because a
   reconciled row is a live append that failed; `passes` is the DELETE
   statements the night ran, one per 500 pending accounts, each a pass
-  over the table), `log_erasure_deferred` (an account whose rows were
+  over the table), `log_shadow` (the nightly shadow of the folds phase
+  D will move, runbook A.7 — `clean` when the ledger day's rows all match
+  their table rows by id and the three fold queries agree with the
+  folds; otherwise a warning carrying `missing`, `mismatched`, `seam`
+  (rows the log files under another day than the ledger's — the two
+  clocks, read the fold diffs against it), `logEntries` and
+  `logActives` beside `entries` and `actives`, and `differing` of
+  `questions` with a few of their ids; seven `clean` nights in a row is
+  what licenses phase D), `log_erasure_deferred` (an account whose rows were
   not deleted at once — the streaming buffer refused, or the table is
   past `LOG_ERASE_NOW_MAX_BYTES`, a gibibyte; the marker in
   `v2_log_erasures` is taken by the next night's one statement). The same `gcloud logging
@@ -762,7 +841,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (ten policies, eight log-based metrics)
+## Alerting (eleven policies, nine log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -963,6 +1042,37 @@ is that the tail is live for that question — a reader whose city is in it
 pays a shard read per such question at the City stop — and the runbook's
 first response is to move `B.tailShare` in the cost model from its honest
 zero, not to raise the threshold.
+
+### The compactor's heartbeat: the daily's counts stopping (phase B, D467)
+
+Since phase B the daily question's published document —
+`v2_question_aggs/{qid}`, what every client polls — is written by
+`compactAggShardsV2`, a minutely schedule summing the counter shards
+the answer trigger increments (`functions/src/aggShards.ts`), and by
+nothing else on the hot path. A compactor that stops is a count that
+stops moving for everyone while every answer still lands, and nothing
+raises an error: the failure is an absence, the shape the two silence
+policies above exist for. `monitoring/compactAggShardsV2-silent.json`
+watches the log-based metric `agg_compact`, emitted on EVERY run (an
+idle minute beats too — only a missing minute is a missing run), summed
+over a trailing ten minutes and fired when five pass with none. Both
+the metric and the policy are put in place by `npm run
+monitoring:apply` with the rest.
+
+**Reading it:** `agg_compact` carries `qids`, `shards`, `published`,
+`migrated` (a question met for the first time, its published document
+moved into a base shard), `negatives` (a cell that summed below zero and
+was dropped — an edit whose create never folded, or a rebuild racing a
+fold; a warning), `capped` (more than `COMPACT_DIRTY_CAP` shard documents
+were dirty; the rest wait a minute) and `stopped` (the clock ended the
+run with questions unpublished — they are still dirty for the next one).
+`clean` is none of the last two. **First response** to a fire: Cloud
+Scheduler for the job's last execution, then the function's logs; and
+`compactAggShardsNowV2` (operator callable, `{ qid }` for one question or
+nothing for everything dirtied in a day) publishes the current sums the
+moment the cause is found, whatever it was. Nothing is lost while it is
+red — the shards hold every answer — but D447's amendment of D98 (exact,
+and never more than a poll behind) is not being kept.
 
 ## Running a deploy manually
 

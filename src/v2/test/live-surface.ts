@@ -29,8 +29,12 @@ export const LIVE_MEMBERS = [
   "aggregated",
   // The core feed questions with aggregates, same view models — the
   // Patterns pool's other half (v28 §2). Core only, D161's sample-bias
-  // rule; two-option only, the fit's own encoding.
+  // rule; OPTION-SHAPED only since D464 (two or more): the Map draws a
   "coreFeedAggregated",
+  // The catalogue cards, as much of one as a Map bead needs (D464) — id,
+  // prompt, topic, domain. Not a view model: `buildS` maps `q.options`
+  // and a catalogue question has none.
+  "catalogCards",
   // The unanswered place questions for a scope (D307) — the Scores
   // lens's ask rows. From the bank, not the aggregates: an unanswered
   // rates question usually has no counts yet, which is the point.
@@ -74,7 +78,7 @@ export const LIVE_MEMBERS = [
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
   // scores; `testFeedItems` and `myTestResults` are the fold's other two
   // ingredients, exposed so the typed layer never needs a bridge read.
-  "loadSimilarity", "similarityLoading", "testAggsState", "kindredState", "kindredPeople",
+  "loadSimilarity", "similarityLoading", "testAggsState", "kindredState", "cityKindredState", "kindredPeople",
   "testFeedItems", "myTestResults",
   // D277 — the passive fold, persisted. Listed here rather than beside
   // saveTestResult because it is what makes the D112 score tier able to
@@ -147,8 +151,17 @@ export const LIVE_MEMBERS = [
   // screen drives these three. `abandonSignIn` is the way out of a typo.
   "abandonSignIn", "accountEmail",
   "needsEmailVerify", "refreshVerification", "sendVerification",
+  // The wall's verdict as one boolean (D453) — `ui/SignInGate`'s only
+  // read, and the one member here whose answer is PROVISIONAL before the
+  // auth observer speaks. Listed beside the two flags it composes
+  // because a change to either has to be a change to it.
+  "wallPass",
   "linkApple",
-  "linkGoogle", "linked", "myCity",
+  "linkGoogle", "linked",
+  // …and whether the auth observer has spoken at all, which is what
+  // stops the identity surfaces stating `linked` during the restore.
+  "authKnown",
+  "myCity",
   "myVotes",
   // The clear the store's two drains apply, for an aggregate THIS STORE
   // DID NOT FETCH: `data/pulse` reads its own day-keyed documents, so a

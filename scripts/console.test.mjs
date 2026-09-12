@@ -351,20 +351,32 @@ describe("the lists on this tree", () => {
     // Requested 8, Designed 0 and Built 6 since 2026-09-09 (D437): both
     // were built the same day, on the owner's answers to that plan's
     // questions, and moved under Built with their status lines saying so.
-    // Requested 9 since 2026-09-11 (D471): the logic test's answer screen —
-    // item 13 — because OMIB's taker BUILDS the missing cell out of twenty
-    // elements instead of tapping one of six tiles, which is an interaction
-    // and not a control, so D352 sends it here before it is built.
-    // Requested 8 and Designed 1 since 2026-09-12: the owner's Build the Cell
-    // upload answered 13 the next day and it moved under Designed, the section
-    // being the status; its extraction and the two build notes measured off the
-    // artboard are design/logic-build-cell-2026-09-12/README.md.
-    // Requested 7, Designed 0 and Built 8 later the same day (D473): 13 was
-    // built, and 8 — the worked example, answered in the same artboard —
-    // moved under Built with it, because it teaches the screen 13 is.
+    // Drafted 1 since 2026-09-10 (D457–D462's branch): a node with more
+    // than two answers on the Map ring (item 13) was filed 2026-09-09,
+    // planned on the owner's brief — one rule: a dot is an answer-axis —
+    // and drafted the same day, its canvas link on the row. It is the
+    // first row § Drafted has ever held, and § Planned is empty again.
+    // Built 7 since 2026-09-11 (D464): the owner accepted that canvas —
+    // "its fine how it is now" — and the ring drawing every kind of dot
+    // was built the same day, so item 13 crossed two sections in two days
+    // and § Drafted is empty again.
+    // Requested 9 since 2026-09-11 (D471), on the OMIB branch: the logic
+    // test's answer screen — item 14, filed as 13 until the merge met the
+    // ring's 13 above — because OMIB's taker BUILDS the missing cell out of
+    // twenty elements instead of tapping one of six tiles, which is an
+    // interaction and not a control, so D352 sends it here before it is
+    // built. Designed the next day off the owner's Build the Cell upload
+    // (design/logic-build-cell-2026-09-12/README.md) and Built the same
+    // day (D473), with 8 — the worked example, answered in the same
+    // artboard — moving under Built with it, because it teaches the
+    // screen 14 is. So Requested 7 and Built 9 once the two branches
+    // were one tree: main's 8 requested less the example, its 7 built
+    // plus the screen and the example.
     expect(v.requested.length).toBe(7);
+    expect(v.planned).toEqual([]);
+    expect(v.drafted).toEqual([]);
     expect(v.designed.length).toBe(0);
-    expect(v.built.length).toBe(8);
+    expect(v.built.length).toBe(9);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

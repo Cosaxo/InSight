@@ -342,7 +342,16 @@ function LgScoresCard({ scores, total, names, reading, unread }: { scores: Group
     <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <LgKicker>How the group rates itself</LgKicker>
-        <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{scores.length} of {total} rated</span>
+        {/* THE HEADER IS A CLAIM TOO. It sat outside both guards, so a room
+            whose rounds could not be read printed "0 of 4 rated" — a
+            numerator that means "we could not ask" over a denominator off
+            the device's own bank — directly above the sentence saying the
+            read failed. The comment further down this file records fixing
+            this exact class for the card BODIES and not for the counts
+            above them. */}
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>
+          {reading || unread ? `${total} to rate` : `${scores.length} of ${total} rated`}
+        </span>
       </div>
       {!rows.length && (
         <div style={{ marginTop: 10, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink-3)", textWrap: "pretty" }}>
@@ -410,7 +419,7 @@ function LgScoresCard({ scores, total, names, reading, unread }: { scores: Group
 }
 
 // ── Compare's second card: how they see you ─────────────────────
-function LgSeenCard({ rv, reveals, lookup }: { rv: RoleVotes; reveals: PortraitReveal[]; lookup: BankLookup }) {
+function LgSeenCard({ rv, reveals, lookup, reading, unread }: { rv: RoleVotes; reveals: PortraitReveal[]; lookup: BankLookup; reading: boolean; unread: boolean }) {
   const uid = LIVE.uid;
   const held = rv.roles.filter((r) => uid != null && (r.holders.includes(uid) || r.second === uid));
   const n = namedCount(reveals, uid, lookup);
@@ -438,7 +447,19 @@ function LgSeenCard({ rv, reveals, lookup }: { rv: RoleVotes; reveals: PortraitR
           )}
         </>
       ) : (
-        <div style={{ marginTop: 10, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink-3)" }}>No roles yet — the next vote could change that.</div>
+        <div style={{ marginTop: 10, fontFamily: "var(--sans)", fontSize: 13, color: "var(--ink-3)" }}>
+          {/* THE THIRD STATE, which this card was the one lens card not
+              given. `rv.roles` is empty both when nobody has been cast and
+              when the room's rounds could not be read, and it said the
+              first about the second — under a header naming the room, on
+              the stop whose own kicker two hundred lines up already says
+              "couldn't read the rounds". The bar below hides itself
+              correctly in the same state, which is what made this look
+              like an oversight rather than a choice. */}
+          {reading ? "Reading the rounds…"
+            : unread ? UNREAD_LINE
+              : "No roles yet — the next vote could change that."}
+        </div>
       )}
       {n.all > 0 && (
         <div style={{ marginTop: 15, paddingTop: 13, borderTop: LG_LINE }}>
@@ -661,7 +682,7 @@ function LiveGroupsMirrorBody() {
                 pop={{ basis: "people", uids: (g.memberUids || []).filter((u) => u !== LIVE.uid) }}
                 whom={g.name || "this group"}
                 emptyThem={<>Nobody here has finished a test yet.</>} />
-              <LgSeenCard rv={rv} reveals={reveals} lookup={lookup} />
+              <LgSeenCard rv={rv} reveals={reveals} lookup={lookup} reading={reading} unread={unread} />
             </React.Suspense>
           )}
         </div>

@@ -307,6 +307,13 @@ catalogue is stale, not a prompt to collect strings.
   `PLACES.countryName` pattern: store the key, display the name).
 - A possible later surface, in the place-scorecard mold: "the crowd's
   canon" — the standing top-10 per domain. Out of scope for v1.
+- Since D459 the picks feed the Patterns fit: the canonical key rides
+  the answer's ledger entry, the nightly compaction keeps each person's
+  picks beside their answer map, and every entity at least eight people
+  picked — at most `CANON_TOP_N` per card, the board's own size — is an
+  item with a vector, which the Oracle reads as the viewer's own
+  evidence. Drawing a pick on the Map is `VISUAL-REQUESTS.md` item 13;
+  whether the cards should be served as core is an owner-list row.
 
 ## Order of work, if picked up
 

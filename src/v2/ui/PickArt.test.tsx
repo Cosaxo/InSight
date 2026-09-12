@@ -15,14 +15,17 @@ import { SITE_ORIGIN } from "../data/siteOrigin";
 afterEach(cleanup);
 
 describe("PickArt", () => {
-  it("draws the hosted picture, decorative, lazily, in the duel tile's treatment", () => {
+  it("draws the hosted picture, decorative, lazily, fitted rather than cropped", () => {
     const { container } = render(<PickArt domain="athletes" id={615} />);
     const img = container.querySelector("img[data-pick-art]") as HTMLImageElement;
     expect(img).toBeTruthy();
     expect(img.getAttribute("src")).toBe(`${SITE_ORIGIN}/catalog-art/athletes/615.jpg`);
     expect(img.getAttribute("alt")).toBe("");
     expect(img.getAttribute("loading")).toBe("lazy");
-    expect(img.className).toBe("wf-tileimg");
+    // `is-fit` is the crop rule, and it is load-bearing: without it the
+    // shared .wf-tileimg cover-crops a square subject into a wide face and
+    // takes the middle out of it (styles.css §16).
+    expect(img.className).toBe("wf-tileimg is-fit");
   });
 
   it("fades in only once the bitmap has decoded", () => {

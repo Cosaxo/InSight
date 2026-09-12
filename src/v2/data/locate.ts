@@ -48,6 +48,27 @@ export type LocateResult =
 // last neighbourhood would place you in a room you left.
 const OPTS = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 };
 
+// A COARSE FIRST FIX IS NOT A COARSE DEVICE. `locateCell` refuses anything
+// wider than the presence cell (CELL_M, below), and until 2026-09-11 it
+// refused after ONE sample — which is the sample a phone is least able to
+// make: the radios are cold, and the first thing CoreLocation or the
+// Android fused provider hands back is the wifi/cell estimate, hundreds of
+// metres wide, while the GNSS fix is still converging. Reported from a
+// device as Near simply not switching on, under "No location fix — try
+// again outside" (which was also the wrong sentence — see `imprecise`).
+//
+// So a coarse reading buys more samples rather than a refusal: fresh ones
+// (`maximumAge: 0` — the platform must not hand back the same cached
+// estimate), spaced far enough apart to be a different measurement, and
+// the whole loop still inside the wall-clock deadline below. Three is
+// where a warming GNSS fix has usually landed and is two samples more than
+// the budget that shipped; the refusal is unchanged for a device that
+// really cannot do better.
+const PRECISE_TRIES = 3;
+const RETRY_GAP_MS = 1200;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 // A wall-clock deadline for the WHOLE operation, permission prompt included.
 //
 // OPTS.timeout does not cover the prompt: the Geolocation spec says the time
@@ -92,7 +113,11 @@ function classify(err: unknown): LocateFail {
   return "unavailable";
 }
 
-async function getCoords(): Promise<{ lat: number; lon: number; accuracy: number }> {
+/** `fresh` forbids a cached position — see PRECISE_TRIES: a retry that is
+ *  allowed to answer from the last minute's cache is not a second
+ *  measurement, it is the same coarse one again. */
+async function getCoords(fresh = false): Promise<{ lat: number; lon: number; accuracy: number }> {
+  const opts = fresh ? { ...OPTS, maximumAge: 0 } : OPTS;
   if (Capacitor.isNativePlatform()) {
     const { Geolocation } = await import("@capacitor/geolocation");
     // requestPermissions first rather than letting getCurrentPosition
@@ -116,7 +141,7 @@ async function getCoords(): Promise<{ lat: number; lon: number; accuracy: number
     const precise = perm.location === "granted";
     const state = precise ? "granted" : (perm.coarseLocation || perm.location);
     if (state !== "granted") throw new Error("permission denied");
-    const pos = await Geolocation.getCurrentPosition({ ...OPTS, enableHighAccuracy: precise });
+    const pos = await Geolocation.getCurrentPosition({ ...opts, enableHighAccuracy: precise });
     return { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
   }
   // Web. navigator.geolocation is absent in insecure contexts and in some
@@ -128,7 +153,7 @@ async function getCoords(): Promise<{ lat: number; lon: number; accuracy: number
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }),
       reject,
-      OPTS,
+      opts,
     );
   });
 }
@@ -182,9 +207,27 @@ export function locateSupported(): boolean {
  */
 const CELL_M = 222;
 
+/**
+ * The cell path's failures — the city path's, plus the one only it can
+ * have. `imprecise` is a WORKING location service whose reading is wider
+ * than the square we would publish from it: a grant of "Approximate"
+ * rather than "Precise", or a device that never got past its wifi
+ * estimate. It is not `unavailable` and must never be reported as one —
+ * "No location fix — try again outside" is advice for a phone that has no
+ * fix at all, and a phone standing outside with Precise Location off will
+ * follow it forever.
+ *
+ * Kept off `LocateFail` rather than added to it, because the city path
+ * cannot produce it: `locateCity` reads accuracy and deliberately ignores
+ * it (matching a reading to a shipped city list is exactly what an
+ * approximate fix is for), so a sentence for it in the CityPicker's map
+ * would be copy for a state that cannot happen.
+ */
+export type LocateCellFail = LocateFail | "imprecise";
+
 export type LocateCellResult =
   | { ok: true; cell: string }
-  | { ok: false; reason: LocateFail };
+  | { ok: false; reason: LocateCellFail };
 
 /**
  * Resolve the presence-grid cell (D84), or a reason why not.
@@ -197,29 +240,54 @@ export type LocateCellResult =
  * vocabulary, so the UI reuses the CityPicker's failure copy.
  */
 export async function locateCell(): Promise<LocateCellResult> {
-  let coords: { lat: number; lon: number; accuracy: number };
-  try {
-    coords = await withDeadline(getCoords(), DEADLINE_MS);
-  } catch (err) {
-    const msg = String((err as Error)?.message || "");
-    if (msg === "unsupported") return { ok: false, reason: "unsupported" };
-    return { ok: false, reason: classify(err) };
+  const started = Date.now();
+  // The best reading so far, kept only to decide the refusal's WORDING: a
+  // coarse fix that never improves is `imprecise`, and no coordinate from
+  // it leaves this function either way.
+  let coarsest: { lat: number; lon: number; accuracy: number } | null = null;
+  let fine: { lat: number; lon: number; accuracy: number } | null = null;
+
+  for (let i = 0; i < PRECISE_TRIES && !fine; i += 1) {
+    // The deadline covers the WHOLE operation, prompt included, so each
+    // attempt gets what is left of it rather than a fresh thirty seconds.
+    const left = DEADLINE_MS - (Date.now() - started);
+    if (left <= 0) break;
+    let coords: { lat: number; lon: number; accuracy: number };
+    try {
+      coords = await withDeadline(getCoords(i > 0), left);
+    } catch (err) {
+      const msg = String((err as Error)?.message || "");
+      // A FAILED RETRY IS NOT A FAILED LOCATE. The first attempt is the one
+      // that carries the permission prompt and the real failures; once a
+      // reading is in hand, a later timeout means only that this sample
+      // did not arrive, and the refusal below should speak about the
+      // reading we have rather than about the sample we lost.
+      if (coarsest) break;
+      if (msg === "unsupported") return { ok: false, reason: "unsupported" };
+      return { ok: false, reason: classify(err) };
+    }
+    // A platform that does not report accuracy at all keeps the behaviour
+    // Near shipped with rather than losing the feature: the refusal is for
+    // a fix MEASURED coarse, not for one whose accuracy is unknown.
+    if (!Number.isFinite(coords.accuracy) || coords.accuracy <= CELL_M) fine = coords;
+    else {
+      if (!coarsest || coords.accuracy < coarsest.accuracy) coarsest = coords;
+      if (i < PRECISE_TRIES - 1) await sleep(RETRY_GAP_MS);
+    }
   }
+
   // A FIX COARSER THAN THE CELL IS NOT A CELL. An "Approximate only" grant
-  // on Android 12+ returns a grid-quantised reading of roughly a kilometre
-  // or three; folding that into a 0.002° square publishes a room the user
-  // is not standing in, and nobody can tell from the outside. That is
-  // D175's own "invented precision", pointed at Near instead of at the
-  // grid size. `nearState.lastError` already renders "unavailable" as a
-  // stall row, so this needs no UI.
-  //
-  // A platform that does not report accuracy at all keeps today's
-  // behaviour rather than losing Near: the refusal is for a fix MEASURED
-  // coarse, not for one whose accuracy is unknown.
-  if (Number.isFinite(coords.accuracy) && coords.accuracy > CELL_M) {
-    return { ok: false, reason: "unavailable" };
-  }
-  const cell = presenceCell(coords.lat, coords.lon);
+  // on Android 12+, or iOS with Precise Location off, returns a
+  // grid-quantised reading of roughly a kilometre or three; folding that
+  // into a 0.002° square publishes a room the user is not standing in, and
+  // nobody can tell from the outside. That is D175's own "invented
+  // precision", pointed at Near instead of at the grid size. What changed
+  // at 2026-09-11 is only what the refusal is CALLED: this reported
+  // "unavailable", and the card turned that into "No location fix — try
+  // again outside", which is unfollowable advice for a phone whose fix is
+  // working and merely wide.
+  if (!fine) return { ok: false, reason: coarsest ? "imprecise" : "unavailable" };
+  const cell = presenceCell(fine.lat, fine.lon);
   if (!cell) return { ok: false, reason: "unavailable" };
   return { ok: true, cell };
 }

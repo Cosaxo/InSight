@@ -78,6 +78,15 @@ const EXEMPT = {
       "operator callable, the scheduled scan's manual lever (D19 rollback "
       + "runbook); gated on SEED_ADMIN_UIDS",
   },
+  compactAggShardsNowV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the aggregate compactor's manual lever (phase B, "
+      + "D467): publish one sharded question now, or everything dirtied in "
+      + "a day after an outage longer than the schedule's lookback — and the "
+      + "e2e's only way to read a count it cannot wait a minute for; gated "
+      + "on SEED_ADMIN_UIDS",
+  },
   fetchSuggestionsV2: {
     gate: "assertOperator",
     reason:
@@ -142,6 +151,42 @@ const EXEMPT = {
     reason:
       "moderator callable, invoked by the out-of-app moderation Routine; "
       + "gated on MOD_UIDS",
+  },
+  // ── The web buy door (D455, re-gated at D456) ────────────────────────
+  //
+  // A browser cannot produce App Check attestation without a provider, so
+  // these two cannot enforce it. What they are gated on is
+  // `assertBookingBudget` — five bookings a rolling day per account.
+  //
+  // D455 put a server-verified reCAPTCHA in front of that, and D456 took
+  // it back out on the owner's ruling. The reasoning is worth keeping
+  // because it is about what a gate is FOR: reCAPTCHA was protecting the
+  // per-review Anthropic spend, and once the review moved to a Routine
+  // there was no per-request model call left to protect. What remains of
+  // a junk booking is one small Firestore document that never becomes a
+  // question anyone sees, because `goLive` runs on the PAYMENT webhook —
+  // so the €320 is the filter, and the owner's words are that a buyer's
+  // humanity "dosent matter… that only matters for the votes". Every vote
+  // path in this table still enforces App Check, which is exactly that
+  // distinction drawn in code.
+  //
+  // The owner's other half — that reCAPTCHA v3 is weak against current
+  // automated solvers — is true, and is the reason the swap is not a
+  // downgrade so much as the removal of a gate that was already porous
+  // guarding something that had moved away.
+  bookPaidQuestionV2: {
+    gate: "assertBookingBudget",
+    reason:
+      "the web buy door (web/ask.html) — a browser cannot produce App Check "
+      + "attestation without a provider; gated on the per-account booking "
+      + "budget, with payment as the real filter (D455, D456)",
+  },
+  createPaidCheckoutV2: {
+    gate: "assertOwnApprovedBooking",
+    reason:
+      "the web buy door's second hop — acts only on a booking that is "
+      + "already the caller's own and already approved, which it checks "
+      + "before opening any Stripe session (D455, D456)",
   },
 };
 

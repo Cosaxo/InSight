@@ -230,13 +230,31 @@ ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 // too short is a flaky suite, and the cost of a longer ceiling is zero on
 // every run that does not need it — the loop breaks the moment the
 // document appears.
-let pub = null;
-for (let i = 0; i < 60; i++) {
-  const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-  if (snap.exists()) { pub = snap.data(); break; }
-  await new Promise((r) => setTimeout(r, 500));
+// THE DAILY IS SHARDED (phase B, D467): the trigger writes the person's
+// counter shard and the compactor publishes v2_question_aggs once a
+// minute — a minute this suite cannot wait, so every read of q0's
+// published document below goes through `settled`: run the operator
+// lever (the same `runAggCompaction` the schedule runs, for this one
+// question), read, and try again until the predicate holds. What the
+// suite asserts is unchanged — the same counts it read off the hot path,
+// now off the compactor (LOG-FIRST-RUNBOOK B.2's gate).
+const compactNow = () => httpsCallable(fns, "compactAggShardsNowV2")({ qid: q0.id });
+async function settled(pred, tries = 60, waitMs = 500) {
+  for (let i = 0; i < tries; i++) {
+    await compactNow();
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && pred(snap)) return snap.data();
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+  return null;
 }
-if (!pub) fail("public agg never appeared — trigger did not fire");
+// The count itself, not the document: the compactor can publish an EMPTY
+// document (a migrated base and no shard yet) before the trigger has
+// folded the answer, so existence no longer means what it meant on the
+// hot path — the first run of this suite under phase B read an empty
+// document and then found no answer map behind it.
+const pub = await settled((snap) => snap.get("total") === 1);
+if (!pub) fail("public agg never held the first answer — trigger did not fire");
 // The answer map (DATA-EFFICIENCY-RUNBOOK 3.2) lands in the same
 // transaction as the count, so it is there the moment the aggregate is —
 // and it is the reader's own grant to get (3.1), one document.
@@ -293,12 +311,7 @@ for (let n = 0; n < 4; n++) {
     },
   });
 }
-let above = null;
-for (let i = 0; i < 40; i++) {
-  const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-  if (snap.exists() && snap.get("total") === 5) { above = snap.data(); break; }
-  await new Promise((r) => setTimeout(r, 500));
-}
+const above = await settled((snap) => snap.get("total") === 5, 40);
 if (!above) fail("public counts never reached total 5");
 // votes: opt1 (first user) + opt0,opt1,opt0,opt1 → {0:2, 1:3}, total 5
 if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
@@ -365,12 +378,7 @@ for (let m = 0; m < 5; m++) {
     },
   });
 }
-let split = null;
-for (let i = 0; i < 40; i++) {
-  const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-  if (snap.exists() && snap.get("total") === 10) { split = snap.data(); break; }
-  await new Promise((r) => setTimeout(r, 500));
-}
+const split = await settled((snap) => snap.get("total") === 10, 40);
 if (!split) fail("public agg never reached total 10");
 if (!split.by || !split.by.ageBand) fail("breakdown missing at 6/5: " + JSON.stringify(split.by));
 const bands = Object.keys(split.by.ageBand).sort();
@@ -408,12 +416,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
   });
-  let eleven = null;
-  for (let i = 0; i < 20; i++) {
-    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-    if (snap.exists() && snap.get("total") === 11) { eleven = snap.data(); break; }
-    await new Promise((r) => setTimeout(r, 400));
-  }
+  const eleven = await settled((snap) => snap.get("total") === 11, 20, 400);
   if (!eleven) fail("11th answer never published");
   // 10 answers stood at {0:7, 1:3}; the 11th is another option 0.
   if (eleven.counts["0"] !== 8 || eleven.counts["1"] !== 3)
@@ -450,12 +453,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   await updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
     optionIdx: 0, editedAt: serverTimestamp(),
   });
-  let moved = null;
-  for (let i = 0; i < 20; i++) {
-    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-    if (snap.exists() && (snap.get("counts") || {})["0"] === 9) { moved = snap.data(); break; }
-    await new Promise((r) => setTimeout(r, 400));
-  }
+  const moved = await settled((snap) => (snap.get("counts") || {})["0"] === 9, 20, 400);
   if (!moved) fail("D86 edit never reached the public mirror");
   {
     const map = await getDoc(doc(db, "v2_users", uid, "public", "answers"));
@@ -510,12 +508,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     answeredAt: serverTimestamp(),
     anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" },
   });
-  let twelve = null;
-  for (let i = 0; i < 20; i++) {
-    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-    if (snap.exists() && snap.get("total") === 12) { twelve = snap.data(); break; }
-    await new Promise((r) => setTimeout(r, 400));
-  }
+  const twelve = await settled((snap) => snap.get("total") === 12, 20, 400);
   if (!twelve) fail("12th answer never published");
   if (twelve.counts["0"] !== 9 || twelve.counts["1"] !== 3)
     fail("counts wrong after the post-edit create: " + JSON.stringify(twelve.counts));
@@ -605,6 +598,10 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
       fail("the backfill changed a map the trigger had already written: " + JSON.stringify(before) + " → " + JSON.stringify(after));
     ok("backfillAnswerMapsV2: dry run scanned " + dryFill.scanned + ", apply merged " + fill.users + " map(s), idempotent over the trigger's");
   }
+  // The published document must be current before a rebuild reads its
+  // drift off it — on the hot path it always was; here it is a minute old
+  // at most, and the lever makes it now.
+  await compactNow();
   const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
   if (dry.applied !== false) fail("the rebuild wrote without --apply");
   if (dry.scanned !== 12 || dry.folded !== 12 || dry.skipped !== 0)
@@ -712,6 +709,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 {
   const cityKeys = (by) => Object.keys((by && by.city) || {});
   const cellSumOf = (cell) => Object.values(cell || {}).reduce((a, c) => a + c, 0);
+  await compactNow();
   const before = (await getDoc(doc(db, "v2_question_aggs", q0.id))).data();
   const beforeCitySum = cityKeys(before.by).reduce((a, c) => a + cellSumOf(before.by.city[c]), 0);
   if (cityKeys(before.by).length >= BREAKDOWN_MAX_BUCKETS)
@@ -735,12 +733,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
       anchors: { country: "NO", city: `Tail${String(t).padStart(2, "0")}, NO` },
     });
   }
-  let tailed = null;
-  for (let i = 0; i < 80; i++) {
-    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-    if (snap.exists() && snap.get("total") === before.total + TAIL_N) { tailed = snap.data(); break; }
-    await new Promise((r) => setTimeout(r, 500));
-  }
+  const tailed = await settled((snap) => snap.get("total") === before.total + TAIL_N, 80);
   if (!tailed) fail("the tail voters never all folded (total " + (before.total + TAIL_N) + " not reached)");
   const hot = tailed.by.city;
   if (Object.keys(hot).length !== BREAKDOWN_MAX_BUCKETS)
@@ -766,8 +759,18 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     fail(`tail holds ${Object.keys(tailCells).length} cities, expected ${expectedTail}: ` + JSON.stringify(Object.keys(tailCells)));
   for (const [c, cell] of Object.entries(tailCells)) {
     if (cellSumOf(cell) !== 1) fail(`tail cell ${c} should hold one answer: ` + JSON.stringify(cell));
-    if (!c.startsWith("Tail0")) fail("the evicted buckets should be the OLDEST one-answer cities: " + c);
   }
+  // WHICH one-answer cities are in the tail changed with phase B (D467):
+  // the hot path evicted the OLDEST sub-floor bucket to admit a newcomer,
+  // so the tail held the earliest arrivals; the compactor re-caps the
+  // union deterministically — the biggest buckets stay hot, ties by name
+  // — so the tail holds the highest-named of the one-answer cities, and
+  // two runs over the same shards agree on which.
+  const ones = [...Object.keys(hot), ...Object.keys(tailCells)]
+    .filter((c) => cellSumOf(hot[c] || tailCells[c]) === 1).sort();
+  const expectedEvicted = ones.slice(ones.length - expectedTail);
+  if (JSON.stringify(Object.keys(tailCells).sort()) !== JSON.stringify(expectedEvicted))
+    fail("the tail should hold the highest-named one-answer cities (the compactor's cap): " + JSON.stringify(Object.keys(tailCells).sort()) + " vs " + JSON.stringify(expectedEvicted));
   const unionSum = Object.keys(hot).reduce((a, c) => a + cellSumOf(hot[c]), 0)
     + Object.values(tailCells).reduce((a, cell) => a + cellSumOf(cell), 0);
   if (unionSum !== beforeCitySum + TAIL_N)

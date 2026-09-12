@@ -34,6 +34,7 @@ import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { profileStamp, type ProfileStamp } from "./profileStamp";
 import { answerMapMerge, answerMapRef } from "./answerMaps";
+import { isShardedQid, shardEditIncrements, shardIncrements, shardOf, shardRef } from "./aggShards";
 import { appendLog, logRow, type LogRow } from "./log";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
@@ -75,6 +76,7 @@ import {
   type TurnRecipient,
   roundKey,
   ROUND_DEADLINE_MS,
+  CANON_TOP_N,
 } from "./pure";
 import { notifyTurn, revealDueRounds } from "./v2social";
 import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, VIDEOGAME_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
@@ -294,16 +296,16 @@ export const LEDGER_RETENTION_DAYS = 90;
 // sweep reads yesterday's ledger as its vote log, and (uid, qid) alone
 // says who answered, not what. It adds nothing the answer doc does not
 // already publish (D98), rides the same 90-day TTL, and erases with the
-// account (index.ts phase 4c). Absent on catalog entries — the fit's
-// pool is two-option questions only — and an edit's entry carries the
-// NEW side, so a refit leans toward what the person now says.
+// account (index.ts phase 4c). Absent on catalog entries, which carry
+// `entity` instead since D459 — and an edit's entry carries the NEW
+// side, so a refit leans toward what the person now says.
 //
 // `anchors` joined for the nightly voter samples (D397): the sample a
 // device reads instead of querying two hundred answer documents carries
 // each voter's FROZEN cohort chips (D8), and the ledger is the one place
 // the sample builder can take them from without a second read per entry.
 // The snapshot the answer itself carries, string values only; public like
-// the answer (D98); same TTL, same erasure. Absent on catalog entries.
+// the answer (D98); same TTL, same erasure. On catalog entries since D459.
 function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const out: Record<string, string> = {};
@@ -322,13 +324,20 @@ function ledgerAnchors(raw: unknown): Record<string, string> | undefined {
 // (patternsSamples.ts). `n` present is what marks a stamped entry; `s` and
 // `l` are written as null when the profile holds nothing usable, so a
 // stamped-with-nothing entry is distinguishable from an unstamped one.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, stamp?: ProfileStamp) {
+// `entity` is D459's, and the two never travel together: a catalogue pick
+// has no option and the catalog arm reads no profile.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number, anchors?: unknown, entity?: string, stamp?: ProfileStamp) {
   const a = ledgerAnchors(anchors);
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
     ...(a ? { anchors: a } : {}),
+    // A catalogue pick's canonical key (D459) — what the fit reads as the
+    // person's answer where a vote carries `optionIdx`. Validated above
+    // against the committed catalogue before this entry is written, so
+    // an unknown key never reaches the ledger. Public like the answer.
+    ...(entity === undefined ? {} : { entity }),
     ...(stamp ? { n: stamp.n, s: stamp.s, l: stamp.l } : {}),
     // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
     // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
@@ -415,7 +424,7 @@ export async function runAggTransaction(
 // enforced by scripts/check-catalogs.mjs); while a set is empty its
 // domain simply never aggregates — fail-safe until the catalogue is
 // generated and committed (D15).
-export const CANON_TOP_N = 10;
+export { CANON_TOP_N };
 export const CATALOG_MAX_ENTITY = 1025;
 // Atomic numbers — contiguous like dex numbers, and the most stable keys
 // any domain here will get (IUPAC does not renumber). Must equal the count
@@ -1073,7 +1082,9 @@ export const onV2AnswerCreated = onDocumentCreated(
         // rules and both are gone — `rest` is now simply "everything
         // outside the top N", which is what a reader assumed it was.
         const canon = canonTopN(ent, CANON_TOP_N);
-        tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        // With the pick and the chips since D459 — the fit compacts the one
+        // and the samples carry the other, exactly as on the vote arm.
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid, undefined, undefined, snap.get("anchors"), key));
         logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
@@ -1113,6 +1124,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const eventRef = db.collection("v2_agg_events").doc(event.id);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      const rankProfRef = db.collection("v2_users").doc(event.params.uid);
       let logged: LogRow | null = null;
       await runAggTransaction(db, qid, async (tx) => {
         logged = null;
@@ -1128,7 +1140,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // trigger's one question-doc read, the catalog branch's pattern.
         // Rules already bound the size; the elements (a permutation of
         // 0..n-1, no duplicates) can only be checked here.
-        const [seen, qDoc, agg] = await tx.getAll(eventRef, qRef, pubRef);
+        const [seen, qDoc, agg, rankProf] = await tx.getAll(eventRef, qRef, pubRef, rankProfRef);
         if (seen.exists) return;
         const n = ((qDoc.get("options") as unknown[] | undefined) || []).length;
         const order = validRankOrder(snap.get("order"), n);
@@ -1144,6 +1156,33 @@ export const onV2AnswerCreated = onDocumentCreated(
         const pos = Array.isArray(stored) && stored.length === n ? [...stored] : new Array<number>(n).fill(0);
         foldRankOrder(pos, order);
         const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
+        // AND THE COHORT IS CORRECTED HERE TOO (D410). This was the one
+        // create arm with no honest-anchor check: the vote arm has had one
+        // since D410 and the catalog arm since 2026-09-10, and rank kept
+        // whatever the client claimed.
+        //
+        // Nothing is folded from it — a rank publishes position sums and a
+        // total, with no `by` map on purpose — so there is no aggregate to
+        // corrupt, and nothing reads these rows today either (`voters.ts`'s
+        // pick fold and the nightly sample's seed both skip a row with no
+        // integer `optionIdx`). What is wrong is the DOCUMENT:
+        // `v2_users/{uid}/answers/{qid}` is world-readable (D98) and the
+        // People lens reads other users' anchors off answer rows to say who
+        // someone is — which is the reason the vote arm gives for correcting
+        // the row and not only the fold. A guard with one arm missing is the
+        // arm the next lens walks through.
+        //
+        // Written ONLY when it differs, the vote arm's rule: an honest
+        // client pays one read, batched into the getAll above so there is no
+        // extra round trip, and no write.
+        const rankClaimed = snap.get("anchors");
+        const rankHonest = honestAnchors(rankClaimed, rankProf.exists ? rankProf.get("anchors") : {});
+        if (JSON.stringify(rankHonest) !== JSON.stringify(rankClaimed ?? {})) {
+          logger.warn(
+            `[v2] rank answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+          );
+          tx.set(snap.ref, { anchors: rankHonest }, { merge: true });
+        }
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Published whole, every answer (D98): the sums and the total ARE
@@ -1200,12 +1239,24 @@ export const onV2AnswerCreated = onDocumentCreated(
       // honestAnchors() in pure.ts has why the rule that would check it
       // cannot exist. One more billed read, no extra round trip, and the
       // lock window on v2_question_aggs/{qid} is unchanged.
-      const [seen, agg, prof] = await tx.getAll(eventRef, pubRef, profRef);
+      // THE DAILY LANE IS SHARDED (aggShards.ts, phase B / D467): a
+      // question the daily bank names never has its published document
+      // read or rewritten here. The event and the profile are still one
+      // batched read; the publish is a blind increment on the person's
+      // counter shard, and the compactor publishes the sum once a minute.
+      // Two getAll shapes rather than one with a conditional argument,
+      // because a read this transaction does not need is a document it
+      // must not lock (pulse.test.mjs counts these).
+      const sharded = isShardedQid(qid);
+      const reads = sharded ? await tx.getAll(eventRef, profRef) : await tx.getAll(eventRef, pubRef, profRef);
+      const seen = reads[0];
+      const prof = reads[reads.length - 1];
+      const agg = sharded ? null : reads[1];
       if (seen.exists) return;
       const counts: Record<string, number> =
-        (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
+        (agg?.exists && (agg.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
-      const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
+      const total = ((agg?.exists && (agg.get("total") as number)) || 0) + 1;
       // Per-anchor breakdown, in the SAME document as the plain counts.
       // Deliberately not new per-dimension docs: this transaction already
       // writes the aggregate, so folding the slices in costs no extra
@@ -1223,26 +1274,28 @@ export const onV2AnswerCreated = onDocumentCreated(
       // before the cap, so the ordinary answer still pays the one getAll
       // above and nothing more. What the cap then evicts or refuses goes
       // to the tail as blind increments after the hot write below.
-      const storedBy = agg.exists ? (agg.get("by") as BreakdownCounts) : null;
+      const storedBy = agg?.exists ? (agg.get("by") as BreakdownCounts) : null;
       // What the answer SHOULD have said. Bound here rather than at each use
       // so the cap's shard bound, the fold and the ledger entry all see the
       // same thing, and the correction below compares against the claim.
       const claimed = snap.get("anchors");
       const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
-      const flow = overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
-      const by = breakdownFor(
+      // The hot fold, for the unsharded question: the tail's shards read
+      // only where the cap acts, the breakdown folded, the edit-flow
+      // matrix (D226) carried because the write below replaces the doc
+      // whole (merge: false) — emit-when-set, so a never-edited question's
+      // doc gains no key. A sharded question folds nothing here: its cap
+      // is the compactor's.
+      const flow = sharded ? null : overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
+      const by = sharded ? null : breakdownFor(
         qid,
         storedBy,
         anchors,
         optionIdx,
         (kind, dim, bucket, total) => { capped.push({ kind, dim, bucket, total }); },
-        flow.tail,
+        flow!.tail,
       );
-      // The edit-flow matrix (D226) rides these same docs, and this write
-      // replaces the doc whole (merge: false) — so carry it, or the first
-      // create after an edit erases the flows. Emit-when-set: the common,
-      // never-edited question's doc gains no key.
-      const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
+      const edits = agg?.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
       // AND THE DOCUMENT IS CORRECTED, not only the fold. The People lens
       // reads other users' anchors off their answer rows to say who someone
       // is, so a fold that quietly ignored an invented cohort would leave
@@ -1262,7 +1315,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // profile's stamp (runbook 2.1): `prof` is already in hand, so the
       // name and scores the sample row will show cost no read here.
       tx.set(eventRef, ledgerEntry(
-        event.params.uid, qid, optionIdx, undefined, anchors,
+        event.params.uid, qid, optionIdx, undefined, anchors, undefined,
         profileStamp(prof.exists ? { displayName: prof.get("displayName"), testResults: prof.get("testResults") } : undefined),
       ));
       // The log's row takes the honest anchors, as the ledger does.
@@ -1274,6 +1327,14 @@ export const onV2AnswerCreated = onDocumentCreated(
       // cannot leave the map behind the count. A document only this
       // person's answers touch: no contention on the hot aggregate.
       tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: optionIdx }), { merge: true });
+      if (sharded) {
+        // The counter shard: +1 on the option, the total and every cell
+        // the honest chips name, blind — no document was read for it and
+        // none is locked by it. Uncontended at AGG_SHARDS times the wall.
+        const s = shardOf(event.params.uid);
+        tx.set(shardRef(db, qid, s), shardIncrements(qid, s, optionIdx, anchors, Date.now()), { merge: true });
+        return;
+      }
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -1293,12 +1354,12 @@ export const onV2AnswerCreated = onDocumentCreated(
       // ~1/sec/document (D7). Collapsing the two documents WAS the named
       // remedy and is now taken; what is left when this bites is sharding,
       // not a floor.
-      tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
+      tx.set(pubRef, { counts, total, by: by!, ...(edits ? { edits } : {}) }, { merge: false });
       // The tail's own writes — one merge per shard touched, increments
       // only. Dormant until a dimension reaches the cap; from then on, +1
       // write per answer whose city or country the hot document cannot
       // hold (COSTS.md's row).
-      for (const [shard, inc] of flow.pending) {
+      for (const [shard, inc] of flow!.pending) {
         tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
       }
     });
@@ -1340,11 +1401,41 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
+    const answerRef = db.collection("v2_users").doc(event.params.uid).collection("answers").doc(qid);
     let logged: LogRow | null = null;
+    const sharded = isShardedQid(qid);
     await runAggTransaction(db, qid, async (tx) => {
       logged = null;
-      // One document, batched — same as the create path above.
-      const [seen, agg] = await tx.getAll(eventRef, pubRef);
+      if (sharded) {
+        // The sharded lane's edit (aggShards.ts): the same ledger mark,
+        // row and map, then -old/+new as blind increments on the person's
+        // shard with the total untouched, and one crossing in the
+        // edit-flow matrix. No "arrived before its create" refusal —
+        // increments commute, so an edit folded first leaves a negative
+        // cell the create's +1 cancels, whichever lands first.
+        //
+        // THE ANCHORS ARE RE-READ HERE TOO, for the reason the unsharded
+        // lane below states at length: an event payload carries the cohort
+        // the author CLAIMED, and the create trigger's D410 correction is
+        // what makes it honest. This lane was written on the unsharded
+        // lane's older shape, where that payload read was the defect — so
+        // it is the same hole, on the daily lane, which is the one that
+        // shards. The answer joins the ledger read; the round trip is
+        // unchanged.
+        const [seen, live] = await tx.getAll(eventRef, answerRef);
+        if (seen.exists) return;
+        const anchors = live.exists ? live.get("anchors") : after.get("anchors");
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, anchors));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors });
+        tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: toIdx }), { merge: true });
+        const s = shardOf(event.params.uid);
+        tx.set(shardRef(db, qid, s), shardEditIncrements(qid, s, fromIdx, toIdx, anchors, Date.now()), { merge: true });
+        return;
+      }
+      // TWO documents and the answer, batched — same round trip the create
+      // path makes. The answer is re-read rather than taken from the event
+      // payload; the block below `retargetAnchors` has why.
+      const [seen, agg, live] = await tx.getAll(eventRef, pubRef, answerRef);
       if (seen.exists) return;
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
@@ -1362,11 +1453,45 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const total = (agg.exists && (agg.get("total") as number)) || 0;
       const by: BreakdownCounts =
         (agg.exists && (agg.get("by") as BreakdownCounts)) || {};
-      // The anchors snapshot is frozen (rules), so this lands in exactly
-      // the cells the create folded into — or skips a dimension where cap
-      // churn means the old vote is no longer represented (pure.ts has the
-      // accounting). Bucket totals never move.
-      retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      // THE ANCHORS ARE RE-READ, not taken from the event payload, and the
+      // difference is a hole anyone with a free account could walk through.
+      //
+      // This line read `after.get("anchors")` under a comment saying the
+      // snapshot "is frozen (rules), so this lands in exactly the cells the
+      // create folded into". Frozen it is — the rules refuse to change it.
+      // Honest it is not: the CREATE trigger is what makes it honest
+      // (D410), comparing the claim against the author's profile and
+      // rewriting the document when they differ. And an event payload is a
+      // point-in-time snapshot, so an edit written before that correction
+      // landed carries the claim the create already threw away.
+      //
+      // The create arm's own comment states the contract this broke:
+      // "onV2AnswerUpdated re-reads these anchors to retarget the -old/+new
+      // delta and must find the cells this create folded." Re-reads. It did
+      // not.
+      //
+      // MEASURED on the emulator with live triggers: an honest voter in
+      // 55-64 answers option 0; a second account whose profile says 25-34
+      // writes `anchors:{ageBand:"55-64"}` with option 0 and immediately
+      // edits to 1. The published breakdown came out
+      //     {"ageBand":{"55-64":{"1":1},"25-34":{"0":1}}}
+      // where the truth is {"55-64":{"0":1},"25-34":{"1":1}} — BOTH cells
+      // wrong, on a document every signed-in device reads, and the honest
+      // voter's answer moved between options in a band that is not theirs.
+      // The ledger row below carried the same invented chips onward into
+      // the nightly voter sample.
+      //
+      // The re-read costs nothing extra: the answer joins the getAll that
+      // was already fetching two documents. The counts guard above has
+      // already proved the create folded, so the correction is on the
+      // document by the time this runs — that is the same transaction.
+      //
+      // An answer that is GONE falls back to the payload: the only way it
+      // disappears between the edit and here is erasure, which scrubs this
+      // fold anyway, and a missing document is not a reason to skip the
+      // retarget and leave the counts split.
+      const anchors = live.exists ? live.get("anchors") : after.get("anchors");
+      retargetAnchors(by, anchors, fromIdx, toIdx);
       // …and the same move inside the tail (D400), for a bucket the hot
       // map does not hold: its shard is read (only then — capBoundShards
       // is empty for a bucket in the hot map or a dimension under the
@@ -1374,8 +1499,8 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // own skip rule. Read here, before the writes below, as a
       // transaction requires.
       const tailMoves = retargetTail(
-        await readOverflowShards(tx, db, qid, capBoundShards(by, after.get("anchors"))),
-        after.get("anchors"),
+        await readOverflowShards(tx, db, qid, capBoundShards(by, anchors)),
+        anchors,
         fromIdx,
         toIdx,
       );
@@ -1385,8 +1510,8 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
-      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors: after.get("anchors") });
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, anchors));
+      logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors });
       // …and the map moves with the edit (runbook 3.2), after the retry
       // guard above, so a deferred edit moves it once, on the delivery
       // that actually moves the count.

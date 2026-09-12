@@ -1045,15 +1045,22 @@ export type OnBucketCap = (
 // (v2.ts), so an eviction's victim moves without its shard being read.
 export const OVERFLOW_SHARDS = 8;
 
-/** FNV-1a, 32-bit, over UTF-16 code units — the same function
- * src/v2/data/overflow.ts computes, mod the shard count. */
-export function overflowShard(bucket: string): number {
+/** FNV-1a, 32-bit, over UTF-16 code units — the one hash this file
+ * shards by: the tail's shard of a bucket below, and the counter shard
+ * of a person (aggShards.ts). src/v2/data/overflow.ts computes the same
+ * function for the tail, with the vectors pinned on both sides. */
+export function fnv1a32(s: string): number {
   let h = 0x811c9dc5;
-  for (let i = 0; i < bucket.length; i++) {
-    h ^= bucket.charCodeAt(i);
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
     h = Math.imul(h, 0x01000193) >>> 0;
   }
-  return h % OVERFLOW_SHARDS;
+  return h;
+}
+
+/** The tail shard a bucket lives in: `fnv1a32` mod the shard count. */
+export function overflowShard(bucket: string): number {
+  return fnv1a32(bucket) % OVERFLOW_SHARDS;
 }
 
 export const overflowDocId = (qid: string, shard: number): string => `${qid}-${shard}`;
@@ -1504,6 +1511,13 @@ export type CanonCounts = Record<string, number>;
 //
 // It can no longer return null: there is nothing left that can suppress
 // every row, so an empty board is just an empty catalogue question.
+/** The published board's size — the CANON_TOP_N biggest entities, the
+ * rest folded into one bucket (D14). Here rather than in v2.ts (which
+ * re-exports it) since D459, because the Patterns fit caps a catalogue
+ * question's items at the same number, and pure.ts is the one module
+ * both may import. */
+export const CANON_TOP_N = 10;
+
 export function canonTopN(
   ent: CanonCounts,
   topN: number,
@@ -2753,7 +2767,8 @@ export function mergePlayed(played: unknown, key: string, uid: string): Record<s
 /**
  * Rounds waiting for `uid`: from the open round to the lead's edge, the
  * ones somebody else has sealed and `uid` has not. What a nudge's body
- * names — *Leo played 4 rounds — your turn.*
+ * counts — see `turnBody`, and note that "somebody else" is not the
+ * sender once a room has three people in it.
  */
 export function roundsWaitingFor(played: unknown, open: number, uid: string): number {
   let n = 0;
@@ -2762,6 +2777,26 @@ export function roundsWaitingFor(played: unknown, open: number, uid: string): nu
     if (who.length && !who.includes(uid)) n++;
   }
   return n;
+}
+
+/**
+ * The nudge's body, for a recipient with `waiting` rounds in front of them.
+ *
+ * WHO ANSWERED AND HOW MANY ARE WAITING ARE TWO DIFFERENT FACTS, and this
+ * said them as one: *"Leo played 4 rounds — your turn."* `waiting` is
+ * `roundsWaitingFor`, which counts the rounds SOMEBODY ELSE sealed and you
+ * did not — in a 1v1 that somebody is always the sender, which is why the
+ * sentence was true for as long as duels were pairs and false the moment a
+ * circle had three people in it. Leo answers one round, Ada answers two,
+ * and the push credits Leo with three.
+ *
+ * Both halves are true now: the sender did answer (that is what fired the
+ * push), and the count is the count of rounds waiting, said as that.
+ */
+export function turnBody(who: string, waiting: number): string {
+  return waiting > 1
+    ? `${who} answered — ${waiting} rounds waiting for you.`
+    : `${who} answered — your turn.`;
 }
 
 function hasStamp(pushAt: unknown, uid: string): boolean {

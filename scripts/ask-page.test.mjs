@@ -19,15 +19,37 @@ import { ROOT, TARGET } from "./build-ask-pricing.mjs";
 const html = readFileSync(join(ROOT, "web/ask.html"), "utf8");
 const pricing = JSON.parse(readFileSync(join(ROOT, TARGET), "utf8"));
 
-async function mount(P = pricing) {
+// The page reads THREE resources now (D455): the price card, the buy
+// door's config, and — only on a place scope — the city list. Answered by
+// URL rather than by one catch-all body: a stub that hands the pricing
+// object to every caller made `st.cfg` a pricing card, which happens to
+// have no apiKey and so happens to read as "door closed". That is the
+// right answer arrived at by accident, and it would have gone on being
+// the answer after the door opened.
+async function mount(P = pricing, opts = {}) {
   document.documentElement.innerHTML = html.replace(/<script>[\s\S]*<\/script>/, "");
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => P })));
+  const cfg = opts.cfg === undefined ? null : opts.cfg;
+  const places = opts.places === undefined ? "NO\nOslo\nBergen\n" : opts.places;
+  vi.stubGlobal("fetch", vi.fn(async (url) => {
+    const u = String(url);
+    if (u.indexOf("ask-config") >= 0) {
+      return cfg ? { ok: true, json: async () => cfg } : { ok: false, json: async () => ({}) };
+    }
+    if (u.indexOf("ask-places") >= 0) return { ok: true, text: async () => places };
+    if (u.indexOf("ask-pricing") >= 0) return { ok: true, json: async () => P };
+    return opts.fn ? opts.fn(u) : { ok: true, json: async () => ({}) };
+  }));
   // scrollIntoView is not in jsdom; the page calls it on a row tap
   Element.prototype.scrollIntoView = () => {};
   const [body] = inlineScripts(html);
   new Function(body)();
-  // the boot fetch resolves on a microtask; two ticks is enough
-  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  // THREE TICKS WAS ENOUGH FOR ONE FETCH AND IS NOT ENOUGH FOR THREE.
+  // The boot now chains price card, buy-door config and — on a place
+  // scope, which is where the ruler starts — the city list, each of them
+  // a fetch whose `.json()`/`.text()` is itself a promise. At three ticks
+  // the config had not landed yet, so every case below read a page whose
+  // door was still closed and passed for the wrong reason.
+  for (let i = 0; i < 40; i++) await Promise.resolve();
 }
 const $ = (id) => document.getElementById(id);
 const text = () => document.body.textContent.replace(/\s+/g, " ");
@@ -112,6 +134,36 @@ describe("the link (D378) and the quote", () => {
     $("quoteBtn").click();
     expect($("qLink").hidden).toBe(true);
   });
+
+  it("states the refund RULE and forecasts nothing", () => {
+    // The line used to work an example off `Math.round(a * 0.67)` and
+    // print it as counts — "if it is answered 1 675 times instead of
+    // 2 500". The 0.67 was carried from a design draft and exists in no
+    // committed file, on the page that takes the money. The server
+    // refuses the same thing one step earlier: pricingFold's estimates
+    // are withheld until a cohort has a campaign to measure from, and
+    // `web/ask-pricing.json` carries no estimates block at all.
+    //
+    // So this pins the shape rather than the wording: every figure in
+    // the sentence is one the panel above it already quotes, and none of
+    // them is a prediction.
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+    const line = sp($("refundLine").textContent);
+    expect(line).toMatch(/every answer it does not get comes back to you/);
+    expect(line, "the page forecasts a delivery rate again").not.toMatch(/instead of/);
+    // The two numbers it does quote are the panel's own, not new ones.
+    const cap = sp($("qCap").textContent);
+    const answers = sp($("qAnswers").textContent).replace(/^up to /, "");
+    const rate = sp($("qRate").textContent);
+    expect(line).toContain("charged " + cap + " now");
+    expect(line).toContain("answered up to " + answers + " times");
+    expect(line).toContain("comes back to you at " + rate + " an answer");
+  });
 });
 
 // ── the pay tap, which is a closed door and must say so ─────────────────
@@ -131,6 +183,32 @@ describe("the currency switch and the amount actually charged", () => {
     expect(nok, "the page offers no NOK chip — the fixture, not the subject").toBeTruthy();
     nok.click();
   };
+
+  it("switches the WHOLE composer, not just the line beside the chip", () => {
+    // The chip handler called `drawScope()` alone, so after tapping NOK
+    // the three menu prices and the four budget chips stayed in euro
+    // while the rate directly above them became kroner — "€50" over
+    // "≈ 0.23 kr an answer", on the one screen D369 §3 moved this switch
+    // out of the composer to get right. It self-corrected on the next tap
+    // of anything, which is what kept it out of sight.
+    const menuPrices = () => [...document.querySelectorAll("#menuCard button, #menuCard [data-price]")]
+      .map((b) => sp(b.textContent)).join(" | ");
+    const budgetChips = () => [...document.querySelectorAll("#budgets button")]
+      .map((b) => sp(b.textContent)).join(" | ");
+    const before = menuPrices() + " ‖ " + budgetChips();
+    expect(before.indexOf("€"), "the fixture is not in euro to begin with").toBeGreaterThanOrEqual(0);
+
+    toNOK();
+    const after = menuPrices() + " ‖ " + budgetChips();
+    expect(
+      after,
+      "the currency switch left the menu and the budget chips in euro while the rate beside them moved",
+    ).not.toBe(before);
+    expect(
+      after.indexOf("€"),
+      "a euro price survived the switch: " + after,
+    ).toBe(-1);
+  });
 
   const quoteIt = () => {
     $("prompt").value = "Should the harbour bath stay open all winter?";
@@ -206,7 +284,11 @@ describe("what the quote promises about its own price", () => {
   });
 });
 
-describe("the pay tap (the door is not open)", () => {
+describe("the pay tap on a deployment with NO keys", () => {
+  // Still the honest closed door, and it has to stay reachable: a local
+  // checkout, a preview and production-before-runbook-5.14 all land here.
+  // What changed at D455 is that "closed" is now a property of the
+  // DEPLOYMENT (no ask-config.json) rather than of the code.
   // The options matter: the quote button is disabled until a binary
   // question has two of them, so a case that skipped them would be
   // asserting about a panel that never opened.
@@ -244,5 +326,290 @@ describe("the pay tap (the door is not open)", () => {
     $("payBtn").click();
     expect(globalThis.fetch.mock.calls.length, "the tap issued a request it cannot complete")
       .toBe(before);
+  });
+});
+
+// ── the door with keys (D455) ──────────────────────────────────────────
+//
+// The other half of the describe above. Everything here is what a buyer
+// on production meets once runbook 5.14 is done, and the assertions are
+// mostly about the BOOKING PAYLOAD, because that is where this page can
+// fail expensively and silently: a booking whose `dims.city` is not the
+// catalogue key an answer's anchor holds is a campaign that charges €320
+// and reaches nobody.
+//
+// D456 took the reCAPTCHA hop out of all of this — the page loads no
+// external script at all now, and the two callables are gated on the
+// per-account booking budget with the payment as the real filter.
+describe("the pay tap with keys", () => {
+  const CFG = {
+    apiKey: "AIza-test",
+    project: "prvfire33", region: "europe-west1", dbId: "insight",
+  };
+
+  /** The calls the door makes, in order, keyed by what they are. */
+  function wire(over = {}) {
+    const calls = [];
+    const fn = (u) => {
+      calls.push(u);
+      if (u.indexOf("accounts:signUp") >= 0) {
+        return { ok: true, json: async () => ({ idToken: "ID-TOKEN" }) };
+      }
+      if (u.indexOf("bookPaidQuestionV2") >= 0) {
+        return over.book || { ok: true, json: async () => ({ result: { id: "uid_abc" } }) };
+      }
+      if (u.indexOf("firestore.googleapis.com") >= 0) {
+        return over.verdict || {
+          ok: true,
+          json: async () => ({ fields: { status: { stringValue: "approved" } } }),
+        };
+      }
+      if (u.indexOf("createPaidCheckoutV2") >= 0) {
+        return over.checkout || {
+          ok: true,
+          json: async () => ({ result: { url: "https://checkout.stripe.com/c/pay/x" } }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    };
+    return { calls, fn };
+  }
+
+  /** Compose a quotable question and open the panel. */
+  function compose() {
+    $("prompt").value = "Should the harbour bath stay open all winter?";
+    $("prompt").dispatchEvent(new Event("input"));
+    const opts = document.querySelectorAll("#options input");
+    opts[0].value = "Keep it open"; opts[0].dispatchEvent(new Event("input"));
+    opts[1].value = "Close for winter"; opts[1].dispatchEvent(new Event("input"));
+    $("quoteBtn").click();
+  }
+
+  function pickCity(name = "Oslo") {
+    $("placeInput").value = name;
+    $("placeInput").dispatchEvent(new Event("input"));
+  }
+
+  const settle = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
+
+  it("sends the CATALOGUE KEY as the city, not what was typed", async () => {
+    // The expensive-and-silent failure this whole picker exists for. The
+    // buyer types "Oslo"; the booking must carry "Oslo, NO", which is
+    // placeKey() in src/v2/data/places.ts and what an answer's stored
+    // anchor holds. Anything else prices a campaign that reaches nobody.
+    const { calls, fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    const book = globalThis.fetch.mock.calls.find((c) => String(c[0]).indexOf("bookPaidQuestionV2") >= 0);
+    expect(book, "the door never called bookPaidQuestionV2").toBeTruthy();
+    const sent = JSON.parse(book[1].body).data;
+    expect(sent.dims.city).toBe("Oslo, NO");
+    expect(sent.scope).toBe("city");
+    expect(calls.some((u) => u.indexOf("accounts:signUp") >= 0)).toBe(true);
+  });
+
+  it("sends a question form the SERVER accepts, on the form it opens on", async () => {
+    // `st.type` is the COMPOSER's name for the control and starts at
+    // "pick" — TYPES[0], selected on first paint. The server's
+    // PAID_TYPES has no "pick". `wireType()` exists to map it to
+    // binary/choice by option count and had ZERO call sites, so the
+    // flagship form refused every booking with "pick one of the question
+    // forms", printed under the button to a buyer looking at a pressed
+    // "Pick one" chip. Its two siblings happen to share a name with the
+    // wire, which is why this looked like it worked.
+    //
+    // The accepted set is READ OUT OF THE SERVER rather than copied here:
+    // a literal list would agree with the page the day it was written and
+    // drift the day PAID_TYPES changes, which is the same shape of
+    // mistake as the one under test.
+    const src = readFileSync(join(ROOT, "functions", "src", "paid.ts"), "utf8");
+    const m = /export const PAID_TYPES = new Set\(\[([^\]]*)\]\)/.exec(src);
+    expect(m, "could not read PAID_TYPES out of functions/src/paid.ts — has it been renamed?").toBeTruthy();
+    const accepted = [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    expect(accepted.length, "PAID_TYPES parsed empty").toBeGreaterThan(2);
+
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();               // two options, the default form, nothing else touched
+    $("payBtn").click();
+    await settle();
+    const book = globalThis.fetch.mock.calls.find((c) => String(c[0]).indexOf("bookPaidQuestionV2") >= 0);
+    expect(book, "the door never called bookPaidQuestionV2").toBeTruthy();
+    const sent = JSON.parse(book[1].body).data;
+    expect(
+      accepted,
+      "the page's default form is not one the server sells: it sent " + JSON.stringify(sent.type),
+    ).toContain(sent.type);
+    // Two options is `binary`; the mapping itself is worth pinning, or
+    // "accepted" could be satisfied by sending a constant.
+    expect(sent.type).toBe("binary");
+  });
+
+  it("sends the budget the page SHOWED, on a booking where no chip was tapped", async () => {
+    // THE TEN-TIMES BUG. `st.budget` is null until a budget chip is
+    // tapped, and the wire used to send that null — while everything on
+    // screen is drawn from `budget()`, which falls back to the smallest
+    // budget, and that chip's `aria-pressed` is computed from `budget()`
+    // too, so it renders as already selected. The server reads null as
+    // "no budget stated" and quotes the card's CAP, which is the largest.
+    // A buyer who read "€5 · up to 250 answers" and paid without touching
+    // the budget row was charged €50 for 2 500.
+    //
+    // Deliberately composed WITHOUT tapping a chip: tapping one sets
+    // `st.budget` and hides the whole defect, which is why every earlier
+    // case passed over it.
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    const shownCap = sp($("qCap").textContent);
+    $("payBtn").click();
+    await settle();
+    const book = globalThis.fetch.mock.calls.find((c) => String(c[0]).indexOf("bookPaidQuestionV2") >= 0);
+    expect(book, "the door never called bookPaidQuestionV2").toBeTruthy();
+    const sent = JSON.parse(book[1].body).data;
+    expect(
+      typeof sent.budgetEur,
+      "the booking carried no budget — the server reads that as the card's cap, which is not what the page showed",
+    ).toBe("number");
+    // And it is the SAME budget the panel quoted — read off the panel
+    // rather than asserted as a literal, so the two cannot drift apart if
+    // the rate card changes.
+    const shownEur = Number(shownCap.replace(/[^0-9.,]/g, "").replace(",", "."));
+    expect(Number.isFinite(shownEur), "could not read a number out of the quoted cap: " + shownCap).toBe(true);
+    expect(
+      sent.budgetEur,
+      "the page quoted " + shownCap + " and the wire carried " + sent.budgetEur,
+    ).toBe(shownEur);
+  });
+
+  it("refuses to book a place scope with nothing picked, and calls nobody", async () => {
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    compose();
+    const before = globalThis.fetch.mock.calls.length;
+    $("payBtn").click();
+    await settle();
+    expect(globalThis.fetch.mock.calls.length, "it booked an ask with no place")
+      .toBe(before);
+    expect(sp(text())).toMatch(/Pick the city first/);
+  });
+
+  it("shows the reviewer's own words on a decline, and never reaches checkout", async () => {
+    const { fn } = wire({
+      verdict: {
+        ok: true,
+        json: async () => ({
+          fields: {
+            status: { stringValue: "declined" },
+            // THE FIELD THE REVIEWER ACTUALLY WRITES is `note` — both
+            // decline paths in functions/src/paid.ts update it. This
+            // fixture said `declineReason` and so agreed with the page's
+            // misread rather than with the booking document.
+            note: { stringValue: "Questions about named private people aren't sold here." },
+          },
+        }),
+      },
+    });
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).toMatch(/named private people/);
+    const paid = globalThis.fetch.mock.calls.some((c) => String(c[0]).indexOf("createPaidCheckoutV2") >= 0);
+    expect(paid, "a declined booking was sent to checkout anyway").toBe(false);
+  });
+
+  it("says payment is not open when the deployment has no Stripe keys, and books nothing", async () => {
+    // The Firebase key is present, so the backend is reachable and the
+    // old check read the door as open. Nothing can be charged, so the
+    // buyer must be told BEFORE the question is written down and sent to
+    // a reviewer — not after the verdict, in the server's own words.
+    const { fn } = wire();
+    await mount(pricing, { cfg: { ...CFG, payments: false }, fn });
+    pickCity();
+    compose();
+    const before = globalThis.fetch.mock.calls.length;
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).toMatch(/Card payment is not open yet/);
+    expect(globalThis.fetch.mock.calls.length, "it booked a question it cannot sell")
+      .toBe(before);
+  });
+
+  it("still sells when the config predates the payments field", async () => {
+    // The control. A config written by an older deploy says nothing about
+    // Stripe, and silence must not shut a door that works.
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).not.toMatch(/Card payment is not open yet/);
+    const co = globalThis.fetch.mock.calls.some((c) => String(c[0]).indexOf("createPaidCheckoutV2") >= 0);
+    expect(co, "a working door refused to sell").toBe(true);
+  });
+
+  it("falls back to its own sentence when the decline carries no note", async () => {
+    // The control for the case above: the page's civic-authority text is
+    // right for a decline with nothing written on it, and wrong for every
+    // decline that has words of its own.
+    const { fn } = wire({
+      verdict: {
+        ok: true,
+        json: async () => ({ fields: { status: { stringValue: "declined" } } }),
+      },
+    });
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    expect(sp(text())).toMatch(/in the voice of an authority/);
+  });
+
+  it("carries the booking id to checkout, with its own token", async () => {
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    const co = globalThis.fetch.mock.calls.find((c) => String(c[0]).indexOf("createPaidCheckoutV2") >= 0);
+    expect(co, "the door never reached checkout").toBeTruthy();
+    const sent = JSON.parse(co[1].body).data;
+    expect(sent.id).toBe("uid_abc");
+  });
+
+  it("drops NO honest note when the door is open", async () => {
+    // The closed-door sentence is true of a keyless deployment and a lie
+    // on this one. A page that says "payment is not open yet" above a
+    // button that opens Stripe is the page contradicting itself.
+    const { fn } = wire();
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    expect($("payNote").textContent).not.toMatch(/not open yet/i);
+  });
+
+  it("surfaces a refusal from the server rather than a status code", async () => {
+    const { fn } = wire({
+      book: {
+        ok: false,
+        json: async () => ({ error: { status: "PERMISSION_DENIED", message: "the human check did not pass" } }),
+      },
+    });
+    await mount(pricing, { cfg: CFG, fn });
+    pickCity();
+    compose();
+    $("payBtn").click();
+    await settle();
+    expect($("payNote").textContent).toMatch(/human check did not pass/);
   });
 });

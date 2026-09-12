@@ -12,6 +12,9 @@
 // asset is absent and load() rejects; the picker shows its error state
 // and nothing pretends to be data.
 
+import POKEDEX from "./pokedex";
+import ELEMENTS_CATALOG from "./elements";
+
 export interface CatalogEntry {
   /** Wikidata QID numeric part (2831 = Q2831) — the stored answer key. */
   key: number;
@@ -150,19 +153,84 @@ const COLORS = makeCatalog("colors.txt");
 // like COUNTRIES, export-only: its consumers import it.
 const LANGUAGES = makeCatalog("languages.txt");
 
-declare global {
-  interface Window {
-    FILMS?: Catalog;
-    ARTISTS?: Catalog;
-    EMOJI?: Catalog;
+// There used to be a render-time lookup bridge here — a `declare global`
+// Window widening plus `Object.assign(globalThis, { FILMS, ARTISTS, EMOJI })`
+// — for the spec layer, in the places.ts form, on the three LEGACY stores.
+// Its own comment stated the rule that removed it: COUNTRIES was deliberately
+// absent because its consumers import it, "and a publication nothing reads by
+// name is exactly what check:globals rule 5 exists to delete". The three
+// legacy stores reached that state too — `world-feed.jsx:29` imports all five
+// and `ui/pickDomains.ts` imports all nine — so the bridge was writing names
+// nobody looked up.
+//
+// It survived rule 5 for the reason D280 wrote down: the rule asks whether a
+// name appears ANYWHERE outside its publisher, and `import { FILMS }` in the
+// spec layer satisfies it while reaching nobody. Checked the D280 way before
+// deleting — every `FILMS`/`ARTISTS`/`EMOJI` occurrence in the tree is an
+// import, a definition, or was this line; there is no `window.X` reader.
+export { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };
+
+/**
+ * A catalogue question's `domain`, resolved far enough to NAME a key.
+ *
+ * The feed's `pickStore` has been the only resolver since the first
+ * catalogue question, and it is a method on a spec-layer component, so
+ * nothing typed could reach it — D464 gave the Map a catalogue bead to
+ * name, one shelf away from that method. These two functions are that
+ * reach: everything the Map needs (the name, and a kick to load the
+ * list), and nothing else, so the stores' different entry shapes —
+ * `elements` carries an atomic number where the rest carry a key — stay
+ * inside the module that knows about them.
+ *
+ * The pokédex is the default rather than an arm, which is how it shipped:
+ * the first catalogue question was a Pokémon one and every later domain
+ * was added beside it. `catalogs.test.ts` pins every PICK_QS domain to an
+ * arm, which is what stops a real domain landing on that default.
+ */
+function storeOf(domain: string | null | undefined): {
+  NOT_LISTED: number;
+  load(): Promise<unknown>;
+  name(key: number): string | null;
+} {
+  const plain = (c: Catalog) => ({
+    NOT_LISTED: c.NOT_LISTED,
+    load: () => c.load() as Promise<unknown>,
+    name: (key: number) => { const l = c.peek(); return l ? c.nameOf(l, key) : null; },
+  });
+  switch (domain) {
+    case "films": return plain(FILMS);
+    case "artists": return plain(ARTISTS);
+    case "athletes": return plain(ATHLETES);
+    case "videogames": return plain(VIDEOGAMES);
+    case "emoji": return plain(EMOJI);
+    case "countries": return plain(COUNTRIES);
+    case "dogs": return plain(DOGS);
+    case "colors": return plain(COLORS);
+    case "languages": return plain(LANGUAGES);
+    case "elements": return {
+      NOT_LISTED: ELEMENTS_CATALOG.NOT_LISTED,
+      load: () => ELEMENTS_CATALOG.load() as Promise<unknown>,
+      name: (key: number) => { const l = ELEMENTS_CATALOG.peek(); return l ? ELEMENTS_CATALOG.nameOf(l, key) : null; },
+    };
+    default: return {
+      NOT_LISTED: POKEDEX.NOT_LISTED,
+      load: () => POKEDEX.load() as Promise<unknown>,
+      name: (key: number) => { const l = POKEDEX.peek(); return l ? POKEDEX.nameOf(l, key) : null; },
+    };
   }
 }
 
-// Render-time lookup bridge for the spec layer (world-feed.jsx), the
-// places.ts Object.assign form — the three LEGACY stores only.
-// COUNTRIES is deliberately absent: its consumers import it (world-feed's
-// pickStore, PickSearch), and a publication nothing reads by name is
-// exactly what check:globals rule 5 exists to delete.
-Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
+/** The entity's display name, or null while its catalogue is unloaded —
+ * a caller shows a placeholder rather than the raw key, the feed's own
+ * rule (`pickName`). */
+export function catalogName(domain: string | null | undefined, key: number): string | null {
+  const store = storeOf(domain);
+  if (key === store.NOT_LISTED) return "Not listed";
+  return store.name(key);
+}
 
-export { FILMS, ARTISTS, ATHLETES, VIDEOGAMES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };
+/** Kick the domain's list, once — resolves when a name can be had. */
+export function loadCatalogNames(domain: string | null | undefined): Promise<void> {
+  return storeOf(domain).load().then(() => undefined);
+}
+

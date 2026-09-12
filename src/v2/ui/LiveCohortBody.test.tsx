@@ -42,6 +42,9 @@ const LIVE = vi.hoisted(() => ({
   // Its people twin — every surface that mounts a similarity field
   // reads it now, so the stub belongs beside its sibling.
   kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // the CITY pass's own reading (live.ts): a second fan-out with a second
+  // failure, which the City field reads instead of the world pass's
+  cityKindredState: (): "loading" | "ready" | "failed" => "ready",
   // ATTACHED BY DEFAULT, so every case below is about a store that has
   // finished looking. It was absent from this mock entirely, which meant
   // `LIVE.attached` read `undefined` — and the whole suite stayed green

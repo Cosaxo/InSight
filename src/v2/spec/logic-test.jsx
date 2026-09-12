@@ -16,7 +16,7 @@ import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEM
 // stratified sample of a published, calibrated bank — and each
 // answered by BUILDING the missing cell out of twenty shapes rather
 // than picking one of six tiles (design/logic-build-cell-2026-09-12/,
-// visual request 13). The device never holds an answer: both modes
+// visual request 14). The device never holds an answer: both modes
 // send the constructed cells to the server, which scores them by
 // ability θ against the bank's calibration (functions/src/irt.ts)
 // and returns the percentile. Practice differs from Verified only in
@@ -537,7 +537,7 @@ export let LOGIC;
     return (
       <div className="overlay surface-tint" {...dlg}>
         <div className="app-header">
-          <button className="avatar-btn" onClick={onClose}>✕</button>
+          <button className="avatar-btn" aria-label="Close" onClick={onClose}>✕</button>
           <div className="h-title">Logic</div>
           {/* the whole sitting's remainder — small, tabular, never bigger than a shape */}
           <div style={{ width: 48, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--ink-3)' }}>

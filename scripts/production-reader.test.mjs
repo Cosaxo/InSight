@@ -22,13 +22,15 @@ const okRun = (day = TODAY, name = "observe") => ({
 
 const observePayload = (over = {}) => ({
   project: "prvfire33",
-  reachable: ["alertPolicies", "logMetrics", "functions", "billing"],
+  reachable: ["alertPolicies", "logMetrics", "functions", "billing", "backups", "backupSchedules"],
   blocked: [],
   readings: {
     alertPolicies: { name: "alertPolicies", status: "ok", armed: true, committed: 9, liveCount: 9, enabledCount: 9, missing: [] },
     logMetrics: { name: "logMetrics", status: "ok", count: 4 },
     functions: { name: "functions", status: "ok", count: 42, byRegion: { "europe-west1": 42 }, strayCount: 0, canonicalRegion: "europe-west1" },
     billing: { name: "billing", status: "ok", enabled: true, account: "billingAccounts/X" },
+    backups: { name: "backups", status: "ok", pitr: true },
+    backupSchedules: { name: "backupSchedules", status: "ok", count: 2, daily: true, weekly: true, retention: ["604800s", "8467200s"] },
   },
   ...over,
 });
@@ -133,6 +135,51 @@ describe("a refusal is a result, and it is named", () => {
     p.blocked = [{ name: "logMetrics", why: "grant roles/logging.viewer", http: 403 }];
     const md = render({ observe: p, observeRun: okRun(), trail: healthyTrail, today: TODAY });
     expect(md).toContain("**logMetrics: refused**");
+  });
+});
+
+describe("whether the only asset survives a bad afternoon", () => {
+  // The probe has read these since 2026-09-11. The renderer printed
+  // neither, so a database with no recovery window and no schedule at all
+  // rendered as a page with nothing to look at — D296's confident zero,
+  // one reading over.
+  it("names recovery that is off rather than leaving the page green", () => {
+    const md = render({
+      today: TODAY, observeRun: okRun(), pulseRun: okRun(TODAY, "pulse"), trail: healthyTrail,
+      observe: observePayload({
+        readings: { ...observePayload().readings, backups: { name: "backups", status: "ok", pitr: false } },
+      }),
+    });
+    expect(md).toMatch(/point-in-time recovery OFF/);
+    expect(flagCount(md)).toBe(1);
+  });
+
+  it("names a missing schedule, and says what the rest keep", () => {
+    const md = render({
+      today: TODAY, observeRun: okRun(), pulseRun: okRun(TODAY, "pulse"), trail: healthyTrail,
+      observe: observePayload({
+        readings: {
+          ...observePayload().readings,
+          backupSchedules: { name: "backupSchedules", status: "ok", count: 1, daily: true, weekly: false, retention: ["10800s"] },
+        },
+      }),
+    });
+    expect(md).toMatch(/no weekly schedule/);
+    expect(md).toMatch(/10800s/);
+    expect(flagCount(md)).toBe(1);
+  });
+
+  it("treats a reading that is not there as refused, not as armed", () => {
+    const r = { ...observePayload().readings };
+    delete r.backups;
+    delete r.backupSchedules;
+    const md = render({
+      today: TODAY, observeRun: okRun(), pulseRun: okRun(TODAY, "pulse"), trail: healthyTrail,
+      observe: observePayload({ readings: r }),
+    });
+    expect(md).toMatch(/Backups: refused/);
+    expect(md).toMatch(/Backup schedules: refused/);
+    expect(flagCount(md)).toBe(2);
   });
 });
 

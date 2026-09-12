@@ -43,13 +43,29 @@
     a dead form, so the gate is the only thing standing between an edit
     here and a silent outage.
 
-    THE PAY TAP IS NOT OPEN YET, and the block is App Check, not code.
-    `bookPaidQuestionV2` and `createPaidCheckoutV2` both demand App Check
-    attestation, and D337 declined to provision the web reCAPTCHA
-    provider on the stated grounds that "there is no public web client".
-    This page is one. Until the owner rules (OWNER-LIST.md), the pay tap
-    reports the door as closed rather than throwing a raw 403 at a buyer
-    — everything up to and including the quote is live and correct.
+    THE PAY TAP IS WIRED (D455), and this paragraph said the opposite for
+    a day after it stopped being true — it read "the pay tap is not open
+    yet, and the block is App Check, not code", which was the state until
+    the door was built and is the exact drift this file's own gate exists
+    to stop one layer down. Kept as a note rather than deleted, because a
+    header describing a page it no longer describes is the cheapest
+    possible lie and the hardest to notice.
+
+    What the tap does now: anonymous sign-in, book, poll the buyer's own
+    booking document for the reviewer's verdict, then Stripe. Plain
+    `fetch` throughout — no SDK, no framework, no CDN, which is what lets
+    the one-inline-script rule above survive a money path.
+
+    WHAT GUARDS IT, since it cannot be App Check: the per-account booking
+    budget, and the payment itself. D455 briefly put a server-verified
+    reCAPTCHA in front as well; D456 removed it on the owner's ruling that
+    a BUYER's humanity is not worth proving — the €320 is the filter, an
+    unpaid booking is an invisible document, and the place it does matter
+    is VOTING, where every path still attests.
+
+    A DEPLOYMENT WITH NO KEYS still ships this page and still shows the
+    honest "payment is not open yet" note. That is chosen by cfgReady(),
+    so it is a statement about the build rather than a claim about code.
   -->
   <style>
     :root {
@@ -255,6 +271,27 @@
     </div>
     <p class="flat-note" id="flatNote" hidden></p>
 
+    <!--
+      WHICH city, WHICH country. The ruler says "Your city", which is the
+      app's wording because in the app it is true: an in-app buyer has a
+      profile and the booking reads the place off it. A buyer here has no
+      profile, and the server refuses a city ask with no city rather than
+      guessing one.
+
+      It is a PICKER and not a text box, and that is the whole reason this
+      block exists: a booking carries `"Oslo, NO"` — the catalogue key an
+      answer's anchor holds — so "Oslo", "oslo" and "Oslo, Norway" would
+      each be a campaign that reaches nobody. The list is
+      web/ask-places.txt (scripts/build-ask-places.mjs), fetched only when
+      one of the two place scopes is chosen.
+    -->
+    <div id="placeBox" hidden style="margin-top:14px">
+      <label class="field" for="placeInput"><span id="placeLabel">Which city</span></label>
+      <input id="placeInput" list="placeList" autocomplete="off" autocapitalize="words" spellcheck="false" />
+      <datalist id="placeList"></datalist>
+      <p class="hint" id="placeHint"></p>
+    </div>
+
     <label class="field" for="budget-first" style="margin-top:18px"><span>Your budget — the most you'll spend</span></label>
     <div class="chips" id="budgets" role="group" aria-label="Your budget"></div>
     <p class="hint" id="budgetHint"></p>
@@ -364,7 +401,17 @@
     budget: null,
     // The buyer's one link (D378) — composed here, held to shape by the
     // server, judged by the review.
-    link: ""
+    link: "",
+    // The chosen catalogue place. `city` is a full key ("Oslo, NO");
+    // `country` is the bare alpha-2. Null until a place scope is picked
+    // and a catalogue row is matched — a half-typed box is not a place.
+    place: null,
+    // Set from /ask-config.json when the deploy wrote one. Null keeps the
+    // door shut and the honest note showing, which is what a local
+    // checkout and a preview deploy both get.
+    cfg: null,
+    places: null, placesLoading: false,
+    busy: false, bid: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -689,6 +736,7 @@
     st.scope = i;
     drawRuler();
     drawScope();
+    drawPlace();
   }
 
   // ── the quote panel ────────────────────────────────────────────
@@ -701,7 +749,6 @@
   function showPanel(state) {
     st.panel = state;
     var P = st.P, a = answers(), r = rate();
-    var served = Math.round(a * 0.67);
 
     $("panel").hidden = false;
     $("compose").hidden = state !== null && state !== "declined";
@@ -728,11 +775,28 @@
     $("qLink").textContent = dom ? dom + " ↗" : "";
 
     $("refundLine").hidden = state === "declined";
+    // NO FORECAST HERE, and the deletion is the point. This line used to
+    // work an example off `Math.round(a * 0.67)` and print it as concrete
+    // counts — "if it is answered 1 675 times instead of 2 500". That
+    // 0.67 was carried from a design draft and exists in no committed
+    // file: it is not a measured delivery rate, and the page said it to
+    // the buyer on the screen that takes the money.
+    //
+    // The server refuses exactly this one step earlier. pricingFold.ts's
+    // `estimates` are WITHHELD until a cohort has a campaign to measure
+    // from — "an empty ledger prints prices and open days — never a
+    // forecast" — and `web/ask-pricing.json` carries no estimates block
+    // at all, so there was nothing behind the number.
+    //
+    // What the buyer needs is the RULE, and the rule needs no forecast:
+    // the cap, the window, the per-answer rate, and that unserved answers
+    // refund themselves. Every figure below is one the page already
+    // quotes above it.
     $("refundLine").textContent =
       "You are charged " + fmtEur(budget()) + " now. The question runs for "
-      + P.refundDays + " days; if it is answered " + n(served) + " times instead of "
-      + n(a) + ", the " + n(a - served) + " unserved answers come back to you as "
-      + fmtEur((a - served) * r) + ". Nobody has to ask.";
+      + P.refundDays + " days and is answered up to " + n(a)
+      + " times; every answer it does not get comes back to you at "
+      + fmt(r) + " an answer. Nobody has to ask.";
 
     $("declineReason").hidden = state !== "declined";
     $("declineReason").textContent =
@@ -742,9 +806,9 @@
 
     $("heldReason").hidden = state !== "held";
     $("heldReason").textContent =
-      "The reviewer is not answering right now, so your question is held rather "
-      + "than declined. It is checked again every half hour and you are not "
-      + "charged until it clears. Nothing is lost by closing this page.";
+      "Your question is with the reviewer. You are not charged until it "
+      + "clears, and nothing is lost by closing this page — come back to "
+      + "this address and the price you were quoted is the price you pay.";
 
     $("payBtn").hidden = state !== "quoted";
     $("backBtn").textContent = state === "declined" ? "Rewrite it" : "Change it";
@@ -754,7 +818,12 @@
     // state announcing "Paying · leaving for stripe" and ERASED the only
     // sentence saying payment is not open, while making no request at all.
     // A buyer was told a payment was under way, and then nothing happened.
-    $("payNote").textContent = (state === "quoted" || state === "paying") ? PAY_NOTE : "";
+    // The honest note belongs to a deployment without keys. With them, the
+    // button does what it says and a paragraph explaining that it does not
+    // would be the page contradicting itself.
+    $("payNote").textContent =
+      (state === "quoted" || state === "paying") && !(cfgReady() && paymentsOpen())
+        ? PAY_NOTE : "";
     $("panel").scrollIntoView({ block: "nearest" });
   }
 
@@ -767,6 +836,10 @@
   // The pay tap is blocked on App Check, not on this code — see the
   // comment at the top of this file. A buyer gets a sentence rather than
   // a 403, and the sentence is true.
+  // Shown when this DEPLOYMENT has no keys — a local checkout, a preview,
+  // or production before runbook 5.14 is done. It is not a statement about
+  // the code any more (the door is wired); it is a statement about this
+  // build, which is why it is chosen by cfgReady() rather than written in.
   var PAY_NOTE =
     "Card payment is not open yet — the last piece of setup is on us, not on "
     + "you. Your question and its price are exactly what you will be charged "
@@ -789,6 +862,11 @@
     drawRuler();
     drawScope();
     drawBudgets();
+    // The ruler STARTS on "Your city", so the picker has to be drawn on
+    // the first paint and not only when the scope changes. Without this
+    // the page opened on a place scope with no place field in sight, and
+    // the first thing a buyer learned about it was the pay tap refusing.
+    drawPlace();
     refreshQuoteButton();
   }
 
@@ -805,7 +883,15 @@
       b.addEventListener("click", function () {
         st.cur = code;
         drawCurrencies();
-        drawScope();
+        // THE WHOLE COMPOSER, not just the scope line. This called
+        // `drawScope()` alone, so after tapping NOK the three menu prices
+        // and the four budget chips stayed in euro while the rate line
+        // directly above them switched to kroner — "€50" sitting over
+        // "≈ 0.23 kr an answer" on the one screen a buyer most wants in
+        // their own currency (D369 §3 moved the switch out of the
+        // composer for exactly that reason). It self-corrected on the
+        // next tap of anything, which is what kept it out of sight.
+        draw();
         if (st.panel) showPanel(st.panel);
       });
       box.appendChild(b);
@@ -835,7 +921,8 @@
     showPanel(CIVIC.test(st.prompt) ? "declined" : "quoted");
   });
   $("backBtn").addEventListener("click", hidePanel);
-  $("payBtn").addEventListener("click", function () { showPanel("paying"); });
+  $("payBtn").addEventListener("click", startPurchase);
+  $("placeInput").addEventListener("input", function () { drawPlace(); });
 
   var dragging = false;
   var ruler = $("ruler");
@@ -855,7 +942,352 @@
     if (e.key === "End") { setScope(2); e.preventDefault(); }
   });
 
+  // ══ the live door ═══════════════════════════════════════════════
+  //
+  // Everything below turns the quote into a purchase. NO SDK: every call
+  // is a plain fetch, and every shape here was read off a working caller
+  // in this repo rather than from documentation — anonymous sign-in from
+  // scripts/question-scorecard.mjs, the callable envelope and its `{data}`
+  // /`{result}` shape from scripts/operator-call.mjs, the Firestore
+  // document read from question-scorecard's aggregate loop. That matters
+  // on a page whose whole design is one inline script under
+  // `default-src 'none'`: a bundled SDK would be a second script, a CDN
+  // and a re-write of the policy this page is pinned by.
+  //
+  // NO external script at all, since D456 removed the reCAPTCHA that had
+  // briefly been one. The two callables this reaches cannot enforce App
+  // Check (a browser cannot produce it) and are gated on the per-account
+  // booking budget instead, with the payment itself as the real filter —
+  // the owner's ruling that a BUYER's humanity does not need proving,
+  // where a VOTER's does. Every vote path still attests.
+
+  function cfgReady() {
+    return !!(st.cfg && st.cfg.apiKey && st.cfg.project && st.cfg.region);
+  }
+
+  /** Whether a card can actually be charged on this deployment.
+   *
+   *  SEPARATE FROM cfgReady() BECAUSE THEY ARE SEPARATE KEYS, and reading
+   *  one for the other walked a buyer to a dead end: the Firebase web key
+   *  makes the backend reachable, the Stripe secret makes checkout work,
+   *  and a deployment can have the first without the second (the deploy
+   *  warns about exactly that). The page then hid its "payment is not
+   *  open" note, took the question, booked it, sent it to a reviewer who
+   *  read it — and answered the pay tap with the server's own sentence
+   *  about a deployment. Nothing was charged, but a person had written a
+   *  question and waited for a verdict that could never be spent.
+   *
+   *  ABSENT IS OPEN, not closed: a config written by a deploy from before
+   *  this field existed says nothing about Stripe, and reading silence as
+   *  "closed" would shut a working door until the next deploy. Only an
+   *  explicit false closes it. */
+  function paymentsOpen() {
+    return !(st.cfg && st.cfg.payments === false);
+  }
+
+  /** The callable base. Read from config rather than built from a guess:
+   *  a wrong region here is a 404 that reads like a broken function. */
+  function fnUrl(name) {
+    return "https://" + st.cfg.region + "-" + st.cfg.project + ".cloudfunctions.net/" + name;
+  }
+
+  // ── places ─────────────────────────────────────────────────────
+  // Fetched only when a place scope is chosen: 57 KB gzipped is cheap
+  // beside a €320 decision and pure waste for a world ask.
+  function loadPlaces() {
+    if (st.places || st.placesLoading) return Promise.resolve(st.places);
+    st.placesLoading = true;
+    return fetch("/ask-places.txt", { credentials: "omit" })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+      .then(function (txt) {
+        var rows = [];
+        var country = null;
+        txt.split("\n").forEach(function (raw) {
+          var line = raw.trim();
+          if (!line || line.charAt(0) === "#") return;
+          if (/^[A-Z]{2}$/.test(line)) { country = line; return; }
+          if (country) rows.push({ name: line, country: country });
+        });
+        st.places = rows;
+        st.placesLoading = false;
+        drawPlace();
+        return rows;
+      })
+      .catch(function () {
+        st.placesLoading = false;
+        // A city ask that cannot name a city must not be sellable. Saying
+        // so beats a box that accepts anything and reaches nobody.
+        $("placeHint").textContent =
+          "The city list didn't load, so a city or country ask can't be priced right now. "
+          + "Reload, or ask everyone instead.";
+      });
+  }
+
+  function countryLabel(code) {
+    // Intl has all 245 in the reader's own language — places.ts's own
+    // reasoning for not shipping names. Old WebViews get the code, which
+    // is a poor label and an honest one.
+    try { return new Intl.DisplayNames(undefined, { type: "region" }).of(code) || code; }
+    catch (e) { return code; }
+  }
+
+  function scopeKey() { return st.P ? st.P.cohorts[st.scope].key : "world"; }
+
+  function drawPlace() {
+    var key = scopeKey();
+    var box = $("placeBox");
+    box.hidden = key === "world";
+    if (key === "world") { st.place = null; return; }
+    $("placeLabel").textContent = key === "city" ? "Which city" : "Which country";
+    $("placeInput").placeholder = key === "city" ? "Start typing a city…" : "Start typing a country…";
+    if (!st.places) { loadPlaces(); $("placeHint").textContent = "Loading the list…"; return; }
+    var q = $("placeInput").value.trim().toLowerCase();
+    var list = $("placeList");
+    list.textContent = "";
+    var seen = {};
+    var shown = 0;
+    for (var i = 0; i < st.places.length && shown < 40; i++) {
+      var p = st.places[i];
+      var label = key === "city" ? p.name + " · " + countryLabel(p.country) : countryLabel(p.country);
+      if (key === "country") {
+        if (seen[p.country]) continue;
+        seen[p.country] = 1;
+      }
+      if (q && label.toLowerCase().indexOf(q) === -1) continue;
+      var o = document.createElement("option");
+      o.value = label;
+      list.appendChild(o);
+      shown++;
+    }
+    matchPlace();
+  }
+
+  /** Resolve what is typed to a catalogue row, or to null. Null is a
+   *  REFUSAL to sell, not a warning: the value a booking carries has to be
+   *  the key an answer's anchor holds, or the ask reaches nobody. */
+  function matchPlace() {
+    var key = scopeKey();
+    if (key === "world") { st.place = null; return; }
+    var typed = $("placeInput").value.trim().toLowerCase();
+    st.place = null;
+    if (st.places && typed) {
+      for (var i = 0; i < st.places.length; i++) {
+        var p = st.places[i];
+        if (key === "city") {
+          if ((p.name + " · " + countryLabel(p.country)).toLowerCase() === typed
+            || p.name.toLowerCase() === typed) {
+            st.place = { city: p.name + ", " + p.country }; break;
+          }
+        } else if (countryLabel(p.country).toLowerCase() === typed || p.country.toLowerCase() === typed) {
+          st.place = { country: p.country }; break;
+        }
+      }
+    }
+    $("placeHint").textContent = st.place
+      ? (key === "city" ? "Asked in " + st.place.city.split(",")[0] + " only." : "Asked across " + countryLabel(st.place.country) + " only.")
+      : typed ? "Pick one from the list — a name we don't recognise reaches nobody."
+        : "Pick from the list.";
+    refreshQuoteButton();
+  }
+
+  /** The booking payload, in the shape validatePaidBooking accepts. */
+  function bookingPayload() {
+    var T = typeDef();
+    var d = {
+      kind: "question",
+      prompt: st.prompt.trim(),
+      // THROUGH wireType(), which existed for exactly this and was never
+      // called. `st.type` is the COMPOSER's name for the control — it
+      // starts at "pick" (TYPES[0], selected on first paint) — and the
+      // server's PAID_TYPES is `binary · choice · scale · rating ·
+      // dilemma`. So the flagship 2-4 option form, the one a buyer lands
+      // on, was refused by validatePaidBooking with "pick one of the
+      // question forms", printed under the button to someone looking at a
+      // pressed "Pick one" chip. Its two siblings happen to share a name
+      // with the wire, which is why this looked like it worked.
+      type: wireType(),
+      options: T.max ? st.opts.map(function (o) { return o.trim(); }).filter(Boolean) : [],
+      scope: scopeKey(),
+      dims: {},
+      wearName: false,
+      // THE BUDGET THE PAGE SHOWED, not the one nobody tapped. This sent
+      // `st.budget == null ? null : st.budget`, and `st.budget` is null
+      // until a chip is tapped — while everything the buyer can see is
+      // drawn from `budget()`, which falls back to the smallest budget,
+      // and that chip's `aria-pressed` is computed from `budget()` too,
+      // so it RENDERS AS SELECTED. Nothing on screen said otherwise.
+      //
+      // The server reads null as "no budget stated" and quotes the card's
+      // cap (paid.ts, priceQuote: `const want = typeof budgetEur ===
+      // "number" && Number.isFinite(budgetEur) ? Math.round(budgetEur) :
+      // card.capEur`) — which is the LARGEST budget, not the smallest. So
+      // a buyer who wrote a question, read "€5 · up to 250 answers" and
+      // paid without ever touching the budget row was charged €50 for
+      // 2 500. web/terms.html promises the opposite in as many words:
+      // "the price is the rate card that page prints before you commit."
+      //
+      // null stays legal on the server for the reason its comment gives —
+      // a stored booking from before the budget existed carries it — but
+      // this page has always shown a budget, so it has one to send.
+      budgetEur: budget(),
+      link: st.link.trim()
+    };
+    if (st.place && st.place.city) d.dims.city = st.place.city;
+    if (st.place && st.place.country) d.dims.country = st.place.country;
+    return d;
+  }
+
+  function signIn() {
+    return fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + st.cfg.apiKey, {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{}"
+    }).then(function (r) {
+      if (!r.ok) throw new Error("signin-" + r.status);
+      return r.json();
+    }).then(function (j) { return j.idToken; });
+  }
+
+  function callFn(name, token, data) {
+    return fetch(fnUrl(name), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + token },
+      body: JSON.stringify({ data: data })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (body) {
+        if (!r.ok || body.error) {
+          // The callable protocol puts a readable sentence in
+          // error.message, and paid.ts writes those to be shown — the
+          // decline reasons especially. Surfacing the raw status instead
+          // would replace a written explanation with a number.
+          var e = new Error((body.error && body.error.message) || ("http-" + r.status));
+          e.code = body.error && body.error.status;
+          throw e;
+        }
+        return body.result;
+      });
+    });
+  }
+
+  /** Wait for the reviewer's verdict. The review runs on a Firestore
+   *  trigger, not inside the booking call, so the only honest thing the
+   *  page can do is watch the document the buyer is allowed to read
+   *  (firestore.rules: own uid only). Bounded — a sweep retries a held
+   *  booking every half hour, which is not a thing to hold a page open
+   *  for, and `held` is a real answer rather than a timeout. */
+  function awaitVerdict(token, bid) {
+    var url = "https://firestore.googleapis.com/v1/projects/" + st.cfg.project
+      + "/databases/" + (st.cfg.dbId || "(default)") + "/documents/v2_paid_bookings/" + bid;
+    var tries = 0;
+    function poll() {
+      tries++;
+      return fetch(url, { headers: { authorization: "Bearer " + token } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (doc) {
+          var f = doc && doc.fields ? doc.fields : null;
+          var status = f && f.status && f.status.stringValue;
+          if (status && status !== "review") {
+            // `note` IS THE FIELD, not `declineReason`: both writers in
+            // functions/src/paid.ts (the retired ad lane and the reviewer
+            // verdict) update the booking with `note`. Reading the other
+            // name silently left `reason` undefined, so every decline —
+            // a named private person, the retired ad lane — was shown the
+            // page's own civic-authority sentence instead of its reason.
+            return { status: status, reason: f.note && f.note.stringValue };
+          }
+          // TWENTY TRIES IS THIRTY SECONDS, and since D456 the reviewer is
+          // a Routine on a schedule rather than a model call inside the
+          // request — so the ordinary outcome of this loop is now `held`,
+          // not `approved`. That is why the held copy no longer says "the
+          // reviewer is not answering right now": on this deployment it
+          // usually is not answering YET, which is a different sentence
+          // and the one a buyer is owed.
+          if (tries >= 20) return { status: "held" };
+          return new Promise(function (res) { setTimeout(res, 1500); }).then(poll);
+        });
+    }
+    return poll();
+  }
+
+  function payFail(msg) {
+    st.busy = false;
+    $("payBtn").disabled = false;
+    $("payNote").textContent = msg;
+  }
+
+  function startPurchase() {
+    if (st.busy) return;
+    if (!cfgReady() || !paymentsOpen()) { showPanel("paying"); return; }
+    // The place is needed to BOOK, not to be quoted: "your city" costs
+    // what it costs whichever city it is, and gating the price on the
+    // picker would open this page with its main button disabled and no
+    // stated reason. Gated here instead, where the value is actually
+    // used, and the composer is reopened on the field that is missing.
+    if (scopeKey() !== "world" && !st.place) {
+      hidePanel();
+      $("placeBox").hidden = false;
+      $("placeInput").focus();
+      $("placeHint").textContent =
+        scopeKey() === "city"
+          ? "Pick the city first — an ask has to name where it is asked."
+          : "Pick the country first — an ask has to name where it is asked.";
+      return;
+    }
+    st.busy = true;
+    $("payBtn").disabled = true;
+    $("payNote").textContent = "Checking, then opening the payment page…";
+    var idToken = null;
+    signIn()
+      .then(function (t) { idToken = t; return callFn("bookPaidQuestionV2", idToken, bookingPayload()); })
+      .then(function (res) {
+        st.bid = res && res.id;
+        if (!st.bid) throw new Error("no booking id");
+        $("payNote").textContent = "Checking your question…";
+        return awaitVerdict(idToken, st.bid);
+      })
+      .then(function (v) {
+        if (v.status === "declined") {
+          st.busy = false;
+          $("payBtn").disabled = false;
+          showPanel("declined");
+          if (v.reason) $("declineReason").textContent = v.reason;
+          return null;
+        }
+        if (v.status !== "approved") {
+          st.busy = false;
+          $("payBtn").disabled = false;
+          showPanel("held");
+          return null;
+        }
+        return callFn("createPaidCheckoutV2", idToken, { id: st.bid });
+      })
+      .then(function (out) {
+        if (!out) return;
+        if (!out.url) throw new Error("no checkout url");
+        // Stripe from here. Nothing below this line runs.
+        window.location.href = out.url;
+      })
+      .catch(function (err) {
+        var m = String((err && err.message) || err);
+        payFail(
+          /^signin-/.test(m)
+            ? "Couldn't start a session. Reload and try again."
+            : m.slice(0, 200) || "Something went wrong. Nothing has been charged."
+        );
+      });
+  }
+
   // ── boot ───────────────────────────────────────────────────────
+  // The config the deploy writes. ABSENT IS THE HONEST STATE, not an
+  // error: a local checkout and a preview have no keys, and the page then
+  // behaves exactly as it did before the door existed — quote, and a note
+  // saying payment is not open. A page that threw here would be a broken
+  // page everywhere except production.
+  fetch("/ask-config.json", { credentials: "omit" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (c) {
+      st.cfg = c;
+    })
+    .catch(function () { st.cfg = null; });
+
   fetch("/ask-pricing.json", { credentials: "omit" })
     .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
     .then(function (P) {

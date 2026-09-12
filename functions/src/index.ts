@@ -30,10 +30,10 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
 import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
-import { citySampleId } from "./patternsSamples";
+import { citySampleId, WORLD_SAMPLE_PAGE } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
 import { rateLimitLedgers } from "./exportAccount";
-import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
+import { ledgerRemoval, playedRemovals, revealDueRounds, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -195,6 +195,11 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
+      // The world map's published positions (D462, phase 1a‴): one row per
+      // population this account was placed in. Counted apart from the
+      // samples because it is a separate phase with a separate export
+      // twin — see the note at the scrub.
+      worldMapPositions: 0,
       // The answer log's rows (log.ts, D447 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
       // buffer refused it or the table is past the immediate ceiling
@@ -370,11 +375,26 @@ export const deleteAccount = onCall(
       if (ops) await batch.commit();
     };
     try {
-      const world = await db.collection("v2_patterns")
+      // PAGED (WORLD_SAMPLE_PAGE) — this was `.get()` on the whole family,
+      // which at the corpus of 2026-09-11 retained 233 MiB, RSS 317.8.
+      // This callable takes the 512 MiB global default, so that was
+      // headroom being spent rather than a limit already passed; its
+      // sibling in exportAccount.ts runs on 256 and was over it. The
+      // constant carries the measurement. Each page is
+      // scrubbed and released before the next is asked for; the scrub
+      // needs one row per document and never two documents at once.
+      let world = db.collection("v2_patterns")
         .where(FieldPath.documentId(), ">=", "sample-")
         .where(FieldPath.documentId(), "<", "sample.")
-        .get();
-      await scrub(world.docs);
+        .orderBy(FieldPath.documentId())
+        .limit(WORLD_SAMPLE_PAGE);
+      for (;;) {
+        const page = await world.get();
+        if (page.empty) break;
+        await scrub(page.docs);
+        if (page.size < WORLD_SAMPLE_PAGE) break;
+        world = world.startAfter(page.docs[page.size - 1]);
+      }
       // The city samples this account can be in are named by its OWN
       // answers — the frozen `anchors.city` on each (D8), which is the
       // same chip the nightly keyed the row under — so the reach is
@@ -403,17 +423,78 @@ export const deleteAccount = onCall(
       logger.error("[deleteAccount] voter sample scrub failed:", err);
       failed.push("patternSamples");
     }
+    // ITS OWN PHASE, ITS OWN LABEL. This scrub sat inside the samples'
+    // try/catch and reported under `patternSamples`, which is why the
+    // export could omit it in silence: `TWIN` holds a phase to an export
+    // section by LABEL, and a second document family folded under an
+    // existing label is a family the contract cannot see. It arrived with
+    // an erasure arm and no export twin, and every gate stayed green —
+    // exactly the blind spot exportAccount.test.ts names one case down.
+    try {
+      // 1a‴. THE WORLD MAP'S POSITIONS (D462) — `people-{country}` and
+      //      `people-world`, the same `rows` shape keyed by uid, so the
+      //      same field delete reaches them. The privacy page promises
+      //      this account's position is removed AT ONCE, not merely that
+      //      tonight's rebuild will drop it, and the two are different
+      //      promises to someone deleting at 09:00.
+      //
+      //      Enumerated by ID RANGE like the world samples above rather
+      //      than from this account's own country chip: a person whose
+      //      chip changed still has a row under the old country until the
+      //      next rebuild, and a scrub that trusted the current chip
+      //      would walk past it. The range is bounded by the country
+      //      catalogue plus one ('.' follows '-'), which is ~245
+      //      documents at the very most and one query.
+      const before = scrubbed;
+      const world = await db.collection("v2_patterns")
+        .where(FieldPath.documentId(), ">=", "people-")
+        .where(FieldPath.documentId(), "<", "people.")
+        .get();
+      await scrub(world.docs);
+      counts.worldMapPositions = scrubbed - before;
+    } catch (err) {
+      logger.error("[deleteAccount] world map position scrub failed:", err);
+      failed.push("worldMapPositions");
+    }
+
+    // THE ANSWERS ARE 1a′'s INDEX, so the subtree wipe below waits for it.
+    // 1a′ finds the city rows by reading this account's own answers for
+    // the frozen `anchors.city` each carries; phase 1b deletes exactly
+    // those answers. Unconditional, that ordering makes a failed 1a′
+    // PERMANENT: phase 5 refuses the auth delete so the caller retries,
+    // and the retry finds no answers, builds an empty `pairs`, scrubs
+    // nothing and reports success. What is left behind is world-readable
+    // and keyed by uid — the display name, the frozen anchors, the parsed
+    // core scores (the political coordinate among them) and the logic
+    // percentile — on an account that no longer exists to ask again.
+    //
+    // So the wipe is conditional. The cost of waiting is that the answers
+    // survive one more round trip on an erasure that already failed and
+    // already told the caller so; the cost of not waiting is a row nobody
+    // can ever reach. 1a′'s own comment refuses this exact caveat for the
+    // world family ("the price of 'gone means gone' holding without a
+    // caveat") and the city arm was taking it.
+    //
+    // Phase 5's contract is unchanged: any entry in `failed` still aborts
+    // before the auth delete, so this never reports a partial erasure as
+    // done. The closing sweep near the end of this function carries the
+    // same guard, for the same reason.
+    const samplesPending = failed.includes("patternSamples");
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
     // user contributed stay — anonymous tallies. The one place
     // that CAN attribute a count to this uid is the agg-events ledger
     // (D28), taken by phase 1a above, so the tallies are anonymous again
     // the moment this call returns.
-    try {
-      await db.recursiveDelete(db.collection("v2_users").doc(uid));
-    } catch (err) {
-      logger.error("[deleteAccount] v2 subtree wipe failed:", err);
-      failed.push("v2Subtree");
+    if (samplesPending) {
+      logger.warn("[deleteAccount] v2 subtree wipe deferred: the voter-sample scrub failed and the answers are its index");
+    } else {
+      try {
+        await db.recursiveDelete(db.collection("v2_users").doc(uid));
+      } catch (err) {
+        logger.error("[deleteAccount] v2 subtree wipe failed:", err);
+        failed.push("v2Subtree");
+      }
     }
 
     // 1b1. The verified-logic attempt doc (D57) — keyed by uid in its own
@@ -701,6 +782,19 @@ export const deleteAccount = onCall(
           if ((err as { code?: number | string }).code !== 5
             && (err as { code?: string }).code !== "not-found") throw err;
           continue;
+        }
+        // A ROSTER CHANGE CAN COMPLETE A ROUND — the same sentence
+        // leaveGroupV2 carries, and the same reason: `roundComplete` is
+        // `played >= members`, so the room this account was holding up is
+        // complete the moment the membership shrinks, and nothing else
+        // looks until the 48-hour deadline. Swallowed for a stronger
+        // reason here than there: a throw would push "v2Groups" onto
+        // `failed`, which refuses the auth delete — an erasure must never
+        // fail because somebody else's room could not be revealed.
+        try {
+          await revealDueRounds(g.ref);
+        } catch (err) {
+          logger.error(`[deleteAccount] reveal check after leaving ${g.id} failed:`, err);
         }
         // The user's vote and display name inside every published reveal of
         // a group they are STILL in. Phase 1c-bis below sweeps reveals by
@@ -1362,11 +1456,17 @@ export const deleteAccount = onCall(
     //     the folds consult — which is a uid-keyed record that outlives
     //     the account, so it is a decision rather than a patch. On the
     //     night list.
-    try {
-      await db.recursiveDelete(db.collection("v2_users").doc(uid));
-    } catch (err) {
-      logger.error("[deleteAccount] closing v2 subtree sweep failed:", err);
-      failed.push("v2SubtreeSweep");
+    if (samplesPending) {
+      // Same guard as phase 1b: while the voter-sample scrub is still
+      // owed, the answers are the only index that can find its rows.
+      logger.warn("[deleteAccount] closing v2 subtree sweep deferred: the voter-sample scrub is still owed");
+    } else {
+      try {
+        await db.recursiveDelete(db.collection("v2_users").doc(uid));
+      } catch (err) {
+        logger.error("[deleteAccount] closing v2 subtree sweep failed:", err);
+        failed.push("v2SubtreeSweep");
+      }
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
@@ -1404,6 +1504,8 @@ export const deleteAccount = onCall(
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
 export { seedContentV2, onV2AnswerCreated, onV2AnswerUpdated } from "./v2";
 export { onV2ProfileUpdated } from "./profileFanout";
+// Phase B (D467): the daily lane's compactor and its operator lever.
+export { compactAggShardsV2, compactAggShardsNowV2 } from "./aggShards";
 export {
   acceptGroupInviteV2,
   claimHandleV2,

@@ -3014,6 +3014,45 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-142",
+  "surface": "daily",
+  "seq": 142,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A dish you loved as a kid: still delicious, or best left in memory?",
+  "options": [
+   "Still delicious",
+   "Leave it in memory"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Memory",
+  "tag": "Kid food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-143",
+  "surface": "daily",
+  "seq": 143,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Small steps beat big leaps.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Method",
+  "tag": "How you move",
+  "axis": "small steps",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3289,7 +3328,8 @@ const BANK_0: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f17",
@@ -3978,7 +4018,9 @@ const BANK_0: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s01",
   "surface": "feed",
@@ -4011,9 +4053,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s03",
   "surface": "feed",
@@ -8140,7 +8180,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 12,
   "unit": "friends"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl35",
   "surface": "feed",
@@ -8196,9 +8238,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "books"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl37",
   "surface": "feed",
@@ -12517,7 +12557,9 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "feed-f318",
   "surface": "feed",
@@ -12552,9 +12594,7 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-f320",
   "surface": "feed",
@@ -15233,6 +15273,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk04",
   "surface": "feed",
+  "core": true,
   "seq": 1000,
   "type": "catalog",
   "domain": "emoji",
@@ -15245,6 +15286,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk05",
   "surface": "feed",
+  "core": true,
   "seq": 1001,
   "type": "catalog",
   "domain": "emoji",
@@ -15257,6 +15299,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk08",
   "surface": "feed",
+  "core": true,
   "seq": 1002,
   "type": "catalog",
   "domain": "emoji",
@@ -15269,6 +15312,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk10",
   "surface": "feed",
+  "core": true,
   "seq": 1003,
   "type": "catalog",
   "domain": "emoji",
@@ -15281,6 +15325,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk11",
   "surface": "feed",
+  "core": true,
   "seq": 1004,
   "type": "catalog",
   "domain": "elements",
@@ -15293,6 +15338,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk12",
   "surface": "feed",
+  "core": true,
   "seq": 1005,
   "type": "catalog",
   "domain": "elements",
@@ -15305,6 +15351,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk13",
   "surface": "feed",
+  "core": true,
   "seq": 1006,
   "type": "catalog",
   "domain": "elements",
@@ -15317,6 +15364,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk14",
   "surface": "feed",
+  "core": true,
   "seq": 1007,
   "type": "catalog",
   "domain": "elements",
@@ -15329,6 +15377,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk15",
   "surface": "feed",
+  "core": true,
   "seq": 1008,
   "type": "catalog",
   "domain": "emoji",
@@ -15341,6 +15390,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk16",
   "surface": "feed",
+  "core": true,
   "seq": 1009,
   "type": "catalog",
   "domain": "countries",
@@ -15353,6 +15403,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk17",
   "surface": "feed",
+  "core": true,
   "seq": 1010,
   "type": "catalog",
   "domain": "dogs",
@@ -15365,6 +15416,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk18",
   "surface": "feed",
+  "core": true,
   "seq": 1011,
   "type": "catalog",
   "domain": "countries",
@@ -15377,6 +15429,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk19",
   "surface": "feed",
+  "core": true,
   "seq": 1012,
   "type": "catalog",
   "domain": "dogs",
@@ -15389,6 +15442,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk20",
   "surface": "feed",
+  "core": true,
   "seq": 1013,
   "type": "catalog",
   "domain": "countries",
@@ -15401,6 +15455,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk21",
   "surface": "feed",
+  "core": true,
   "seq": 1014,
   "type": "catalog",
   "domain": "dogs",
@@ -15413,6 +15468,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk22",
   "surface": "feed",
+  "core": true,
   "seq": 1015,
   "type": "catalog",
   "domain": "countries",
@@ -15425,6 +15481,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk23",
   "surface": "feed",
+  "core": true,
   "seq": 1016,
   "type": "catalog",
   "domain": "dogs",
@@ -15437,6 +15494,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk01",
   "surface": "feed",
+  "core": true,
   "seq": 1017,
   "type": "catalog",
   "domain": "pokemon",
@@ -15449,6 +15507,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk02",
   "surface": "feed",
+  "core": true,
   "seq": 1018,
   "type": "catalog",
   "domain": "pokemon",
@@ -15461,6 +15520,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk03",
   "surface": "feed",
+  "core": true,
   "seq": 1019,
   "type": "catalog",
   "domain": "pokemon",
@@ -15473,6 +15533,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk06",
   "surface": "feed",
+  "core": true,
   "seq": 1020,
   "type": "catalog",
   "domain": "pokemon",
@@ -15485,6 +15546,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk07",
   "surface": "feed",
+  "core": true,
   "seq": 1021,
   "type": "catalog",
   "domain": "pokemon",
@@ -15497,6 +15559,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk09",
   "surface": "feed",
+  "core": true,
   "seq": 1022,
   "type": "catalog",
   "domain": "pokemon",
@@ -15509,10 +15572,128 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk28",
   "surface": "feed",
+  "core": true,
   "seq": 1023,
   "type": "catalog",
   "domain": "athletes",
   "prompt": "The greatest athlete who ever lived?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk26",
+  "surface": "feed",
+  "core": true,
+  "seq": 1024,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "Your favourite film?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk27",
+  "surface": "feed",
+  "core": true,
+  "seq": 1025,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "The film you’ve rewatched the most?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk31",
+  "surface": "feed",
+  "core": true,
+  "seq": 1026,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "The film that made you cry the most?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk30",
+  "surface": "feed",
+  "core": true,
+  "seq": 1027,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete you’d pay to watch in their prime?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk34",
+  "surface": "feed",
+  "core": true,
+  "seq": 1028,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete whose life you’d want?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk41",
+  "surface": "feed",
+  "core": true,
+  "seq": 1029,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete you’d want beside you, whatever the game?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk37",
+  "surface": "feed",
+  "core": true,
+  "seq": 1030,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The greatest video game ever made?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk38",
+  "surface": "feed",
+  "core": true,
+  "seq": 1031,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The game you’ve sunk the most hours into?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk40",
+  "surface": "feed",
+  "core": true,
+  "seq": 1032,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The game world you’d actually live in?",
   "options": [],
   "topic": "fav",
   "axis": null,
@@ -16357,7 +16538,9 @@ const BANK_3: V2SeedQuestion[] = [
    "seat": "hands"
   },
   "active": false
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gr14",
   "surface": "group",
@@ -16600,9 +16783,7 @@ const BANK_3: V2SeedQuestion[] = [
    "One house",
    "Rooms apart"
   ]
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gs9",
   "surface": "group",
@@ -19994,7 +20175,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "tech",
   "test": "political"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-political-28",
   "surface": "test",
@@ -20192,9 +20375,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "moral",
   "test": "values"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-09",
   "surface": "test",
@@ -23737,7 +23918,9 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "A",
   "test": "big5",
   "facet": "sympathy"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-118",
   "surface": "test",
@@ -23952,9 +24135,7 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "orderliness",
   "invert": true
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-129",
   "surface": "test",
@@ -27884,7 +28065,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 52,
   "k": "Humans differ by 0.1%",
   "w": "Any two people are about 99.9% identical — the ~1% figure people reach for is the human-chimp comparison."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-gene10",
   "surface": "learn",
@@ -28126,9 +28309,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 62,
   "k": "Red Spot: Jupiter's storm",
   "w": "A storm wider than Earth that has been blowing for at least 200 years."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol11",
   "surface": "learn",
@@ -30941,6 +31122,666 @@ const BANK_7: V2SeedQuestion[] = [
   "p": 44,
   "k": "Hillary and Tenzing, 1953",
   "w": "Whether Mallory reached the top in 1924 stays unknown; Hillary and Tenzing Norgay came back to say so."
+ },
+ {
+  "id": "learn-idm1",
+  "surface": "learn",
+  "seq": 276,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Telling an actor to “break a leg” means…",
+  "options": [
+   "Good luck",
+   "Get off the stage",
+   "Take a bow",
+   "An actual threat"
+  ],
+  "topic": "idioms",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 26,
+  "k": "the lucky jinx-dodge",
+  "w": "Theatre superstition holds that wishing luck outright jinxes it — so the wish arrives in disguise."
+ },
+ {
+  "id": "learn-idm2",
+  "surface": "learn",
+  "seq": 277,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The full, original form of “the proof is in the pudding” ends…",
+  "options": [
+   "…is in the eating",
+   "…is in the bowl",
+   "…is in the baking",
+   "There is no longer form"
+  ],
+  "topic": "idioms",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 45,
+  "k": "proof means test",
+  "w": "You test a thing by using it — “proof” is the old word for trial, and the eating is the trial."
+ },
+ {
+  "id": "learn-idm3",
+  "surface": "learn",
+  "seq": 278,
+  "type": "choice",
+  "domain": null,
+  "prompt": "An “eleventh hour” rescue — the phrase comes from…",
+  "options": [
+   "Midnight duels",
+   "A Bible parable",
+   "Cinderella",
+   "Naval watches"
+  ],
+  "topic": "idioms",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 3,
+  "p": 55,
+  "k": "the vineyard’s last hires",
+  "w": "Matthew 20: workers hired at the eleventh hour are paid a full day — lateness that still counts."
+ },
+ {
+  "id": "learn-idm4",
+  "surface": "learn",
+  "seq": 279,
+  "type": "choice",
+  "domain": null,
+  "prompt": "In Aesop’s fable, the “lion’s share” was…",
+  "options": [
+   "Half",
+   "The biggest slice",
+   "Everything",
+   "The leftovers"
+  ],
+  "topic": "idioms",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 62,
+  "k": "the lion takes it all",
+  "w": "The lion claims every quarter of the kill by turn of argument; the share the phrase remembers was the whole thing."
+ },
+ {
+  "id": "learn-idm5",
+  "surface": "learn",
+  "seq": 280,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Blood is thicker than water” originally carried a longer form about “the blood of the covenant”…",
+  "options": [
+   "True — family came second",
+   "No — a modern invention",
+   "Yes, from the Bible",
+   "Yes, from Shakespeare"
+  ],
+  "topic": "idioms",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 70,
+  "k": "the covenant myth",
+  "w": "The saying appears by the 1600s meaning family first; the “covenant” version cannot be traced past the 1990s. A myth about a proverb."
+ },
+ {
+  "id": "learn-idm6",
+  "surface": "learn",
+  "seq": 281,
+  "type": "choice",
+  "domain": null,
+  "prompt": "To “beg the question”, strictly, is to…",
+  "options": [
+   "Raise an obvious question",
+   "Dodge a question",
+   "Assume the thing being proved",
+   "Ask twice"
+  ],
+  "topic": "idioms",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 72,
+  "k": "circular reasoning, not curiosity",
+  "w": "A logic term: smuggling the conclusion into the premise. Everyday use drifted to “invites the question” — careful writers keep the original."
+ },
+ {
+  "id": "learn-mis7",
+  "surface": "learn",
+  "seq": 282,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first animal to orbit Earth was…",
+  "options": [
+   "A chimpanzee",
+   "Laika the dog",
+   "A tortoise",
+   "A mouse"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 32,
+  "k": "Laika, 1957",
+  "w": "Sputnik 2 carried the Moscow street dog a month after the first satellite. The chimps came later, with America."
+ },
+ {
+  "id": "learn-mis8",
+  "surface": "learn",
+  "seq": 283,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Apollo 11’s onboard computer had memory measured in…",
+  "options": [
+   "Gigabytes",
+   "Megabytes",
+   "Kilobytes",
+   "It flew without one"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 48,
+  "k": "kilobytes to the Moon",
+  "w": "About 72 KB of fixed memory and 4 KB of RAM, woven by hand — enough to fly the landing."
+ },
+ {
+  "id": "learn-mis9",
+  "surface": "learn",
+  "seq": 284,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many people have walked on the Moon?",
+  "options": [
+   "24",
+   "6",
+   "12",
+   "Just Neil and Buzz"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 3,
+  "p": 60,
+  "k": "twelve moonwalkers",
+  "w": "Six landings, two walkers each, 1969–1972. Twenty-four flew to the Moon; half got to step out."
+ },
+ {
+  "id": "learn-mis10",
+  "surface": "learn",
+  "seq": 285,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Voyager’s “Pale Blue Dot” photo shows Earth from…",
+  "options": [
+   "The Moon",
+   "About 6 billion kilometres away",
+   "Mars orbit",
+   "A weather satellite"
+  ],
+  "topic": "missions",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 74,
+  "k": "a pixel from the edge",
+  "w": "1990, past Neptune, cameras turned home at Sagan’s urging: Earth under a pixel. The Moon shot people picture is Earthrise, 1968."
+ },
+ {
+  "id": "learn-med11",
+  "surface": "learn",
+  "seq": 286,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The English longbows raised from the Mary Rose drew at roughly…",
+  "options": [
+   "20 pounds",
+   "40 pounds",
+   "100 pounds or more",
+   "They were crossbows"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 58,
+  "k": "a lifetime’s draw weight",
+  "w": "Modern hobby bows pull 30–40; war bows twice and three times that. Archers’ skeletons show the training in their bones."
+ },
+ {
+  "id": "learn-med12",
+  "surface": "learn",
+  "seq": 287,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Crowned emperor in Rome on Christmas Day, 800:",
+  "options": [
+   "Julius Caesar",
+   "Charlemagne",
+   "William the Conqueror",
+   "Constantine"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Christmas coronation, 800",
+  "w": "The pope crowned the Frankish king emperor — the Roman title reborn three centuries after the west fell. Caesar was eight centuries early."
+ },
+ {
+  "id": "learn-med13",
+  "surface": "learn",
+  "seq": 288,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A medieval “moment” was a real unit of time — about…",
+  "options": [
+   "A heartbeat",
+   "90 seconds",
+   "15 minutes",
+   "An hour"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 72,
+  "k": "forty moments an hour",
+  "w": "Medieval timekeepers cut the hour into forty momenta. “Wait a moment” once meant a minute and a half."
+ },
+ {
+  "id": "learn-med14",
+  "surface": "learn",
+  "seq": 289,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Medieval European universities taught in…",
+  "options": [
+   "Each country’s own language",
+   "Latin",
+   "Greek",
+   "French everywhere"
+  ],
+  "topic": "medieval",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 36,
+  "k": "one classroom language",
+  "w": "Bologna, Paris, Oxford — one shared scholars’ tongue, so a student could move between them. Lectures in local languages came centuries later."
+ },
+ {
+  "id": "learn-flag15",
+  "surface": "learn",
+  "seq": 290,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Chad’s flag and Romania’s flag are…",
+  "options": [
+   "Mirror images",
+   "Nearly identical",
+   "The same country’s, once",
+   "Totally different"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 56,
+  "k": "the twin tricolours",
+  "w": "Both fly blue-yellow-red; Chad’s blue is marginally darker. Occasional diplomatic grumbles, no change — neither will blink."
+ },
+ {
+  "id": "learn-flag16",
+  "surface": "learn",
+  "seq": 291,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The only plain, one-colour national flag ever flown:",
+  "options": [
+   "Japan’s white",
+   "France’s blue",
+   "Libya’s green, 1977–2011",
+   "It has never happened"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 3,
+  "p": 64,
+  "k": "the all-green flag",
+  "w": "Gaddafi’s Libya flew solid green for 34 years — no emblem, no stripe, the only such national flag in history."
+ },
+ {
+  "id": "learn-flag17",
+  "surface": "learn",
+  "seq": 292,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The motto written across Brazil’s flag reads…",
+  "options": [
+   "“Liberdade”",
+   "“Deus e o Brasil”",
+   "“Amazonia”",
+   "“Ordem e Progresso”"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 50,
+  "k": "order and progress",
+  "w": "“Ordem e Progresso”, from positivist philosophy, on the celestial globe — the stars map Rio’s sky on the republic’s first morning."
+ },
+ {
+  "id": "learn-flag18",
+  "surface": "learn",
+  "seq": 293,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Australia’s flag and New Zealand’s differ by…",
+  "options": [
+   "Nothing — they are identical",
+   "Star colour and count",
+   "The Union Jack",
+   "A kiwi silhouette"
+  ],
+  "topic": "flag",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "six white vs four red",
+  "w": "Australia: six white stars. New Zealand: four red ones. Both keep the Union Jack — and each is forever mistaken for the other."
+ },
+ {
+  "id": "learn-cap19",
+  "surface": "learn",
+  "seq": 294,
+  "type": "choice",
+  "domain": null,
+  "prompt": "South Africa has how many capitals?",
+  "options": [
+   "One — Johannesburg",
+   "One — Cape Town",
+   "Two",
+   "Three"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 38,
+  "k": "three-capital country",
+  "w": "Pretoria governs, Cape Town legislates, Bloemfontein judges. Johannesburg — the biggest city — is none of them."
+ },
+ {
+  "id": "learn-cap20",
+  "surface": "learn",
+  "seq": 295,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of India is…",
+  "options": [
+   "Mumbai",
+   "New Delhi",
+   "Kolkata",
+   "Bangalore"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 68,
+  "k": "Delhi, not Mumbai",
+  "w": "Mumbai is the biggest city and the money; New Delhi, purpose-built beside Old Delhi, has been the capital since 1931."
+ },
+ {
+  "id": "learn-cap21",
+  "surface": "learn",
+  "seq": 296,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Ecuador is…",
+  "options": [
+   "Guayaquil",
+   "Lima",
+   "Quito",
+   "Bogotá"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 33,
+  "k": "Quito, high and old",
+  "w": "Guayaquil is bigger and richer; Quito, at 2,850 metres, was among the first cities UNESCO listed whole."
+ },
+ {
+  "id": "learn-cap22",
+  "surface": "learn",
+  "seq": 297,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of the Philippines is…",
+  "options": [
+   "Manila",
+   "Quezon City",
+   "Cebu City",
+   "Davao"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 47,
+  "k": "Manila, again",
+  "w": "Quezon City actually held the title from 1948 to 1976 — and is still the bigger city — before Manila took it back."
+ },
+ {
+  "id": "learn-cell19",
+  "surface": "learn",
+  "seq": 298,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Mitochondria carry their own…",
+  "options": [
+   "DNA",
+   "Nucleus",
+   "Cell wall",
+   "Nothing — only enzymes"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 62,
+  "k": "the organelle with its own genes",
+  "w": "A small circular genome, inherited from your mother — the relic of a free-living bacterium your cells absorbed two billion years ago."
+ },
+ {
+  "id": "learn-cell20",
+  "surface": "learn",
+  "seq": 299,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Apoptosis is…",
+  "options": [
+   "A cell disease",
+   "Programmed cell death",
+   "Cell division",
+   "A cell’s movement"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 50,
+  "k": "death on schedule",
+  "w": "Cells dismantle themselves tidily, on instruction — it sculpted the gaps between your fingers before you were born."
+ },
+ {
+  "id": "learn-cell21",
+  "surface": "learn",
+  "seq": 300,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The longest cells in your body are…",
+  "options": [
+   "Egg cells",
+   "Muscle fibres",
+   "Nerve cells — up to a metre",
+   "Skin cells"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 44,
+  "k": "a metre-long cell",
+  "w": "The egg is the biggest by volume; the length record goes to neurons running from spine to toe in one unbroken thread."
+ },
+ {
+  "id": "learn-cell22",
+  "surface": "learn",
+  "seq": 301,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Bacterial cells in and on your body, versus your own cells:",
+  "options": [
+   "Ten times as many",
+   "About as many",
+   "Far fewer",
+   "A thousand times as many"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 78,
+  "k": "roughly one to one",
+  "w": "The famous 10:1 was a 1970s rough guess; the 2016 recount lands near 1.3 bacteria per human cell. Still trillions of passengers."
+ },
+ {
+  "id": "learn-con19",
+  "surface": "learn",
+  "seq": 302,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A “flammable” liquid and an “inflammable” one…",
+  "options": [
+   "Inflammable resists fire",
+   "Flammable burns hotter",
+   "Both burn — same word",
+   "Neither burns"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 56,
+  "k": "in- here is not “not”",
+  "w": "Both mean catches fire; the in- is an intensifier, as in “inflame”. Safety labels prefer “flammable” precisely because people read the other as fireproof."
+ },
+ {
+  "id": "learn-con20",
+  "surface": "learn",
+  "seq": 303,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Rain that keeps stopping and starting is, strictly…",
+  "options": [
+   "Continuous",
+   "Continual",
+   "Both equally",
+   "Intermittent is wrong too"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 35,
+  "k": "continual pauses, continuous doesn’t",
+  "w": "Continual means repeated with breaks; continuous means unbroken. A continuous drizzle never lets up."
+ },
+ {
+  "id": "learn-con21",
+  "surface": "learn",
+  "seq": 304,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Feeling sick, you are — by the traditional rule —",
+  "options": [
+   "Nauseous",
+   "Nauseating",
+   "Nauseated",
+   "Nauseal"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 48,
+  "k": "nauseous causes it",
+  "w": "The old rule: nauseous means sickening, nauseated means sickened. Usage has moved on, but the distinction still earns marks."
+ },
+ {
+  "id": "learn-con22",
+  "surface": "learn",
+  "seq": 305,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A koala is…",
+  "options": [
+   "A small bear",
+   "A rodent",
+   "A primate",
+   "A marsupial"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 29,
+  "k": "no bear at all",
+  "w": "“Koala bear” stuck because of the face; it carries its young in a pouch and is kin to wombats, not to any bear."
  },
  {
   "id": "pulse-pace",

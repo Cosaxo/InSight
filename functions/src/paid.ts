@@ -49,7 +49,7 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
+import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 // The day key, offset in days. Was a byte-identical local copy until the
 // two families of `utcDayKey` were separated — see pure.ts's own comment.
 import { utcDayKey } from "./pure";
@@ -70,6 +70,19 @@ const REGION = FUNCTIONS_REGION;
 const stripeKey = () => process.env.STRIPE_SECRET_KEY || "";
 const stripeWebhookSecret = () => process.env.STRIPE_WEBHOOK_SECRET || "";
 const anthropicKey = () => process.env.ANTHROPIC_API_KEY || "";
+/**
+ * How long an unpaid booking lives (D456, COST-EXPOSURE C10). A booking
+ * carried no expiry at all, so one abandoned between approval and payment
+ * stayed forever — survivable while the door demanded App Check from an
+ * attested app, and the only remaining cost of a junk booking now that the
+ * door is open to a browser and gated on the budget alone.
+ *
+ * Deliberately far longer than a buyer could plausibly take: the quote
+ * promises a 29-day serving window, and someone who books, thinks about
+ * it over a holiday and pays a fortnight later must not find their quote
+ * swept. This bounds ACCUMULATION, not patience.
+ */
+export const BOOKING_TTL_DAYS = 60;
 
 /** Bookings one account may open per rolling day. Looser than the old
  * suggestion budget's 3 (review capacity was the binding constraint there
@@ -492,17 +505,64 @@ export const REVIEW_MODEL = "claude-opus-5";
  * — a gates-only deploy spends nothing — and injectable so the test can
  * refuse it. EXPORTED for that test.
  */
+/**
+ * "There is no automatic reviewer on this deployment — leave it queued."
+ *
+ * Modelled on ReviewBudgetHeld and held the same way: no attempt counted,
+ * status untouched, the sweep free to come back. The difference is that
+ * nothing here is going to clear on its own — the Routine
+ * (`scripts/paid-review.mjs`, `docs/ROUTINES.md`) is what settles these,
+ * and a booking sitting in `review` IS its queue.
+ */
+export class ReviewDeferred extends Error {
+  constructor() {
+    super("no ANTHROPIC_API_KEY on this deployment — queued for the review Routine");
+    this.name = "ReviewDeferred";
+  }
+}
+
 export async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null, takeCall?: () => Promise<void>): Promise<ReviewVerdict> {
   const gate = reviewGates(b);
   if (gate) return { verdict: "decline", reason: gate, by: "gates" };
   const key = anthropicKey();
   if (!key) {
-    // Emulator / unconfigured deploy: gates-only, said loudly. Production
-    // is expected to carry the secret; docs/DEPLOYMENT.md lists it.
-    logger.warn("[paid] ANTHROPIC_API_KEY not set — review ran on gates alone", {
-      metric: "paid_review_gates_only",
-    });
-    return { verdict: "approve", reason: null, by: "gates-only" };
+    // NO KEY MEANS HOLD, NOT APPROVE — and until D456 it meant approve,
+    // which is the most dangerous line this file has ever carried.
+    //
+    // `reviewGates` checks three things: the payload parses, no two
+    // options are identical, and the prompt contains two alphanumerics.
+    // It does not read the WORDS. So "gates-only → approve" meant that on
+    // a deployment without the key, a submission naming a private person,
+    // carrying a slur, or linking to a gambling site was approved
+    // automatically and could be paid for and published under a paid
+    // band. That was survivable exactly while the key was expected to be
+    // set in production and the door was shut to browsers. D456 retires
+    // both premises at once: the review moves to a Claude Code Routine
+    // (the owner's call — no per-request key), so production is now
+    // EXPECTED to have no key, and the door is open.
+    //
+    // Holding leaves `status: "review"`, which is precisely the queue the
+    // Routine reads. The booking waits for a reviewer instead of walking
+    // past the place one should have been.
+    //
+    // THE EMULATOR IS THE EXCEPTION, and it is a deliberate split rather
+    // than a hole. `e2e-v2-loop.mjs` walks book → review → pay → live, and
+    // a held booking never settles, so deferring there would not test the
+    // hold — it would delete the only end-to-end coverage the paid loop
+    // has. The danger of "gates-only → approve" is a real buyer's words
+    // reaching a real audience, and the emulator has neither. Keyed on
+    // FUNCTIONS_EMULATOR, which the emulator sets and nothing can set into
+    // a deployed runtime (ops.ts's own ENFORCE_APP_CHECK shape).
+    //
+    // What covers the production behaviour instead is paid.test.ts, whose
+    // cases delete FUNCTIONS_EMULATOR first for exactly this reason.
+    if (process.env.FUNCTIONS_EMULATOR === "true") {
+      logger.warn("[paid] emulator: no API key, approving on gates alone", {
+        metric: "paid_review_gates_only",
+      });
+      return { verdict: "approve", reason: null, by: "gates-only" };
+    }
+    throw new ReviewDeferred();
   }
   if (takeCall) await takeCall();
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -637,6 +697,19 @@ export async function reviewBooking(db: Firestore, bid: string, takeCall: () => 
   try {
     verdict = await runReviewVerdict(payload, buyerName, takeCall);
   } catch (err) {
+    if (err instanceof ReviewDeferred) {
+      // No attempt counted, deliberately: MAX_REVIEW_ATTEMPTS exists to
+      // stop a booking the reviewer cannot settle from being retried
+      // forever, and this booking has not been looked at once. Counting
+      // here would stall every booking on a Routine-reviewed deployment
+      // after six sweeps — six half-hours — which is well inside the
+      // window the Routine is expected to answer in.
+      logger.info(`[paid] ${bid} queued for the review Routine (no API key on this deployment)`, {
+        metric: "paid_review_deferred",
+        bid,
+      });
+      return;
+    }
     if (err instanceof ReviewBudgetHeld) {
       // The project's day of calls is spent: hold WITHOUT an attempt —
       // the ceiling is for a booking that cannot be reviewed, not for a
@@ -717,7 +790,16 @@ async function assertBookingBudget(uid: string): Promise<void> {
  * a model. Returns { id } — the client watches its own row.
  */
 export const bookPaidQuestionV2 = onCall(
-  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  // NO enforceAppCheck: the caller is a BROWSER (web/ask.html), which
+  // cannot produce App Check attestation without a provider. What guards
+  // it is `assertBookingBudget` — five a day per account — plus the
+  // owner's ruling (D456) that a BUYER's humanity is not worth a gate of
+  // its own: the €320 is the filter, and an unpaid booking is an
+  // invisible document that never becomes a question anyone sees. Vote
+  // paths are untouched and still attest, which is where the owner does
+  // want to know a person is real. check-appcheck.mjs names that budget
+  // as this callable's gate and asserts the body calls it.
+  { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
@@ -754,6 +836,12 @@ export const bookPaidQuestionV2 = onCall(
       status: "review",
       reviewAttempts: 0,
       createdAt: FieldValue.serverTimestamp(),
+      // Swept by Firestore's TTL unless the paying webhook clears it.
+      // A field, not a scheduled scan: the sweep is free and cannot fail
+      // quietly, where a twelfth nightly function would bill every night
+      // to find nothing (the sweep's own LIGHT_UNBOUNDED note, one
+      // function over, is that arithmetic).
+      expireAt: new Date(Date.now() + BOOKING_TTL_DAYS * 86400000),
     });
     logger.info(`[paid] booking ${ref.id} opened (${b.scope}, ${b.type})`);
     return { id: ref.id };
@@ -1036,24 +1124,101 @@ export async function expirePriorSession(
   }
 }
 
+/**
+ * The checkout hop's own gate, extracted so `check-appcheck.mjs` can name
+ * it and then PROVE the body calls it (D456). It was three inline `if`s
+ * doing exactly this; an exemption whose reason points at inline code is
+ * a reason nothing can hold, which is the failure that script's header
+ * records about `seedContentV2`.
+ *
+ * Three refusals, and the order matters: not yours reads as `not-found`
+ * rather than `permission-denied`, so that probing booking ids cannot
+ * tell an id that exists from one that does not.
+ */
+async function assertOwnApprovedBooking(
+  db: Firestore,
+  uid: string,
+  bid: string,
+): Promise<FirebaseFirestore.DocumentSnapshot> {
+  const snap = await db.collection("v2_paid_bookings").doc(bid).get();
+  if (!snap.exists || snap.get("uid") !== uid) {
+    throw new HttpsError("not-found", "no such booking");
+  }
+  if (snap.get("status") === "live") {
+    throw new HttpsError("failed-precondition", "already paid — the question is live or about to be");
+  }
+  if (snap.get("status") !== "approved") {
+    throw new HttpsError("failed-precondition", "the booking isn't approved yet");
+  }
+  return snap;
+}
+
+/**
+ * The quote a checkout charges — the one locked at approval, or priced
+ * now off the booking's own scope and budget when there is none.
+ *
+ * THERE IS NONE WHENEVER THE ROUTINE APPROVED IT, which since D456 is the
+ * ordinary case: production is EXPECTED to run with no reviewer key, so
+ * `reviewBooking` holds and the approval is a Claude Code Routine writing
+ * `status`/`review` straight to Firestore over REST. It does not write a
+ * quote — `scripts/paid-review.mjs` says so in its own closing note, one
+ * line after telling the operator "the buyer can now pay" — and checkout
+ * read `quote` off the document and dereferenced it. `undefined.capEur`
+ * is an `internal` error to the buyer, on every press, until the booking
+ * expires at its TTL. An approved booking that cannot be paid for is the
+ * whole money path dead on a deployment with no reviewer key, which is
+ * the deployment D456 made normal.
+ *
+ * LOCKED ON THE WAY THROUGH, so this happens once: the quote is written
+ * back, and a retry, a second session or the closer's refund all read
+ * the same figure the first press charged. What moves if the card moved
+ * in between is `ratePerAnswer` — how many answers the budget buys —
+ * never the amount, which is the buyer's own budget clamped to the
+ * card's range. So the door's promise — "the price you were quoted is
+ * the price you pay" — holds either way.
+ *
+ * A booking with no usable scope is refused rather than priced by
+ * guesswork: `priceQuote` indexes the card's cohorts by it.
+ */
+export async function quoteForCheckout(
+  db: Firestore,
+  snap: {
+    get(field: string): unknown;
+    ref: { update(u: Record<string, unknown>): Promise<unknown> };
+  },
+): Promise<PaidQuote> {
+  const stored = snap.get("quote") as PaidQuote | undefined;
+  if (stored && typeof stored.capEur === "number" && typeof stored.ratePerAnswer === "number") {
+    return stored;
+  }
+  const scope = snap.get("scope");
+  if (scope !== "city" && scope !== "country" && scope !== "world") {
+    throw new HttpsError("failed-precondition", "this booking cannot be priced");
+  }
+  const budgetEur = snap.get("budgetEur");
+  const quote = priceQuote(scope, await liveCard(db), typeof budgetEur === "number" ? budgetEur : null);
+  await snap.ref.update({ quote });
+  logger.warn("[paid] pricing an approved booking at checkout — it was approved without a quote", {
+    metric: "paid_quote_late",
+    scope,
+    capEur: quote.capEur,
+  });
+  return quote;
+}
+
 export const createPaidCheckoutV2 = onCall(
-  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  // Same as bookPaidQuestionV2 above, and this one adds nothing of its
+  // own to guard: it can act only on a booking that already exists, is
+  // already the caller's, and is already approved — so the budget that
+  // bounded the booking bounds this too.
+  { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
     const uid = request.auth.uid;
     const bid = String(request.data?.id || "");
     if (!bid) throw new HttpsError("invalid-argument", "id required");
     const db = firestore();
-    const snap = await db.collection("v2_paid_bookings").doc(bid).get();
-    if (!snap.exists || snap.get("uid") !== uid) {
-      throw new HttpsError("not-found", "no such booking");
-    }
-    if (snap.get("status") === "live") {
-      throw new HttpsError("failed-precondition", "already paid — the question is live or about to be");
-    }
-    if (snap.get("status") !== "approved") {
-      throw new HttpsError("failed-precondition", "the booking isn't approved yet");
-    }
+    const snap = await assertOwnApprovedBooking(db, uid, bid);
     const key = stripeKey();
     if (!key) {
       throw new HttpsError("unavailable", "payments aren't configured on this deployment");
@@ -1062,9 +1227,18 @@ export const createPaidCheckoutV2 = onCall(
       // An approved-but-unpaid ad from before D375: nothing sells it now.
       throw new HttpsError("failed-precondition", "ads aren't sold here any more — ask a question instead");
     }
-    const quote = snap.get("quote") as PaidQuote;
+    const quote = await quoteForCheckout(db, snap);
     const { default: Stripe } = await import("stripe");
-    const stripe = new Stripe(key);
+    // THE WIRE VERSION IS PINNED HERE, not inherited from the package.
+    //
+    // Unset, the SDK sends whatever `stripe/cjs/apiVersion.js` happens to
+    // carry — `2025-08-27.basil` at 18.5.0, which is what this value is. That
+    // makes a dependency bump a silent change to the API contract this
+    // account talks over: a major moves the default, every request starts
+    // speaking a different version of the API, and nothing in this repo says
+    // so. The package version and the wire version are two different
+    // decisions and only one of them is dependabot's.
+    const stripe = new Stripe(key, { apiVersion: "2025-08-27.basil" });
     await expirePriorSession(stripe, snap.get("stripe"), bid);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -1287,6 +1461,13 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       qid,
       window: { start, until },
       paidAt: Timestamp.now(),
+      // THE SOLD BOOKING STOPS EXPIRING. `expireAt` bounds abandoned
+      // documents (D456, C10); this one is a paid record with a refund
+      // owed against it when the window closes, and the closer reads it.
+      // Deleting a purchase record 60 days on would erase the arithmetic
+      // the refund is computed from — so the field is removed rather than
+      // extended, because there is no right later date for it.
+      expireAt: FieldValue.delete(),
       ...(paymentIntentId ? { stripePaymentIntent: paymentIntentId } : {}),
     });
     return true;
@@ -1603,7 +1784,10 @@ export const closePaidCampaignsV2 = onSchedule(
           try {
             if (!stripe) {
               const { default: Stripe } = await import("stripe");
-              stripe = new Stripe(key);
+              // Same explicit wire version as the checkout site — the refund
+              // path must not drift onto a different API version from the
+              // charge it is refunding.
+              stripe = new Stripe(key, { apiVersion: "2025-08-27.basil" });
             }
             // ASK BEFORE PAYING, and pay idempotently. The refund moves
             // money and the purchase is marked closed AFTER it — so a

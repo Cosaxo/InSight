@@ -60,6 +60,7 @@ import {
   type PeopleRow,
   type PlacedPerson,
 } from "../data/peopleMap";
+import { worldPositions, type WorldPositions } from "../data/worldPeople";
 
 /** The populations (D216) — the standalone's own roster. `country` only
  * exists for a viewer whose frozen city anchor names one. */
@@ -77,15 +78,28 @@ const AGREE_COL = {
   mid: "oklch(0.74 0.012 80)",
   no: "oklch(0.58 0.11 35)",
 } as const;
-/** Mostly agrees · split · mostly disagrees, counted over what you share. */
+/** Mostly agrees · split · mostly disagrees, counted over what you share.
+ * A dot placed from the nightly position alone (D462) shares nothing to
+ * count, so it lands in the split ink — the step that claims least — and
+ * its card states the answer count instead of an agreement. */
 const stepOf = (p: { agree: number; shared: number }): keyof typeof AGREE_COL => {
-  const a = p.agree / Math.max(1, p.shared);
+  // NOTHING SHARED IS NOT DISAGREEMENT. The paragraph above has claimed
+  // the split ink for a nightly-placed dot since the lens was written, and
+  // the arithmetic below said otherwise: such a dot carries `shared: 0`
+  // (peopleMap.ts, the published loop), so `0 / max(1, 0)` is 0 and 0 is
+  // under the 0.4 step. Every stranger the fit placed — up to the world
+  // cap of them — was drawn in the same ink as someone who disagrees with
+  // you on every question you both answered, under a legend that spells
+  // that out in words. This is the line that makes the paragraph true.
+  if (!p.shared) return "mid";
+  const a = p.agree / p.shared;
   return a > 0.6 ? "yes" : a < 0.4 ? "no" : "mid";
 };
 
 const slim = (items: readonly PoolItem[]): PeopleItem[] =>
   items.map((p) => ({
     qid: p.q.id,
+    surface: p.surface,
     L: p.L,
     n: p.n,
     marginal: p.marginal,
@@ -140,10 +154,31 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
     [version],
   );
   const myCo = countryOf(LIVE.anchors().city);
+
+  // ── the published crowd (D462) ──────────────────────────────────
+  //
+  // One document per population: the world's, or your country's. Circle
+  // reads none — a published position carries no membership, and the
+  // circle's own people are in the samples anyway (they are nine, not
+  // nine thousand). The read is cached per session in `worldPeople.ts`,
+  // so a chip tapped twice costs nothing, and a `null` answer (no fit yet,
+  // a demo build, a refused read) leaves the lens exactly as it was
+  // before this existed: the sample-placed crowd.
+  const [world, setWorld] = React.useState<WorldPositions | null>(null);
+  React.useEffect(() => {
+    let on = true;
+    setWorld(null);
+    if (pop === "circle") return;
+    void worldPositions(pop === "country" ? myCo : null).then((w) => { if (on) setWorld(w); });
+    return () => { on = false; };
+  }, [pop, myCo]);
   const foldOpts = React.useMemo<PeopleFoldOpts>(() => ({
     // the viewer's own dot from everything they have answered — ordinal
     // and pick items included (D396) — under the ridge the fit published
     viewerObs: PATTERNS.evidence(),
+    // and every stranger from their frozen chips against the fit's anchor
+    // rows (D458) — the same evidence the fit solved them with
+    anchorRows: PATTERNS.anchorRows(),
     lambda: PATTERNS.lambdaU(),
     circle: circleSet,
     keep: pop === "circle"
@@ -151,7 +186,11 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
       : pop === "country" && myCo
         ? (_uid, anchors) => countryOf(anchors.city) === myCo
         : undefined,
-  }), [pop, circleSet, myCo]);
+    // already the population's own document — the fold does not re-filter
+    // it, so passing the world's rows under a country chip would be a bug
+    // here rather than there
+    ...(world ? { world: world.rows } : {}),
+  }), [pop, circleSet, myCo, world]);
 
   // One pass of bounded loads, sequential like Kindred's (a dozen
   // collection-group queries fired at once is the shape that gets a
@@ -285,7 +324,9 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
               return (
                 <g key={p.uid} onClick={(e) => { e.stopPropagation(); pick(p); }}
                   role="button" tabIndex={0}
-                  aria-label={`${p.name || "Someone"} · agrees on ${p.agree} of ${p.shared} shared answers`}
+                  aria-label={p.shared > 0
+                    ? `${p.name || "Someone"} · agrees on ${p.agree} of ${p.shared} shared answers`
+                    : `Someone · ${p.answers ?? 0} answers, placed by the nightly fit`}
                   style={{ cursor: "pointer", outline: "none", opacity: dim ? 0.22 : 1, transition: "opacity .25s ease" }}>
                   <circle cx={p.x} cy={p.y} r={Math.max(p.r + 8, 15)} fill="transparent"></circle>
                   <circle cx={p.x} cy={p.y} r={p.r} fill={AGREE_COL[stepOf(p)]}></circle>
@@ -326,7 +367,17 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
             <span><i className="k-dot" style={{ background: AGREE_COL.no }}></i>mostly disagrees</span>
             <span>bigger dot = more answers in common</span>
             <span>tap anyone to see what you share</span>
-            <span>{placed.length} people · everyone who answered at least {field.minShared} of the {field.basis} questions read here · drawn from the crowd’s latest answers</span>
+            {/* D462: two crowds in one picture, so the sentence names
+                both — the people the nightly placed, and the ones the
+                fetched lists put here. The cap is stated where it bites
+                ("600 of 18,400"), because a picture of a sample that
+                reads as a picture of everyone is the overstatement this
+                lens has been corrected for twice. */}
+            <span>{world
+              ? <>{placed.length} people · {world.total > world.rows.length
+                ? <>{world.rows.length} of {world.total} placed by the nightly fit</>
+                : <>everyone the nightly fit placed</>}, and anyone who answered at least {field.minShared} of the {field.basis} questions read here</>
+              : <>{placed.length} people · everyone who answered at least {field.minShared} of the {field.basis} questions read here · drawn from the crowd’s latest answers</>}</span>
           </div>
         )}
         {/* the rows carry the counts each claim rests on — never an
@@ -369,12 +420,20 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
             <span style={{ fontFamily: SANS, fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{selP.name || "Someone"}</span>
             {selP.chips.map((c, k) => <span key={k} style={chipStyle}>{c}</span>)}
           </div>
+          {/* D462: a person drawn from the published position has no
+              shared answers to count, and the card says so rather than
+              printing "0 of 0" — the same rule D146 holds the pair card
+              to, pointed at a person instead of a pair. The position is
+              still a real reading: it is the fit's own, over everything
+              they have answered, which is what the line under it says. */}
           <div style={{ marginTop: 11, fontFamily: SANS, fontSize: 13.5, fontWeight: 650 }}>
-            Agrees with you on <b style={{ fontWeight: 800 }}>{selP.agree} of {selP.shared}</b> answers you both gave
+            {selP.shared > 0
+              ? <>Agrees with you on <b style={{ fontWeight: 800 }}>{selP.agree} of {selP.shared}</b> answers you both gave</>
+              : <>Placed by <b style={{ fontWeight: 800 }}>{selP.answers ?? 0}</b> answers — none of them yours</>}
           </div>
-          <div style={{ marginTop: 8, height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden" }}>
-            <i style={{ display: "block", width: `${Math.round((selP.agree / selP.shared) * 100)}%`, height: "100%", borderRadius: 99, background: "color-mix(in oklab, var(--accent) 55%, var(--surface-2))", transition: "width .3s ease" }}></i>
-          </div>
+          {selP.shared > 0 && <div style={{ marginTop: 8, height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden" }}>
+            <i style={{ display: "block", width: `${Math.round((selP.agree / Math.max(1, selP.shared)) * 100)}%`, height: "100%", borderRadius: 99, background: "color-mix(in oklab, var(--accent) 55%, var(--surface-2))", transition: "width .3s ease" }}></i>
+          </div>}
           {/* the position's basis (2026-08-26). The prototype's line is
               "that count alone places them · closer only ever means more
               agreement" — true of its agreement layout, not of this one:

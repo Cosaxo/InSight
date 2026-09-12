@@ -459,7 +459,11 @@ function CityField({ myParsed }: {
     // The Country and World fields had the same shape and were fixed one
     // fold over; this arm reads PEOPLE rather than published cells, so it
     // takes the people twin of that reader rather than stretching it.
-    const people$ = LIVE.kindredState();
+    // The CITY reading: the city pass has its own fan-out and its own
+    // failure, and `kindredState()` speaks only for the world pass — so a
+    // city whose twelve queries all threw read as "ready" here and the
+    // sentence below stated an empty city as a fact.
+    const people$ = LIVE.cityKindredState();
     return (
       <SfEmptyField caption={<>{cityName}</>}>
         {loading || people$ === "loading"
