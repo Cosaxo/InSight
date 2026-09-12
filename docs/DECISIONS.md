@@ -54228,3 +54228,47 @@ until they force-quit. Build 34 is the first submittable build.
 verdict); `docs/LAUNCH-RUNBOOK.md` 5.6 (build 33, the struck 32, the
 pre-flight); `docs/OWNER-LIST.md` § Clicks (the recorder's price, one
 delivery → six releases and three deliveries).
+
+## D479 amendment (2026-09-12, the same session) · Build 36 is delivered, and the gap was closed on purpose
+
+**2026-09-12, the same session.** The verdict above was *run as-is*, and
+the release it was made for went out that evening.
+
+Run 60 (`34714326335`, 19:29:42Z) archived `b1548dfb` with step 17
+`skipped` — the dry run, 5m 34s, both silent-failure gates green (the
+archive's Firebase config and APNs entitlement at step 13, the exported
+`.ipa`'s `production` entitlement at step 15). `main` was then re-read and
+confirmed unmoved, and run 61 (`34714631127`, 19:35:51Z) archived **the
+same commit** with step 17 **`success`**, 19:40:57Z → 19:42:19Z, 1m 22s of
+transfer. Fifteenth dry-run/upload pair, and the third where D159's gap
+was closed deliberately rather than luckily (after runs 43/44 and 47/48).
+
+**`appBuild` went 36 → 37** with `check:versions --fix`, read off step
+17's conclusion while the run's step list was on screen — the only
+arrangement that has ever made the bump stick (D186, D198, D273).
+Fourteen that held against ten skipped. `LAUNCH-RUNBOOK.md` 5.6's lockstep
+sentence moved with it, because `check:figures` owns that number.
+
+**What the rename did not break.** Build 36 is the first build carrying
+D472. The archive, the cloud-signed export and both entitlement gates
+passed unchanged, which is the outcome the bundle identifier predicts:
+`com.cosaxo.insight` is untouched, so the App ID, the distribution
+certificate and the profile resolve as before. `CFBundleDisplayName` is
+`Doxa` and the store listing already agreed.
+
+**The delivery UUID is not recorded, and the reason is worth keeping.**
+`altool`'s `UPLOAD SUCCEEDED` block sits outside the log window this
+session's reader could fetch, and the blob host the raw log redirects to
+is refused by the sandbox's egress policy. D158's rule already says the
+step's own conclusion is the record, so nothing turns on it — but this is
+the first entry in the series without a UUID, and the gap is the reader's
+rather than the release's.
+
+**Step 18 printed `release recorder not wired` for the seventh release
+running.** The click on `OWNER-LIST.md` § Clicks is still unmade.
+
+**Nothing was submitted to App Store review.** 6.2 is unticked, and
+`asc-review.mjs` touches no `reviewSubmission` resource on any path with a
+test pinning that it does not. Build 36 is in App Store Connect and
+reaches TestFlight after processing; putting it in front of Apple is a
+separate, deliberate act.

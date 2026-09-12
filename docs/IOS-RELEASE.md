@@ -950,3 +950,49 @@ after build 26's 193 and ahead of build 27's 130. **The app is renamed
 inside it**: D472 made it Doxa and moved none of the identifiers
 underneath, so `com.cosaxo.insight` is untouched and the provisioning it
 resolves is the same; what moved is `CFBundleDisplayName`, now `Doxa`.
+
+
+**Runs 60 and 61 delivered build 36, and the bump landed off step 17's
+conclusion** (D479 amendment, 2026-09-12). Both archived `b1548dfb` six
+minutes apart — run 60 (`34714326335`, 19:29:42Z) step 17 `skipped`, the
+dry run, 5m 34s; run 61 (`34714631127`, 19:35:51Z) `success`, 19:40:57Z →
+19:42:19Z, 1m 22s of transfer. Fifteenth pair of this shape. `appBuild`
+went 36 → 37 with `check:versions --fix`, read off step 17 rather than
+recalled — **fourteen that held** (20, 21, 22, 28, 33, 36, 42, 44, 48, 52,
+54, 56, 59, 61) against ten skipped (18, 19, 24, 26, 31, 38, 40, 46, 50,
+57).
+
+**The delivery UUID is not in this entry, and that is a limit of the
+reader rather than an omission.** Every fact above is read from the run's
+own step list; the `altool` block that prints `UPLOAD SUCCEEDED with no
+errors`, the UUID and the byte count sits outside the log window this
+session could fetch, and the blob host the raw log redirects to is
+refused by the sandbox's egress policy. **Step 17's conclusion is the
+record** — this file has said so since D158 — and it reads `success`, so
+build 36 is spent whatever the UUID was. Read it off run 61's page if a
+delivery ever needs tracing to Apple's side.
+
+**D159's trap was closed on purpose, for the third time** after runs 43/44
+and 47/48. `main` was read at `b1548dfb` before the dry run and re-read
+between the two dispatches, confirmed unmoved, and only then was the
+upload sent — so what run 60 proved about the signing was proved on
+exactly the bundle run 61 shipped, and `check:bundle` and
+`check:web-firebase` graded run 61's own `dist/` before it archived
+anything. Both halves of the D229/D274 pair, on one tree. `b1548dfb` is a
+console trail row rather than any release commit, which is run 22's shape:
+the dispatch ran against the branch as it stood, and the bump that made
+build 36 legal was already three days old on `main`.
+
+**Build 36 is the first build carrying the rename** (D472). The archive
+and both entitlement gates passed on it unchanged, which is the thing a
+rename could plausibly have broken and did not: `com.cosaxo.insight` is
+untouched, so the App ID, the cloud-signed distribution certificate and
+the provisioning profile all resolve exactly as before; what moved is
+`CFBundleDisplayName`, now `Doxa`. `design/store/listing.json` was already
+"Doxa: What Everyone Thinks" before the dispatch.
+
+**Step 18 printed `release recorder not wired` for the seventh release
+running** — `ROUTINE_URL` and `ROUTINE_TOKEN` both empty in run 61's own
+env block. Builds 29, 30, 31, 33, 34, 35 and 36 have now all gone out with
+it inert, and this release is the first where a session watched it print
+that notice and wrote the record in the same sitting anyway.

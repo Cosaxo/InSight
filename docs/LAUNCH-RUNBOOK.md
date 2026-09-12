@@ -589,6 +589,17 @@ arithmetic.
       are the worked example: same commit `2933dc0`, eight minutes apart,
       `skipped` then `success`, so only one of the two spent a build.
 
+      **BUILD 36 UPLOADED 2026-09-12** (run 61, `b1548dfb`, upload step
+      `success` 19:40:57Z → 19:42:19Z, 1m 22s of transfer) — the first
+      build carrying the rename (D472: Doxa, and none of the identifiers
+      under it). Run 60 (`34714326335`, 19:29:42Z) is its dry run, the
+      **same commit**, six minutes earlier, step 17 `skipped`: `main` was
+      re-read between the dispatches and confirmed unmoved, so D159's trap
+      was closed on purpose for the third time after runs 43/44 and 47/48.
+      **`appBuild` is now 37**, bumped off step 17's own conclusion while
+      the run's step list was on screen. Step 18 printed `release recorder
+      not wired` for the seventh release running.
+
       **BUILD 33 UPLOADED 2026-09-07** (run 56, `a59c40e`, upload step
       `success` 16:50:19Z → 16:51:59Z, 1m 40s) — the first build carrying
       the account wall, and **the one not to submit**: it also carries
@@ -1772,7 +1783,7 @@ That is a tester-count problem, not a workflow problem.
       question, not that a count was lost — its runbook says what to do,
       which is to move one number in the cost model. *Source:* D398, D400;
       `docs/DEPLOYMENT.md` § The cap alert.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 36.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 37.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —

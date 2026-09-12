@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 521 lines instead of
-54,231. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 522 lines instead of
+54,275. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -205,7 +205,7 @@ detect it.
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D-2026-09-12b (+24) | 18316 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D479 (+8) | 18475 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18626 |
-| **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18800 |
+| **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D479 (+6) | 18800 |
 | **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D350 (+5) | 18870 |
 | **D188** | [The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour](DECISIONS.md#d188--the-mirrors-tab-row-sits-where-a-tab-bar-sits-and-stops-arguing-with-the-stop-about-colour) | D191 (+2) | 19030 |
 | **D189** | [The design gate was never looking, and two group hues never met the palette](DECISIONS.md#d189--the-design-gate-was-never-looking-and-two-group-hues-never-met-the-palette) | D191 | 19153 |
@@ -524,6 +524,7 @@ detect it.
 | **D477** | [No practice: the logic test is taken like an IQ test — the practice half of D474 retired the day it shipped, and the callable with it](DECISIONS.md#d477--no-practice-the-logic-test-is-taken-like-an-iq-test--the-practice-half-of-d474-retired-the-day-it-shipped-and-the-callable-with-it) | D478 | 54004 |
 | **D478** | [One attempt every 30 days, from the start of the last — and an attempt interrupted inside its window is resumed, never restarted](DECISIONS.md#d478--one-attempt-every-30-days-from-the-start-of-the-last--and-an-attempt-interrupted-inside-its-window-is-resumed-never-restarted) | — | 54072 |
 | **D479** | [Build 36's pre-flight: three deliveries went unrecorded, build 32 never existed, and the bump that skipped it landed between a dry run and its upload](DECISIONS.md#d479--build-36s-pre-flight-three-deliveries-went-unrecorded-build-32-never-existed-and-the-bump-that-skipped-it-landed-between-a-dry-run-and-its-upload) | — | 54132 |
+|  | ↳ *amendment 2026-09-12, the same session* — [Build 36 is delivered, and the gap was closed on purpose](DECISIONS.md#d479-amendment-2026-09-12-the-same-session--build-36-is-delivered-and-the-gap-was-closed-on-purpose) | — | 54232 |
 | **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 52513 |
 | **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 52578 |
 | **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 52655 |
