@@ -53,6 +53,9 @@ const LIVE = vi.hoisted(() => ({
   // Its people twin — every surface that mounts a similarity field
   // reads it now, so the stub belongs beside its sibling.
   kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // the CITY pass's own reading (live.ts): a second fan-out with a second
+  // failure, which the City field reads instead of the world pass's
+  cityKindredState: (): "loading" | "ready" | "failed" => "ready",
   subscribe: () => () => {},
   // RESOLVES TRUE — the store answers whether the read landed, and a
   // fixture resolving `undefined` reads as a failure. The shape is the

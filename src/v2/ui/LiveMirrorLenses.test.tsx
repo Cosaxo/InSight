@@ -95,6 +95,11 @@ const LIVE = vi.hoisted(() => ({
   kindredState(this: { kindredLoading: () => boolean; kindredFailedStub: boolean }): "loading" | "ready" | "failed" {
     return this.kindredLoading() ? "loading" : this.kindredFailedStub ? "failed" : "ready";
   },
+  // the CITY pass's reading, which the City field takes instead — same
+  // stub, because no case here is about the two failing apart
+  cityKindredState(this: { kindredLoading: () => boolean; kindredFailedStub: boolean }): "loading" | "ready" | "failed" {
+    return this.kindredLoading() ? "loading" : this.kindredFailedStub ? "failed" : "ready";
+  },
   loadNames: vi.fn(async () => {}),
   scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
   loadSimilarity: vi.fn(async () => {}),
