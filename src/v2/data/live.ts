@@ -392,7 +392,7 @@ const state = {
   // there is nothing to compare — a rank or a catalogue pick, whose
   // documents carry no `counts`, or a mark restored at boot (D357) —
   // which then clears on its first read, as every mark did before.
-  unaggregatedBase: {} as Record<string, { total: number; counts: Record<string, number> } | null>,
+  unaggregatedBase: {} as Record<string, { counts: Record<string, number> } | null>,
   // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
@@ -1000,10 +1000,8 @@ function clearUnaggregated(id: string): void {
 /** Remember what the published counts said when `aid` was marked
  *  unfolded — the baseline the refresh compares against (phase B). */
 function noteAggBase(aid: string, comparable: boolean): void {
-  const agg = state.aggs[aid] as { total?: unknown; counts?: Record<string, number> } | undefined;
-  state.unaggregatedBase[aid] = comparable
-    ? { total: Number(agg?.total) || 0, counts: { ...(agg?.counts ?? {}) } }
-    : null;
+  const agg = state.aggs[aid] as { counts?: Record<string, number> } | undefined;
+  state.unaggregatedBase[aid] = comparable ? { counts: { ...(agg?.counts ?? {}) } } : null;
 }
 
 /** Whether a freshly read aggregate HOLDS the answer marked on `aid`. A

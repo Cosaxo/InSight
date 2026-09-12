@@ -113,7 +113,9 @@ export function foldLedgerDay(day: string, entries: readonly LedgerDayEntry[], c
   }
   const additions = new Map<string, Array<{ uid: string; o: number }>>();
   for (const [qid, adds] of sampleAdditions(day, answersByUid, new Map())) {
-    additions.set(qid, trimAdditions(adds, cap).map((a) => ({ uid: a.uid, o: a.optionIdx })));
+    // Option-shaped additions only — a catalogue pick (D459) carries an
+    // entity and no option, and the shadow compares options (the header).
+    additions.set(qid, trimAdditions(adds, cap).flatMap((a) => (typeof a.optionIdx === "number" ? [{ uid: a.uid, o: a.optionIdx }] : [])));
   }
   return { entries: entries.length, actives: uids.size, additions };
 }
