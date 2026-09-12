@@ -1843,6 +1843,25 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "editVote", qid: "q_1" });
   });
 
+  // THE FAILED BOOT HAS TO HAVE SETTLED before either test below touches
+  // the network knob. `initLive` races boot against its budget and RETURNS
+  // while boot is still running, so restoring `getDocsImpl` hands that same
+  // in-flight boot a working network and it enables the store on its own —
+  // with no wake involved at all. In the first test that passes for the
+  // wrong reason; in the second it fails outright, because "enabled is
+  // false" is exactly what that one asserts.
+  //
+  // Two `flush()`es stood here and were a GUESS about how many turns the
+  // failure path takes. It held until a change one module over shifted the
+  // timing by a hair and the second test started failing about one run in
+  // seven — on CI, on a branch whose diff could not reach boot. The boot's
+  // own error report is the fact the guess was standing in for: `boot.catch`
+  // in initLive sets `bootError` and calls `reportError(err, {where:
+  // "boot"})`, and nothing else in these two tests reports from there.
+  const bootHasFailed = () => vi.waitFor(() => {
+    expect(h.reportError).toHaveBeenCalledWith(expect.anything(), { where: "boot" });
+  });
+
   it("registers wake handlers, and a wake on a dead session re-attaches", async () => {
     // Two shipped banners say "reconnecting…". Before this, nothing in the
     // codebase ever reconnected: a boot that failed left LIVE disabled for
@@ -1854,12 +1873,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Fail the first boot the way a flaky network would.
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
-    // initLive races boot against a 1ms budget and RETURNS on timeout while
-    // boot is still running. Let it finish failing before touching the knob
-    // below, or that same in-flight boot picks up the restored getDocs and
-    // succeeds on its own.
-    await flush();
-    await flush();
+    await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
     expect(typeof listeners.window.online).toBe("function");
@@ -1878,8 +1892,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     const LIVE = mod.default;
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
-    await flush();
-    await flush();
+    await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
     vi.stubGlobal("navigator", { onLine: false });

@@ -51567,6 +51567,7 @@ Two are real and neither is this:
   rather than as the leak D464 closed.
 
 The remaining CI failures are on other lanes' PR branches and are theirs.
+
 ## D466 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
 
 **2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK A.7, built on
@@ -51796,7 +51797,277 @@ contention alert — the feed lane still folds on the hot path and a shard
 can contend at sixteen times the rate. Sharding any surface but the
 daily: the feed spreads its answers across the bank, and a shard costs
 the compactor a query's worth of reads a minute per dirty question.
-## D468 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes
+
+---
+
+## D468 · Three device reports, three surfaces that had stopped agreeing with the app around them
+
+**Decided:** 2026-09-11 · **Status:** binding
+
+The owner sent four findings off a device in one message. Three are here;
+the fourth (questions that name a category where a concrete entity would
+be sharper) is D469. They are unrelated in code and identical in shape:
+each is a rule that was right for the thing it was written for, still
+running over a thing it was not.
+
+### 1 · The catalogue picture was cropped to a face built for patterns
+
+`.wf-tileimg` carries one crop rule for every photograph in the app —
+`object-fit: cover`, written for the duel tile, where a scene loses some
+sky and the tile is still the picture. A catalogue picture (D421) is a
+SUBJECT: one Pokémon, one poster, one face, and
+`scripts/catalog-art-lib.mjs` has already fitted it inside a 184 px
+square. Cover-cropping that into the reveal's 2:1 face removes half its
+height from the middle, which is where the subject is. The report was
+Deoxys with its arms and no head.
+
+So catalogue art fits inside its face (`.is-fit`) and the generated
+pattern frames the remainder — the pattern's documented job, not a
+placeholder (PickArt's header). One box then survives every catalogue
+shape: a square Pokémon, a 2:3 poster, a 3:2 flag. The reveal's faces
+went 92 px → 4:3 with it, because a fitted square inside a 2:1 box is
+mostly gutter. The browse row's 92×74 face is unchanged; only its crop
+rule moved. The duel tile keeps `cover`.
+
+### 2 · Near refused a fix it had, and sent the reader outside
+
+`locateCell` refuses a reading wider than the presence cell (D175, and
+the refusal is right: folding a kilometre into a 222 m square publishes a
+room nobody is standing in). It refused **after one sample** — the sample
+a cold phone is least able to make, while the radios are still on the
+wifi estimate and the GNSS fix is seconds from landing — and reported it
+as `unavailable`, which the card renders as *"No location fix — try again
+outside."*
+
+Both halves were wrong for the phone that hit it. A coarse reading now
+buys two more samples, forbidden from the cache (`maximumAge: 0`, so a
+retry is a second measurement rather than the same one again) and inside
+the existing 30 s wall-clock deadline; a first-sample failure still fails
+immediately, because that is the attempt carrying the permission prompt
+and the real refusals. A reading that stays wide is refused as
+**`imprecise`** — its own word, its own sentence, naming the switch in
+the OS that changes it. Going outside is not the remedy for an
+approximate grant.
+
+`imprecise` is on a cell-only failure type rather than on `LocateFail`:
+`locateCity` reads accuracy and deliberately ignores it, so a sentence
+for it in the CityPicker would be copy for a state that cannot happen —
+and the compiler holds that, because `CP_FAIL` is a `Record<LocateFail,
+string>`.
+
+### 3 · The catalogue still answered "who voted what" the way the app did before D125
+
+Every other live question in the app answers it the way D125 settled:
+pick a cohort, and everything below becomes that cohort's reading of this
+one question, with the Friends cut naming people underneath (D98/D149).
+A catalogue card had **none of it**. It had D17's segment chips: one flat
+row holding every published bucket of every dimension at once — *man ·
+190 cm or taller · vocational or trade · no · asker, no · partnered ·
+25-34* — each silently reordering the board, no dimension named, no scale
+to read a bucket against, the raw storage keys at the reader, and a
+caption reading *"the crowd's board, as 2 no answers order it"*.
+
+D17 is not reversed: its arithmetic (each segment orders the published
+board, never a board of its own) is exactly what the new sheet reads.
+What is retired is the flat chip row as the WAY that reading is offered,
+on live cards. The demo keeps the chips, because the panel folds
+published aggregates and a demo build has none — a door onto an empty
+room is worse than the row it replaced, and it is the same `q.live`
+branch the dial, the field and the stats sheet already make.
+
+Three things are new, and the third is the one that made the first two
+possible:
+
+- **`data/pickCohort.ts`** — cohort.ts one shape over. The same `by` map,
+  the same "an absent cell is zero" rule, keyed by catalogue key instead
+  of option index. cohort.ts could not serve it: every fold there returns
+  an array dense to the option count, and a Pokédex board is keyed
+  1..1025 with ten of them present. Not generalised there either —
+  cohort.ts is read by eight surfaces on a hot path, and a key-mapping
+  parameter for one caller is the wrong trade.
+- **A catalogue divergence is not a points gap.** For four options the
+  reading is per-option percentage points; over a thousand entities every
+  entity is a rounding error away from every other, and the gap would be
+  noise with a percent sign on it. So the finding is the sentence the
+  card's own surprise line already made: **what this cohort puts first,
+  and where everyone puts that** — ranked by how far down everyone's
+  board the cohort's favourite sits, with a pick nobody else has ranking
+  above all of them. A cohort that leads with everyone's leader says so
+  and is never offered as a finding. The floor is feed-read.js's
+  `MIN_CELL` (3) and the same KIND of floor: honesty, not disclosure —
+  one answer makes any entity a cohort's unanimous favourite.
+- **`data/voters.ts` stopped dropping catalogue answers.** The voter
+  query skipped every row without a numeric `optionIdx`, which is every
+  pick — so the catalogue was the one kind of question in the app where
+  "who picked what" could not be asked at all, six months after D98 made
+  answers public so that it could. Catalogue rows now ride as the
+  catalogue KEY with an out-of-range index (-1), never coerced into an
+  option column: every existing fold already bounds-checks `optionIdx >=
+  0`, so they fall out of an options-shaped reading by arithmetic rather
+  than by each caller remembering to ask.
+
+**The consequence nobody would have seen.** Kindred keys the viewer's own
+catalogue answer by its entity (`state.votes` stores the key), and read
+every other person's through `optionIdx`. Carrying catalogue rows without
+touching it would have scored every catalogue question as a disagreement
+between two people who may well have picked the same thing. It reads the
+entity now, so catalogue picks start counting toward likeness — which is
+what the app is for, and was silently absent.
+
+**Two costs, and one of them needed a ceiling moved.** The sheet itself
+costs no read: its cohorts are folds over `v2_question_aggs.by`, the same
+document the board is drawn from. The Friends cut pays the bounded voter
+query every other sheet pays, on the tap that asks for it.
+
+The eager graph is the other one. `check:bundle`'s `MAX_EAGER_KB` had
+**49 bytes** of headroom — the 11 KB band set on 09-06 had been eaten by
+five days of ordinary drift — and this needed 112: 95 in `voters.ts` for
+the catalogue row, 10 in `live.ts` for Kindred, 12 in the cohort chunk.
+Nothing new joined first paint (44 preloads before and after; the panel,
+its folds and its catalogue reads are all behind the feed chunk), and
+there is nothing here to defer — the bytes are a field on a row inside a
+query function that `live.ts` calls. So the ceiling went 552 → 553, +1 KB
+rather than a fresh band, deliberately, so the next feature has to read
+the note. The note names the real fix and this record repeats it:
+`voters.ts` is 7.9 KB of first paint whose query half is only ever called
+on a tap, and splitting it would return ~6 KB — sixty times what this
+raise took. The 40 KB of demo `sample-data.js` in the same graph is the
+bigger one again.
+
+**Is the sheet a "visual" under D352?** It is a replacement for a sheet
+that exists, in the visual language of the sheet it is the twin of —
+`LbChip` and `LbNote` are imported from `LiveBreakdownPanel` rather than
+re-drawn, precisely so the two cannot drift into two chip styles, and the
+board rows are the card's own row shape. No new visual language, so no
+request. Flagged to the owner with the rest.
+
+**Measured:** `test:unit` (218 files / 3,197 tests — 22 new cases across
+`data/pickCohort.test.ts`, `ui/LivePickBreakdown.test.tsx`,
+`data/locate.test.ts`, `ui/NearLiveBody.test.tsx`, `ui/PickArt.test.tsx`
+and two mount suites), `test:scripts` (82 / 1,380), `lint`, `tsc -b`,
+`check:globals` (coupling baseline unmoved at 27), `check:panel-suites`
+(50/50), `check:figures`, `check:a11y`, `check:tap-targets`,
+`check:public-copy`, `check:data-inventory`, `check:eager-content`,
+`build` + `check:bundle`.
+
+---
+
+## D469 · Name the thing, not its class — the fourth device report, and the catalogue cards that were written and never dealt
+
+**Decided:** 2026-09-11 · **Status:** binding
+
+The owner, reading the feed off a device: *"in a lot of questions you are
+a bit too general like what type of movie insted of concrete movies same
+with other things like famous persons."*
+
+The example is `f16`, *Rank by rewatchability* → **Comedies · Thrillers ·
+Sci-fi · Documentaries**: four categories where four films would be. The
+second half is a run of questions that ask about famous people and name
+none — *Dinner with one* → *a scientist you admire · a musician you love
+· a leader you'd grill*.
+
+**Why it is not a matter of taste, and this is the part worth writing
+down.** A category answer says which shelf someone browses. A named
+answer says who they are — and it is the one the app can draw a
+connection FROM. Two people who both said *Pulp Fiction* are joined by
+something an axis can read; two who both said "thrillers" are joined by a
+bucket a third of the world is in. `CLAUDE.md`'s opening is the test —
+does this create a link between data that did not exist? — and a class
+answer largely does not.
+
+### The bank already had the answer, unpromoted
+
+The catalogue lane has been writing `pick` cards into the archive
+(`PICK_QS`) since D14, one a day, six days a week. **41 cards in the
+archive, 24 in the live seed** — and the 17 that had never been promoted
+included **every film question, every video-game question, and three of
+the four athlete questions**. The live seed carried Pokémon, emoji,
+elements, countries and dogs, one athlete, and not one film.
+
+So the app's sharpest concrete-entity questions existed, were gated, and
+nobody had opened the gate: promotion is human-initiated by design
+(QUESTION-FARM.md § the catalog run — "a run's job is unchanged (write
+the archive); promotion stays a human-initiated step"), and no human had
+initiated it since D232's mechanism landed.
+
+Nine promoted, all three domains the report names, all three with
+pictures already on hosting (films 731, athletes 632, video games 632):
+
+| | |
+| --- | --- |
+| films | *Your favourite film?* · *The film you've rewatched the most?* · *The film that made you cry the most?* |
+| athletes | *The athlete you'd pay to watch in their prime?* · *The athlete whose life you'd want?* · *The athlete you'd want beside you, whatever the game?* |
+| video games | *The greatest video game ever made?* · *The game you've sunk the most hours into?* · *The game world you'd actually live in?* |
+
+Byte-for-byte through `npm run promote`, which is the only path — live
+hydration joins seed to archive by PROMPT-STRING EQUALITY, so a retyped
+prompt silently unhooks the card. Provenance rows written with them
+(D97); the 1-in-20 audit shortfall accrues as it already did.
+
+`colors` and `languages` are equally ready and equally unpromoted (eight
+more cards). Not taken here: the report names movies, people and things,
+and a promotion is a content decision the owner can make one line at a
+time now that the path is warm.
+
+### The one retirement, and the ones deliberately not taken
+
+`f16` is retired (`active: false`), because it is the report's own
+example and because its concrete successor is now in the bank: *The film
+you've rewatched the most?* asks the same question of a thousand films
+instead of four genres. Retirement rather than an edit is the only legal
+fix — **a shipped question's options are never edited or reordered**,
+since answers store (qid, optionIdx) forever and a reorder silently
+re-keys them (the D30 failure class, QUESTION-FARM.md).
+
+Four more questions carry the new warning and stay active, which is the
+honest half:
+
+- `f51` *Dinner with one* and `f107` *A new statue for your town square*
+  would both be better with names — but `f51` is `core: true`, so
+  retiring it shrinks the Mirror's corpus and can close the patterns tab
+  for someone who had earned it (D265's remembered crossing exists for
+  exactly this). That is the owner's call, not a night's.
+- `f103` *Whose diary would you rather read? Someone famous · A stranger
+  your age* is the warning's own false positive: the contrast between a
+  class and a stranger IS the question.
+- `f135` *One genre forever* is about genres. A class is not a defect
+  when it is the subject.
+
+### The rule, and the half of it a gate can hold
+
+`docs/QUESTION-FARM.md` § Writing the questions gains the rule beside
+D-series' *"named people are question material"* (2026-08-15), which it
+extends: that one says a name is allowed, this one says the general form
+is the weaker question. It carries the test (*could a concrete entity
+stand in this option's place and keep the question honest?*), the three
+exceptions (a stance, a format, a class that is the subject), and the
+escalation — where the app has a catalogue, the sharpest form is not four
+named options but a `pick` card over the whole thousand.
+
+`check:quality` warns on the two shapes a word list can see: a genre as
+an option on a movies/music card, and a person class ("a scientist",
+"someone famous") as an option. **It can only ever warn.** The judgement
+it wants — is this question about a stance or about things in the world?
+— is not one a list can make, and a gate that refuses on it would refuse
+*Musicals: joy, or endurance?*
+
+Two false positives were measured and fixed before it shipped, and they
+are why the two lists carry their own topics rather than one shared set:
+the genre list called Dwayne Johnson a music genre (*The Rock* → rock,
+once a leading article was stripped) and a chess time control another
+(*Blitz or classical?*). It now fires on **5 of 557 active feed
+questions**, each a writer's call — the ratio is pinned by test, because
+a list that fires on a tenth of the bank is one whose warnings stop being
+read.
+
+**Measured:** `check:content` (1,545 questions), `check:quality`,
+`check:catalogs`, `check:catalog-art`, `check:neighbors` (pick 41,
+closest pair 0.429), `check:taxonomy`, `check:seed-fields`,
+`check:figures` (nine prose figures corrected: the bank count in five
+documents, the political-consent corpus, the circle cap's answerable
+count, and the bank's wire size), `test:scripts` (82 / 1,386),
+`test:unit`.
+## D470 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes
 
 **2026-09-12.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 sixty-three commits are kept as written; nothing was reverted. What this
@@ -51819,9 +52090,10 @@ composition had to change to say so.
 `main` took twenty-three commits during the night: console and pulse
 rows, and the farm lane's own merge (#503, self-merging on green under
 D212). No decision number moved. Neither shift claimed one; the tree sat
-at D464. This record is D468 — `main` took D465, D466 and D467 while this
-review was running (#502 and #497), and D299 moves a number off a
-collision.
+at D464. This record is D470. `main` took D465–D467 while this review ran (#502,
+#497) and then D468–D469 (#501) while it was writing this line up, so the
+number moved twice under D299's collision rule — which is itself the
+finding one section down, in a second gate.
 
 **FOURTEEN FILES WERE TOUCHED BY BOTH** — against thirteen the night
 before (D450), nine the night before that (D449) and zero at D430. **Two
@@ -51928,7 +52200,8 @@ DSN, because this gate reads the build output and refuses any other:
 | shift A | 552.96 KB | 0.04 KB spare — passes |
 | shift B | 552.34 KB | passes against main's ceiling |
 | **composed** | **553.30 KB** | **over** |
-| the tree that merged | 553.79 KB | 0.21 KB under the new 554 |
+| + `main` again (#497, #502) | 553.79 KB | |
+| + `main` a third time (#501) | **554.17 KB** | the ceiling ends at **555** |
 
 The parts add to +0.86 KB and the composition costs +1.08. The extra
 0.22 KB is the two shifts' edits meeting in the bundler, so **no commit
@@ -51938,11 +52211,25 @@ twelfth of a kilobyte tipped it. This is the clearest instance yet of the
 class this review exists to catch — a gate that can only go red on a tree
 nobody builds until morning.
 
-Raised to 554 with the arithmetic recorded in the script, which is what
-the gate's own failure text licenses. The last row is `main` moving again
-under the review — #497 and #502 took another 0.49 KB — so the tree that
-merges sits 0.21 KB under the new ceiling, which is thin on purpose: the
-way out is the 8 KB below, not another raise. What grew is +709 bytes of
+Raised with the arithmetic recorded in the script, which is what the
+gate's own failure text licenses — but the raise had to be made three
+times, because `main` moved three times under this review and #501 spent
+its own night raising this same ceiling to 554 against a tree with none
+of this in it. Two branches cannot both spend the same kilobyte, and by
+the script's own count that makes **four raises in one day** (552 → 553 →
+554 → 555). The final number is the measurement rounded up and nothing
+more: a comfort band added during a conflict resolution would be quietly
+redefining a budget in the one place that should never happen.
+
+**So the structural finding is not the kilobyte, it is the ratchet.** A
+ceiling pinned at the measurement stops being a budget and becomes an
+alarm that fires on whichever branch merges last, saying nothing about
+which one grew the app — #501 reached that conclusion independently the
+same day, in the same file. The ~8 KB the block has owed since it last
+moved (`data/voters`, statically imported by `live.ts` for uses that all
+run long after first paint) has been deferred as "its own change" by
+three separate branches now. After four raises it is not a nice-to-have
+being deferred; it is the next change to this graph. What grew is +709 bytes of
 `data/live.ts` and +128 of the entry chunk: six boot-path defect fixes,
 none of them deferrable, because `live.ts` IS the store the app boots on.
 `check:eager-content` is green — no question content entered the graph,

@@ -412,6 +412,44 @@ style guide. What its voice looks like:
   gets D52's `political: true` on the feed or a different question on
   the daily. Being ABOUT a person is not a risk to write around; being
   MEAN about one is.
+- **Name the thing, not its class** (owner direction, 2026-09-11: *"in a
+  lot of questions you are a bit too general like what type of movie
+  insted of concrete movies same with other things like famous
+  persons"*). The rule above says a name is allowed; this one says the
+  general form is the weaker question. *Rank by rewatchability →
+  Comedies · Thrillers · Sci-fi · Documentaries* is four categories where
+  four films would be; *Dinner with one → a scientist you admire · a
+  musician you love* asks about famous people while naming none. A
+  category answer tells you which shelf someone browses; a named answer
+  tells you who they are, and it is the one the Mirror can draw a
+  connection FROM — two people who both said *Pulp Fiction* are joined by
+  something, two who both said "thrillers" are not.
+
+  **The test:** could a concrete entity stand in this option's place and
+  keep the question honest? If yes, it is the better question.
+
+  Three exceptions, and they are the reason this is a warning rather than
+  a refusal. A question about a STANCE answers with abstractions by
+  definition — *Musicals: joy, or endurance?* is asking which you are,
+  and a named musical would ruin it. A question about a FORMAT answers
+  with formats (*Stadium show · Festival · Small club*). And a class is
+  the subject itself when the question is about the class (*One
+  instrument, mastered overnight*).
+
+  **The escalation, where the app has a catalogue:** films, athletes,
+  video games, Pokémon, countries, dog breeds, elements, emoji,
+  languages and colours are committed catalogues, so the sharpest form of
+  a question about one of them is not four named options — it is a
+  `pick` card over the whole catalogue, where the answer space is a
+  thousand entries and the reveal is a real board (§ The daily
+  catalog-question run, `docs/CATALOG-QUESTIONS.md`). Nine of those were
+  promoted on 2026-09-11 for exactly this reason.
+
+  `check:quality` warns on the two shapes a word list can see — a genre
+  as an option on a movies/music card, and a person class as an option —
+  and it can only ever warn: the judgement above is not one a list can
+  make. Five active feed questions carry the warning today; each is a
+  writer's call, not a defect.
 
 **Dedup is part of writing, not a later pass.** A new question must not
 restate an existing one in different clothes — check the whole `Q` array

@@ -3328,7 +3328,8 @@ const BANK_0: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f17",
@@ -15582,6 +15583,123 @@ const BANK_3: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "pick-pk26",
+  "surface": "feed",
+  "core": true,
+  "seq": 1024,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "Your favourite film?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk27",
+  "surface": "feed",
+  "core": true,
+  "seq": 1025,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "The film you’ve rewatched the most?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk31",
+  "surface": "feed",
+  "core": true,
+  "seq": 1026,
+  "type": "catalog",
+  "domain": "films",
+  "prompt": "The film that made you cry the most?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk30",
+  "surface": "feed",
+  "core": true,
+  "seq": 1027,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete you’d pay to watch in their prime?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk34",
+  "surface": "feed",
+  "core": true,
+  "seq": 1028,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete whose life you’d want?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk41",
+  "surface": "feed",
+  "core": true,
+  "seq": 1029,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The athlete you’d want beside you, whatever the game?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk37",
+  "surface": "feed",
+  "core": true,
+  "seq": 1030,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The greatest video game ever made?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk38",
+  "surface": "feed",
+  "core": true,
+  "seq": 1031,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The game you’ve sunk the most hours into?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk40",
+  "surface": "feed",
+  "core": true,
+  "seq": 1032,
+  "type": "catalog",
+  "domain": "videogames",
+  "prompt": "The game world you’d actually live in?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,
@@ -16420,7 +16538,9 @@ const BANK_3: V2SeedQuestion[] = [
    "seat": "hands"
   },
   "active": false
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gr14",
   "surface": "group",
@@ -16619,9 +16739,7 @@ const BANK_3: V2SeedQuestion[] = [
    "Gentle",
    "Brutal"
   ]
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gs7",
   "surface": "group",
@@ -20057,7 +20175,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "tech",
   "test": "political"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-political-28",
   "surface": "test",
@@ -20219,9 +20339,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "meaning",
   "test": "values"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-07",
   "surface": "test",
@@ -23800,7 +23918,9 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "A",
   "test": "big5",
   "facet": "sympathy"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-118",
   "surface": "test",
@@ -23975,9 +24095,7 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "C",
   "test": "big5",
   "facet": "orderliness"
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-127",
   "surface": "test",
@@ -27947,7 +28065,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 52,
   "k": "Humans differ by 0.1%",
   "w": "Any two people are about 99.9% identical — the ~1% figure people reach for is the human-chimp comparison."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-gene10",
   "surface": "learn",
@@ -28145,9 +28265,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 55,
   "k": "Denim: de Nîmes",
   "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol9",
   "surface": "learn",

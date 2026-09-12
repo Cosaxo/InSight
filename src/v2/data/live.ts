@@ -6024,7 +6024,14 @@ const LIVE = {
     for (const [qid, rows] of lists) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
-        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
+        // The ENTITY where there is one, not `r.optionIdx`: since
+        // catalogue answers ride these lists (2026-09-11) a pick's answer
+        // is its catalogue key, which is exactly how `mine` above holds
+        // the viewer's own — `state.votes` stores the key. Reading the
+        // index for one side and the key for the other would score every
+        // catalogue question as a disagreement between two people who may
+        // well have picked the same thing.
+        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.entity ?? r.optionIdx;
       }
     }
     return Object.keys(theirs)
