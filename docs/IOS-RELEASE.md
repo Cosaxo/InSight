@@ -864,3 +864,135 @@ wording, only by not storing it. Ask the run list.
 Each is one line in the workflow. What no line fixes is the archive's
 signing style, which is why the reasoning for it is written out above
 rather than compressed into this table.
+
+
+**Runs 55–59 delivered builds 33, 34 and 35, none of them recorded here,
+and build 32 never existed** (D480, 2026-09-12, build 36's pre-flight).
+Five runs across two days, three of them uploads:
+
+| Run | id | dispatched | archived | `appBuild` there | step 17 |
+| --- | --- | --- | --- | --- | --- |
+| 55 | `34134486530` | 2026-09-07 14:43:09Z | `39a26f0` | 32 | `skipped` — the dry run, 6m 37s |
+| 56 | `34144580184` | 2026-09-07 16:43:38Z | `a59c40e` | 33 | **`success`** 16:50:19Z → 16:51:59Z, 1m 40s |
+| 57 | `34151966927` | 2026-09-07 18:31:20Z | `9069f62` | 34 | **`success`** 18:35:32Z → 18:36:53Z, 1m 21s |
+| 58 | `34347218645` | 2026-09-09 11:45:27Z | `d646394` | 34 | `skipped` — the dry run, 5m 54s |
+| 59 | `34382457066` | 2026-09-09 17:21:58Z | `2d286f8` | 35 | **`success`** 17:28:08Z → 17:29:42Z, 1m 34s |
+
+Build 35: `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`03304021-9ec1-4fad-bcf1-b1efb4695025`, 6,257,676 bytes — read out of run
+59's own log, as is every `appBuild` in the table, at each run's own
+`head_sha`.
+
+**Build 32 never existed, and it is the second number this file has had to
+strike** after build 2 on 2026-08-08. Run 55 dry-ran the tree at 32;
+`b5cb845a` — *"Build 33: the first build that carries the account wall"* —
+bumped 32 → 33 in the two hours before run 56 uploaded. Harmless for the
+reason build 2 was: Apple wants monotonic, not contiguous.
+
+**But the shape is new, and it is the expensive half of D159's trap.**
+Build 2's skip was a bump made against a number nobody had spent. This one
+is **a bump made between a dry run and its upload**, so what run 55
+rehearsed is not what run 56 sent — and every previous worked example of
+the trap (runs 22, 32/33, 37/38, 41/42, 51/52, 53/54) had the same
+`appBuild` at both heads, which is exactly why each of them cost nothing.
+Here the gap moved the build number itself. The 47-file diff across it is
+the account wall's three doors (D414), `ios-release.yml`'s own env block,
+526 lines of feed questions and `web/privacy.html` — so this is D229's
+finding at full size rather than in miniature: **a dry run derisks the
+signing, and the gates on the release path derisk the bundle** (D274), and
+no dry run had ever archived a walled build. The second half held: run 56
+ran `check:bundle` and `check:web-firebase` against its own `dist/` before
+it archived anything.
+
+**Build 33 is uploaded and must not be submitted.** LAUNCH-RUNBOOK 6.2
+carries the warning and the reason — D419's sign-in defect leaves anyone
+who signs in with Google staring at the gate until they force-quit. Build
+34 is the first submittable build. Anyone handed 33 on TestFlight meets
+the same wall.
+
+**The bump held after run 56 and was skipped after run 57.** `72336dea` —
+*"Build 34, and a warning not to submit 33"* — moved 33 → 34 inside the
+hour. Nothing moved 34 after run 57, so run 58 dry-ran a spent number two
+days later; had that dispatch carried `upload = true` it would have
+archived, signed, exported, passed both entitlement gates, transferred
+~6 MB and been refused. Run 59's bump to 36 held, made off step 17 in the
+same session. **Thirteen that held** (20, 21, 22, 28, 33, 36, 42, 44, 48,
+52, 54, 56, 59) against **ten skipped** (18, 19, 24, 26, 31, 38, 40, 46,
+50, 57).
+
+**No record was written in this file for any of the five, which is the
+D184 shape for the sixth time** after runs 25/26, 29–31 (D198), 39/40
+(D273), 45/46 (D339) and 49/50 (D381). LAUNCH-RUNBOOK 5.6 caught builds 34
+and 35 and is the only reason two of the three numbers were recoverable
+without the run list; it named neither build 33 nor the skipped 32. Three
+deliveries went unrecorded here at once, which is the most any one
+pre-flight has had to reconstruct.
+
+**Step 18 printed `release recorder not wired` for the sixth release
+running.** Read out of run 59's log rather than assumed: `ROUTINE_URL` and
+`ROUTINE_TOKEN` are both empty in the step's own env block, and the notice
+is its whole output. D339 added that step so the run which uploaded would
+be the thing that records the upload; builds 29, 30, 31, 33, 34 and 35
+have all now gone out with it inert. Six releases is the measurement on
+that click (`OWNER-LIST.md` § Clicks), and this release is the first where
+what it would have caught is three deliveries rather than one.
+
+**Build 36's pre-flight found nothing to do.** Run 59 is the highest run
+in `ios-release.yml`'s list, 59 of 59; its step 17 is `success`;
+`appBuild` at run 59's own `head_sha` `2d286f8` is **35**, against a tree
+reading **36**. 36 is greater than 35, so the answer is **run as-is**, and
+no number moved. Seventh pre-flight to come out that way after D153, D158,
+D191, D324 and build 31's — and it is build 35's bump, made off step 17
+while the step list was on screen, that made it come out that way.
+
+171 commits ride in the 35 → 36 gap, over three days — the second widest
+after build 26's 193 and ahead of build 27's 130. **The app is renamed
+inside it**: D472 made it Doxa and moved none of the identifiers
+underneath, so `com.cosaxo.insight` is untouched and the provisioning it
+resolves is the same; what moved is `CFBundleDisplayName`, now `Doxa`.
+
+
+**Runs 60 and 61 delivered build 36, and the bump landed off step 17's
+conclusion** (D480 amendment, 2026-09-12). Both archived `b1548dfb` six
+minutes apart — run 60 (`34714326335`, 19:29:42Z) step 17 `skipped`, the
+dry run, 5m 34s; run 61 (`34714631127`, 19:35:51Z) `success`, 19:40:57Z →
+19:42:19Z, 1m 22s of transfer. Fifteenth pair of this shape. `appBuild`
+went 36 → 37 with `check:versions --fix`, read off step 17 rather than
+recalled — **fourteen that held** (20, 21, 22, 28, 33, 36, 42, 44, 48, 52,
+54, 56, 59, 61) against ten skipped (18, 19, 24, 26, 31, 38, 40, 46, 50,
+57).
+
+**The delivery UUID is not in this entry, and that is a limit of the
+reader rather than an omission.** Every fact above is read from the run's
+own step list; the `altool` block that prints `UPLOAD SUCCEEDED with no
+errors`, the UUID and the byte count sits outside the log window this
+session could fetch, and the blob host the raw log redirects to is
+refused by the sandbox's egress policy. **Step 17's conclusion is the
+record** — this file has said so since D158 — and it reads `success`, so
+build 36 is spent whatever the UUID was. Read it off run 61's page if a
+delivery ever needs tracing to Apple's side.
+
+**D159's trap was closed on purpose, for the third time** after runs 43/44
+and 47/48. `main` was read at `b1548dfb` before the dry run and re-read
+between the two dispatches, confirmed unmoved, and only then was the
+upload sent — so what run 60 proved about the signing was proved on
+exactly the bundle run 61 shipped, and `check:bundle` and
+`check:web-firebase` graded run 61's own `dist/` before it archived
+anything. Both halves of the D229/D274 pair, on one tree. `b1548dfb` is a
+console trail row rather than any release commit, which is run 22's shape:
+the dispatch ran against the branch as it stood, and the bump that made
+build 36 legal was already three days old on `main`.
+
+**Build 36 is the first build carrying the rename** (D472). The archive
+and both entitlement gates passed on it unchanged, which is the thing a
+rename could plausibly have broken and did not: `com.cosaxo.insight` is
+untouched, so the App ID, the cloud-signed distribution certificate and
+the provisioning profile all resolve exactly as before; what moved is
+`CFBundleDisplayName`, now `Doxa`. `design/store/listing.json` was already
+"Doxa: What Everyone Thinks" before the dispatch.
+
+**Step 18 printed `release recorder not wired` for the seventh release
+running** — `ROUTINE_URL` and `ROUTINE_TOKEN` both empty in run 61's own
+env block. Builds 29, 30, 31, 33, 34, 35 and 36 have now all gone out with
+it inert, and this release is the first where a session watched it print
+that notice and wrote the record in the same sitting anyway.
