@@ -1122,7 +1122,35 @@ const MAX_TOTAL_JS_KB = 2440;
 // joined the entry at the merge. Both are first-paint by nature; the same
 // day's sub-tab swipe was kept OFF this graph (spec/sub-swipe.js, the
 // deferred profile's own import) for this reason.
-const MAX_EAGER_KB = 558;
+// 558 → 544 on 2026-09-12, and this one is a LOWERING, which is the whole
+// finding. Measured on this tree with ci.yml:400-403's own build
+// (`VITE_SENTRY_DSN=… VITE_V2_LIVE=true npm run build`): **543.277 KB**,
+// 42 modules. The ceiling said 558. Fifteen kilobytes could have walked
+// into first paint with no gate saying a word — which is the one thing
+// this constant exists to prevent.
+//
+// HOW IT CAME LOOSE, and it is not a mistake anyone made. The number was
+// raised six times in about twenty-four hours (552 → 553 → 554 → 555 →
+// 557 → 558), each time against a BRANCH's measurement, which is the
+// pathology the block above names four times and then stops calling a
+// coincidence. Then the tree got smaller: `cohortLabels` (172 B) and
+// `pulse` (8,125 B) both left the eager graph for lazy chunks. A raise is
+// signed for; a shrink is silent, because this gate only fails a tree
+// that goes OVER. So the ratchet ratcheted one way only, and the slack it
+// accumulated was invisible by construction.
+//
+// NO COMFORT BAND, deliberately — 544 is 543.277 rounded up and nothing
+// more, the same discipline the entry above applies to a raise. Adding
+// room here because the next branch might want it is how 558 happened.
+// The headroom this block has asked for three times is still the answer
+// and is still unspent: `data/voters`' QUERY half, deferred. It is 7,985
+// bytes of this graph, live.ts is the only eager module that pulls it
+// (circle.ts and friends.ts both import it statically and neither is
+// eager — measured), and it has to be the query half rather than the
+// module, because `LIVE.votersByOption` is synchronous, pinned by
+// data/vote.test.ts, and calls `groupByOption`/`sortVoters` during render.
+// That split is still its own change, not a rider on this one.
+const MAX_EAGER_KB = 544;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
