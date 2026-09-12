@@ -243,10 +243,18 @@ jobs:
             echo "::warning::VITE_FIREBASE_API_KEY unset — the buy page will ship with payment closed (runbook 5.14)."
             rm -f web/ask-config.json
           else
-            # THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
-            # is a textual substitution GitHub performs before bash sees
-            # the script, so a value pasted into the body is code. Same
-            # rule auth-config.yml records at length.
+            # THROUGH THE ENVIRONMENT, never through the run body: GitHub
+            # substitutes its dollar-double-brace expressions into the text
+            # BEFORE bash sees the script, so a value pasted into the body
+            # is code. Same rule auth-config.yml records at length — but
+            # never write the two-brace form literally inside a run body,
+            # comments included: a bash comment is still workflow text, an
+            # empty expression is an invalid workflow FILE, and this
+            # comment's first draft carried one and took every push's
+            # deploy evaluation down overnight ("an expression was
+            # expected"). The sibling comments in auth-config.yml and
+            # play-release.yml survive because they sit in env: blocks —
+            # YAML comments, stripped before GitHub reads a character.
             node -e '
               const fs = require("fs");
               fs.writeFileSync("web/ask-config.json", JSON.stringify({
