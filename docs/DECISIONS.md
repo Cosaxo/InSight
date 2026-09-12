@@ -53437,3 +53437,694 @@ The full client and functions suites, every `check:*` this change can
 reach, and the docs index regenerated — the run is in the commit's
 message. The rules and e2e suites need Java and were not touched by a
 rename that changes no rule.
+
+## D473 · The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding
+
+**Date:** 2026-09-11 · **Status:** adopted by the owner (four options put,
+*Use OMIB* chosen), **not yet built** — one dependency is outside the tree
+and two questions are on `OWNER-LIST.md`.
+
+**The ask.** The owner, on the v4 instrument: *"the logic test is not as
+good as a real ravens matric test, how could we get some real test
+insted?"* — then, on the options: *"i think we should use these … as they
+have to be correct from the start."* That second sentence is the binding
+one. It rules out the design the session recommended first (ship the
+generator, calibrate it on our own players as they arrive), because that
+design is a test which is not yet valid on the day it launches. Items
+whose difficulty is measured BEFORE the first user is the requirement.
+
+**A correction on the record, because the owner decided on it.** The
+session's first answer told the owner MaRs-IB was *"free to use
+commercially"*. **It is not.** The bank's own paper says the items are
+"freely available for **non-commercial** use", and the lab's page adds the
+sentence that settles it: the task "is not intended to be used to determine
+someone's intelligence or cognitive ability in, for example, educational,
+clinical or **commercial** contexts" — which is this app, described. The
+error was reading the ARTICLE's CC BY licence (which is real, and covers
+the paper) as the ITEMS' licence (which is separate, and is not CC BY).
+
+**The sweep, which is the part that took the work.** Every openly
+published matrix bank was held to one question: may a paid app ship it?
+
+| Bank | Items | Validated on | Licence as published | Usable here |
+| --- | --- | --- | --- | --- |
+| Raven's SPM · APM · Raven's 2 | 60 · 36 | the reference standard | Pearson; qualification-gated, per-administration | no |
+| MaRs-IB | 80 + clones | N = 659, then IRT at N = 1,501 | items non-commercial; ability judgement in commercial contexts named and excluded | no |
+| ICAR (matrix reasoning) | 11 | large SAPA samples | public domain **for non-commercial research** | no |
+| Sandia Matrices | 1,685 stimulus files + the 2010 norming data | Matzen et al. 2010 | **no LICENSE file at all** | no |
+| UCMRT | 23 × 3 forms | correlates with APM about as well as APM does with itself | "freely available for researchers" | no |
+| **OMIB** | **220** | **N = 2,572, IRT-calibrated** | **GPLv3** | **yes** |
+
+Sandia's row was **verified rather than read about**: the repository was
+cloned and it carries no licence file, only a README asking to be cited in
+research. A citation request is not a grant, and a public repository with
+no licence is all rights reserved. Every other row is from the banks' own
+published statements.
+
+The pattern is not an accident and is worth stating plainly: the
+restriction these labs write is aimed at precisely the use this app makes
+— an application telling a person how clever they are.
+
+**Why OMIB clears it.** 220 items (2.75× MaRs-IB), each one's difficulty
+measured on 2,572 people before we ship a line; 1 to 5 rules applied
+row-wise; and a licence its authors chose deliberately to make it the
+royalty-free bank the field did not have. It is the only bank in the sweep
+that survives the question, and it also happens to be the best-powered
+calibration of the six.
+
+**What it costs — both real, neither hidden.**
+
+1. **The answer is BUILT, not picked.** An OMIB taker constructs the
+   missing cell by selecting a subset of 20 figural elements. The overlay's
+   six raised tiles and their single tap do not survive that, so this is a
+   new screen and a new interaction — a **visual request (#13)** under
+   D352's rule, not a build. The return is arithmetic: the present form's
+   six options put ~4.2 of 25 in the guessing floor (`logic-score.ts`'s own
+   chance figure), and a constructed response puts it at approximately
+   zero, which hands back the bottom of the scale that D53's curve had to
+   model its way around.
+2. **GPLv3 is a software licence carried on pictures.** Commercial use is
+   unambiguous — that is the whole reason this row clears. Whether shipping
+   the items inside a closed app raises a source obligation is not a
+   question a session answers, and it is in the class `CLAUDE.md` keeps
+   OUTSIDE D334's ask: a licence is met by complying with it, never by
+   deciding it away. On `OWNER-LIST.md` for a real answer before anything
+   ships.
+
+**What does not change, and is the reason this is affordable.** The server
+holds the key (D57): an OMIB item would be served and scored on exactly
+the path a generated one is, so no part of the anti-cheat posture moves.
+And the era stamp already written (D61's `items`, D402's `gv`) is the
+mechanism that keeps an OMIB score from ever mixing into a generated
+population — a bank change is an era change under a rule that exists.
+
+**The generator is not deleted, and here is the arithmetic for keeping
+it.** 220 fixed items is an answer key with a slower leak than 80, not the
+absence of one, and the app permits three starts a day
+(`LOGIC_MAX_STARTS_PER_DAY`). Two things follow, each its own decision once
+OMIB is in: adaptive administration over a calibrated bank spreads exposure
+(a taker meets ~15–20 of 220 rather than a fixed 25), and the generator
+remains the only source that can mint a fresh item at a target difficulty
+for as long as the app runs. D62's ledger keeps folding either way, and
+under the era stamp the two banks' ledgers cannot contaminate each other.
+
+**Blocked, and where.** The session that recorded this could not fetch the
+bank: this environment's egress reaches neither `osf.io` (where OMIB
+lives) nor any mirror of it — probed, not assumed; `github.com` is the only
+research host that answers. The 220 items and their published item
+parameters have to arrive by another route before any of this is built.
+On `OWNER-LIST.md`.
+
+## D473 amendment (2026-09-11, the same evening) · The archive read: the bank is a vocabulary, not artwork — and its answer key is public
+
+The owner supplied the bank by hand (the egress block stands; that row on
+`OWNER-LIST.md` is closed by the upload, not by a policy change). Reading
+it moved four things, two of them in the app's favour and one against.
+
+**The items are COMPOSITIONS, and this is the finding that matters.** An
+OMIB item is not a picture. It is nine cells over **twenty construction
+elements** — five families of four: a corner triangle, a diagonal line, an
+edge box, a centre shape (filled/outline × square/circle) and an edge
+arrow — one bit each, so an item is 9×20 bits and the bank's own renderer
+draws it from twenty path definitions totalling about forty lines. The
+practical consequences: **nothing is imported as artwork**, the committed
+bank is a 116 KB JSON, and the overlay composes OMIB items exactly the way
+it already composes generated ones. Visual request 14's stated binding
+constraint — "220 items of imported artwork" — was wrong and is corrected
+there. What survives of it is the interaction, which is the real cost.
+
+**Where the codes came from, and why two sources.** The spreadsheet's last
+column carries the full nine-group code, so the codes did not have to be
+inferred. They were ALSO recovered independently from the 226 published
+SVGs, by matching each drawn shape against the bank's own `drawing.js`
+table — string equality on path data, not image recognition. **All 220
+agree on all eight visible cells, and all 220 put the published answer in
+the ninth.** `check:omib` keeps both sources in the loop on every run
+rather than trusting either: a drift in one now shows up as a
+disagreement instead of as items that merely look plausible.
+
+**The artwork carries no answer.** All 226 SVGs render eight cells and
+omit the ninth. The gate stops if that ever changes, because a ninth
+rendered cell would mean the published pictures now show the solution.
+
+**But the ANSWER KEY IS PUBLIC, and that is the honest cost of this
+route.** The authors publish the solutions themselves, in the same
+spreadsheet, on the same open repository. D31 removed a shipped answer key
+and D57 moved the remaining one behind the server; neither of those is
+weakened here — `content/omib-key.json` is a separate file, the rules
+posture is unchanged, and a test holds `src/` to naming it nowhere — but
+the app can no longer say what it could say of the generator, which is
+that there is no key to find. There is one, it is two clicks away, and no
+amount of server discipline changes that. Recorded rather than
+engineered around: it is the price of items calibrated before launch, the
+owner's stated requirement, and it is the same price every published
+instrument pays. What it argues for is the thing already recorded at
+D473 — adaptive administration over the calibrated bank, and the
+generator kept for the forms nobody can look up.
+
+**The calibration, now measured rather than cited.** 219 of 220 items
+carry IRT parameters (one published without). Difficulty **b** spans
+−8.98 to +2.41, mean −0.17; discrimination **a** spans 0.11 to 5.16, mean
+2.09; proportion correct spans 0.06 to 0.98, mean 0.60. Rules per item
+form a clean pyramid — 20 · 50 · 80 · 50 · 20 for one through five. Two
+things to carry forward: a handful of items have **a** near zero and earn
+nothing, so the bank wants a floor before use; and **b**'s origin is the
+calibration sample, 2,572 medical-school applicants, so the ORDER
+transfers to this app's population and the zero point does not. The
+percentile still has to be ours.
+
+**No licence file in the archive.** Six files, none of them a licence —
+the GPLv3 statement lives in the paper, not in the bank. That is weaker
+than a LICENSE in the tree and stronger than Sandia's nothing (D473's
+table), and it does not change the `OWNER-LIST.md` row: the question was
+already what GPLv3 reaches, and it now also wants the paper's exact
+wording quoted where the bank is committed. `content/omib.json` and
+`content/omib-key.json` both carry the attribution and the caveat in
+their headers.
+
+**What is built:** `scripts/build-omib.mjs` (+ `--check`),
+`npm run build:omib` / `check:omib` wired into CI's lint job,
+`scripts/build-omib.test.mjs` (9 cases — the element vocabulary id by id,
+the refusal to skip an unknown shape, the nine-cell tripwire, and the
+key's absence from `src/`), the archive under `content/omib-source/`, and
+the two built files. **What is NOT built:** anything a user can see. The
+screen waits on visual request 14, which waits on a design.
+
+## D474 · OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank
+
+**Date:** 2026-09-12 · **Status:** built, deployed dark (`LOGIC_BANK =
+"generator"`), on the owner's *"go ahead with phase 1, use the same
+screen for practice"*. `docs/OMIB-PLAN.md` §8's phase 1, plus the practice
+call §5 left to the owner.
+
+**The one design decision, and what it buys.** The bank is a property of
+the ATTEMPT: `mintAttempt` stamps `bank` and the bank's own version on the
+document at start, and `logicSubmitV2` dispatches on the document, never
+on the constant. Three things follow. An attempt that straddles the flip
+scores on the bank it was minted on. The OMIB path is fully exercised by
+the fake-Firestore suite with `LOGIC_BANK` untouched — an OMIB attempt in
+the store submits, scores, folds and writes. And the flip itself (phase 2)
+is one word in one file, made when the screen that can answer a code
+exists; until then the current overlay, which sends six-way indexes, keeps
+getting the form it can render.
+
+**What is built.** `functions/src/irt.ts` — the 2PL, EAP on a 201-point
+grid under N(0, 1), the posterior SD as the standard error, Φ; pure.
+`functions/src/omib-bank.ts` — GENERATED by `scripts/build-omib.mjs` from
+the two content files, held byte-for-byte by `check:omib`, the
+`v2content.ts` discipline, because functions/ cannot import across the
+package and needs the key beside the items. `functions/src/omib.ts` — the
+218 usable items (one unparameterised, one under `OMIB_MIN_A = 0.5`),
+stratified seeded forms of 25 (2 · 6 · 9 · 6 · 2 by rule count, each
+stratum its own salted stream, the form ordered easy → hard by published
+*b*), exact-match dichotomous scoring, a 40-bin θ histogram, a per-item
+ledger (seen · solved · blank), the mid-rank measured percentile and the
+Φ model. `functions/src/logic.ts` — `rankAndFoldTheta` beside
+`rankAndFold` (same four decisions over θ; the band is θ̂ ± its own SE read
+through whatever ranked it), `submitOmib` as its own transaction body so
+the generator's stays byte-for-byte what production runs, `v: 3` on the
+verified record with `bank`, `theta`, `se`. `logicPracticeV2` — one
+callable, two calls, writes nothing (§ below). Exported, on the deploy
+list, App Check enforced, `functions/README.md`'s count moved to 47.
+
+**Practice, on the owner's word.** Without `picks` it mints a seed and
+returns the 25 codes — the bank is not in the client bundle, so the client
+cannot render what it was not handed. With `{seed, picks}` it scores that
+seed's form and returns θ with its SE, ranked against the public norms
+mirror when the reading is measured and against the model otherwise. No
+attempt document, no cooldown, no fold: the same seed scores again, and
+the emulator asserts that it does, because that is the property that
+distinguishes practice from a verified attempt. Unbounded per account,
+deliberately and recorded: one document read and 25 × 201 logistic
+evaluations, and a bound would want the attempt document practice does
+not have. The seed round-trips through the client on purpose — nothing is
+at stake — and marks are right-or-wrong per item, never the answer, which
+is public anyway (D473).
+
+**What the build's own tests found, and the plan now says.** With every
+discrimination equal the 2PL is the Rasch model, under which the raw count
+is a sufficient statistic: solving only the hardest item and solving only
+the easiest give the same θ̂ to six decimals. It looked like a bug and is
+a theorem, so `irt.test.ts` pins it, and pins beside it that it is the
+DISCRIMINATIONS that make which item you solved carry information — the
+bank's *a* runs 0.5 to 5.2 across the usable items, which is what makes
+"which eighteen" a question with an answer. `OMIB-PLAN.md` §2.2 carries
+the precision. The test that found it was wrong twice first — a two-item
+mirrored form is symmetric whichever item is solved, and "solved only the
+hardest" is not the mirror of "solved only the easiest" — and both
+mistakes are pinned too, so the reason stays true.
+
+**Verified, and how.** `irt.test.ts`, `omib.test.ts`; `rankAndFoldTheta`
+and `mintAttempt` in `logic.test.ts`; in `logic-submit.test.ts` an OMIB
+attempt's full submit (θ written, the θ histogram and per-item ledger
+folded under the OMIB era, `normsCounted` set), the generator's pick
+shape refused on an OMIB attempt and vice versa, a blank sheet scored
+zero and ledgered as unattempted, the effort floor holding for both
+banks, a generator-era histogram never folded into the OMIB one, and the
+practice callable starting, scoring, ranking against a measured mirror
+when one exists, refusing malformed input, and writing nothing. On the
+emulator, `e2e-v2-loop.mjs` gained the practice leg — start, score,
+score again on the same seed, refuse the generator's shape — beside the
+D57 verified leg, which is unchanged because production is. `tsc` on both
+packages, `typecheck:tests`, `check:appcheck` (33 callables),
+`check:deploy-targets` (47), `check:omib`, `check:content`,
+`check:data-inventory` (rows 17–19 now describe both eras),
+`check:figures`, `check:docs`, `check:monitoring`, eslint, `test:scripts`.
+
+**Not built, by design.** The flip, the screen (visual request 14 →
+built), the client wire (`logic-verify.ts` still sends indexes), and the
+copy for the model percentile — the sentence that says whom Φ compares
+against. Those are phase 2 and 3. The two honest limits stand as recorded:
+the 90 s is the bank's demo default until the paper is read, and the
+answer key is public.
+
+## D475 · OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now
+
+**Date:** 2026-09-12 · **Status:** built and live, on the owner's *"go
+ahead with phase 2"*. `docs/OMIB-PLAN.md` §8's phase 2, plus the flip
+phase 1 held back. Visual requests 14 and 8 → built.
+
+**The flip.** `LOGIC_BANK = "omib"` (`functions/src/logic.ts`), in the
+same commit as the screen that can answer a code, so no deployed tree
+ever serves codes to a client that cannot draw them. An attempt minted
+under the generator and submitted after this deploys still scores on the
+generator (D474's design: the bank is the attempt's). The e2e's verified
+leg now sends twenty-five 20-bit cells and asserts `bank: "omib"`, `theta`,
+`se` and the disclosed `diffs` on the way back.
+
+**The screen** (`src/v2/spec/logic-test.jsx`, replacing the six-tile
+picker; `design/logic-build-cell-2026-09-12/` is what it builds). A cell
+is drawn from `src/v2/data/omib-shapes.ts` — the twenty paths derived from
+the bank's own geometry, in the bank's counter-clockwise order, arrows out
+— so what a solver sees is what 2,572 people were calibrated on. The board
+composes the goal cell live from the ids placed; the palette is the
+alphabet laid out as one, column = family and row = member, tap to place
+and tap again to remove, a lit tile and the goal sharing the one accent;
+Clear appears once something is placed; Done commits. Done is dormant
+while the cell is empty and pressable throughout — an item a taker cannot
+solve is skipped by committing the empty cell, not by waiting out the
+clock — and the screen never infers "complete": only Done says so. The
+current item's segment drains over its 90 s, the numeral surfaces for the
+final 20 s, the sitting's remainder sits in the header, and a time-out
+commits the cell as it stands: a partial build is the answer, an empty one
+a miss. The worked example (request 8) is the design's own addition
+puzzle, shown solved over the resting palette on a first open, with Start
+— not a bank item, so it teaches without leaking — and reachable again
+from the result screen.
+
+**Both modes on the one screen** (D474, the owner's call). Practice:
+`startPractice` hands out a seed and the codes, `submitPractice` returns
+the seed with the cells, the server scores and keeps nothing. Verified:
+`startVerified` / `submitVerified` as before, the cells the only payload.
+The wire (`src/v2/data/logic-verify.ts`) carries `theta`, `se`, `bank` and
+the form's `diffs` back; the saved result is `v: 3` with them, and
+`LogicResult` says so. The generator is no longer imported by the overlay
+— it stays in the tree, byte-synced, for the results it produced and the
+forms a seed must reconstruct (D31).
+
+**What the number says, and why the sentence changed.** Both modes are
+scored against the bank's calibration, so the percentile below the D60
+floor is Φ(θ̂): the share of the calibration sample below the taker. That
+sample is 2,572 medical-school applicants, and a typical taker reads
+below its median — which is a fact about the sample, so the claim names
+it: *"Sharper than X% of the 2572 people this test was calibrated on
+(likely a–b)."* Once the verified histogram clears the floor the claim is
+*"of N verified players"* as before. The notes under the lenses say which
+mode was scored and that the charts are still sketches. **Practice now
+sends its cells to the server** — the device never has the key — which
+retired the sentence *"practice sends nothing anywhere"*: the example
+screen says what practice sends beside Start, `docs/data-inventory.md`
+row 17 says the same, and `web/privacy.html` needed nothing, because it
+never promised otherwise (its pins are the four-bands disclosure and the
+answer key, both intact — `check:policy-claims`). Generator-era results
+keep their old wording, and the v1 payload still renders.
+
+**Verified.** `logic-overlay.test.jsx`, rewritten: the example on a first
+open and from the result screen; a practice run building every cell
+(toggle on, toggle off, Clear, Done), the payload asserted cell for cell
+with the seed the start handed out, the result saved as v3 and counted
+nowhere, times to the millisecond; the clock (hidden, then 20 s, then 10 s,
+then the partial build committed at 90 s and the rest skipped empty); a
+refused start; Retry resubmitting the same twenty-five; a verified run
+badged; the measured claim; the five lenses on an OMIB result and the
+generator-era wording on a v1 one. `smoke-overlays`: the fresh start
+renders the example and the twenty shapes. `test:unit` 3,157;
+`test:scripts` 1,364; functions 1,036; the emulator 154 checks, 0
+failures, the verified leg on OMIB by θ. `tsc` both packages, eslint,
+`check:globals` (coupling 27, unchanged), `check:tap-targets` (the Clear
+control grown, the tiles ≈ 68 px), `check:a11y`, `check:public-copy`,
+`check:eager-content`, `check:bundle`, `check:docs`, `check:figures`.
+
+**Designed and not built, named rather than pretended — and one of the
+names was wrong, corrected the same day.** This paragraph first said the
+graded haptics (place light, remove softer, Done medium, none on a
+time-out) could not be built because *the web overlay has no haptic
+channel*. It has one: `spec/haptics.js` has been a named export since
+D39's conversion, and the feed, the tab bar and the sheet drag all speak
+through it — `navigator.vibrate`, felt on Android, silent on iOS and
+under reduced motion, which is the honest size of the claim. One grep
+would have found it; the sentence was written from memory of the
+standalone instead. So the screen speaks through it too, in the same
+afternoon: a placement is `tick` (the light weight), Done is `tap` (the
+committed one, a skip included — a Done on an empty cell is still a
+Done), the clock's commit at zero is silent by design, and REMOVE is
+silent as well — the module has two point weights and nothing softer
+than `tick`, so the softest thing it can say is nothing, and felt-versus-
+not is the difference the grading was there to make. Clear says nothing,
+being a removal. Pinned in `logic-overlay.test.jsx` through a mocked
+module, because jsdom has no `vibrate` and the real one proves nothing
+there. iOS feels none of it until a Capacitor bridge exists, which is
+what the first sentence meant and did not say. The drag alternative,
+which the design itself put second, stays unbuilt. The tap-to-explain on
+struck options from request 8 dissolved with the format — there are no
+struck options when the answer is built.
+
+**What phase 3 still owes** (`OMIB-PLAN.md` §4 is built server-side since
+D474; the rest): nothing on the norms — they fold and rank today. Phase 4
+— adaptive selection and the §6 report — waits on hundreds of first
+attempts. The two honest limits stand: the 90 s is the bank's demo
+default until the paper is read, and the answer key is public.
+
+## D476 · OMIB phase 4: adaptive selection built dark behind the report that decides its flip — and the report's own bar corrected by its test
+
+**Decision (2026-09-12, the owner: *"go ahead with phase 4"*).** Three
+things, in the order the plan's §8 sequenced them and one it did not:
+
+1. **Adaptive item selection is BUILT END TO END and shipped DARK.** The
+   pure selection (`omibNextItem`, `replayAdaptive`, `scoreOmibAdaptive`
+   in `functions/src/omib.ts`), a per-item callable `logicNextV2`, adaptive
+   practice through `logicPracticeV2`'s optional `mode`, and the overlay's
+   item-by-item walk (`nextVerified` / `nextPractice`, `isScore`) are all
+   in the tree and proved; what a phone meets is decided by ONE constant,
+   `OMIB_SELECTION = "stratified"` in `functions/src/logic.ts`, pinned in
+   `logic.test.ts` and by the emulator's start-shape check. Like the bank
+   (D474), the selection is a property of the ATTEMPT — stamped at start
+   as `mode`, honoured to the end — so a flip mid-attempt changes nothing
+   for anyone holding a form.
+2. **The §6 report exists:** `scripts/omib-report.mjs` (`npm run
+   report:omib`, `--emulator`, `--from docs.json`, `--json`), a pure
+   scorecard over the three public mirrors and the bank's published
+   parameters, rendered the way the console prints its scorecards. Run by
+   hand until the counts justify a schedule.
+3. **The flip is the owner's, on the report's verdict**, and is on
+   `OWNER-LIST.md` with what it costs. Not a label, not a routine: a
+   one-line change to the constant, recorded when it happens.
+
+**Why dark — the sentence the whole phase turns on.** The report reads
+per-item solve rates off the STRATIFIED ledger to say whether the bank's
+published difficulties hold for this app's takers. Adaptive
+administration meets every item near its taker's 50 % point, so under it
+an item's solve rate says nothing about its b — the report's instrument
+would be spoiled by the very thing it is meant to license. So the
+stratified era has to run long enough to answer the question first, and
+adaptive attempts, when they come, fold their item counts into their OWN
+document (`v2_logic_norms/adaptive`, `finishOmib`'s ledger choice by
+`mode`) and never into `families`. The θ̂ histogram folds both: θ is one
+scale whichever way the items were chosen, and a rank is a rank.
+
+**What the selection decides, and why.**
+
+- **Content balance is the pyramid, as hard quotas.** `OMIB_STRATA`'s
+  slots (2·6·9·6·2 by rule count) are ceilings on an adaptive form too,
+  so every taker still meets the same KIND of test — which the histogram
+  mixing both modes' θ̂ requires: two forms that measure different
+  constructs cannot share a rank. The price is stated by the probe rather
+  than hidden: on an all-wrong path the easy strata's slots are spent by
+  the middle of the form, and the last seven items served are the four-
+  and five-rule ones the pyramid still owes (b −0.3 → +1.1 on seed 7),
+  served because they are owed, not because they are informative there;
+  an all-right path meets the mirror image plus the bank's own ceiling —
+  the four-rule stratum tops out at b 0.88 and the three-rule at 1.65, so
+  few items exist above b 1.5 at any quota. Pinned in `omib.test.ts`
+  ("climbs … until the pyramid's quotas bind").
+- **The next item is a randomesque draw among the K most informative
+  eligible items at the current θ̂** (Kingsbury & Zara), K = max(5, 15 −
+  2·step). Wide at the start because every taker's θ̂ is the same prior
+  there — a pure maximum would open every attempt with one item — and
+  narrowing to five once the answers have separated the takers. Over 200
+  seeds the opener takes at least ten values, all from the fifteen most
+  informative at the start; pinned.
+- **θ̂ before any answer is −0.5, not the prior's 0.** The calibration
+  sample is selected upward (§4 expects this app's takers below its
+  median), and a first puzzle slightly on the easy side of a taker's
+  level is the standard opening — a fraction of one item's information
+  for a start that is not a wall.
+- **Deterministic in (seed, picks).** The same seed and the same picks
+  name the same items, so the form is REPLAYED rather than stored:
+  practice stays stateless (every pick so far goes back with the seed,
+  ≤ 25 × 20 characters), and a verified attempt's document holds the
+  picks alone — no item list a reader could take for a key. Replay costs
+  at most 25 EAPs on the 201-point grid, under five milliseconds.
+
+**What it buys, measured** (`omib.test.ts` "what adaptive selection
+buys": 60 simulated takers per level answering under the bank's own 2PL,
+seeded, each once on their seed's stratified form and once adaptively):
+
+| θ | SE stratified | SE adaptive | RMSE stratified | RMSE adaptive |
+| --- | --- | --- | --- | --- |
+| −2 | 0.440 | 0.364 | 0.391 | 0.295 |
+| −1 | 0.306 | 0.221 | 0.280 | 0.198 |
+| 0 | 0.210 | 0.143 | 0.197 | 0.125 |
+| 1 | 0.294 | 0.231 | 0.304 | 0.205 |
+| 2 | 0.471 | 0.363 | 0.378 | 0.373 |
+| all | 0.344 | 0.264 | 0.318 | 0.254 |
+
+A 23 % narrower standard error over the whole, a fifth less error against
+the ability that generated the answers, and the gain is smallest at +2,
+where the bank runs out of hard items (the paragraph above). §2.4's
+"≈ 0.25 with the same 25" was an estimate; 0.264 is the measurement, and
+the test holds the ratio under 0.8 so the claim cannot quietly stop being
+true.
+
+**The protocol, and the promise it keeps.** Twenty-five transactions per
+attempt instead of two. `logicNextV2({ index, pick })` appends the pick,
+replays the form, answers with the next item — or, on the twenty-fifth,
+scores and folds exactly as a stratified submit does (`finishOmib`, one
+body for both). Idempotent on a repeat (the same index with the same pick
+is a client that did not hear the answer, and gets it again); a
+different pick at a taken index or a skipped index is refused; and a
+final call whose answer was lost on the way back is answered a second
+time from the profile's stored result, so a phone's network cannot cost
+a finisher their attempt. The attempt document gains `mode` and `picks`
+and NOTHING ELSE: the server could now observe one arrival per item, and
+the D57 promise — per-item timings never leave the device; the server
+records only the attempt's duration — is kept by not recording what it
+sees. `data-inventory.md` rows 18–19 say so; `web/privacy.html` needed no
+word changed, and `check:policy-claims` agrees.
+
+On the phone the pick leaves under the reveal delay, so the round trip
+and the 520 ms animation overlap and the next item is shown when both
+are done; the committed board is the waiting state (a slow network shows
+the landed cell a little longer — no spinner, by the design's own
+economy), a failed call holds the cell under a Retry that sends the same
+pick again, and the per-item clock re-arms as each item appears, so a
+round trip never costs solving time (`logic-overlay.test.jsx` pins the
+times at exactly the dwell). The strip draws the form's full length from
+the start. The two disclosure sentences did not move and are still true:
+verified cells are scored on the server and join an anonymous count;
+practice sends its cells and keeps nothing — now every cell so far, each
+time.
+
+**Cost arithmetic.** Firestore: 24 more small writes per adaptive
+attempt (the held picks) and 24 more reads; at a thousand attempts a day
+that is 24k of each, ≈ $0.04 + $0.01 a day at list price. Callable
+invocations: 25 per attempt instead of 2, each ~10 ms of compute on the
+light tier — 25k a day against a free tier of two million a month. The
+cost that is real is latency: one round trip per item on a phone's
+network, which the overlap above hides when the network is ordinary and
+shows when it is not.
+
+**The report's bar, corrected by its own test — the finding of the
+phase.** §6 said *r beyond −0.8* between an item's published b and its
+observed solve rate. `omib-report.test.mjs` generated 400 attempts' worth
+of answers FROM the published parameters — the case where the
+calibration transferred perfectly — and the figure read **−0.76**. Not
+noise alone: b predicts a solve rate only through the item's
+discrimination and the population's θ, and with a varying across the bank
+the NOISE-FREE ceiling of r(b, rate) at this population is **−0.83**
+(computed, and printed on the page beside the figure). A bar of −0.8 on
+that pair would have called a perfect transfer a failure at any count
+short of a thousand attempts. So the verdict rests on the pair that is
+linear by construction when the calibration holds: **each item's
+EXPECTED solve rate under the 2PL at the θ̂ distribution actually observed,
+against its observed rate — r ≥ 0.8**. On the synthetic ledgers that
+figure reads 0.75 at 100 attempts, 0.86 at 200, 0.93 at 400 and 0.97 at
+800 when the answers came from the published parameters, and 0.12–0.19
+at every size when they came from a scrambled difficulty; the plan's r is
+still printed, with its ceiling, and Spearman's ρ beside it. **The floor
+is 300 counted attempts** (`OMIB_REPORT_MIN_N`), not the norms' hundred:
+at a hundred the transferred case reads under the bar — a false "did not
+transfer" — and clears it from two hundred with little margin. Both
+numbers are pinned in the test, on both cases. The page also prints the
+clock's signature (the share of sightings that ended blank, and whether
+it rises with b), the population (θ̂ mean, SD, median, share below the
+calibration sample's median — a mean below 0 is expected, and the
+sentence says why), the five items whose observed rate moved furthest
+from the model's, and exposure per ledger against an even draw.
+
+**Practice's `mode` is a seam, named.** The overlay never sends one and
+gets `OMIB_SELECTION`; the emulator suite sends `"adaptive"` to prove the
+path while the constant is `"stratified"`; and the owner can try the
+adaptive test on a phone before deciding the flip — by calling the
+practice callable with the mode, since no control offers it (a control
+would be a toggle on the example screen, not a visual, and is not built
+until asked). A practice attempt counts for nothing either way.
+
+**Proved by.** `omib.test.ts` 25 cases (seven on the selection, one
+simulation); `logic-submit.test.ts` 27 (six on the adaptive attempt's
+callable through the fake transaction, three on adaptive practice);
+`logic.test.ts` pins `OMIB_SELECTION` and the minted shapes; the
+emulator's loop at 209 checks — the start shapes pinned with `mode` and
+`total`, and 11c, adaptive practice: one item at a time, twenty-five
+without a repeat, θ on the last, the same picks replaying the same path,
+26 picks refused; `logic-overlay.test.jsx` 14 (practice adaptive with the
+payload asserted on every Done, the lost pick and its Retry, verified
+adaptive with each index); `omib-report.test.mjs` 8 (transferred,
+scrambled, the floors, another era, the adaptive ledger kept out of the
+correlation, determinism). `tsc` both packages, eslint, `check:globals`
+(coupling 27), `check:appcheck` (35 callables), `check:deploy-targets`
+and `check:fn-runtime` at 50 functions, `test:unit` 3,281.
+
+**Records moved.** `docs/OMIB-PLAN.md` — the status line, §2.4's
+measured line, §3.3 rewritten as built, §6's instrument, §8's row 4;
+`docs/data-inventory.md` rows 18–19; `docs/VISUAL-REQUESTS.md` request 14
+and the design README (the screen also walks an adaptive form; fourteen
+cases); `functions/README.md` at 50; the deploy list; `OWNER-LIST.md`.
+
+**Known limits, named rather than pretended.** Exposure under adaptive
+selection is only MONITORED (the `adaptive` ledger, the report's exposure
+line) — no Sympson–Hetter control, which needs a population to tune on
+and can be added when the ledger has one. The overlay has no "waiting"
+state beyond the committed board, so a network that takes seconds shows
+a landed cell for seconds. The θ̂ histogram mixes the two modes' readings,
+which differ in SE though not in scale. And the whole phase is dark until
+a number that needs three hundred honest attempts exists — which is the
+plan working as written, not a shortfall of it.
+
+## D477 · No practice: the logic test is taken like an IQ test — the practice half of D474 retired the day it shipped, and the callable with it
+
+**Decision (the owner, 2026-09-12, reading the built test: *"i dont
+thik they should be able to practice theis should be simlar to a iq
+test"*).** Practice on the bank is retired whole. `logicPracticeV2` is
+DELETED — not left deployed and unused, because a callable that hands
+out bank items and scores them IS practice, whoever calls it — and the
+client's practice paths go with it: `startPractice`, `submitPractice`,
+`nextPractice`, the `practice` flag on the wire. The one screen has one
+kind of attempt: the worked example, then Start, which is the verified
+attempt. The example stays — an IQ test shows an example before the
+first scored item, and request 8 teaches the format, not the items.
+"Again" is the server's cooldown as D57 set it — one verified score per
+30 days, three starts a day — shown where the button is ("verified
+recently — try again later"), and the interval is the knob if the owner
+wants it longer.
+
+**Why the reversal is right, on its own arithmetic.** A practice form is
+25 of the bank's 218 items; ten practice runs would have shown most of
+the bank, and a score after previews measures preparation rather than
+the ability the parameters were calibrated on — first sight, every item,
+for all 2,572 people. D474's "use the same screen for practice" was the
+owner's answer to a question the plan put (§9) before the built test
+was in their hand; this is the same owner reversing it with the reason,
+and the reversal is recorded rather than the earlier record edited.
+
+**What changed, exactly.**
+
+- **Server**: the callable, `scorePractice`, `readPublicNorms` and the
+  mirror read — 49 functions on the deploy list, 34 callables under App
+  Check. Nothing else moves: the attempt document, the ledgers, the
+  histogram, `logicNextV2` and the adaptive path are as D476 left them.
+- **Client**: Start on the example screen begins the verified attempt,
+  and the example screen carries the verified disclosure — a consent
+  notice, shown before the first Start as the copy rule requires
+  (COPY.md §3). The result screen's two buttons (*Retake* · *Verified
+  attempt*) become one, *Take again*. A practice result saved on a
+  device before today still reads with the note it earned; nothing new
+  can earn it.
+- **The privacy page needed no word** — it never named practice — and
+  `check:policy-claims` agrees.
+
+**What it costs the proof of the adaptive path, and the way through.**
+The emulator's practice legs (11b, 11c) were how the adaptive path was
+exercised end to end while `OMIB_SELECTION` is stratified; they go with
+practice. So the verified leg now WALKS WHICHEVER SELECTION THE START
+DECLARES — one submit for a stratified form, twenty-five `logicNextV2`
+calls for an adaptive one, each asserted — which means the day the
+constant flips, the same leg proves the adaptive path on the emulator in
+the PR that flips it, before it deploys. Until then the callable is
+proved through the fake transaction (`logic-submit.test.ts`, six cases).
+The owner's "try adaptive on a phone first" now means a test build with
+the constant flipped; the OWNER-LIST row says so.
+
+**Proved by.** `logic-overlay.test.jsx` (the example screen's Start is
+the verified attempt and carries its disclosure; the mechanics — Clear,
+the clock, a commit as it stands, a lost submit's Retry — on the one
+attempt; *Take again*; the adaptive walk and its lost pick);
+`logic-submit.test.ts` without its practice suites; the emulator's loop
+with the mode-aware verified leg; `check:deploy-targets` and
+`check:fn-runtime` at 49, `check:appcheck` at 34; every gate green.
+
+**Records moved.** `docs/OMIB-PLAN.md` §5 (the practice paragraph, now
+the reversal), §9, §8 rows 1 and 4, §3.3's replay bullet;
+`docs/data-inventory.md` row 19; `docs/VISUAL-REQUESTS.md` request 14;
+`OWNER-LIST.md` — the practice row superseded, the flip row's "try it"
+sentence; the design README's "both modes" line.
+
+## D478 · One attempt every 30 days, from the start of the last — and an attempt interrupted inside its window is resumed, never restarted
+
+**Decision (the owner, 2026-09-12, one line after D477: *"and one
+change can only be taken once every 30 days"*).** One attempt every 30
+days, and the interval runs from the START of the previous attempt,
+whatever came of it: scored, abandoned, or expired unscored — each was
+the chance. `canStartLogic` in `functions/src/logic.ts` is the whole of
+the rule; `LOGIC_REVERIFY_DAYS = 30` is the number, mirrored on the
+client as `LOGIC_RETAKE_DAYS` (`src/v2/data/logic-score.ts`), pinned at
+30 in both suites so neither side moves alone.
+
+**What it replaces, and why the replacement is stricter on purpose.**
+D57 allowed one VERIFIED score per 30 days and three STARTS a day, the
+starts being "a preview channel — bounded per UTC day rather than
+closed, because a crashed app must be able to start again". Two things
+changed under that sentence. Practice is gone (D477), so an unscored
+restart became the last way to see the bank without being measured on
+it: three fresh forms a day is 75 of 218 items, and a fortnight of it
+is the bank. And the reason for the bound — the crash — never needed a
+NEW form; it needed the same one back. So the daily counter is retired
+(`dayKey` and `startsToday` stop being written; older documents keep
+theirs and are judged by their start alone), and **an open attempt
+inside its window is RESUMED**: `logicStartV2` hands the same attempt
+back — the same seed, so the same items; for an adaptive attempt the
+next unanswered item with `index`, the picks before it being the
+server's already — with `deadlineMs` now meaning what is LEFT of the
+window (the whole of it on a fresh start), and writes nothing. Past the
+window, the attempt was the chance, and the next opens 30 days after
+it started.
+
+**The refusal says when.** "one attempt every 30 days — the next opens
+in N days", computed server-side and shown where a refused start always
+has been. The result screen reads the same countdown off the saved
+result's `when` — *Next attempt in N days* in the button's place until
+the day it opens — so a person is not offered a button the server will
+refuse; the server's line still lands if the device's clock disagrees.
+A resumed attempt's sitting clock is the shorter of the form's length
+at the cap and the window left; the items answered before the
+interruption carry no timing on this device (nulls, which the Pace lens
+skips), and the marks are the server's regardless.
+
+**Proved by.** `logic.test.ts` (the rule: fresh, resume, expired-open
+refused, scored refused with the days and the singular, the boundary at
+exactly 30 days, a pre-D478 document judged by its start);
+`logic-submit.test.ts` (the callable through the fake transaction: a
+mint without the day counter, a stratified resume handing the same form
+back and writing nothing, an adaptive resume at its next item, the
+refusals and the day the next opens, the D32 flag carried across); the
+emulator's verified leg (a second start inside the window resumes the
+same items with the time left; after scoring, a new start is refused
+naming the day); `logic-overlay.test.jsx` (the refusal shown, the
+countdown in the button's place and the button back on the day, a
+resumed adaptive attempt continuing at its index with the header
+showing the window left); `logic-score.test.ts` (the mirror at 30, the
+pace with nulls).
+
+**Records moved.** `docs/OMIB-PLAN.md` §5; `docs/data-inventory.md` row
+18. The privacy page needed no word: it never named a cadence for the
+test, and `check:policy-claims` agrees.

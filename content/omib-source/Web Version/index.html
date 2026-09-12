@@ -1,0 +1,215 @@
+<head>
+	<link rel="stylesheet" href="css/matrices.css" />
+</head>
+
+<div class="root">
+	<div class="head">
+		<span> Task 1 of 20 </span>
+		<div class="time">
+			<span>Remaining Time in Seconds: </span>
+			<span id="time">90</span>
+		</div>
+	</div>
+	<div class="item-container">
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat1"
+			ref="mat1"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat2"
+			ref="mat2"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat3"
+			ref="mat3"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat4"
+			ref="mat4"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat5"
+			ref="mat5"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat6"
+			ref="mat6"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat7"
+			ref="mat7"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat8"
+			ref="mat8"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-item"
+			id="mat9"
+			ref="mat9"
+		></svg>
+	</div>
+	<div class="opt-container">
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el0"
+			@click="drawSymbol(0)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el1"
+			@click="drawSymbol(1)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el2"
+			@click="drawSymbol(2)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el3"
+			@click="drawSymbol(3)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el4"
+			@click="drawSymbol(4)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el5"
+			@click="drawSymbol(5)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el6"
+			@click="drawSymbol(6)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el7"
+			@click="drawSymbol(7)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el8"
+			@click="drawSymbol(8)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el9"
+			@click="drawSymbol(9)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el10"
+			@click="drawSymbol(10)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el11"
+			@click="drawSymbol(11)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el12"
+			@click="drawSymbol(12)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el13"
+			@click="drawSymbol(13)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el14"
+			@click="drawSymbol(14)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el15"
+			@click="drawSymbol(15)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el16"
+			@click="drawSymbol(16)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el17"
+			@click="drawSymbol(17)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el18"
+			@click="drawSymbol(18)"
+		></svg>
+		<svg
+			viewBox="0 0 100 100"
+			class="element e-opt"
+			id="el19"
+			@click="drawSymbol(19)"
+		></svg>
+	</div>
+	<button id="submit" class="submitbutton" type="submit">CONTINUE</button>
+	<input
+		id="solution"
+		typ="text"
+		name="solution"
+		size="20"
+		hidden
+		value="00000000000000000000"
+	/>
+	<input id="log" typ="text" name="log" hidden value="" />
+</div>
+
+<script src="javascript/svg.js"></script>
+<script src="javascript/drawing.js"></script>
+<script>
+	const itemCode =
+		"10100000000000000000,00110000000000000000,00100000000000000000,01010000000000000000,11000000000000000000,01000000000000000000,01100000000000000000,11000000000000000000,00000000000000000000";
+	let timelimit = 90;
+	setInterval(() => {
+		timelimit--;
+		if (timelimit <= 0) document.getElementById("submit").click();
+		else document.getElementById("time").textContent = timelimit;
+	}, 1000);
+	document.addEventListener("DOMContentLoaded", () => redrawItem(itemCode));
+</script>

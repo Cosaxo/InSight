@@ -360,11 +360,23 @@ describe("the lists on this tree", () => {
     // "its fine how it is now" — and the ring drawing every kind of dot
     // was built the same day, so item 13 crossed two sections in two days
     // and § Drafted is empty again.
-    expect(v.requested.length).toBe(8);
+    // Requested 9 since 2026-09-11 (D473), on the OMIB branch: the logic
+    // test's answer screen — item 14, filed as 13 until the merge met the
+    // ring's 13 above — because OMIB's taker BUILDS the missing cell out of
+    // twenty elements instead of tapping one of six tiles, which is an
+    // interaction and not a control, so D352 sends it here before it is
+    // built. Designed the next day off the owner's Build the Cell upload
+    // (design/logic-build-cell-2026-09-12/README.md) and Built the same
+    // day (D475), with 8 — the worked example, answered in the same
+    // artboard — moving under Built with it, because it teaches the
+    // screen 14 is. So Requested 7 and Built 9 once the two branches
+    // were one tree: main's 8 requested less the example, its 7 built
+    // plus the screen and the example.
+    expect(v.requested.length).toBe(7);
     expect(v.planned).toEqual([]);
     expect(v.drafted).toEqual([]);
     expect(v.designed.length).toBe(0);
-    expect(v.built.length).toBe(7);
+    expect(v.built.length).toBe(9);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });
