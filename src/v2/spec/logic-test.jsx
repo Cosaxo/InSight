@@ -8,6 +8,7 @@ import { useDialog } from './primitives.jsx';
 import { FIELD_MED, loadResult, logicSecs, saveResult } from '../data/logic-score';
 import { startPractice, submitPractice, startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
 import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEMENTS } from '../data/omib-shapes';
+import { HAPTIC } from './haptics.js';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · matrix reasoning on the Open Matrices Item Bank (D471,
@@ -497,6 +498,9 @@ export let LOGIC;
     // the reveal delay, then advances or submits.
     const commit = (expired) => {
       if (phase !== 'building') return;
+      // The design's weights (VR 14): Done is the committed weight; the
+      // clock's commit is silent — a buzz at zero would read as a verdict.
+      if (!expired) HAPTIC.tap();
       const pick = cellOf(goal);
       // Read the clock here, in the handler, not in render (purity). The
       // cap bounds what an expired (or backgrounded) puzzle records.
@@ -516,6 +520,11 @@ export let LOGIC;
     };
     const toggle = (id) => {
       if (phase !== 'building') return;
+      // Placing is the light weight; removing is silent. The module has no
+      // weight softer than `tick`, so the softest thing it can say is
+      // nothing — and felt-versus-not is the difference the design's
+      // grading (place light, remove softer) was there to make.
+      if (!goal.includes(id)) HAPTIC.tick();
       setGoal((g) => (g.includes(id) ? g.filter((x) => x !== id) : [...g, id]));
     };
     const clear = () => { if (phase === 'building') setGoal([]); };

@@ -52667,12 +52667,29 @@ failures, the verified leg on OMIB by θ. `tsc` both packages, eslint,
 control grown, the tiles ≈ 68 px), `check:a11y`, `check:public-copy`,
 `check:eager-content`, `check:bundle`, `check:docs`, `check:figures`.
 
-**Designed and not built, named rather than pretended.** The graded
-haptics (place light, remove softer, Done medium, none on a time-out): the
-web overlay has no haptic channel, and Capacitor's is a later increment.
-The drag alternative, which the design itself put second. The tap-to-
-explain on struck options from request 8 dissolved with the format —
-there are no struck options when the answer is built.
+**Designed and not built, named rather than pretended — and one of the
+names was wrong, corrected the same day.** This paragraph first said the
+graded haptics (place light, remove softer, Done medium, none on a
+time-out) could not be built because *the web overlay has no haptic
+channel*. It has one: `spec/haptics.js` has been a named export since
+D39's conversion, and the feed, the tab bar and the sheet drag all speak
+through it — `navigator.vibrate`, felt on Android, silent on iOS and
+under reduced motion, which is the honest size of the claim. One grep
+would have found it; the sentence was written from memory of the
+standalone instead. So the screen speaks through it too, in the same
+afternoon: a placement is `tick` (the light weight), Done is `tap` (the
+committed one, a skip included — a Done on an empty cell is still a
+Done), the clock's commit at zero is silent by design, and REMOVE is
+silent as well — the module has two point weights and nothing softer
+than `tick`, so the softest thing it can say is nothing, and felt-versus-
+not is the difference the grading was there to make. Clear says nothing,
+being a removal. Pinned in `logic-overlay.test.jsx` through a mocked
+module, because jsdom has no `vibrate` and the real one proves nothing
+there. iOS feels none of it until a Capacitor bridge exists, which is
+what the first sentence meant and did not say. The drag alternative,
+which the design itself put second, stays unbuilt. The tap-to-explain on
+struck options from request 8 dissolved with the format — there are no
+struck options when the answer is built.
 
 **What phase 3 still owes** (`OMIB-PLAN.md` §4 is built server-side since
 D472; the rest): nothing on the norms — they fold and rank today. Phase 4

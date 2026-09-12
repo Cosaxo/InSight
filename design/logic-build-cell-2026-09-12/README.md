@@ -16,9 +16,13 @@ InSight standalone, so the extraction differs from the numbered series
 **Built 2026-09-12 (D473)**, the same day: `src/v2/spec/logic-test.jsx` is
 the screen, `src/v2/data/omib-shapes.ts` its twenty shapes, and
 `logic-overlay.test.jsx` its eleven cases. What the artboard decided is
-what was built, with the two corrections below honoured; what it drew
-and the web overlay cannot do yet — the graded haptics — is named in
-`docs/VISUAL-REQUESTS.md` § Built rather than pretended.
+what was built, with the two corrections below honoured, the graded
+haptics included — through `spec/haptics.js`, the channel the rest of
+the app already speaks, felt on Android and silent on iOS until a
+Capacitor bridge exists (D473 has the correction: this note first said
+the overlay had no channel). What it drew and was not built — the drag
+alternative — is named in `docs/VISUAL-REQUESTS.md` § Built rather than
+pretended.
 
 ## What the upload holds
 

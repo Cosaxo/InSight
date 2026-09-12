@@ -29,7 +29,12 @@ vi.mock("../data/logic-verify", () => ({
   submitVerified: vi.fn(),
   verifyErrorMessage: (e) => (e && e.message) || "err",
 }));
+// The haptic module is mocked so the weights can be ASSERTED: jsdom has no
+// navigator.vibrate, so the real module is silent here and would prove
+// nothing about which handler spoke.
+vi.mock("../spec/haptics.js", () => ({ HAPTIC: { tick: vi.fn(), tap: vi.fn(), reveal: vi.fn(), off: () => true } }));
 import { startPractice, submitPractice, startVerified, submitVerified } from "../data/logic-verify";
+import { HAPTIC } from "../spec/haptics.js";
 import "../spec/logic-test.jsx";
 
 const COMMIT_DELAY = 520; // logic-test.jsx's reveal delay, pinned by the timing case
@@ -107,6 +112,7 @@ describe("a practice attempt (D472)", () => {
     vi.useFakeTimers();
     vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });
     vi.mocked(submitPractice).mockResolvedValue(score({ practice: true }));
+    HAPTIC.tick.mockClear(); HAPTIC.tap.mockClear();
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await act(async () => {}); // resolve startPractice
@@ -120,13 +126,17 @@ describe("a practice attempt (D472)", () => {
     fireEvent.click(tile("filled circle"));
     expect(tile("corner top-left").getAttribute("aria-pressed")).toBe("true");
     screen.getByRole("button", { name: "Clear" });
+    expect(HAPTIC.tick).toHaveBeenCalledTimes(2); // each placement is felt, at the light weight
     fireEvent.click(tile("filled circle"));
     expect(tile("filled circle").getAttribute("aria-pressed")).toBe("false");
+    expect(HAPTIC.tick).toHaveBeenCalledTimes(2); // removing is silent (VR 14: "remove softer")
     // Clear empties the cell and disappears
     fireEvent.click(tile("arrow up"));
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
     expect(tile("corner top-left").getAttribute("aria-pressed")).toBe("false");
+    expect(HAPTIC.tick).toHaveBeenCalledTimes(3); // the arrow placed; Clear said nothing
+    expect(HAPTIC.tap).not.toHaveBeenCalled(); // nothing committed yet
 
     // now answer every item with shape i, dwelling 3s so the clock measures something
     const want = [];
@@ -144,6 +154,7 @@ describe("a practice attempt (D472)", () => {
 
     // the payload is the constructed cells, exactly as built, with the seed the start handed out
     expect(vi.mocked(submitPractice)).toHaveBeenCalledWith(7, want);
+    expect(HAPTIC.tap).toHaveBeenCalledTimes(N); // every Done, at the committed weight
     // the result screen: the count, the claim against the calibration sample, the range, the note
     screen.getByText(/25 of 25/);
     screen.getByText(/Sharper than 96% of the 2572 people this test was calibrated on \(likely 93–98\)\./);
@@ -162,6 +173,7 @@ describe("a practice attempt (D472)", () => {
     vi.useFakeTimers();
     vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });
     vi.mocked(submitPractice).mockResolvedValue(score({ marks: Array.from({ length: N }, () => false), score: 0, theta: -2.1, pctile: 2, band: [1, 4] }));
+    HAPTIC.tick.mockClear(); HAPTIC.tap.mockClear();
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await act(async () => {});
@@ -180,9 +192,12 @@ describe("a practice attempt (D472)", () => {
     act(() => { vi.advanceTimersByTime(COMMIT_DELAY); });
     expect(screen.queryByRole("timer")).toBeNull();
     expect(tile("box top").getAttribute("aria-pressed")).toBe("false"); // item 2, fresh
+    expect(HAPTIC.tick).toHaveBeenCalledTimes(1); // the one placement
+    expect(HAPTIC.tap).not.toHaveBeenCalled(); // the clock's commit is silent — a buzz at zero would read as a verdict
 
     for (let i = 1; i < N; i++) done(); // skip the rest with the empty cell
     await act(async () => {});
+    expect(HAPTIC.tap).toHaveBeenCalledTimes(N - 1); // a Done on an empty cell is still a Done
     const sent = vi.mocked(submitPractice).mock.calls[0][1];
     expect(sent[0]).toBe(cellOf([8])); // the partial build WAS the answer
     expect(sent.slice(1).every((c) => c === EMPTY)).toBe(true); // Done on an empty cell is a skip
