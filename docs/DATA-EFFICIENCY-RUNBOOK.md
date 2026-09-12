@@ -419,7 +419,7 @@ same merge and took one read off a reveal and one off the rules.
 > word they stand. **The word came the same evening (D447's amendment):
 > superseded — the steps below are not built as written; the work is
 > `LOG-FIRST-RUNBOOK.md` phase B.** **And phase B shipped 2026-09-11
-> (D458) closer to these steps than to the Redis design:** 5.1's
+> (D467) closer to these steps than to the Redis design:** 5.1's
 > increment fold for the daily lane, 5.2's shards and minutely compactor
 > — stateless on `dirtyAt` rather than a `hotQids` list, the union
 > re-capped as 5.2's correction says — and 5.3's `maxInstances` 50 in

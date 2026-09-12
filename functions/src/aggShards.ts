@@ -1,5 +1,5 @@
 // aggShards.ts — the daily lane's aggregate, sharded; and the compactor
-// that publishes it (LOG-FIRST-RUNBOOK phase B, D458; the design is
+// that publishes it (LOG-FIRST-RUNBOOK phase B, D467; the design is
 // ANSWER-SCALE.md §4 with DATA-EFFICIENCY.md §3's correction).
 //
 // THE WALL. Every answer to a question was one transaction on

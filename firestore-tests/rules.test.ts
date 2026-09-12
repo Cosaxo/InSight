@@ -352,7 +352,7 @@ describe("v2 questions + aggregates", () => {
       await setDoc(doc(db, "v2_agg_overflow", "daily-000-5"), {
         city: { "Tail01, NO": { "0": 1 } },
       });
-      // A counter shard (phase B, D458): the trigger's working state.
+      // A counter shard (phase B, D467): the trigger's working state.
       await setDoc(doc(db, "v2_agg_shards", "daily-000-3"), {
         qid: "daily-000", s: 3, counts: { "0": 2 }, total: 2, dirtyAt: 1,
       });

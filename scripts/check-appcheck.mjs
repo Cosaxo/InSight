@@ -82,7 +82,7 @@ const EXEMPT = {
     gate: "assertOperator",
     reason:
       "operator callable, the aggregate compactor's manual lever (phase B, "
-      + "D458): publish one sharded question now, or everything dirtied in "
+      + "D467): publish one sharded question now, or everything dirtied in "
       + "a day after an outage longer than the schedule's lookback — and the "
       + "e2e's only way to read a count it cannot wait a minute for; gated "
       + "on SEED_ADMIN_UIDS",

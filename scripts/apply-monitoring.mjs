@@ -120,7 +120,7 @@ const METRICS = [
     filter: 'jsonPayload.metric="velocity_scan"',
   },
   {
-    // The aggregate compactor's heartbeat (aggShards.ts, phase B / D458):
+    // The aggregate compactor's heartbeat (aggShards.ts, phase B / D467):
     // every minute, idle runs included, because for a sharded question
     // this run is the only writer of the document every client reads.
     name: "agg_compact",

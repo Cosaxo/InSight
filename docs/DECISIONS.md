@@ -50541,7 +50541,7 @@ promising what it no longer does is the failure D183 exists to stop,
 pointed the other way. The page still loads no external script, which is
 what it was before D451 and what its one-inline-script design is for.
 
-## D457 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
+## D466 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
 
 **2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK A.7, built on
 the owner's *"start with the free ones, A.7 and the rules gate"*. The
@@ -50552,7 +50552,7 @@ plan's own §5. The row said *"Phase 3's gate and Phase 4's split remain
 proposals"* two days after the gate shipped; it is corrected in this
 change, and the finding under it is the one `check:docs` rule 7
 already records for the Status column — a row that summarises a page
-goes stale the day the page moves, so read the page. Numbered D457
+goes stale the day the page moves, so read the page. Numbered D466
 after D452 on this branch; `main` may have claimed it since, and D408's
 rule makes that a move at merge, not a wait.
 
@@ -50643,7 +50643,7 @@ typecheck clean, eslint clean. Not verified from here: a real BigQuery
 answering the two shapes — the first night's `log_shadow` line is that
 test, and the emulator and the suites are off by construction.
 
-## D458 · Phase B: the daily lane's aggregate is sharded and a compactor publishes it — on Firestore, with Redis as the swap and not the start
+## D467 · Phase B: the daily lane's aggregate is sharded and a compactor publishes it — on Firestore, with Redis as the swap and not the start
 
 **2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK phase B, built on
 the owner's *"build phase B"*. The wall D7 recorded and every cost page

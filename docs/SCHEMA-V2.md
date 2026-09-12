@@ -288,7 +288,7 @@ one shard per question, and only for a question whose hot map is at the
 cap and lacks its own city or country (src/v2/data/overflow.ts); the
 client computes the same hash, pinned on both sides.
 
-v2_agg_shards/{qid}-{s}            the DAILY lane's COUNTER SHARDS (phase B, D458),
+v2_agg_shards/{qid}-{s}            the DAILY lane's COUNTER SHARDS (phase B, D467),
   { qid, s, counts, total,         s = FNV-1a(uid) mod AGG_SHARDS (16), plus
     by, edits, dirtyAt }           {qid}-base. For a question the daily bank
                                    names the answer trigger never reads or

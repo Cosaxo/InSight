@@ -1043,7 +1043,7 @@ pays a shard read per such question at the City stop — and the runbook's
 first response is to move `B.tailShare` in the cost model from its honest
 zero, not to raise the threshold.
 
-### The compactor's heartbeat: the daily's counts stopping (phase B, D458)
+### The compactor's heartbeat: the daily's counts stopping (phase B, D467)
 
 Since phase B the daily question's published document —
 `v2_question_aggs/{qid}`, what every client polls — is written by

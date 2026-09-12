@@ -230,7 +230,7 @@ ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 // too short is a flaky suite, and the cost of a longer ceiling is zero on
 // every run that does not need it — the loop breaks the moment the
 // document appears.
-// THE DAILY IS SHARDED (phase B, D458): the trigger writes the person's
+// THE DAILY IS SHARDED (phase B, D467): the trigger writes the person's
 // counter shard and the compactor publishes v2_question_aggs once a
 // minute — a minute this suite cannot wait, so every read of q0's
 // published document below goes through `settled`: run the operator
@@ -760,7 +760,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   for (const [c, cell] of Object.entries(tailCells)) {
     if (cellSumOf(cell) !== 1) fail(`tail cell ${c} should hold one answer: ` + JSON.stringify(cell));
   }
-  // WHICH one-answer cities are in the tail changed with phase B (D458):
+  // WHICH one-answer cities are in the tail changed with phase B (D467):
   // the hot path evicted the OLDEST sub-floor bucket to admit a newcomer,
   // so the tail held the earliest arrivals; the compactor re-caps the
   // union deterministically — the biggest buckets stay hot, ties by name

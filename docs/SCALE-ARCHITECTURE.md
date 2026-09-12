@@ -397,7 +397,7 @@ runbook: S an afternoon, M a few days, L a week or more.
   aggregate; the contention wall and the trigger's ceiling go. **This
   supersedes Phase 5 of the efficiency runbook** — the same compactor
   idea, a cheaper counter store, and no shard documents to fold. Needs
-  the owner's word on D98's sentence (§7). **Built 2026-09-11 (D458) on
+  the owner's word on D98's sentence (§7). **Built 2026-09-11 (D467) on
   Firestore shards rather than Redis** — the compactor as this page
   designs it, the counter store the one that bills per operation, so
   nothing is a fixed line at two users; §3.2's Redis is the swap of that

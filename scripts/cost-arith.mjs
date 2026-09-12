@@ -422,7 +422,7 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // about, is unchanged.
 export const TRIGGER_READS = { world: 3, duel: 1 };
 // THE DAILY LANE READS TWO since phase B (functions/src/aggShards.ts,
-// D458): the ledger event and the profile, never the published aggregate
+// D467): the ledger event and the profile, never the published aggregate
 // — the fold is a blind increment on a counter shard, and the compactor
 // below publishes the sum. The model keeps charging `world: 3` for every
 // world answer, the same deliberate approximation as catalog's fourth
@@ -431,7 +431,7 @@ export const TRIGGER_READS = { world: 3, duel: 1 };
 // here so the constant beside it is read as what it is.
 export const TRIGGER_READS_DAILY = 2;
 
-// ── the daily lane's shards and the compactor (phase B, D458) ───
+// ── the daily lane's shards and the compactor (phase B, D467) ───
 //
 // The daily question's answers no longer contend on one document: the
 // trigger writes one of AGG_SHARDS counter documents and a minutely

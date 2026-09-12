@@ -276,7 +276,7 @@ taken down and built.
    direction. Purge and `check:purge` extended in the same change; the
    feed mirror's stay-behind is the recorded deviation.
 3. ~~**Sharding stays shelved, buildable (§4).**~~ **Built 2026-09-11
-   (D458)** — on the owner's word rather than the alert, as
+   (D467)** — on the owner's word rather than the alert, as
    `LOG-FIRST-RUNBOOK.md` phase B: §4's design with DATA-EFFICIENCY §3's
    correction (the compactor re-caps the union) and one more — the daily
    bank's questions are sharded by construction, off the compiled

@@ -104,7 +104,7 @@ until phase D.
       `DEPLOYMENT.md` § The answer log; the App Check exemption and the
       deploy list for the callable; `COSTS.md`'s note (bytes: under a
       dollar a month at every size in its table).
-- [x] **A.7 The shadow queries. DONE 2026-09-11 (D457)** —
+- [x] **A.7 The shadow queries. DONE 2026-09-11 (D466)** —
       `functions/src/logShadow.ts`, the pass's tenth runner, right after
       the reconcile so the day it reads is the day the reconcile just
       made whole. Built in two halves rather than the one the step
@@ -179,7 +179,7 @@ says `missing: 0`), and an erased account's rows are gone within a day —
 the third is `log.test.ts`'s fakes plus one production deletion read in
 the console, because the emulator has no BigQuery to prove it against.
 
-## Phase B — counters and the compactor · **M** · D98's amendment given 2026-09-09 · **BUILT 2026-09-11 (D458) on Firestore shards — Redis is the swap, not the start**
+## Phase B — counters and the compactor · **M** · D98's amendment given 2026-09-09 · **BUILT 2026-09-11 (D467) on Firestore shards — Redis is the swap, not the start**
 
 > **The start condition (2026-09-09, `COST-EXPOSURE.md` §8).** Redis is
 > the one line in the target that does not scale down: Memorystore
@@ -195,7 +195,7 @@ the console, because the emulator has no BigQuery to prove it against.
 > batching do not need the counters to exist. Recorded as an ask on
 > `OWNER-LIST.md` so the owner can move the threshold either way.
 >
-> **Built 2026-09-11 without the instance (D458).** The owner's word was
+> **Built 2026-09-11 without the instance (D467).** The owner's word was
 > *build phase B*. What makes Redis a fixed line is the counter STORE,
 > not the compactor, so the counters shipped as Firestore documents —
 > `v2_agg_shards/{qid}-{s}`, blind increments, no read on the hot path —
@@ -205,7 +205,7 @@ the console, because the emulator has no BigQuery to prove it against.
 > write when `npm run costs:target` prints the per-answer trigger line
 > above the instance. The wall is gone either way.
 
-- [x] **B.1 The counters. DONE 2026-09-11 (D458), as Firestore shards.**
+- [x] **B.1 The counters. DONE 2026-09-11 (D467), as Firestore shards.**
       `functions/src/aggShards.ts`: for a question the daily bank names
       (`SHARDED_QIDS`, off the compiled content — never the answer's own
       `surface` claim), the trigger writes `shardIncrements` /
@@ -230,7 +230,7 @@ the console, because the emulator has no BigQuery to prove it against.
       recent-voters list. · **Gate:** the counter fold over a fake Redis
       equals `breakdownFor`'s document on a fixture; a probe at 100
       answers a second to one question.
-- [x] **B.2 The compactor. DONE 2026-09-11 (D458).** `compactAggShardsV2`,
+- [x] **B.2 The compactor. DONE 2026-09-11 (D467).** `compactAggShardsV2`,
       `* * * * *`, `COMPACTOR` (256 MiB, 55 s — under the interval, so
       runs never overlap). STATELESS: it republishes every question with
       a shard dirtied in the last `COMPACT_LOOKBACK_MS` (fifteen minutes)
@@ -266,7 +266,7 @@ the console, because the emulator has no BigQuery to prove it against.
       compacted document equals the trigger's own fold on the same
       answers; the e2e loop reads the same counts it reads today.
 - [x] **B.3 The trigger stops rewriting the aggregate. DONE 2026-09-11
-      (D458), for the daily lane.** The vote and edit branches of
+      (D467), for the daily lane.** The vote and edit branches of
       `v2.ts` take a second path for a sharded question: `tx.getAll(event,
       profile)` — two reads, not three; the profile stays for D410's
       honesty check, so the pin is 13 → 15 (two `getAll` shapes), not
@@ -290,7 +290,7 @@ the console, because the emulator has no BigQuery to prove it against.
       §4's rule); `pulse.test.mjs`'s trigger read pins move (3 → 1, the
       ledger event). · **Gate:** `vote.test.ts`, the e2e loop,
       `pulse.test.mjs`.
-- [x] ~~**B.4 The counter reconcile.**~~ **NOT NEEDED as built (D458),
+- [x] ~~**B.4 The counter reconcile.**~~ **NOT NEEDED as built (D467),
       struck rather than deleted.** The step existed because a Redis
       increment after the commit can be delivered twice; a Firestore
       increment INSIDE the ledger-marked transaction cannot — the mark
@@ -300,7 +300,7 @@ the console, because the emulator has no BigQuery to prove it against.
       store, if it ever comes. Original text: *Yesterday's exact cells
       from the log back into Redis, nightly, so a retried trigger's
       double increment lasts a day at most. · Gate: `log.test.ts`.*
-- [x] **B.5 Monitoring. DONE 2026-09-11 (D458), two of three.** The
+- [x] **B.5 Monitoring. DONE 2026-09-11 (D467), two of three.** The
       heartbeat `agg_compact` on every run, idle ones included, and
       `monitoring/compactAggShardsV2-silent.json` — the digest's
       threshold shape at a ten-minute window, `check:monitoring` green.

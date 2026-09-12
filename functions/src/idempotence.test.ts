@@ -564,7 +564,7 @@ describe("the answer log mirrors the ledger, once per commit (D447 phase A)", ()
   });
 });
 
-// ── the sharded lane (aggShards.ts, phase B / D458) ─────────────
+// ── the sharded lane (aggShards.ts, phase B / D467) ─────────────
 //
 // A question the daily bank names takes the other path: no read of the
 // published document, no write to it — a blind increment on the person's

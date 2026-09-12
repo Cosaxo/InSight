@@ -1008,7 +1008,7 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
 
   it("phase B: the refresh keeps the mark until the published counts HOLD the answer — a document that exists is no longer proof", async () => {
     // The daily's document is written by the compactor once a minute
-    // (D458), so the refresh two and a half seconds after a vote finds a
+    // (D467), so the refresh two and a half seconds after a vote finds a
     // document that exists and does not hold the vote. The old rule
     // cleared on existence and hid the person's own +1 for a minute;
     // the rule is now ANSWER-SCALE.md §4's — the count moved past what

@@ -385,7 +385,7 @@ const state = {
   // remember is the drift this file has already paid for once.
   unaggregatedFrom: {} as Record<string, string>,
   // …and the published counts this device HELD when the mark was set
-  // (phase B, D458). The daily's aggregate is written by a compactor once
+  // (phase B, D467). The daily's aggregate is written by a compactor once
   // a minute rather than by the fold, so a document that merely exists is
   // no longer proof the answer is in it: the mark clears when the count
   // has moved past what was held (ANSWER-SCALE.md §4's rule). Null where

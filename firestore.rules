@@ -154,7 +154,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // The daily lane's counter shards (phase B, D458): the answer trigger's
+    // The daily lane's counter shards (phase B, D467): the answer trigger's
     // blind increments for a question the daily bank names, `{qid}-{s}` by
     // person hash plus a `{qid}-base` the compactor migrates the published
     // document into. Working state, not a reading — the compactor sums

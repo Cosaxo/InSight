@@ -1201,7 +1201,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // honestAnchors() in pure.ts has why the rule that would check it
       // cannot exist. One more billed read, no extra round trip, and the
       // lock window on v2_question_aggs/{qid} is unchanged.
-      // THE DAILY LANE IS SHARDED (aggShards.ts, phase B / D458): a
+      // THE DAILY LANE IS SHARDED (aggShards.ts, phase B / D467): a
       // question the daily bank names never has its published document
       // read or rewritten here. The event and the profile are still one
       // batched read; the publish is a blind increment on the person's

@@ -1,4 +1,4 @@
-// aggShards.test.ts — the daily lane sharded (phase B, D458): the shard a
+// aggShards.test.ts — the daily lane sharded (phase B, D467): the shard a
 // person lands in, the blind writes a first answer and an edit make, the
 // sum over shards, the cap over the union, the base a published document
 // becomes, and the compactor's run.

@@ -557,7 +557,7 @@ export async function runRebuild(
 
   const before = await accRef.get();
   const beforeTotal = (before.exists && (before.get("total") as number)) || 0;
-  // A SHARDED question (aggShards.ts, phase B / D458) is folded by its
+  // A SHARDED question (aggShards.ts, phase B / D467) is folded by its
   // counter shards, not by the published document — the compactor writes
   // that once a minute from the shards — so the concurrency guard has to
   // watch the shards: a fold landing during the scan is a shard's write,

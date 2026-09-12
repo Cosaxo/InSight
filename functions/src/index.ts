@@ -1404,7 +1404,7 @@ export const deleteAccount = onCall(
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
 export { seedContentV2, onV2AnswerCreated, onV2AnswerUpdated } from "./v2";
 export { onV2ProfileUpdated } from "./profileFanout";
-// Phase B (D458): the daily lane's compactor and its operator lever.
+// Phase B (D467): the daily lane's compactor and its operator lever.
 export { compactAggShardsV2, compactAggShardsNowV2 } from "./aggShards";
 export {
   acceptGroupInviteV2,

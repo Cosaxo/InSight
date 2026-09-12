@@ -52,7 +52,7 @@ Every constant below is sourced, not assumed:
 | One world answer | 1 client write + 1 server write (`v2_agg_events`) | `onV2AnswerCreated`, functions/src/v2.ts |
 | …plus the published aggregate | +1 write **per answer**, always | no cadence since D98; it IS the fold's working document since the private mirror collapsed |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
-| One DAILY answer, since phase B (D458) | +1 rule read + **2** server reads (ledger event, the author's profile) and one UNCONTENDED write — the person's counter shard — where the world row below reads three and writes the one document everyone writes. The published document is neither read nor written on the hot path; the compactor's row writes it | `isShardedQid` and `shardIncrements`, functions/src/aggShards.ts; the vote and edit branches of v2.ts. The model keeps charging the world row's three for every world answer (`TRIGGER_READS_DAILY` in scripts/cost-arith.mjs says why: one read high on the daily's quarter) |
+| One DAILY answer, since phase B (D467) | +1 rule read + **2** server reads (ledger event, the author's profile) and one UNCONTENDED write — the person's counter shard — where the world row below reads three and writes the one document everyone writes. The published document is neither read nor written on the hot path; the compactor's row writes it | `isShardedQid` and `shardIncrements`, functions/src/aggShards.ts; the vote and edit branches of v2.ts. The model keeps charging the world row's three for every world answer (`TRIGGER_READS_DAILY` in scripts/cost-arith.mjs says why: one read high on the daily's quarter) |
 | The compactor, every minute | 1 query (a read, even empty) and, for the daily when it was dirtied in the last fifteen minutes, `AGG_SHARDS` + 1 reads and 1 write, +8 tail writes or deletes past the cap — a FLAT line, not a per-user one: about 26 k reads and up to 13 k writes a day for the daily once ~100 people answer it, cents a month at any size, and the wall it replaces was at ~14,400 DAU | `compactAggShardsV2`, functions/src/aggShards.ts; `compactorReadsPerDay` / `compactorWritesPerDay` in scripts/cost-arith.mjs, every constant read from source |
 | One duel answer | 1 client write + 1 server transaction on the group document (1 read, 1 write: who played, and the round's clock on its first answer) — and, on the answer that completes the round, the reveal below runs right there | v2.ts duel branch (ROUNDS-PLAN §3.1, D426). It was one blind `pendingDays` arrayUnion with no read |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
@@ -113,7 +113,7 @@ roughly double on the three operation lines.
 | Scale | 50,000 | 7.1 M | 1.5 M | 126 | 2.70 | **128** |
 | Hit | 500,000 | 70.3 M | 14.6 M | 1,237 | 43 | **1,280** |
 
-> **Re-printed 2026-09-11 (phase B, D458).** Two lines moved and both
+> **Re-printed 2026-09-11 (phase B, D467).** Two lines moved and both
 > are flat: the compactor's own reads and writes — a query a minute, a
 > read per shard and a write per minute the daily is dirty — which is
 > why the launch row's reads tripled and its bill rose twenty-five
@@ -197,7 +197,7 @@ roughly double on the three operation lines.
 > day's deleted accounts (a pass billed at $6.25 a TiB, the table under
 > a gibibyte for a long time). `npm run costs:target` carries both as
 > lines; not a line here until phase D moves the folds onto it. **Since
-> A.7 (2026-09-11, D457) the night also shadows the folds** — two
+> A.7 (2026-09-11, D466) the night also shadows the folds** — two
 > aggregate queries over the day's partition and one id lookup per
 > twenty thousand of the ledger day's entries over three partitions'
 > id column, each query billed at BigQuery's 10 MB minimum: about a
@@ -1504,7 +1504,7 @@ surprise:
   rate is still not modelled and does not need to be, because the *ceiling*
   is: `setGlobalOptions` sets `maxInstances: 10` (functions/src/ops.ts) and
   one per-function override raises it — `HOT_TRIGGER` carries **50** since
-  phase B (D458), on the two answer triggers alone, because the ceiling of
+  phase B (D467), on the two answer triggers alone, because the ceiling of
   200 folds in flight was the system's answer throughput and it is raised
   in the change that removed the contended document it would otherwise
   have queued against. Ten instances of the hot trigger's shape (1 vCPU,
