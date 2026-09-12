@@ -88,10 +88,10 @@ const fakeDb = {
 
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
-const { logicSubmitV2, logicPracticeV2, mintAttempt, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } =
+const { logicSubmitV2, logicPracticeV2, logicNextV2, mintAttempt, OMIB_SELECTION, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } =
   await import("./logic");
 const { version: GEN_VERSION } = await import("./logic-gen");
-const { OMIB_FORM_ITEMS, OMIB_BANK_VERSION, EMPTY_CELL, omibForm } = await import("./omib");
+const { OMIB_FORM_ITEMS, OMIB_BANK_VERSION, EMPTY_CELL, omibForm, omibNextItem, replayAdaptive } = await import("./omib");
 const { OMIB_KEY } = await import("./omib-bank");
 
 const UID = "u1";
@@ -362,5 +362,157 @@ describe("practice on the OMIB bank", () => {
   it("refuses a malformed seed or sheet", async () => {
     await expect(run({ seed: -1, picks: new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) })).rejects.toThrow(/seed/);
     await expect(run({ seed: 3, picks: new Array(OMIB_FORM_ITEMS).fill(0) })).rejects.toThrow(/twenty-character/);
+  });
+});
+
+// ── an adaptive attempt (D474, docs/OMIB-PLAN.md §3.3) ───────────────────
+// DARK behind OMIB_SELECTION, so the emulator cannot mint one; this is
+// where the per-item callable's branching is proved — the walk, the hold,
+// the repeat, the out-of-step refusal, the lost final answer, and which
+// ledger the counts fold into.
+describe("an adaptive attempt", () => {
+  const SEED = 4242;
+  const next = (index: number, pick: unknown) =>
+    (logicNextV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data: { index, pick } });
+  const openAdaptive = (over: Doc = {}) =>
+    openAttempt({
+      bank: "omib", gv: OMIB_BANK_VERSION, mode: "adaptive", seed: SEED, picks: [],
+      startedAtMs: Date.now() - OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM - 1,
+      ...over,
+    });
+  const keyOfNext = (picks: string[]) => OMIB_KEY[(replayAdaptive(SEED, picks).next as { n: number }).n];
+
+  it("is minted with its first item only, the selection on the document", () => {
+    const a = mintAttempt(null, Date.now(), SEED, "omib", "adaptive");
+    expect(a.attempt).toMatchObject({ bank: "omib", mode: "adaptive", gv: OMIB_BANK_VERSION });
+    expect(a.attempt.picks).toBeUndefined();
+    expect(a.items).toEqual([{ code: omibNextItem(SEED, []).code }]);
+    const s = mintAttempt(null, Date.now(), SEED, "omib", "stratified");
+    expect(s.attempt.mode).toBe("stratified");
+    expect(s.items).toHaveLength(OMIB_FORM_ITEMS);
+    expect(mintAttempt(null, Date.now(), SEED, "omib").attempt.mode).toBe(OMIB_SELECTION);
+  });
+
+  it("walks the form one pick at a time, holding the picks and no timing, then scores and folds — into its own ledger", async () => {
+    openAdaptive();
+    const picks: string[] = [];
+    for (let k = 0; k < OMIB_FORM_ITEMS - 1; k++) {
+      const pick = keyOfNext(picks);
+      const out = await next(k, pick);
+      picks.push(pick);
+      expect(out).toEqual({ items: [{ code: (replayAdaptive(SEED, picks).next as { code: string }).code }], index: k + 1, total: OMIB_FORM_ITEMS });
+      const doc = store.get(ATTEMPT) as Doc;
+      expect(doc.status).toBe("open");
+      expect(doc.picks).toEqual(picks);
+      // nothing per item but the cell: no item list, no arrival times
+      expect(Object.keys(doc).sort()).toEqual(["bank", "dayKey", "deadlineMs", "gv", "mode", "normsCounted", "picks", "seed", "startedAtMs", "startsToday", "status"]);
+      expect(store.has(`v2_users/${UID}`)).toBe(false);
+    }
+    const out = await next(OMIB_FORM_ITEMS - 1, keyOfNext(picks));
+    expect(out).toMatchObject({ score: OMIB_FORM_ITEMS, bank: "omib", mode: "adaptive", seed: SEED, gv: OMIB_BANK_VERSION, source: "model" });
+    expect(out.diffs).toHaveLength(OMIB_FORM_ITEMS);
+    expect(out.marks).toEqual(new Array(OMIB_FORM_ITEMS).fill(true));
+    const doc = store.get(ATTEMPT) as Doc;
+    expect(doc.status).toBe("scored");
+    expect(doc.picks).toHaveLength(OMIB_FORM_ITEMS);
+    expect(doc.normsCounted).toBe(true);
+    const result = ((store.get(`v2_users/${UID}`) as Doc).testResults as Doc).logic as Doc;
+    expect(result).toMatchObject({ v: 3, verified: true, bank: "omib", mode: "adaptive", seed: SEED, theta: out.theta, se: out.se });
+    // the θ histogram counts it like any first attempt…
+    expect(store.get("v2_logic_norms_private/global")).toMatchObject({ bank: "omib", n: 1 });
+    expect(store.get("v2_logic_norms/global")).toMatchObject({ bank: "omib", n: 1 });
+    // …and the item counts go to the ADAPTIVE ledger, never the report's
+    expect(store.has("v2_logic_norms_private/families")).toBe(false);
+    expect(store.has("v2_logic_norms/families")).toBe(false);
+    const ledger = store.get("v2_logic_norms_private/adaptive") as Doc;
+    expect(ledger).toMatchObject({ bank: "omib", mode: "adaptive", n: 1 });
+    expect(Object.keys(ledger).filter((k) => /^i_\d+_seen$/.test(k))).toHaveLength(OMIB_FORM_ITEMS);
+    expect(store.get("v2_logic_norms/adaptive")).toMatchObject({ mode: "adaptive", n: 1 });
+  });
+
+  it("says the same thing twice to a client that did not hear it, and refuses one out of step", async () => {
+    openAdaptive();
+    const first = keyOfNext([]);
+    const a = await next(0, first);
+    const b = await next(0, first);
+    expect(b).toEqual(a);
+    expect((store.get(ATTEMPT) as Doc).picks).toEqual([first]);
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/expected the pick for item 2/);
+    await expect(next(5, EMPTY_CELL)).rejects.toThrow(/expected the pick for item 2/);
+    await expect(next(1, "1".repeat(19))).rejects.toThrow(/twenty-character/);
+    await expect(next(OMIB_FORM_ITEMS, EMPTY_CELL)).rejects.toThrow(/index/);
+    await expect(next(-1, EMPTY_CELL)).rejects.toThrow(/index/);
+    expect((store.get(ATTEMPT) as Doc).picks).toEqual([first]);
+  });
+
+  it("hands the result over again when the final call's answer was lost, and refuses a different final pick", async () => {
+    openAdaptive();
+    for (let k = 0; k < OMIB_FORM_ITEMS - 1; k++) await next(k, EMPTY_CELL);
+    const out = await next(OMIB_FORM_ITEMS - 1, EMPTY_CELL);
+    expect(out).toMatchObject({ score: 0, mode: "adaptive" });
+    const again = await next(OMIB_FORM_ITEMS - 1, EMPTY_CELL);
+    expect(again).toEqual(out);
+    await expect(next(OMIB_FORM_ITEMS - 1, "1".repeat(20))).rejects.toThrow(/already scored/);
+    await expect(next(3, EMPTY_CELL)).rejects.toThrow(/already scored/);
+    expect(store.get("v2_logic_norms_private/global")).toMatchObject({ n: 1 }); // folded once
+  });
+
+  it("refuses the one-shot submit on an adaptive attempt, and the per-item call on a stratified one", async () => {
+    openAdaptive();
+    const submitBlank = () =>
+      (logicSubmitV2 as unknown as { run: (r: unknown) => Promise<unknown> }).run({
+        auth: { uid: UID }, data: { picks: new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) },
+      });
+    await expect(submitBlank()).rejects.toThrow(/item by item/);
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "stratified", seed: SEED });
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/not an adaptive attempt/);
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: SEED }); // a pre-D474 document: stratified
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/not an adaptive attempt/);
+  });
+
+  it("refuses past the deadline, and a signed-out caller before touching the store", async () => {
+    openAdaptive({ deadlineMs: Date.now() - 1 });
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/expired/);
+    store.clear();
+    await expect(
+      (logicNextV2 as unknown as { run: (r: unknown) => Promise<unknown> }).run({ auth: null, data: { index: 0, pick: EMPTY_CELL } }),
+    ).rejects.toThrow(/signed in/);
+    expect(store.size).toBe(0);
+  });
+});
+
+describe("adaptive practice", () => {
+  const run = (data: unknown) =>
+    (logicPracticeV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data });
+
+  it("starts with one item when asked for adaptive, and follows the server's selection otherwise", async () => {
+    const a = await run({ mode: "adaptive" });
+    expect(a).toMatchObject({ mode: "adaptive", total: OMIB_FORM_ITEMS });
+    expect(a.items).toEqual([{ code: omibNextItem(a.seed as number, []).code }]);
+    const d = await run({});
+    expect(d.mode).toBe(OMIB_SELECTION);
+    expect(d.items).toHaveLength(OMIB_SELECTION === "adaptive" ? 1 : OMIB_FORM_ITEMS);
+    expect(store.size).toBe(0);
+  });
+
+  it("replays the picks so far to the next item, and scores at twenty-five — writing nothing", async () => {
+    const { seed } = (await run({ mode: "adaptive" })) as { seed: number };
+    const picks: string[] = [];
+    for (let k = 0; k < OMIB_FORM_ITEMS; k++) {
+      const out = await run({ seed, mode: "adaptive", picks });
+      const it = replayAdaptive(seed, picks).next as { n: number; code: string };
+      expect(out).toEqual({ items: [{ code: it.code }], index: k, total: OMIB_FORM_ITEMS });
+      picks.push(OMIB_KEY[it.n]);
+    }
+    const s = await run({ seed, mode: "adaptive", picks });
+    expect(s).toMatchObject({ practice: true, mode: "adaptive", bank: "omib", score: OMIB_FORM_ITEMS, seed, source: "model" });
+    expect(store.size).toBe(0);
+  });
+
+  it("refuses more picks than the form has items, and a malformed cell", async () => {
+    const { seed } = (await run({ mode: "adaptive" })) as { seed: number };
+    await expect(run({ seed, mode: "adaptive", picks: new Array(OMIB_FORM_ITEMS + 1).fill(EMPTY_CELL) })).rejects.toThrow(/up to 25/);
+    await expect(run({ seed, mode: "adaptive", picks: ["x"] })).rejects.toThrow(/up to 25/);
+    await expect(run({ seed, mode: "adaptive", picks: "0".repeat(20) })).rejects.toThrow(/up to 25/);
   });
 });

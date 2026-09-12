@@ -2076,8 +2076,15 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 {
   const started = await httpsCallable(fns, "logicStartV2")({});
   const keys = Object.keys(started.data).sort();
-  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items"])) {
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items", "mode", "total"])) {
     fail("logicStartV2 returned unexpected keys: " + JSON.stringify(keys));
+  }
+  // The selection is STRATIFIED until the §6 report clears its bar (D474):
+  // pinned here as well as in logic.test.ts, because this is the deployed
+  // shape a phone meets, and a flip that skipped the report would spoil
+  // the report's own instrument.
+  if (started.data.mode !== "stratified" || started.data.total !== 25) {
+    fail("logicStartV2 minted something other than a stratified 25-item form: " + JSON.stringify({ mode: started.data.mode, total: started.data.total }));
   }
   // Belt as well as braces: assert on the SERIALIZED response, so a key
   // nested inside `items` is caught too. `"a"` is the correct-tile index
@@ -2133,9 +2140,10 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 {
   const started = await httpsCallable(fns, "logicPracticeV2")({});
   const keys = Object.keys(started.data).sort();
-  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "items", "seed"])) {
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "items", "mode", "seed", "total"])) {
     fail("logicPracticeV2 start returned unexpected keys: " + JSON.stringify(keys));
   }
+  if (started.data.mode !== "stratified") fail("practice did not follow the server's selection: " + started.data.mode);
   const { seed, items } = started.data;
   if (!Array.isArray(items) || items.length !== 25) fail("logicPracticeV2 did not hand out 25 items");
   for (const it of items) {
@@ -2170,6 +2178,65 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     if (e?.code !== "functions/invalid-argument") fail("wrong refusal for a malformed practice sheet: " + (e?.code || e));
   }
   ok("…and refuses a sheet that is not 25 twenty-bit cells");
+}
+
+// 11c · Adaptive practice (D474, docs/OMIB-PLAN.md §3.3) — the adaptive
+// path is DARK for verified attempts until the §6 report clears its bar,
+// so practice's `mode` is the emulator's way onto it: a start hands out ONE
+// item; each call carries every pick so far and comes back with the next
+// item — never a repeat, never more than the code, its ninth cell empty —
+// and the twenty-fifth comes back with θ. Stateless like the rest of
+// practice, so the same picks replay the same items.
+{
+  const started = await httpsCallable(fns, "logicPracticeV2")({ mode: "adaptive" });
+  const keys = Object.keys(started.data).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "items", "mode", "seed", "total"])) {
+    fail("adaptive practice start returned unexpected keys: " + JSON.stringify(keys));
+  }
+  const { seed, items: first } = started.data;
+  if (started.data.mode !== "adaptive" || started.data.total !== 25 || !Array.isArray(first) || first.length !== 1) {
+    fail("adaptive practice did not start with exactly one item of twenty-five: " + JSON.stringify(started.data));
+  }
+  const blank = "0".repeat(20);
+  const served = [first[0].code];
+  const picks = [];
+  let last = null;
+  for (let k = 0; k < 25; k++) {
+    picks.push(blank);
+    const res = await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks });
+    if (k < 24) {
+      const d = res.data;
+      if (!Array.isArray(d.items) || d.items.length !== 1 || d.index !== k + 1 || d.total !== 25 || Object.keys(d).sort().join() !== "index,items,total") {
+        fail(`adaptive practice pick ${k + 1} did not come back with exactly the next item: ` + JSON.stringify(d));
+      }
+      const cells = String(d.items[0].code).split(",");
+      if (Object.keys(d.items[0]).join() !== "code" || cells.length !== 9 || cells[8] !== blank) {
+        fail("an adaptive item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(d.items[0]));
+      }
+      served.push(d.items[0].code);
+    } else {
+      last = res.data;
+    }
+  }
+  if (new Set(served).size !== 25) fail("adaptive practice repeated an item");
+  if (!last || last.practice !== true || last.mode !== "adaptive" || last.bank !== "omib" || last.score !== 0 || typeof last.theta !== "number" || typeof last.se !== "number") {
+    fail("adaptive practice did not score the twenty-fifth pick by θ: " + JSON.stringify(last));
+  }
+  if (!Array.isArray(last.diffs) || last.diffs.length !== 25) fail("adaptive practice did not disclose the form's difficulties after scoring");
+  ok("adaptive practice serves one item at a time, twenty-five without a repeat, and scores by θ (D474)");
+
+  // Stateless: the same seed and the same picks replay the same items.
+  const again = await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks: picks.slice(0, 7) });
+  if (again.data.items?.[0]?.code !== served[7]) fail("adaptive practice did not replay the same item for the same picks");
+  ok("…and replays the same path from the same picks, holding nothing");
+
+  try {
+    await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks: Array(26).fill(blank) });
+    fail("adaptive practice accepted 26 picks");
+  } catch (e) {
+    if (e?.code !== "functions/invalid-argument") fail("wrong refusal for a 26-pick adaptive sheet: " + (e?.code || e));
+  }
+  ok("…and refuses more picks than the form has items");
 }
 
 // 12 · The self-serve paid-question loop (paid.ts, D313): book → the

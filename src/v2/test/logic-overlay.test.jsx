@@ -27,13 +27,16 @@ vi.mock("../data/logic-verify", () => ({
   submitPractice: vi.fn(),
   startVerified: vi.fn(),
   submitVerified: vi.fn(),
+  nextPractice: vi.fn(),
+  nextVerified: vi.fn(),
+  isScore: (x) => "marks" in x,
   verifyErrorMessage: (e) => (e && e.message) || "err",
 }));
 // The haptic module is mocked so the weights can be ASSERTED: jsdom has no
 // navigator.vibrate, so the real module is silent here and would prove
 // nothing about which handler spoke.
 vi.mock("../spec/haptics.js", () => ({ HAPTIC: { tick: vi.fn(), tap: vi.fn(), reveal: vi.fn(), off: () => true } }));
-import { startPractice, submitPractice, startVerified, submitVerified } from "../data/logic-verify";
+import { startPractice, submitPractice, startVerified, submitVerified, nextPractice, nextVerified } from "../data/logic-verify";
 import { HAPTIC } from "../spec/haptics.js";
 import "../spec/logic-test.jsx";
 
@@ -325,5 +328,100 @@ describe("the result screen's five lenses", () => {
     screen.getByText(/this practice result sent nothing anywhere/i);
     screen.getByText("8"); // the 8th row's numeral
     expect(screen.queryByText("9")).toBeNull(); // and no phantom 9th
+  });
+});
+
+// ── an adaptive attempt (D474): one item at a time ───────────────────────
+// Dark behind the server's OMIB_SELECTION, so what a phone meets today is
+// the stratified form above; this is the screen's half of the adaptive
+// path, proved against the wire shapes the server serves.
+describe("an adaptive attempt (D474)", () => {
+  const first = () => [codes()[0]];
+  // the server's answer to `picks` so far: the next item, or the result at 25
+  const nextFor = (picks) =>
+    picks.length < N ? { items: [codes()[picks.length]], index: picks.length, total: N } : score({ practice: true, mode: "adaptive" });
+  // PALETTE_ORDER is column = family, row = member: the tile for id sits at row id%4, column id/4
+  const tileFor = (id) =>
+    screen.getAllByRole("button", { name: /^(corner|line|box|arrow) |square$|circle$/ })[(id % 4) * 5 + Math.floor(id / 4)];
+  // Done, then the reveal delay and the round trip under it
+  const doneAndWait = async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    act(() => { vi.advanceTimersByTime(COMMIT_DELAY); });
+    await act(async () => {});
+  };
+
+  it("practice: the start hands out one item, every Done sends the picks so far, the next arrives under the reveal, and the twenty-fifth brings the result", async () => {
+    vi.useFakeTimers();
+    vi.mocked(startPractice).mockResolvedValue({ mode: "adaptive", seed: 7, items: first(), total: N, capMs: ITEM_CAP });
+    vi.mocked(nextPractice).mockImplementation((seed, picks) => Promise.resolve(nextFor(picks)));
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    await act(async () => {});
+    screen.getByText("37:30"); // the sitting is twenty-five items long, though one has arrived
+    screen.getByLabelText(/3 by 3 puzzle grid, bottom-right cell to build/i);
+    const want = [];
+    for (let i = 0; i < N; i++) {
+      act(() => { vi.advanceTimersByTime(1000); });
+      fireEvent.click(tileFor(i % ELEMENTS));
+      want.push(cellOf([i % ELEMENTS]));
+      await doneAndWait();
+      // every pick so far goes back with the seed — practice holds nothing server-side
+      expect(vi.mocked(nextPractice)).toHaveBeenLastCalledWith(7, want);
+      if (i < N - 1) {
+        expect(tileFor(i % ELEMENTS).getAttribute("aria-pressed")).toBe("false"); // the next item, fresh
+        expect(screen.queryByText(/25 of 25/)).toBeNull();
+      }
+    }
+    expect(vi.mocked(nextPractice)).toHaveBeenCalledTimes(N);
+    expect(vi.mocked(submitPractice)).not.toHaveBeenCalled();
+    screen.getByText(/25 of 25/);
+    const saved = JSON.parse(localStorage.getItem(LKEY));
+    expect(saved).toMatchObject({ v: 3, bank: "omib", mode: "adaptive", seed: 7, gv: 1, theta: 1.8 });
+    expect(saved.verified).toBeUndefined();
+    // the clock ran per item from each arrival, never across the round trip
+    expect(saved.times).toEqual(Array.from({ length: N }, () => 1000));
+  });
+
+  it("a pick the server did not answer is held: Retry sends the same pick again and the next item arrives", async () => {
+    vi.useFakeTimers();
+    vi.mocked(startPractice).mockResolvedValue({ mode: "adaptive", seed: 7, items: first(), total: N, capMs: ITEM_CAP });
+    vi.mocked(nextPractice)
+      .mockRejectedValueOnce(new Error("couldn't reach the server — nothing was counted"))
+      .mockImplementation((seed, picks) => Promise.resolve(nextFor(picks)));
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    await act(async () => {});
+    fireEvent.click(tile("box top"));
+    await doneAndWait();
+    screen.getByText(/couldn't reach the server/);
+    expect(screen.getByRole("button", { name: "Done" }).disabled).toBe(true); // the cell is committed, held
+    expect(tile("box top").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await act(async () => {});
+    expect(vi.mocked(nextPractice)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(nextPractice).mock.calls[1]).toEqual(vi.mocked(nextPractice).mock.calls[0]);
+    expect(screen.queryByText(/couldn't reach the server/)).toBeNull();
+    expect(tile("box top").getAttribute("aria-pressed")).toBe("false"); // item 2, fresh
+    expect(screen.getByRole("button", { name: "Done" }).disabled).toBe(false);
+  });
+
+  it("verified: each pick goes with its index, the last brings the result, badged", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
+    vi.mocked(startVerified).mockResolvedValue({ mode: "adaptive", items: first(), total: N, capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
+    vi.mocked(nextVerified).mockImplementation((index) =>
+      Promise.resolve(index + 1 < N ? { items: [codes()[index + 1]], index: index + 1, total: N } : score({ durationMs: 60000, mode: "adaptive" })));
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Verified attempt" }));
+    await act(async () => {});
+    for (let i = 0; i < N; i++) {
+      fireEvent.click(tileFor(i % ELEMENTS));
+      await doneAndWait();
+      expect(vi.mocked(nextVerified)).toHaveBeenLastCalledWith(i, cellOf([i % ELEMENTS]));
+    }
+    expect(vi.mocked(submitVerified)).not.toHaveBeenCalled();
+    screen.getByText("verified");
+    const saved = JSON.parse(localStorage.getItem(LKEY));
+    expect(saved).toMatchObject({ v: 3, bank: "omib", mode: "adaptive", verified: true, durationMs: 60000 });
   });
 });

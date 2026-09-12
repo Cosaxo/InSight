@@ -25,6 +25,7 @@ import {
   rankAndFoldTheta,
   mintAttempt,
   LOGIC_BANK,
+  OMIB_SELECTION,
   type LogicAttempt,
 } from "./logic";
 import { OMIB_ERA, OMIB_BANK_VERSION, OMIB_FORM_ITEMS } from "./omib";
@@ -415,6 +416,18 @@ describe("rankAndFoldTheta", () => {
 
   it("is LIVE since D473: new attempts are minted on the OMIB bank", () => {
     expect(LOGIC_BANK).toBe("omib");
+  });
+
+  it("mints STRATIFIED forms until the §6 report says the calibration transferred (D474)", () => {
+    // Adaptive administration meets every item near its taker's 50 % point,
+    // which makes per-item solve rates say nothing about b — and those rates
+    // are the report's instrument. The flip is the owner's, on the r figure.
+    expect(OMIB_SELECTION).toBe("stratified");
+    const a = mintAttempt(null, Date.now(), 99, "omib", "adaptive");
+    expect(a.attempt.mode).toBe("adaptive");
+    expect(a.items).toHaveLength(1);
+    expect(mintAttempt(null, Date.now(), 99, "omib").attempt.mode).toBe("stratified");
+    expect(mintAttempt(null, Date.now(), 99, "omib").items).toHaveLength(OMIB_FORM_ITEMS);
   });
 
   it("below the floor ranks against the model — Φ of θ̂ — and folds a first attempt into the OMIB era", () => {

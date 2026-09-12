@@ -23,6 +23,10 @@ export interface LogicResult {
   v?: number;
   /** "omib" since D473; absent = the generator's */
   bank?: string;
+  /** how an OMIB form was served (D474): "stratified" — the whole form from
+   *  the seed — or "adaptive", one item per answer, replayed from the seed
+   *  and the picks. Absent on results saved before D474: stratified. */
+  mode?: string;
   /** the ability estimate on the calibration sample's scale (OMIB) */
   theta?: number;
   /** its standard error — the range printed is θ̂ ∓ se, read the same way */

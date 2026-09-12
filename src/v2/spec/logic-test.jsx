@@ -6,7 +6,7 @@
 import React from 'react';
 import { useDialog } from './primitives.jsx';
 import { FIELD_MED, loadResult, logicSecs, saveResult } from '../data/logic-score';
-import { startPractice, submitPractice, startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
+import { startPractice, submitPractice, startVerified, submitVerified, nextPractice, nextVerified, isScore, verifyErrorMessage } from '../data/logic-verify';
 import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEMENTS } from '../data/omib-shapes';
 import { HAPTIC } from './haptics.js';
 
@@ -385,7 +385,10 @@ export let LOGIC;
     // on a first open (no saved result), the result screen otherwise. The
     // example is reachable again from a row on the result screen.
     const [screen, setScreen] = useState(() => (result ? 'result' : 'example'));
-    // The attempt's form, as served: { items: [{code}], seed?, practice?, verified? }.
+    // The attempt's form, as served: { mode, items: [{code}], total, seed?,
+    // practice?, verified? }. Under "stratified" `items` is the whole form;
+    // under "adaptive" (D474) it is the items served SO FAR — one more
+    // arrives with each answer — and `total` is the form's length.
     const [form, setForm] = useState(null);
     const [qi, setQi] = useState(-1); // -1 = no item on screen
     // The ids placed in the goal cell so far, in the order placed.
@@ -403,7 +406,9 @@ export let LOGIC;
     const [picks, setPicks] = useState([]);
     // Round-trip lifecycle, one state: null, or
     // {phase:'starting', mode} | {phase:'start-error', msg}
-    // | {phase:'sending'} | {phase:'send-error', msg, picks, times}.
+    // | {phase:'sending'} | {phase:'send-error', msg, picks, times}
+    // | {phase:'next-error', msg, picks, times} — an adaptive pick the
+    //   server did not answer; Retry sends the same pick again.
     const [net, setNet] = useState(null);
     // Milliseconds left on the current puzzle (drives the draining segment
     // and, inside the final stretch, the numeral) and on the whole sitting.
@@ -436,7 +441,7 @@ export let LOGIC;
       const id = setInterval(() => {
         const now = Date.now();
         const l = askedAt.current + ITEM_CAP - now;
-        setTestLeft(Math.max(0, startedAt.current + form.items.length * ITEM_CAP - now));
+        setTestLeft(Math.max(0, startedAt.current + form.total * ITEM_CAP - now));
         if (l <= 0) timeUpRef.current();
         else setLeft(l);
       }, TICK);
@@ -446,14 +451,18 @@ export let LOGIC;
     const arm = (f) => {
       setForm(f); setPicks([]); setTimes([]); setGoal([]); setPhase('building'); setNet(null);
       startedAt.current = Date.now();
-      setTestLeft(f.items.length * ITEM_CAP);
+      setTestLeft(f.total * ITEM_CAP);
       setScreen('item'); setQi(0);
     };
+    // What a start says the form is. `mode` and `total` are the server's
+    // since D474; the fallbacks are for the deploy window in which a new
+    // client meets the old start shape, and read it as what it was.
+    const served = (s) => ({ mode: s.mode || 'stratified', items: s.items, total: s.total || s.items.length });
     // ── practice round trip (D472): the server mints and holds nothing ──
     const beginPractice = () => {
       setNet({ phase: 'starting', mode: 'practice' });
       startPractice().then(
-        (s) => arm({ items: s.items, seed: s.seed, practice: true }),
+        (s) => arm({ ...served(s), seed: s.seed, practice: true }),
         (err) => setNet({ phase: 'start-error', msg: verifyErrorMessage(err) }),
       );
     };
@@ -461,35 +470,60 @@ export let LOGIC;
     const beginVerified = () => {
       setNet({ phase: 'starting', mode: 'verified' });
       startVerified().then(
-        (s) => arm({ items: s.items, verified: true }),
+        (s) => arm({ ...served(s), verified: true }),
         (err) => setNet({ phase: 'start-error', msg: verifyErrorMessage(err) }),
       );
+    };
+    // The server's marks, θ and percentile ARE the result; the local
+    // per-item times ride along for the Pace lens only. seed+gv+bank come
+    // back post-scoring so the result stays reconstructable (D31) — with
+    // `mode` saying whether that takes the seed alone or the picks too —
+    // and `diffs`, the form's published difficulties, so the Answers lens
+    // can rank its rows on the real ramp.
+    const scored = (f, res, nt) => {
+      const r = {
+        v: 3, bank: 'omib', mode: res.mode || f.mode, ...(f.verified ? { verified: true } : {}),
+        seed: res.seed, gv: res.gv,
+        marks: res.marks, times: nt, diffs: res.diffs,
+        theta: res.theta, se: res.se,
+        pctile: res.pctile,
+        ...(Array.isArray(res.band) ? { band: res.band } : {}),
+        source: res.source || 'model',
+        ...(res.n ? { n: res.n } : {}),
+        ...(res.durationMs != null ? { durationMs: res.durationMs } : {}),
+        when: Date.now(),
+      };
+      saveResult(r); setResult(r); setNet(null); setScreen('result');
     };
     const send = (f, pk, nt) => {
       setNet({ phase: 'sending' });
       const call = f.verified ? submitVerified(pk) : submitPractice(f.seed, pk);
       call.then(
-        (res) => {
-          // The server's marks, θ and percentile ARE the result; the local
-          // per-item times ride along for the Pace lens only. seed+gv+bank
-          // come back post-scoring so the result stays reconstructable
-          // (D31), and `diffs` — the form's published difficulties — so the
-          // Answers lens can rank its rows on the real ramp.
-          const r = {
-            v: 3, bank: 'omib', ...(f.verified ? { verified: true } : {}),
-            seed: res.seed, gv: res.gv,
-            marks: res.marks, times: nt, diffs: res.diffs,
-            theta: res.theta, se: res.se,
-            pctile: res.pctile,
-            ...(Array.isArray(res.band) ? { band: res.band } : {}),
-            source: res.source || 'model',
-            ...(res.n ? { n: res.n } : {}),
-            ...(res.durationMs != null ? { durationMs: res.durationMs } : {}),
-            when: Date.now(),
-          };
-          saveResult(r); setResult(r); setNet(null); setScreen('result');
-        },
+        (res) => scored(f, res, nt),
         (err) => setNet({ phase: 'send-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
+      );
+    };
+    // ── the adaptive round trip, one per item (D474) ──
+    // The pick for item `pk.length - 1` goes to the server and the next item
+    // comes back — or, on the last, the result. A verified attempt sends the
+    // one pick with its index; practice, holding nothing server-side, sends
+    // every pick so far with its seed.
+    const askNext = (f, pk) => (f.verified ? nextVerified(pk.length - 1, pk[pk.length - 1]) : nextPractice(f.seed, pk));
+    const arrived = (f, res, pk, nt) => {
+      setPicks(pk); setTimes(nt); setGoal([]); setNet(null);
+      if (isScore(res)) { setQi(-1); setScreen('result'); scored(f, res, nt); return; }
+      // the next item joins the form; the clock re-arms as it appears (the
+      // effect keyed on qi), so the round trip never costs solving time
+      setForm({ ...f, items: [...f.items, ...res.items] });
+      setPhase('building');
+      setQi(pk.length);
+    };
+    const retryNext = () => {
+      const { picks: pk, times: nt } = net;
+      setNet(null);
+      askNext(form, pk).then(
+        (res) => arrived(form, res, pk, nt),
+        (err) => setNet({ phase: 'next-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
       );
     };
 
@@ -508,6 +542,18 @@ export let LOGIC;
       const pk = [...picks, pick];
       const nt = [...times, t];
       setPhase('committed');
+      if (form.mode === 'adaptive') {
+        // The pick leaves NOW, under the reveal delay, so the round trip and
+        // the animation overlap: the next item is shown when both are done.
+        // The committed board is the waiting state; a slow network shows
+        // the landed cell a little longer, never a spinner.
+        const delay = new Promise((resolve) => setTimeout(resolve, COMMIT_DELAY));
+        Promise.all([askNext(form, pk), delay]).then(
+          ([res]) => arrived(form, res, pk, nt),
+          (err) => setNet({ phase: 'next-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
+        );
+        return;
+      }
       // Deliberately never cancelled on unmount (D53): this timeout is also
       // the final item's submit, so closing the overlay half a second after
       // the last Done must still keep the score. Mid-test, the late
@@ -581,7 +627,7 @@ export let LOGIC;
                   the margin only for the final stretch, so its appearance
                   never shifts the puzzle mid-solve */}
               <div style={{ position: 'relative', display: 'flex', gap: 3, marginBottom: 18 }}>
-                {form.items.map((_, i) => (
+                {Array.from({ length: form.total }, (_, i) => (
                   <span key={i} style={{ flex: 1, height: 4, borderRadius: 2, overflow: 'hidden', background: i < qi ? 'var(--ink)' : 'var(--rule)' }}>
                     {i === qi && <span style={{ display: 'block', height: '100%', width: (100 * left / ITEM_CAP) + '%', background: LOGIC_COL, transition: 'width 0.25s linear' }}></span>}
                   </span>
@@ -610,6 +656,17 @@ export let LOGIC;
                 opacity: phase !== 'building' ? 0.6 : goal.length > 0 ? 1 : 0.7,
                 transition: 'background 0.2s ease, color 0.2s ease, border-color 0.2s ease',
               }}>Done</button>
+              {net && net.phase === 'next-error' && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 14, textAlign: 'center' }}>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.45 }}>{net.msg}</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {/* the cell is held: retry sends the same pick again, and the
+                        server answers a repeat with the same next item */}
+                    <button onClick={retryNext} style={pillBtn(true)}>Retry</button>
+                    <button onClick={() => { setNet(null); setQi(-1); setScreen(result ? 'result' : 'example'); }} style={pillBtn(false)}>Discard</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {screen === 'result' && sending && (

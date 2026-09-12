@@ -1,6 +1,6 @@
 # OMIB plan — the logic test on a calibrated bank, scored for accuracy
 
-**Status: plan notes — phases 0–3 BUILT 2026-09-12 (D472, D473) and LIVE; phase 4 sequenced and not built.** The owner chose the Open
+**Status: plan notes — phases 0–3 BUILT 2026-09-12 (D472, D473) and LIVE; phase 4 BUILT the same day (D474) and DARK: adaptive selection sits behind `OMIB_SELECTION = "stratified"` until the §6 report — built, `npm run report:omib` — says the calibration transferred, on 300 counted attempts.** The owner chose the Open
 Matrices Item Bank for the logic test on 2026-09-11 (D471) on one
 requirement, *"they have to be correct from the start"*, and asked on
 2026-09-12 for *"the best way to implement this to get the most accurate
@@ -142,7 +142,11 @@ middle of the bank's scale gets SE ≈ 0.30–0.40; at the extremes, where
 few items are informative, nearer 0.5. In percentile terms that is a band
 of roughly ±10 points in the middle — comparable to what D402 modelled
 with its ±2 items, now measured rather than assumed. An adaptive form
-(§3.3) reaches ≈ 0.25 with the same 25, or matches 0.35 with about 15.
+(§3.3) was estimated here at ≈ 0.25 with the same 25; **measured at
+D474** on simulated takers answering under the bank's own parameters, it
+is 0.264 against the stratified form's 0.344 over five ability levels
+(0.143 against 0.210 at θ = 0), a fifth less error against the generating
+ability, and least gain at +2, where the bank has few items left to ask.
 
 ### 2.5 The bank's quality floor
 
@@ -184,20 +188,48 @@ document, same gate, same era stamp. Two things fall out of it: which
 items are over-drawn (a stratum with few items, the 1- and 5-rule ones,
 exposes each of its members more), and §6's validity check.
 
-### 3.3 Adaptive selection — the accuracy ceiling, and why it is phase 4
+### 3.3 Adaptive selection — the accuracy ceiling, built dark (D474)
 
 Choosing each next item to maximise information at the current θ̂ is
 what "most accurate" means in this field, and 218 calibrated items make
-it entirely feasible. It is deliberately NOT the first build, for one
-structural reason: today's protocol mints the whole form at start and
-scores it at submit, two callables. Adaptivity needs a callable per
-item — `logicNextV2(pick) → next item` — which is 25 transactions
-per attempt instead of 2, a round trip on a phone's network before every
-puzzle, and an attempt document that carries state across all of them.
-That is a different cost and a different failure surface, and it should
-be built on a working stratified path, not instead of one. Stratified
-random with θ scoring gets most of the gain; adaptive is the increment
-that comes after §6 has shown the calibration transferred.
+it entirely feasible. It is BUILT (D474) and DARK, for the reason §6 ends
+on: the report that says whether the calibration transferred reads
+per-item solve rates off the stratified ledger, and adaptive
+administration — every item met near its taker's 50 % point — would make
+those rates say nothing about b. So `OMIB_SELECTION` in
+`functions/src/logic.ts` stays `"stratified"` until the report speaks, and
+the flip is the owner's, on the verdict (`OWNER-LIST.md`).
+
+What is built, and what it decided:
+
+- **The selection** (`omibNextItem`): among the items not yet served and
+  whose stratum still has a slot — the 2·6·9·6·2 pyramid is a set of
+  quotas on an adaptive form too, so every taker meets the same kind of
+  test and the θ histogram can hold both modes — a seeded randomesque
+  draw among the K most informative at θ̂, K = max(5, 15 − 2·step), wide
+  at the start where every θ̂ is the prior and narrowing once answers
+  have separated the takers. θ̂ opens at −0.5. The price of the quotas is
+  paid at the tail: an all-wrong taker's last seven items are the four-
+  and five-rule ones still owed, and an all-right taker meets the bank's
+  own ceiling (few items above b 1.5). Both are pinned.
+- **Replay, not storage**: the form is a deterministic function of the
+  seed and the picks, so practice stays stateless (every pick so far
+  goes back with the seed) and a verified attempt's document holds the
+  picks alone — no item list, and no per-item timing, which keeps D57's
+  promise under a protocol that could now break it.
+- **The protocol**: `logicStartV2` hands out the first item with `mode`
+  and `total`; `logicNextV2({ index, pick })` appends and answers with
+  the next item, or with the result on the twenty-fifth, scored and
+  folded by the same body a stratified submit uses; idempotent on a
+  repeat, refusing a client out of step, and answering a lost final
+  call a second time from the profile. Twenty-five transactions per
+  attempt instead of two — about $0.05 a day at a thousand attempts, and
+  one round trip per item on a phone, which the overlay hides under the
+  reveal delay.
+- **The ledgers split**: adaptive attempts fold their item counts into
+  `v2_logic_norms/adaptive`, never into `families`, which stays the
+  report's instrument; the θ̂ histogram takes both.
+- **What it buys**: §2.4's measured line — SE 0.264 against 0.344.
 
 ## 4 · The norms — a θ histogram, and what the fallback claims
 
@@ -265,18 +297,40 @@ member).
 
 The parameters are a promise that the items behave the same way for our
 takers as for the calibration sample. That promise is testable from the
-ledger in §3.2 once first attempts number in the hundreds: for each item,
-the observed solve rate against its published *b*. If the calibration
-transferred, the two correlate strongly and negatively (harder items
-solved less) — **r beyond −0.8** is the bar; if it did not, something
-about our administration differs from theirs (the clock, the screen, the
-population) and the number says by how much. The same pass prints the
-InSight mean θ̂, which is expected below 0 (the calibration sample is
-selected) and is the first honest sentence about where this app's
-population sits. Both are one report (`scripts/omib-report.mjs`, the
-`scorecard` shape), run by hand at first and by the console once the
-count justifies it. This is the accuracy claim, measured; without it the
-plan is an argument.
+ledger in §3.2 once first attempts number in the hundreds, and the test
+is BUILT: `scripts/omib-report.mjs` — `npm run report:omib` against
+production (admin credentials), `--emulator`, or `--from docs.json` on
+saved documents, `--json` for the object — a pure scorecard
+(`omibScorecard`) over the three public mirrors and the bank's published
+parameters, proved in `omib-report.test.mjs` on synthetic ledgers whose
+truth is known. Run by hand until the counts justify a schedule; the
+pure half is what a console lane will call when they do.
+
+**The instrument, corrected by its own test (D474).** This section first
+said *r beyond −0.8* between an item's published b and its observed solve
+rate. Answers generated FROM the published parameters read −0.76 at 400
+attempts: b predicts a rate only through the item's discrimination and
+the population's θ, so with a varying across the bank the noise-free
+ceiling of that figure is −0.83 here, and the bar would have called a
+perfect transfer a failure. The verdict rests instead on the pair that is
+linear when the calibration holds — **each item's expected solve rate
+under the 2PL at the θ̂ distribution observed here, against its observed
+rate: r ≥ 0.8** (0.86 at 200 synthetic attempts, 0.93 at 400, 0.97 at
+800 when transferred; 0.12–0.19 when scrambled). The plan's r is still
+printed, beside its computed ceiling and Spearman's ρ. **The floor is 300
+counted attempts**: at a hundred the transferred case reads under the
+bar, and clears it from two hundred with little margin.
+
+The same page prints the InSight mean θ̂ (expected below 0 — the
+calibration sample is selected — and the first honest sentence about
+where this app's population sits), the clock's signature (the share of
+sightings that ended blank and whether it rises with b), the five items
+whose observed rate moved furthest from the model's, and exposure per
+ledger against an even draw. If the verdict is "did not transfer",
+something about our administration differs from theirs (the clock, the
+screen, the population) and those lines say where to look. This is the
+accuracy claim, measured; until three hundred attempts exist it is a
+page that says "too early" with its numbers showing.
 
 ## 7 · What does not change
 
@@ -299,12 +353,12 @@ byte-identical. `check:omib` keeps the bank the authors' bank.
 | **1** — done (D472) | `irt.ts` (EAP + SE); `omib.ts` with the quality floor, stratified seeded selection, exact-match scoring, the θ histogram and per-item ledger; the OMIB era stamp; the bank stamped on the attempt and honoured at submit, `LOGIC_BANK` still `"generator"`; `logicPracticeV2`, stateless, on the owner's call | `omib-bank.ts` generated and gated by `check:omib` | functions suite; the emulator's practice leg — start, score, score again, refuse the generator's shape |
 | **2** — done (D473) | The screen (VR 14 → built), the wire, the worked example (VR 8 → built), and the flip | — | `logic-overlay.test.jsx` (11), the smoke mount on the example, the mount-app suites, `check:tap-targets`; the emulator's verified leg on OMIB by θ |
 | **3** — done (D472, D473) | θ histogram, Φ fallback with its sentence, measured rank, the band from SE — the server half in phase 1, the sentence in phase 2 | — | rules suite on the same document paths (nothing new); `check:policy-claims` unchanged |
-| **4** — later | Adaptive selection; the §6 report on real counts | hundreds of first attempts | the r figure |
+| **4** — built, DARK (D474) | Adaptive selection behind `OMIB_SELECTION`; the §6 report, `npm run report:omib` | 300 counted attempts before the report's verdict, then the owner's flip | `omib.test.ts` (the selection's seven, the simulation's table), `logic-submit.test.ts` (the callable through the fake transaction), the emulator's 11c leg, `logic-overlay.test.jsx` (14), `omib-report.test.mjs` (transferred · scrambled · the floors) — and, on real counts, the expected-against-observed figure |
 
 Phases 1 and 3 are one deploy if built together, and nothing a user sees
 moves until phase 2 ships. That is the order that keeps every commit
 green and lets the arithmetic be wrong in a test before it is wrong on a
-phone.
+phone — which phase 4 then demonstrated on its own bar (§6).
 
 ## 9 · For the owner
 

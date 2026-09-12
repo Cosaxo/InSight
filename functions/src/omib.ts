@@ -12,7 +12,7 @@
 
 import { OMIB_ITEMS, OMIB_KEY, OMIB_BANK_VERSION, type OmibItem } from "./omib-bank";
 import { mulberry32, mixSeed } from "./logic-gen";
-import { eap, normalCdf, type ItemParams } from "./irt";
+import { eap, information, normalCdf, type ItemParams } from "./irt";
 
 export { OMIB_BANK_VERSION };
 export type { OmibItem };
@@ -81,10 +81,16 @@ export const OMIB_ELEMENTS = 20;
 const CELL = /^[01]{20}$/;
 export const EMPTY_CELL = "0".repeat(OMIB_ELEMENTS);
 
-/** One 20-bit cell per item — the taker's constructed answer. */
-export function validOmibPicks(x: unknown): x is string[] {
-  return Array.isArray(x) && x.length === OMIB_FORM_ITEMS && x.every((c) => typeof c === "string" && CELL.test(c));
+/** One constructed cell: twenty characters of 0 and 1. */
+export const validOmibCell = (x: unknown): x is string => typeof x === "string" && CELL.test(x);
+
+/** `count` cells — a whole stratified sheet, or an adaptive attempt's picks so far. */
+export function validOmibCells(x: unknown, count: number): x is string[] {
+  return Array.isArray(x) && x.length === count && x.every(validOmibCell);
 }
+
+/** One 20-bit cell per item — the taker's constructed answer, the whole form. */
+export const validOmibPicks = (x: unknown): x is string[] => validOmibCells(x, OMIB_FORM_ITEMS);
 
 export interface OmibScore {
   marks: boolean[];
@@ -107,7 +113,11 @@ export interface OmibScore {
  */
 export function scoreOmibPicks(seed: number, picks: readonly string[]): OmibScore {
   const form = omibForm(seed);
-  const marks = form.map((it, i) => picks[i] === OMIB_KEY[it.n]);
+  return scoreForm(form, form.map((it, i) => picks[i] === OMIB_KEY[it.n]), picks);
+}
+
+/** The one scorer both selections end in: θ by EAP over whatever items were served, in the order served. */
+function scoreForm(form: readonly OmibItem[], marks: boolean[], picks: readonly string[]): OmibScore {
   const attempted = picks.map((p) => p !== EMPTY_CELL);
   const params: ItemParams[] = form.map((it) => ({ a: it.a as number, b: it.b as number }));
   const { theta, se } = eap(params, marks.map((m) => (m ? 1 : 0)));
@@ -116,6 +126,112 @@ export function scoreOmibPicks(seed: number, picks: readonly string[]): OmibScor
     itemIds: form.map((it) => it.n), diffs: form.map((it) => it.b as number),
   };
 }
+
+// ── adaptive selection (docs/OMIB-PLAN.md §3.3, D474) ─────────────────────
+// The accuracy ceiling: each next item is chosen to be most informative at
+// the taker's CURRENT θ̂, so a strong taker is not spending items on puzzles
+// they were always going to solve and a weak one is not spending them on
+// puzzles they never could. Built DARK behind logic.ts's OMIB_SELECTION and
+// flipped only when the §6 report says the calibration transferred — under
+// adaptive administration every item is met near its taker's 50 % point, so
+// per-item solve rates stop saying anything about b, and the report's own
+// instrument (the stratified ledger) would be spoiled by flipping early.
+//
+// Deterministic in (seed, answers so far): the same seed and the same picks
+// name the same items, so a stateless practice attempt can be replayed from
+// the picks alone, exactly as a stratified form is replayed from the seed.
+export type OmibSelection = "stratified" | "adaptive";
+
+// Where θ̂ stands before any answer. The prior's centre is 0; the first pick
+// starts half a unit under it because the calibration sample is selected
+// upward (docs/OMIB-PLAN.md §4 expects this app's takers to read below its
+// median) and because a first puzzle slightly on the easy side of a taker's
+// level is the standard opening — it costs a fraction of an item's
+// information and buys a start that is not a wall.
+export const OMIB_START_THETA = -0.5;
+
+// Randomesque exposure control (Kingsbury & Zara): the pick is a seeded draw
+// among the K most informative eligible items rather than the single best,
+// wide at the start — where every taker's θ̂ is the same prior, so a pure
+// maximum would serve one item to everyone — and narrowing to a floor once
+// the answers have separated the takers. K = max(5, 15 − 2·step).
+export const OMIB_RANDOMESQUE_MAX = 15;
+export const OMIB_RANDOMESQUE_MIN = 5;
+export const randomesqueK = (step: number): number =>
+  Math.max(OMIB_RANDOMESQUE_MIN, OMIB_RANDOMESQUE_MAX - 2 * step);
+const NEXT_SALT = 0x0ada00;
+
+/** One answered item of an adaptive form: which, and whether it was right. */
+export interface OmibStep {
+  n: number;
+  right: boolean;
+}
+
+const USABLE_BY_N = new Map<number, OmibItem>(usableItems().map((i) => [i.n, i]));
+const paramsOf = (it: OmibItem): ItemParams => ({ a: it.a as number, b: it.b as number });
+
+/**
+ * The next item of an adaptive form. Content-balanced to the same pyramid a
+ * stratified form has (OMIB_STRATA's slots are quotas, so every taker still
+ * meets the same KIND of test), never a repeat, and among what is left the
+ * randomesque draw over Fisher information at θ̂.
+ */
+export function omibNextItem(seed: number, history: readonly OmibStep[]): OmibItem {
+  if (history.length >= OMIB_FORM_ITEMS) throw new Error("omibNextItem: the form is complete");
+  const answered = history.map((h) => {
+    const it = USABLE_BY_N.get(h.n);
+    if (!it) throw new Error(`omibNextItem: item ${h.n} is not in the usable bank`);
+    return it;
+  });
+  const theta = history.length === 0
+    ? OMIB_START_THETA
+    : eap(answered.map(paramsOf), history.map((h) => (h.right ? 1 : 0))).theta;
+  const quota = new Map<number, number>(OMIB_STRATA.map((s) => [s.rules, s.slots]));
+  for (const it of answered) quota.set(it.rules, (quota.get(it.rules) ?? 0) - 1);
+  const used = new Set(history.map((h) => h.n));
+  const ranked = usableItems()
+    .filter((i) => !used.has(i.n) && (quota.get(i.rules) ?? 0) > 0)
+    .map((i) => ({ i, info: information([paramsOf(i)], theta) }))
+    .sort((x, y) => y.info - x.info || x.i.n - y.i.n);
+  const k = Math.min(randomesqueK(history.length), ranked.length);
+  const rng = mulberry32(mixSeed(seed, NEXT_SALT + history.length));
+  return ranked[Math.floor(rng() * k) % k].i;
+}
+
+export interface OmibReplay {
+  /** the items served so far, in order — one per pick */
+  items: OmibItem[];
+  marks: boolean[];
+  /** the item to serve next, or null once the form is complete */
+  next: OmibItem | null;
+}
+
+/** An adaptive form, reconstructed from its seed and the picks made so far. */
+export function replayAdaptive(seed: number, picks: readonly string[]): OmibReplay {
+  if (picks.length > OMIB_FORM_ITEMS) throw new Error(`replayAdaptive: ${picks.length} picks on a ${OMIB_FORM_ITEMS}-item form`);
+  const history: OmibStep[] = [];
+  const items: OmibItem[] = [];
+  const marks: boolean[] = [];
+  for (const pick of picks) {
+    const it = omibNextItem(seed, history);
+    const right = pick === OMIB_KEY[it.n];
+    items.push(it);
+    marks.push(right);
+    history.push({ n: it.n, right });
+  }
+  return { items, marks, next: picks.length < OMIB_FORM_ITEMS ? omibNextItem(seed, history) : null };
+}
+
+/** The whole adaptive form scored — the same shape and the same θ arithmetic as a stratified one. */
+export function scoreOmibAdaptive(seed: number, picks: readonly string[]): OmibScore {
+  if (picks.length !== OMIB_FORM_ITEMS) throw new Error(`scoreOmibAdaptive: ${picks.length} picks`);
+  const { items, marks } = replayAdaptive(seed, picks);
+  return scoreForm(items, marks, picks);
+}
+
+/** One scorer for the decision layer to call, by the attempt's own selection. */
+export const scoreOmib = (mode: OmibSelection, seed: number, picks: readonly string[]): OmibScore =>
+  mode === "adaptive" ? scoreOmibAdaptive(seed, picks) : scoreOmibPicks(seed, picks);
 
 // ── norms ─────────────────────────────────────────────────────────────────
 // A histogram of θ̂ in 0.25 bins from −5 to +5 — forty buckets, the D60

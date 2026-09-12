@@ -52696,3 +52696,199 @@ D472; the rest): nothing on the norms — they fold and rank today. Phase 4
 — adaptive selection and the §6 report — waits on hundreds of first
 attempts. The two honest limits stand: the 90 s is the bank's demo
 default until the paper is read, and the answer key is public.
+
+## D474 · OMIB phase 4: adaptive selection built dark behind the report that decides its flip — and the report's own bar corrected by its test
+
+**Decision (2026-09-12, the owner: *"go ahead with phase 4"*).** Three
+things, in the order the plan's §8 sequenced them and one it did not:
+
+1. **Adaptive item selection is BUILT END TO END and shipped DARK.** The
+   pure selection (`omibNextItem`, `replayAdaptive`, `scoreOmibAdaptive`
+   in `functions/src/omib.ts`), a per-item callable `logicNextV2`, adaptive
+   practice through `logicPracticeV2`'s optional `mode`, and the overlay's
+   item-by-item walk (`nextVerified` / `nextPractice`, `isScore`) are all
+   in the tree and proved; what a phone meets is decided by ONE constant,
+   `OMIB_SELECTION = "stratified"` in `functions/src/logic.ts`, pinned in
+   `logic.test.ts` and by the emulator's start-shape check. Like the bank
+   (D472), the selection is a property of the ATTEMPT — stamped at start
+   as `mode`, honoured to the end — so a flip mid-attempt changes nothing
+   for anyone holding a form.
+2. **The §6 report exists:** `scripts/omib-report.mjs` (`npm run
+   report:omib`, `--emulator`, `--from docs.json`, `--json`), a pure
+   scorecard over the three public mirrors and the bank's published
+   parameters, rendered the way the console prints its scorecards. Run by
+   hand until the counts justify a schedule.
+3. **The flip is the owner's, on the report's verdict**, and is on
+   `OWNER-LIST.md` with what it costs. Not a label, not a routine: a
+   one-line change to the constant, recorded when it happens.
+
+**Why dark — the sentence the whole phase turns on.** The report reads
+per-item solve rates off the STRATIFIED ledger to say whether the bank's
+published difficulties hold for this app's takers. Adaptive
+administration meets every item near its taker's 50 % point, so under it
+an item's solve rate says nothing about its b — the report's instrument
+would be spoiled by the very thing it is meant to license. So the
+stratified era has to run long enough to answer the question first, and
+adaptive attempts, when they come, fold their item counts into their OWN
+document (`v2_logic_norms/adaptive`, `finishOmib`'s ledger choice by
+`mode`) and never into `families`. The θ̂ histogram folds both: θ is one
+scale whichever way the items were chosen, and a rank is a rank.
+
+**What the selection decides, and why.**
+
+- **Content balance is the pyramid, as hard quotas.** `OMIB_STRATA`'s
+  slots (2·6·9·6·2 by rule count) are ceilings on an adaptive form too,
+  so every taker still meets the same KIND of test — which the histogram
+  mixing both modes' θ̂ requires: two forms that measure different
+  constructs cannot share a rank. The price is stated by the probe rather
+  than hidden: on an all-wrong path the easy strata's slots are spent by
+  the middle of the form, and the last seven items served are the four-
+  and five-rule ones the pyramid still owes (b −0.3 → +1.1 on seed 7),
+  served because they are owed, not because they are informative there;
+  an all-right path meets the mirror image plus the bank's own ceiling —
+  the four-rule stratum tops out at b 0.88 and the three-rule at 1.65, so
+  few items exist above b 1.5 at any quota. Pinned in `omib.test.ts`
+  ("climbs … until the pyramid's quotas bind").
+- **The next item is a randomesque draw among the K most informative
+  eligible items at the current θ̂** (Kingsbury & Zara), K = max(5, 15 −
+  2·step). Wide at the start because every taker's θ̂ is the same prior
+  there — a pure maximum would open every attempt with one item — and
+  narrowing to five once the answers have separated the takers. Over 200
+  seeds the opener takes at least ten values, all from the fifteen most
+  informative at the start; pinned.
+- **θ̂ before any answer is −0.5, not the prior's 0.** The calibration
+  sample is selected upward (§4 expects this app's takers below its
+  median), and a first puzzle slightly on the easy side of a taker's
+  level is the standard opening — a fraction of one item's information
+  for a start that is not a wall.
+- **Deterministic in (seed, picks).** The same seed and the same picks
+  name the same items, so the form is REPLAYED rather than stored:
+  practice stays stateless (every pick so far goes back with the seed,
+  ≤ 25 × 20 characters), and a verified attempt's document holds the
+  picks alone — no item list a reader could take for a key. Replay costs
+  at most 25 EAPs on the 201-point grid, under five milliseconds.
+
+**What it buys, measured** (`omib.test.ts` "what adaptive selection
+buys": 60 simulated takers per level answering under the bank's own 2PL,
+seeded, each once on their seed's stratified form and once adaptively):
+
+| θ | SE stratified | SE adaptive | RMSE stratified | RMSE adaptive |
+| --- | --- | --- | --- | --- |
+| −2 | 0.440 | 0.364 | 0.391 | 0.295 |
+| −1 | 0.306 | 0.221 | 0.280 | 0.198 |
+| 0 | 0.210 | 0.143 | 0.197 | 0.125 |
+| 1 | 0.294 | 0.231 | 0.304 | 0.205 |
+| 2 | 0.471 | 0.363 | 0.378 | 0.373 |
+| all | 0.344 | 0.264 | 0.318 | 0.254 |
+
+A 23 % narrower standard error over the whole, a fifth less error against
+the ability that generated the answers, and the gain is smallest at +2,
+where the bank runs out of hard items (the paragraph above). §2.4's
+"≈ 0.25 with the same 25" was an estimate; 0.264 is the measurement, and
+the test holds the ratio under 0.8 so the claim cannot quietly stop being
+true.
+
+**The protocol, and the promise it keeps.** Twenty-five transactions per
+attempt instead of two. `logicNextV2({ index, pick })` appends the pick,
+replays the form, answers with the next item — or, on the twenty-fifth,
+scores and folds exactly as a stratified submit does (`finishOmib`, one
+body for both). Idempotent on a repeat (the same index with the same pick
+is a client that did not hear the answer, and gets it again); a
+different pick at a taken index or a skipped index is refused; and a
+final call whose answer was lost on the way back is answered a second
+time from the profile's stored result, so a phone's network cannot cost
+a finisher their attempt. The attempt document gains `mode` and `picks`
+and NOTHING ELSE: the server could now observe one arrival per item, and
+the D57 promise — per-item timings never leave the device; the server
+records only the attempt's duration — is kept by not recording what it
+sees. `data-inventory.md` rows 18–19 say so; `web/privacy.html` needed no
+word changed, and `check:policy-claims` agrees.
+
+On the phone the pick leaves under the reveal delay, so the round trip
+and the 520 ms animation overlap and the next item is shown when both
+are done; the committed board is the waiting state (a slow network shows
+the landed cell a little longer — no spinner, by the design's own
+economy), a failed call holds the cell under a Retry that sends the same
+pick again, and the per-item clock re-arms as each item appears, so a
+round trip never costs solving time (`logic-overlay.test.jsx` pins the
+times at exactly the dwell). The strip draws the form's full length from
+the start. The two disclosure sentences did not move and are still true:
+verified cells are scored on the server and join an anonymous count;
+practice sends its cells and keeps nothing — now every cell so far, each
+time.
+
+**Cost arithmetic.** Firestore: 24 more small writes per adaptive
+attempt (the held picks) and 24 more reads; at a thousand attempts a day
+that is 24k of each, ≈ $0.04 + $0.01 a day at list price. Callable
+invocations: 25 per attempt instead of 2, each ~10 ms of compute on the
+light tier — 25k a day against a free tier of two million a month. The
+cost that is real is latency: one round trip per item on a phone's
+network, which the overlap above hides when the network is ordinary and
+shows when it is not.
+
+**The report's bar, corrected by its own test — the finding of the
+phase.** §6 said *r beyond −0.8* between an item's published b and its
+observed solve rate. `omib-report.test.mjs` generated 400 attempts' worth
+of answers FROM the published parameters — the case where the
+calibration transferred perfectly — and the figure read **−0.76**. Not
+noise alone: b predicts a solve rate only through the item's
+discrimination and the population's θ, and with a varying across the bank
+the NOISE-FREE ceiling of r(b, rate) at this population is **−0.83**
+(computed, and printed on the page beside the figure). A bar of −0.8 on
+that pair would have called a perfect transfer a failure at any count
+short of a thousand attempts. So the verdict rests on the pair that is
+linear by construction when the calibration holds: **each item's
+EXPECTED solve rate under the 2PL at the θ̂ distribution actually observed,
+against its observed rate — r ≥ 0.8**. On the synthetic ledgers that
+figure reads 0.75 at 100 attempts, 0.86 at 200, 0.93 at 400 and 0.97 at
+800 when the answers came from the published parameters, and 0.12–0.19
+at every size when they came from a scrambled difficulty; the plan's r is
+still printed, with its ceiling, and Spearman's ρ beside it. **The floor
+is 300 counted attempts** (`OMIB_REPORT_MIN_N`), not the norms' hundred:
+at a hundred the transferred case reads under the bar — a false "did not
+transfer" — and clears it from two hundred with little margin. Both
+numbers are pinned in the test, on both cases. The page also prints the
+clock's signature (the share of sightings that ended blank, and whether
+it rises with b), the population (θ̂ mean, SD, median, share below the
+calibration sample's median — a mean below 0 is expected, and the
+sentence says why), the five items whose observed rate moved furthest
+from the model's, and exposure per ledger against an even draw.
+
+**Practice's `mode` is a seam, named.** The overlay never sends one and
+gets `OMIB_SELECTION`; the emulator suite sends `"adaptive"` to prove the
+path while the constant is `"stratified"`; and the owner can try the
+adaptive test on a phone before deciding the flip — by calling the
+practice callable with the mode, since no control offers it (a control
+would be a toggle on the example screen, not a visual, and is not built
+until asked). A practice attempt counts for nothing either way.
+
+**Proved by.** `omib.test.ts` 25 cases (seven on the selection, one
+simulation); `logic-submit.test.ts` 27 (six on the adaptive attempt's
+callable through the fake transaction, three on adaptive practice);
+`logic.test.ts` pins `OMIB_SELECTION` and the minted shapes; the
+emulator's loop at 209 checks — the start shapes pinned with `mode` and
+`total`, and 11c, adaptive practice: one item at a time, twenty-five
+without a repeat, θ on the last, the same picks replaying the same path,
+26 picks refused; `logic-overlay.test.jsx` 14 (practice adaptive with the
+payload asserted on every Done, the lost pick and its Retry, verified
+adaptive with each index); `omib-report.test.mjs` 8 (transferred,
+scrambled, the floors, another era, the adaptive ledger kept out of the
+correlation, determinism). `tsc` both packages, eslint, `check:globals`
+(coupling 27), `check:appcheck` (35 callables), `check:deploy-targets`
+and `check:fn-runtime` at 50 functions, `test:unit` 3,281.
+
+**Records moved.** `docs/OMIB-PLAN.md` — the status line, §2.4's
+measured line, §3.3 rewritten as built, §6's instrument, §8's row 4;
+`docs/data-inventory.md` rows 18–19; `docs/VISUAL-REQUESTS.md` request 14
+and the design README (the screen also walks an adaptive form; fourteen
+cases); `functions/README.md` at 50; the deploy list; `OWNER-LIST.md`.
+
+**Known limits, named rather than pretended.** Exposure under adaptive
+selection is only MONITORED (the `adaptive` ledger, the report's exposure
+line) — no Sympson–Hetter control, which needs a population to tune on
+and can be added when the ledger has one. The overlay has no "waiting"
+state beyond the committed board, so a network that takes seconds shows
+a landed cell for seconds. The θ̂ histogram mixes the two modes' readings,
+which differ in SE though not in scale. And the whole phase is dark until
+a number that needs three hundred honest attempts exists — which is the
+plan working as written, not a shortfall of it.
