@@ -2079,7 +2079,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items", "mode", "total"])) {
     fail("logicStartV2 returned unexpected keys: " + JSON.stringify(keys));
   }
-  // The selection is STRATIFIED until the §6 report clears its bar (D474):
+  // The selection is STRATIFIED until the §6 report clears its bar (D475):
   // pinned here as well as in logic.test.ts, because this is the deployed
   // shape a phone meets, and a flip that skipped the report would spoil
   // the report's own instrument.
@@ -2101,7 +2101,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // …and the key IS disclosed once the attempt is scored, which is what
   // makes the assertion above about TIMING rather than about the field
   // never existing.
-  // Since D473 a verified form is the OMIB bank's: 25 twenty-bit cells, a
+  // Since D474 a verified form is the OMIB bank's: 25 twenty-bit cells, a
   // blank sheet being the honest "answered nothing" (scored zero, θ low).
   const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill("0".repeat(20)) });
   if (typeof submitted.data?.seed !== "number") {
@@ -2113,7 +2113,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (!Array.isArray(submitted.data.diffs) || submitted.data.diffs.length !== 25) {
     fail("logicSubmitV2 did not disclose the form's difficulties after scoring");
   }
-  ok("…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ (D473)");
+  ok("…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ (D474)");
 
   // One attempt per window. Without this the client can resubmit until the
   // score it wants, and the norms histogram counts every try.
@@ -2128,7 +2128,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("a scored attempt refuses a second submit");
 }
 
-// 11b · Practice on the OMIB bank (D471, docs/OMIB-PLAN.md §5) — the one
+// 11b · Practice on the OMIB bank (D472, docs/OMIB-PLAN.md §5) — the one
 // OMIB path a client can reach while LOGIC_BANK still mints verified
 // attempts on the generator, so this is the emulator's proof that the bank
 // serves and scores end to end: a stateless start hands out a seed and 25
@@ -2152,7 +2152,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
       fail("an OMIB practice item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(it));
     }
   }
-  ok("logicPracticeV2 hands out a seed and 25 codes, the goal cell empty (D471)");
+  ok("logicPracticeV2 hands out a seed and 25 codes, the goal cell empty (D472)");
 
   const blank = Array(25).fill("0".repeat(20));
   const scored = await httpsCallable(fns, "logicPracticeV2")({ seed, picks: blank });
@@ -2180,7 +2180,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("…and refuses a sheet that is not 25 twenty-bit cells");
 }
 
-// 11c · Adaptive practice (D474, docs/OMIB-PLAN.md §3.3) — the adaptive
+// 11c · Adaptive practice (D475, docs/OMIB-PLAN.md §3.3) — the adaptive
 // path is DARK for verified attempts until the §6 report clears its bar,
 // so practice's `mode` is the emulator's way onto it: a start hands out ONE
 // item; each call carries every pick so far and comes back with the next
@@ -2223,7 +2223,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     fail("adaptive practice did not score the twenty-fifth pick by θ: " + JSON.stringify(last));
   }
   if (!Array.isArray(last.diffs) || last.diffs.length !== 25) fail("adaptive practice did not disclose the form's difficulties after scoring");
-  ok("adaptive practice serves one item at a time, twenty-five without a repeat, and scores by θ (D474)");
+  ok("adaptive practice serves one item at a time, twenty-five without a repeat, and scores by θ (D475)");
 
   // Stateless: the same seed and the same picks replay the same items.
   const again = await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks: picks.slice(0, 7) });

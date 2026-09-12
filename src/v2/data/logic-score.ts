@@ -19,13 +19,13 @@
 
 export interface LogicResult {
   /** payload version: absent = pre-generator (v1), 2 = generator era,
-   *  3 = the OMIB bank (D471, D473) */
+   *  3 = the OMIB bank (D472, D474) */
   v?: number;
-  /** "omib" since D473; absent = the generator's */
+  /** "omib" since D474; absent = the generator's */
   bank?: string;
-  /** how an OMIB form was served (D474): "stratified" — the whole form from
+  /** how an OMIB form was served (D475): "stratified" — the whole form from
    *  the seed — or "adaptive", one item per answer, replayed from the seed
-   *  and the picks. Absent on results saved before D474: stratified. */
+   *  and the picks. Absent on results saved before D475: stratified. */
   mode?: string;
   /** the ability estimate on the calibration sample's scale (OMIB) */
   theta?: number;

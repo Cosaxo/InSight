@@ -1,5 +1,5 @@
 // omib-report.mjs — the §6 check: did the bank's calibration TRANSFER?
-// (docs/OMIB-PLAN.md §6, D474)
+// (docs/OMIB-PLAN.md §6, D475)
 //
 //   node scripts/omib-report.mjs                      production, admin credentials
 //   node scripts/omib-report.mjs --emulator           the local emulator
@@ -244,7 +244,7 @@ export function renderScorecard(sc) {
   ex("stratified", sc.exposure.stratified);
   ex("adaptive", sc.exposure.adaptive);
   L.push("");
-  L.push(`Basis: v2_logic_norms/{families, global, adaptive} (public mirrors, exact counts, first counted attempts only) against content/omib.json's published a and b. Bar (${f(sc.bar, 1)} on expected-against-observed) and floor (${sc.minN} attempts): docs/OMIB-PLAN.md §6, D474.`);
+  L.push(`Basis: v2_logic_norms/{families, global, adaptive} (public mirrors, exact counts, first counted attempts only) against content/omib.json's published a and b. Bar (${f(sc.bar, 1)} on expected-against-observed) and floor (${sc.minN} attempts): docs/OMIB-PLAN.md §6, D475.`);
   return L.join("\n");
 }
 

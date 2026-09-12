@@ -478,7 +478,7 @@ that lets a buyer read them.
 ### 14 · The logic test's answer, built rather than picked — OMIB's construction format
 
 - **title · asked by** — *Build the missing cell* · the owner, 2026-09-11,
-  choosing the Open Matrices Item Bank over three alternatives (D471),
+  choosing the Open Matrices Item Bank over three alternatives (D472),
   on the requirement that the items be *"correct from the start"*.
 - **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), the ITEM
   screen: today a 3×3 matrix above a row of six raised option tiles,
@@ -508,7 +508,7 @@ that lets a buyer read them.
 - **vocabulary** — the overlay's own tiles and accent (`LOGIC_COL`), the
   standalone family in `design/standalone-2026-08-20/`, the two palettes
   of D302, the copy rule D182. **CORRECTED 2026-09-11, once the archive was
-  read** (D471's amendment): this paragraph said OMIB items are pictures
+  read** (D472's amendment): this paragraph said OMIB items are pictures
   the overlay would have to import. They are not. An item is nine cells
   over **twenty construction elements** — a corner triangle, a diagonal
   line, an edge box, a centre shape, an edge arrow, each in four variants
@@ -525,11 +525,11 @@ that lets a buyer read them.
   on a 402px screen, with tap targets per `check:tap-targets` — the
   request should say what gives when they do not fit, rather than leave it
   to the build. GPLv3 attribution has to live somewhere a reader can reach.
-- **why** — D471: the items are calibrated before launch, which is what
+- **why** — D472: the items are calibrated before launch, which is what
   the owner asked for, and the construction format is the price the bank
   charges. The return is on the scale itself — six options put ~4.2 of 25
   in the guessing floor, and a constructed answer puts it near zero.
-- **status** — `built` 2026-09-12 (D473), the same day it was designed. Numbered 13 until the 2026-09-12 merge into `main`, where the Map ring's 13 (D464) had landed first — the D299 rule, one register over. `src/v2/spec/logic-test.jsx` is the screen: the board composing the goal cell live from `src/v2/data/omib-shapes.ts`, the palette laid out column = family / row = member with tap-to-toggle, Clear appearing once something is placed, Done committing (dormant while empty, pressable throughout — an item a taker cannot solve is skipped by committing the empty cell rather than by waiting out the clock), the current segment draining over its 90 s with the numeral in the final 20 s, the sitting's remainder in the header, and a time-out that commits the cell as it stands. Both modes on the one screen (D472): practice through `logicPracticeV2`, verified through `logicStartV2`/`logicSubmitV2`, the cells the only payload. The two build notes were honoured — the shapes are the bank's, in the bank's order, arrows out (`omib-shapes.test.ts`). Fourteen cases in `logic-overlay.test.jsx`; the smoke mount renders the example. Since D474 the same screen also walks an ADAPTIVE form — one item arriving per Done, the strip drawn at the form's full length from the start, a lost pick held under Retry — behind the server's selection, which is stratified until the §6 report speaks. The graded haptics are wired through `spec/haptics.js` — place `tick`, Done `tap`, remove and the clock's commit silent — felt on Android, silent on iOS until a Capacitor bridge exists (D473 records the correction: this line first said the overlay had no haptic channel). What was designed and NOT built: the drag alternative, which the design itself put second.
+- **status** — `built` 2026-09-12 (D474), the same day it was designed. Numbered 13 until the 2026-09-12 merge into `main`, where the Map ring's 13 (D464) had landed first — the D299 rule, one register over. `src/v2/spec/logic-test.jsx` is the screen: the board composing the goal cell live from `src/v2/data/omib-shapes.ts`, the palette laid out column = family / row = member with tap-to-toggle, Clear appearing once something is placed, Done committing (dormant while empty, pressable throughout — an item a taker cannot solve is skipped by committing the empty cell rather than by waiting out the clock), the current segment draining over its 90 s with the numeral in the final 20 s, the sitting's remainder in the header, and a time-out that commits the cell as it stands. Both modes on the one screen (D473): practice through `logicPracticeV2`, verified through `logicStartV2`/`logicSubmitV2`, the cells the only payload. The two build notes were honoured — the shapes are the bank's, in the bank's order, arrows out (`omib-shapes.test.ts`). Fourteen cases in `logic-overlay.test.jsx`; the smoke mount renders the example. Since D475 the same screen also walks an ADAPTIVE form — one item arriving per Done, the strip drawn at the form's full length from the start, a lost pick held under Retry — behind the server's selection, which is stratified until the §6 report speaks. The graded haptics are wired through `spec/haptics.js` — place `tick`, Done `tap`, remove and the clock's commit silent — felt on Android, silent on iOS until a Capacitor bridge exists (D474 records the correction: this line first said the overlay had no haptic channel). What was designed and NOT built: the drag alternative, which the design itself put second.
 
 ### 8 · The logic test's worked example — one solved matrix before item 1
 
@@ -578,7 +578,7 @@ that lets a buyer read them.
   worked example removes. D402 recorded this as the one administration
   step deferred, and as a screen rather than a control, so it is a
   request under D352 rather than a build.
-- **status** — `built` 2026-09-12 (D473), in the same artboard and the same commit as 13, which is what kept it from teaching a screen that no longer exists. On a first open the overlay shows the design's own addition puzzle SOLVED — not a bank item, so it teaches without leaking — over the resting palette, one sentence (*Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.*), and Start, which is the first call to the server; no clock runs. Reachable again from the result screen (*See how a puzzle works*) with a way back. The optional tap-to-explain on struck options was not built: there are no struck options in a constructed-response format, which is the request's own §4 premise dissolving rather than a cut.
+- **status** — `built` 2026-09-12 (D474), in the same artboard and the same commit as 13, which is what kept it from teaching a screen that no longer exists. On a first open the overlay shows the design's own addition puzzle SOLVED — not a bank item, so it teaches without leaking — over the resting palette, one sentence (*Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.*), and Start, which is the first call to the server; no clock runs. Reachable again from the result screen (*See how a puzzle works*) with a way back. The optional tap-to-explain on struck options was not built: there are no struck options in a constructed-response format, which is the request's own §4 premise dissolving rather than a cut.
 
 ### 13 · A node with more than two answers on the Map ring
 

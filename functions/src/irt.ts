@@ -1,5 +1,5 @@
 // Item response theory — the arithmetic that turns "which items were right"
-// into an ability, for the OMIB logic test (D471, docs/OMIB-PLAN.md §2).
+// into an ability, for the OMIB logic test (D472, docs/OMIB-PLAN.md §2).
 //
 // WHY NOT A COUNT. Two people who each solve 18 of 25 did not do the same
 // thing if one's 18 were harder, and two different forms have different

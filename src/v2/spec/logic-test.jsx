@@ -11,8 +11,8 @@ import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEM
 import { HAPTIC } from './haptics.js';
 
 // ─────────────────────────────────────────────────────────────
-// Logic · matrix reasoning on the Open Matrices Item Bank (D471,
-// D473), run as a full overlay like the other tests. Twenty-five
+// Logic · matrix reasoning on the Open Matrices Item Bank (D472,
+// D474), run as a full overlay like the other tests. Twenty-five
 // 3×3 matrices, each a form the SERVER draws from a seed — a
 // stratified sample of a published, calibrated bank — and each
 // answered by BUILDING the missing cell out of twenty shapes rather
@@ -22,7 +22,7 @@ import { HAPTIC } from './haptics.js';
 // ability θ against the bank's calibration (functions/src/irt.ts)
 // and returns the percentile. Practice differs from Verified only in
 // what COUNTS — practice is scored and forgotten, verified is scored
-// and folded into the norms once (D57, D472). Each puzzle is timed
+// and folded into the norms once (D57, D473). Each puzzle is timed
 // (D56); the clock standardises the administration and is the one
 // the bank itself ships. No per-question feedback — score + percentile
 // at the end, persisted via data/logic-score.ts. The General tab shows
@@ -333,7 +333,7 @@ export let LOGIC;
   // and the result screen says so once rather than letting five charts
   // imply five measurements.
   //
-  // The NUMBER is a different matter since D473, and the notes below say
+  // The NUMBER is a different matter since D474, and the notes below say
   // what it is. Both modes are scored on the server against the bank's
   // calibration; the percentile is Φ(θ̂) — the share of the 2,572 people
   // the bank was calibrated on who sit below you — until the verified
@@ -387,7 +387,7 @@ export let LOGIC;
     const [screen, setScreen] = useState(() => (result ? 'result' : 'example'));
     // The attempt's form, as served: { mode, items: [{code}], total, seed?,
     // practice?, verified? }. Under "stratified" `items` is the whole form;
-    // under "adaptive" (D474) it is the items served SO FAR — one more
+    // under "adaptive" (D475) it is the items served SO FAR — one more
     // arrives with each answer — and `total` is the form's length.
     const [form, setForm] = useState(null);
     const [qi, setQi] = useState(-1); // -1 = no item on screen
@@ -455,10 +455,10 @@ export let LOGIC;
       setScreen('item'); setQi(0);
     };
     // What a start says the form is. `mode` and `total` are the server's
-    // since D474; the fallbacks are for the deploy window in which a new
+    // since D475; the fallbacks are for the deploy window in which a new
     // client meets the old start shape, and read it as what it was.
     const served = (s) => ({ mode: s.mode || 'stratified', items: s.items, total: s.total || s.items.length });
-    // ── practice round trip (D472): the server mints and holds nothing ──
+    // ── practice round trip (D473): the server mints and holds nothing ──
     const beginPractice = () => {
       setNet({ phase: 'starting', mode: 'practice' });
       startPractice().then(
@@ -503,7 +503,7 @@ export let LOGIC;
         (err) => setNet({ phase: 'send-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
       );
     };
-    // ── the adaptive round trip, one per item (D474) ──
+    // ── the adaptive round trip, one per item (D475) ──
     // The pick for item `pk.length - 1` goes to the server and the next item
     // comes back — or, on the last, the result. A verified attempt sends the
     // one pick with its index; practice, holding nothing server-side, sends

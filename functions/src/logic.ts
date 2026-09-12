@@ -89,7 +89,7 @@ export const LOGIC_MIN_MS_PER_ITEM = 2_000;
 // same arithmetic for practice results, pinned equal in both suites.
 export const LOGIC_SEM_ITEMS = 2;
 
-// ── which bank a NEW attempt is minted on (D471, docs/OMIB-PLAN.md §8) ──
+// ── which bank a NEW attempt is minted on (D472, docs/OMIB-PLAN.md §8) ──
 // "generator" is D31's procedural bank scored by count; "omib" is the Open
 // Matrices Item Bank scored by θ. The bank is a property of the ATTEMPT,
 // stamped at start and honoured at submit whatever this constant says by
@@ -97,13 +97,13 @@ export const LOGIC_SEM_ITEMS = 2;
 // minted on, and both paths are testable without touching this line.
 // Phase 1 shipped the OMIB path DARK on "generator", because the overlay of
 // the day sent six-way indexes and would have rendered nothing on a code.
-// Phase 2 (D473) is the screen that answers a code, and flips this with it —
+// Phase 2 (D474) is the screen that answers a code, and flips this with it —
 // the same PR, so no deployed tree ever serves codes to a client that cannot
 // draw them. The practice callable below is OMIB-only regardless.
 export type LogicBank = "generator" | "omib";
 export const LOGIC_BANK = "omib" as LogicBank;
 
-// ── how a NEW OMIB attempt picks its items (D474, docs/OMIB-PLAN.md §3.3) ──
+// ── how a NEW OMIB attempt picks its items (D475, docs/OMIB-PLAN.md §3.3) ──
 // "stratified" mints the whole form at start from the seed, scored at one
 // submit; "adaptive" serves one item at a time, each chosen for the taker's
 // current θ̂, through logicNextV2. Like the bank, the selection is a
@@ -146,9 +146,9 @@ export interface LogicAttempt {
   seed: number;
   /** generator version, or OMIB_BANK_VERSION when `bank` is "omib" */
   gv: number;
-  /** absent on documents from before D471 — those are the generator's */
+  /** absent on documents from before D472 — those are the generator's */
   bank?: LogicBank;
-  /** OMIB only; absent before D474 = stratified */
+  /** OMIB only; absent before D475 = stratified */
   mode?: OmibSelection;
   /** adaptive only: the cells committed so far, in the order served — the
    *  form is replayed from these and the seed, so nothing else is held */
@@ -555,7 +555,7 @@ async function finishOmib(
   // The ledger is per ITEM for this bank (docs/OMIB-PLAN.md §3.2), on the
   // same document the generator kept its families on; the era stamp is
   // what keeps the two from ever folding into each other. AND PER
-  // SELECTION (D474): a stratified attempt's counts are the §6 report's
+  // SELECTION (D475): a stratified attempt's counts are the §6 report's
   // instrument — an item's solve rate against its published b — and an
   // adaptive attempt's are not, because adaptive administration meets every
   // item near its taker's 50 % point. So the two fold into different
@@ -785,7 +785,7 @@ export const logicSubmitV2 = onCall(
   },
 );
 
-// ── the adaptive attempt's per-item call (D474, docs/OMIB-PLAN.md §3.3) ──
+// ── the adaptive attempt's per-item call (D475, docs/OMIB-PLAN.md §3.3) ──
 //
 // One call per item: the pick for item `index` goes in, the next item comes
 // out — or, on the twenty-fifth, the result, scored and folded exactly as a
@@ -889,7 +889,7 @@ async function storedOmibResult(
   };
 }
 
-// ── practice, on the OMIB bank, stateless (D471; the owner, 2026-09-12:
+// ── practice, on the OMIB bank, stateless (D472; the owner, 2026-09-12:
 // "use the same screen for practice") ──
 //
 // One callable, two calls. Without `picks` it mints a seed and returns the
@@ -902,12 +902,12 @@ async function storedOmibResult(
 // trips through the client on purpose: with nothing at stake there is
 // nothing to hold server-side, and a client that fabricates one scores a
 // form nobody ranks. Marks are per item, right or wrong, never the answer
-// — and the answers are public anyway (D471's recorded limit). Unbounded
+// — and the answers are public anyway (D472's recorded limit). Unbounded
 // per account, deliberately: it is one document read and 25 × 201
 // logistic evaluations, and a bound would want an attempt document, which
 // is the thing practice does not have. Recorded, not hidden.
 //
-// ADAPTIVE PRACTICE IS STATELESS TOO (D474): the client sends the seed and
+// ADAPTIVE PRACTICE IS STATELESS TOO (D475): the client sends the seed and
 // every pick so far, the server replays the form from them and answers with
 // the next item, or with the score once there are twenty-five. The replay
 // is 25 × 201 logistic evaluations at most, and the payload is at most 25

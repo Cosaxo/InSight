@@ -1,7 +1,7 @@
 # Build the missing cell — the logic test's answer screen (2026-09-12)
 
 The owner's `InSight_Logic_Test_-_Build_the_Cell.html` upload of
-2026-09-12, answering **visual request 14** (D471): the Open Matrices
+2026-09-12, answering **visual request 14** (D472): the Open Matrices
 Item Bank is answered by CONSTRUCTING the missing cell out of twenty
 shapes, not by tapping one of six finished tiles, so the item screen is
 a new interaction rather than a new control. The upload is ephemeral;
@@ -13,14 +13,14 @@ This is the first **Claude Design canvas** filed here rather than an
 InSight standalone, so the extraction differs from the numbered series
 — see below.
 
-**Built 2026-09-12 (D473)**, the same day: `src/v2/spec/logic-test.jsx` is
+**Built 2026-09-12 (D474)**, the same day: `src/v2/spec/logic-test.jsx` is
 the screen, `src/v2/data/omib-shapes.ts` its twenty shapes, and
 `logic-overlay.test.jsx` its fourteen cases (three of them the adaptive
-walk D474 added, one item arriving per Done on the same screen). What the artboard decided is
+walk D475 added, one item arriving per Done on the same screen). What the artboard decided is
 what was built, with the two corrections below honoured, the graded
 haptics included — through `spec/haptics.js`, the channel the rest of
 the app already speaks, felt on Android and silent on iOS until a
-Capacitor bridge exists (D473 has the correction: this note first said
+Capacitor bridge exists (D474 has the correction: this note first said
 the overlay had no channel). What it drew and was not built — the drag
 alternative — is named in `docs/VISUAL-REQUESTS.md` § Built rather than
 pretended.
@@ -144,7 +144,7 @@ reasons, none of them taste:
   reference ships `timelimit = 90`. Administer under a tighter clock than
   the calibration sample had and the 220 difficulty values stop
   transferring cleanly, which is the entire reason this bank was chosen
-  over the generator (D471). (Stated honestly: the reference's 90 is a
+  over the generator (D472). (Stated honestly: the reference's 90 is a
   default in the bank's own demo code. Whether the calibration study used
   exactly that is in the paper, which no session here has been able to
   reach — `www.mdpi.com` and `pmc.ncbi.nlm.nih.gov` are both blocked by

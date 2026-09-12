@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Logic overlay's behaviour on the OMIB bank (D471, D473) — the layer
+// The Logic overlay's behaviour on the OMIB bank (D472, D474) — the layer
 // between omib-shapes (unit-tested) and the smoke suite (mounts only):
 // building a cell, committing it, the clock, both round trips, and the
 // result screen's five lenses.
@@ -110,7 +110,7 @@ describe("the worked example (visual request 8)", () => {
   });
 });
 
-describe("a practice attempt (D472)", () => {
+describe("a practice attempt (D473)", () => {
   it("Start → build every cell → Done ×25 → the server's result, saved as v3 and counted nowhere", async () => {
     vi.useFakeTimers();
     vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });
@@ -331,11 +331,11 @@ describe("the result screen's five lenses", () => {
   });
 });
 
-// ── an adaptive attempt (D474): one item at a time ───────────────────────
+// ── an adaptive attempt (D475): one item at a time ───────────────────────
 // Dark behind the server's OMIB_SELECTION, so what a phone meets today is
 // the stratified form above; this is the screen's half of the adaptive
 // path, proved against the wire shapes the server serves.
-describe("an adaptive attempt (D474)", () => {
+describe("an adaptive attempt (D475)", () => {
   const first = () => [codes()[0]];
   // the server's answer to `picks` so far: the next item, or the result at 25
   const nextFor = (picks) =>

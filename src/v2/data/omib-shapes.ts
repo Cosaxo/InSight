@@ -1,5 +1,5 @@
 // The twenty construction elements of the Open Matrices Item Bank, as the
-// app draws them (D471; design/logic-build-cell-2026-09-12/).
+// app draws them (D472; design/logic-build-cell-2026-09-12/).
 //
 // INDEX IS OMIB'S ELEMENT ID. Not the design artboard's array order, and not
 // reading order — the bank numbers every family COUNTER-CLOCKWISE (top-left,

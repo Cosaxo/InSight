@@ -1,8 +1,8 @@
-// Client transport for logic attempts on the OMIB bank (D57, D471, D473, D474).
+// Client transport for logic attempts on the OMIB bank (D57, D472, D474, D475).
 //
 // Two shapes of attempt. A STRATIFIED one is two round trips: the start
 // hands out all 25 items, the submit sends 25 cells back. An ADAPTIVE one
-// (D474, dark behind the server's OMIB_SELECTION until the §6 report clears
+// (D475, dark behind the server's OMIB_SELECTION until the §6 report clears
 // its bar) is a round trip per item: the start hands out the first item
 // alone, each pick goes back through `nextVerified` / `nextPractice` and the
 // next item comes out — or, on the twenty-fifth, the result. The start says
@@ -13,7 +13,7 @@
 // trust: the server mints the seed, keeps it, and returns the 25 items as
 // construction codes with the ninth cell empty — the client's only way to a
 // score is submitting its constructed cells back for server-side marking.
-// A PRACTICE attempt (D472, the owner's "use the same screen for practice")
+// A PRACTICE attempt (D473, the owner's "use the same screen for practice")
 // is the same screen against the same bank, but stateless: the server mints
 // a seed and hands it back with the items, the client returns it with the
 // cells, and the server scores that seed's form and holds nothing — no
@@ -40,7 +40,7 @@ export interface VerifiedItem {
   code: string;
 }
 
-/** How the form is served: whole at start, or one item per answer (D474). */
+/** How the form is served: whole at start, or one item per answer (D475). */
 export type Selection = "stratified" | "adaptive";
 
 export interface VerifiedStart {
@@ -74,7 +74,7 @@ export interface NextItem {
 export interface VerifiedScore {
   marks: boolean[];
   score: number;
-  /** the ability estimate on the calibration sample's scale (D471) */
+  /** the ability estimate on the calibration sample's scale (D472) */
   theta: number;
   /** its standard error — the person's own likely range, not a constant */
   se: number;

@@ -1,4 +1,4 @@
-// Holds the app's twenty shapes to the bank's own geometry (D471). The class
+// Holds the app's twenty shapes to the bank's own geometry (D472). The class
 // this exists for has already happened once: the design artboard's array was
 // in reading order where OMIB numbers counter-clockwise, and its arrows
 // pointed in where the bank's point out — twelve of twenty wrong, every gate
