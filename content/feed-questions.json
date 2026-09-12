@@ -364,7 +364,8 @@
         2,
         4
       ],
-      "votes": 3100
+      "votes": 3100,
+      "active": false
     },
     {
       "id": "f17",

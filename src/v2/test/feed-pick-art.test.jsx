@@ -90,6 +90,10 @@ describe("a live pick card draws the catalogue's pictures", () => {
     // your pick, Norway — and nothing for the crowd's leader, whose key
     // the index does not carry
     expect(srcs).toEqual([`${SITE_ORIGIN}/catalog-art/countries/578.png`]);
+    // and fitted into that face rather than cropped to it: the reveal's
+    // faces are the wide ones, and cover took the middle out of a subject
+    // the builder had already fitted inside a square.
+    expect(card.querySelector("img[data-pick-art]").className).toContain("is-fit");
     expect(within(card).getByText("your pick")).toBeTruthy();
     expect(within(card).getByRole("button", { name: "Image credits" })).toBeTruthy();
   });

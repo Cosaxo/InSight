@@ -9,7 +9,7 @@ import {
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
   windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit, BG_MIN, BG_MAX,
-  learnView, OPTION_MAX, PATH_CHOICE_MAX, LEARN_WHY_WORDS_MAX,
+  learnView, OPTION_MAX, PATH_CHOICE_MAX, LEARN_WHY_WORDS_MAX, classOptions,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -1002,5 +1002,66 @@ describe("the subtopic tag (D425)", () => {
   it("refuses the tag repeated as a door", () => {
     const { errs } = checkQuestion(sport({ sub: "sub_tennis", also: ["sub_tennis"] }), "feed", corpus);
     expect(errs.some((e) => e.rule === "sub" && /repeats in `also`/.test(e.msg))).toBe(true);
+  });
+});
+
+// ── naming the thing, not its class (2026-09-11) ─────────────────────
+//
+// The owner's report, read off a device: "in a lot of questions you are a
+// bit too general like what type of movie insted of concrete movies same
+// with other things like famous persons". The gate's half of the answer is
+// a WARNING — the judgement it wants (is this question about a stance, or
+// about things in the world?) is not one a word list can make — so what
+// these cases pin is the shape of the warning and, just as much, the two
+// false positives that made the lists carry their own topics.
+describe("the concreteness warning", () => {
+  const feed = (over) => ({ type: "vote", prompt: "A question about films?", cat: "movies", ...over });
+
+  it("names the genre options a movies question answered with", () => {
+    const hits = classOptions(feed({ type: "rank", items: ["Comedies", "Thrillers", "Sci-fi", "Documentaries"] }), "feed");
+    expect(hits).toEqual(["Comedies", "Thrillers", "Sci-fi", "Documentaries"]);
+    const { warn } = checkQuestion(
+      feed({ type: "rank", items: ["Comedies", "Thrillers", "Sci-fi", "Documentaries"] }), "feed", corpus,
+    );
+    expect(warn.some((w) => /names a class/.test(w))).toBe(true);
+  });
+
+  it("names a person CLASS where a name would do", () => {
+    expect(classOptions({ cat: "people", options: ["A scientist you admire", "Beyoncé"] }, "feed"))
+      .toEqual(["A scientist you admire"]);
+    expect(classOptions({ cat: "people", options: ["Someone famous", "A stranger your age"] }, "feed"))
+      .toEqual(["Someone famous"]);
+  });
+
+  it("never warns on a stance question, which is what it is not for", () => {
+    expect(classOptions(feed({ options: ["Joy", "Endurance"] }), "feed")).toEqual([]);
+    expect(classOptions(feed({ options: ["A treat", "A chore"] }), "feed")).toEqual([]);
+  });
+
+  it("leaves real names alone — the two the corpus caught", () => {
+    // "The Rock" is Dwayne Johnson on a `people` card, and the genre list
+    // called him a music genre until it stopped stripping leading articles.
+    expect(classOptions({ cat: "people", options: ["Serena Williams", "The Rock", "Zlatan"] }, "feed")).toEqual([]);
+    // …and "Blitz or classical?" is a chess time control on `culture`,
+    // which is why genres read on movies and music only.
+    expect(classOptions({ cat: "culture", options: ["Blitz", "Classical"] }, "feed")).toEqual([]);
+  });
+
+  it("stays off the surfaces whose answers are not opinions", () => {
+    expect(classOptions(feed({ options: ["Comedy", "Drama"] }), "learn")).toEqual([]);
+    expect(classOptions(feed({ options: ["Comedy", "Drama"] }), "pulse")).toEqual([]);
+  });
+
+  it("holds the live corpus to a small, readable set of findings", () => {
+    // Not zero — five active feed questions warn today and each is a
+    // judgement for a writer, not a defect. What this pins is the ORDER of
+    // magnitude: a list that fires on a tenth of the bank is one whose
+    // warnings stop being read, and the two false positives above are how
+    // that starts.
+    const bank = JSON.parse(readFileSync("content/feed-questions.json", "utf8")).questions;
+    const active = bank.filter((q) => q.active !== false);
+    const warned = active.filter((q) => classOptions(q, "feed").length);
+    expect(warned.length).toBeGreaterThan(0);
+    expect(warned.length / active.length).toBeLessThan(0.03);
   });
 });
