@@ -13,6 +13,13 @@ This is the first **Claude Design canvas** filed here rather than an
 InSight standalone, so the extraction differs from the numbered series
 — see below.
 
+**Built 2026-09-12 (D453)**, the same day: `src/v2/spec/logic-test.jsx` is
+the screen, `src/v2/data/omib-shapes.ts` its twenty shapes, and
+`logic-overlay.test.jsx` its eleven cases. What the artboard decided is
+what was built, with the two corrections below honoured; what it drew
+and the web overlay cannot do yet — the graded haptics — is named in
+`docs/VISUAL-REQUESTS.md` § Built rather than pretended.
+
 ## What the upload holds
 
 A `__bundler` page whose manifest carries nine gzip+base64 assets. Four

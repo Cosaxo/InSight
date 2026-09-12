@@ -1,6 +1,6 @@
 # OMIB plan — the logic test on a calibrated bank, scored for accuracy
 
-**Status: plan notes — phases 0 and 1 BUILT 2026-09-12 (D452), deployed dark; phases 2–4 sequenced and not built.** The owner chose the Open
+**Status: plan notes — phases 0–3 BUILT 2026-09-12 (D452, D453) and LIVE; phase 4 sequenced and not built.** The owner chose the Open
 Matrices Item Bank for the logic test on 2026-09-11 (D451) on one
 requirement, *"they have to be correct from the start"*, and asked on
 2026-09-12 for *"the best way to implement this to get the most accurate
@@ -297,8 +297,8 @@ byte-identical. `check:omib` keeps the bank the authors' bank.
 | --- | --- | --- | --- |
 | **0** — done | Bank in and gated; shapes derived; 25 × 90 s; design filed | — | `check:omib`, `omib-shapes.test.ts` |
 | **1** — done (D452) | `irt.ts` (EAP + SE); `omib.ts` with the quality floor, stratified seeded selection, exact-match scoring, the θ histogram and per-item ledger; the OMIB era stamp; the bank stamped on the attempt and honoured at submit, `LOGIC_BANK` still `"generator"`; `logicPracticeV2`, stateless, on the owner's call | `omib-bank.ts` generated and gated by `check:omib` | functions suite; the emulator's practice leg — start, score, score again, refuse the generator's shape |
-| **2** — client | The screen (VR 13 → built), the wire, the worked example | phase 1 deployed; the practice-mode call | smoke mount; the mount-app suites green; `check:tap-targets` on twenty tiles |
-| **3** — norms | θ histogram, Φ fallback with its sentence, measured rank, the band from SE | phase 1's era stamp | rules suite on the new document paths; `check:policy-claims` unchanged |
+| **2** — done (D453) | The screen (VR 13 → built), the wire, the worked example (VR 8 → built), and the flip | — | `logic-overlay.test.jsx` (11), the smoke mount on the example, the mount-app suites, `check:tap-targets`; the emulator's verified leg on OMIB by θ |
+| **3** — done (D452, D453) | θ histogram, Φ fallback with its sentence, measured rank, the band from SE — the server half in phase 1, the sentence in phase 2 | — | rules suite on the same document paths (nothing new); `check:policy-claims` unchanged |
 | **4** — later | Adaptive selection; the §6 report on real counts | hundreds of first attempts | the r figure |
 
 Phases 1 and 3 are one deploy if built together, and nothing a user sees

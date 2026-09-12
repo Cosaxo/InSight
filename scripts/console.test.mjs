@@ -359,9 +359,12 @@ describe("the lists on this tree", () => {
     // upload answered 13 the next day and it moved under Designed, the section
     // being the status; its extraction and the two build notes measured off the
     // artboard are design/logic-build-cell-2026-09-12/README.md.
-    expect(v.requested.length).toBe(8);
-    expect(v.designed.length).toBe(1);
-    expect(v.built.length).toBe(6);
+    // Requested 7, Designed 0 and Built 8 later the same day (D453): 13 was
+    // built, and 8 — the worked example, answered in the same artboard —
+    // moved under Built with it, because it teaches the screen 13 is.
+    expect(v.requested.length).toBe(7);
+    expect(v.designed.length).toBe(0);
+    expect(v.built.length).toBe(8);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);
   });

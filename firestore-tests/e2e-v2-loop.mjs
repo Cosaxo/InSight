@@ -2091,16 +2091,24 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // …and the key IS disclosed once the attempt is scored, which is what
   // makes the assertion above about TIMING rather than about the field
   // never existing.
-  const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+  // Since D453 a verified form is the OMIB bank's: 25 twenty-bit cells, a
+  // blank sheet being the honest "answered nothing" (scored zero, θ low).
+  const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill("0".repeat(20)) });
   if (typeof submitted.data?.seed !== "number") {
     fail("logicSubmitV2 withheld the seed after scoring: " + JSON.stringify(submitted.data));
   }
-  ok("…and discloses it after scoring, so the reveal can show the working");
+  if (submitted.data.bank !== "omib" || typeof submitted.data.theta !== "number" || typeof submitted.data.se !== "number") {
+    fail("logicSubmitV2 did not score the verified attempt on the OMIB bank by θ: " + JSON.stringify(submitted.data));
+  }
+  if (!Array.isArray(submitted.data.diffs) || submitted.data.diffs.length !== 25) {
+    fail("logicSubmitV2 did not disclose the form's difficulties after scoring");
+  }
+  ok("…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ (D453)");
 
   // One attempt per window. Without this the client can resubmit until the
   // score it wants, and the norms histogram counts every try.
   try {
-    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill("0".repeat(20)) });
     fail("a second submit against a scored attempt was accepted");
   } catch (e) {
     if (e?.code !== "functions/failed-precondition") {

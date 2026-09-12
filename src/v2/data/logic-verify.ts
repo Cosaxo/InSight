@@ -1,32 +1,34 @@
-// Client transport for verified logic attempts (D57).
+// Client transport for logic attempts on the OMIB bank (D57, D451, D453).
 //
-// A verified attempt inverts the practice flow's trust: the server mints
-// the seed, keeps it, and returns puzzles with the answer index withheld —
-// the client's only way to a score is submitting raw picks back for
-// server-side marking. This module is that round trip and nothing else;
-// the overlay imports it directly (the D53 pattern — no window global, and
-// window.LIVE's pinned member surface stays untouched).
+// Two round trips, one shape. A VERIFIED attempt inverts the practice flow's
+// trust: the server mints the seed, keeps it, and returns the 25 items as
+// construction codes with the ninth cell empty — the client's only way to a
+// score is submitting its constructed cells back for server-side marking.
+// A PRACTICE attempt (D452, the owner's "use the same screen for practice")
+// is the same screen against the same bank, but stateless: the server mints
+// a seed and hands it back with the items, the client returns it with the
+// cells, and the server scores that seed's form and holds nothing — no
+// attempt document, no cooldown, no fold. The one bank cannot be scored on a
+// device, because the device never has the key (build-omib.test.mjs holds
+// src/ to never naming it), so practice sends its picks too now; the
+// result-screen copy says so.
 //
-// What leaves the device, exactly: the start call (bare, authenticated),
-// and the submit call carrying one pick index per item — 25 of them for a
-// generated form since D61, and this line said "twelve" long after that,
-// which is the v1/v2 count. Phrased against the form rather than as a
-// number, because `logic-gen.ts` owns it. The server stores the
-// scored result on the owner-only profile doc and folds the first scored
-// attempt per account into an anonymous score histogram. Per-item timings
-// never leave the device — the server records only the attempt duration it
-// observed itself.
+// What leaves the device, exactly: a bare start call, and a submit carrying
+// twenty-five 20-character strings of 0 and 1 — one constructed cell per
+// item. Per-item timings never leave the device — the server records only
+// the attempt duration it observed itself (verified) or nothing (practice).
+//
+// This module imports nothing from the bank: the client renders whatever
+// codes it is served, through src/v2/data/omib-shapes.ts.
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 import { getDb } from "../../lib/firebase";
-import type { Cell } from "./logic-gen";
 import { FUNCTIONS_REGION } from "../../lib/region";
 
+/** An item as served: nine comma-separated 20-bit cells, the ninth all zeros. */
 export interface VerifiedItem {
-  cells: Cell[];
-  opts: Cell[];
-  diff: number;
+  code: string;
 }
 
 export interface VerifiedStart {
@@ -35,33 +37,62 @@ export interface VerifiedStart {
   deadlineMs: number;
 }
 
+export interface PracticeStart {
+  /** the seed the form was drawn from — returned with the picks, held nowhere */
+  seed: number;
+  items: VerifiedItem[];
+  capMs: number;
+}
+
+/** One score shape for both modes — what the server says the attempt was. */
 export interface VerifiedScore {
   marks: boolean[];
   score: number;
+  /** the ability estimate on the calibration sample's scale (D451) */
+  theta: number;
+  /** its standard error — the person's own likely range, not a constant */
+  se: number;
   pctile: number;
-  /** the likely range round pctile — the score ± one standard error,
-   *  ranked the same way the score was (D402) */
+  /** pctile at θ̂ ∓ se, ranked the same way the number was */
   band?: [number, number];
-  /** what the percentile IS: the modelled curve, or a measured rank among
-   *  `n` verified first attempts once the histogram clears the D60 floor */
+  /** "model": Φ(θ̂) against the calibration sample; "measured": a rank
+   *  among `n` verified first attempts once the histogram clears the floor */
   source?: "model" | "measured";
   n?: number;
-  durationMs: number;
-  /** disclosed only after scoring — no longer an answer key (D57) */
+  /** server-observed attempt duration — verified only */
+  durationMs?: number;
+  /** disclosed only after scoring — reconstructs the form, never a key alone */
   seed: number;
   gv: number;
+  bank: "omib";
+  /** the published difficulty of each item in form order, disclosed after scoring */
+  diffs: number[];
+  practice?: true;
+}
+
+async function fns() {
+  const db = await getDb();
+  if (!getAuth(db.app).currentUser) throw new Error("still signing in — try again in a moment");
+  return getFunctions(db.app, FUNCTIONS_REGION);
 }
 
 export async function startVerified(): Promise<VerifiedStart> {
-  const db = await getDb();
-  if (!getAuth(db.app).currentUser) throw new Error("still signing in — try again in a moment");
-  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicStartV2")({});
+  const res = await httpsCallable(await fns(), "logicStartV2")({});
   return res.data as VerifiedStart;
 }
 
-export async function submitVerified(picks: number[]): Promise<VerifiedScore> {
-  const db = await getDb();
-  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicSubmitV2")({ picks });
+export async function submitVerified(picks: string[]): Promise<VerifiedScore> {
+  const res = await httpsCallable(await fns(), "logicSubmitV2")({ picks });
+  return res.data as VerifiedScore;
+}
+
+export async function startPractice(): Promise<PracticeStart> {
+  const res = await httpsCallable(await fns(), "logicPracticeV2")({});
+  return res.data as PracticeStart;
+}
+
+export async function submitPractice(seed: number, picks: string[]): Promise<VerifiedScore> {
+  const res = await httpsCallable(await fns(), "logicPracticeV2")({ seed, picks });
   return res.data as VerifiedScore;
 }
 
@@ -73,6 +104,6 @@ export function verifyErrorMessage(err: unknown): string {
   const code = e?.code || "";
   if (code.includes("failed-precondition") && e?.message) return e.message;
   if (code.includes("deadline-exceeded")) return "the attempt ran out of time";
-  if (code.includes("unauthenticated")) return "still signing in — try again in a moment";
+  if (code.includes("unauthenticated") || /signing in/.test(e?.message || "")) return "still signing in — try again in a moment";
   return "couldn't reach the server — nothing was counted";
 }

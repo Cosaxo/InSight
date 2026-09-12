@@ -413,8 +413,8 @@ describe("rankAndFoldTheta", () => {
   const enough = OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM;
   const base = { theta: 0.3, se: 0.35, durationMs: enough, stored: null, alreadyCounted: false };
 
-  it("ships dark: new attempts are still minted on the generator", () => {
-    expect(LOGIC_BANK).toBe("generator");
+  it("is LIVE since D453: new attempts are minted on the OMIB bank", () => {
+    expect(LOGIC_BANK).toBe("omib");
   });
 
   it("below the floor ranks against the model — Φ of θ̂ — and folds a first attempt into the OMIB era", () => {

@@ -47,15 +47,20 @@ describe("the overlays with no button — opened through the nav registry", () =
     expectNoBoundary("logic overlay");
   });
 
-  it("logic test: a fresh start renders a generated puzzle with six answers", async () => {
+  it("logic test: a fresh start renders the worked example — a solved grid, the twenty shapes, Start", async () => {
     const expectNoBoundary = mountApp();
     await openVia("openLogicTest");
     expectOpened(/Logic/, "logic overlay");
-    // With no saved result the overlay opens straight into item 1 of a freshly
-    // generated form — this executes the whole generator path (seed →
-    // LOGIC_GEN.generateForm → Prim) in jsdom, which no other test renders.
-    screen.getByLabelText(/3 by 3 puzzle grid/i);
-    expect(screen.getAllByLabelText(/^Answer \d of 6$/)).toHaveLength(6);
+    // With no saved result the overlay opens on the worked example (visual
+    // request 8, D453): one solved matrix drawn from the twenty shapes in
+    // src/v2/data/omib-shapes.ts, the palette shown but resting, and Start —
+    // which is the first call to the server, so nothing here needs one.
+    // This executes the whole shape path (code → bitsOf → SHAPES → <path>)
+    // in jsdom, which no other mount renders.
+    screen.getByLabelText(/solved 3 by 3 puzzle grid/i);
+    expect(screen.getAllByRole("button", { name: /^(corner|line|box|arrow) |square$|circle$/ })).toHaveLength(20);
+    screen.getByRole("button", { name: "Start" });
+    expect(screen.queryByRole("timer")).toBeNull();
     expectNoBoundary("logic fresh start");
   });
 

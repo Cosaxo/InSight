@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 482 lines instead of
-50,023. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 483 lines instead of
+50,113. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -46,7 +46,7 @@ detect it.
 |  | ↳ *amendment 2026-08-06* — [Identity verification (passport / driver's licence class) recorded as a possible future requirement](DECISIONS.md#d28-amendment-2026-08-06--identity-verification-passport--drivers-licence-class-recorded-as-a-possible-future-requirement) | — | 5082 |
 | **D29** | [Device-bound activation: one counted account per device per month, silently](DECISIONS.md#d29--device-bound-activation-one-counted-account-per-device-per-month-silently) | D414 (+11) | 2396 |
 | **D30** | [Farm questions may graduate to the live seed; the deck gets an epoch](DECISIONS.md#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) | D444 (+16) | 2598 |
-| **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D451 (+4) | 2663 |
+| **D31** | [The logic test generates its puzzles; nothing ships an answer key](DECISIONS.md#d31--the-logic-test-generates-its-puzzles-nothing-ships-an-answer-key) | D453 (+5) | 2663 |
 | **D32** | [Learn's crowd stat is measured — first attempts only, estimates labeled](DECISIONS.md#d32--learns-crowd-stat-is-measured--first-attempts-only-estimates-labeled) | D402 (+19) | 2734 |
 | **D33** | [The farm gets eyes and a faster clock: the scorecard, and daily runs](DECISIONS.md#d33--the-farm-gets-eyes-and-a-faster-clock-the-scorecard-and-daily-runs) | D424 (+13) | 2807 |
 |  | ↳ *amendment 2026-08-06* — [Ordinal splits are measured on their axis](DECISIONS.md#d33-amendment-2026-08-06--ordinal-splits-are-measured-on-their-axis) | — | 6200 |
@@ -77,7 +77,7 @@ detect it.
 | **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D452 (+14) | 5708 |
 | **D58** | [The seed refuses to edit a shipped option set](DECISIONS.md#d58--the-seed-refuses-to-edit-a-shipped-option-set) | D444 (+1) | 5835 |
 | **D59** | [The deferred chunks stop caching their own failure](DECISIONS.md#d59--the-deferred-chunks-stop-caching-their-own-failure) | — | 5908 |
-| **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D402 (+2) | 5958 |
+| **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D453 (+3) | 5958 |
 | **D61** | [Twenty-five items, tail-heavy: the form grows before the norms freeze it](DECISIONS.md#d61--twenty-five-items-tail-heavy-the-form-grows-before-the-norms-freeze-it) | D451 (+3) | 6019 |
 | **D62** | [The test starts learning its own difficulty: family and slot solve rates](DECISIONS.md#d62--the-test-starts-learning-its-own-difficulty-family-and-slot-solve-rates) | D451 (+1) | 6093 |
 | **D63** | [Near-duplicate questions get a measured gate](DECISIONS.md#d63--near-duplicate-questions-get-a-measured-gate) | D123 (+2) | 6143 |
@@ -495,4 +495,5 @@ detect it.
 | **D450** | [The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on](DECISIONS.md#d450--the-2026-09-11-night-review-two-shifts-merged-as-one-tree--63-commits-kept-thirteen-files-touched-by-both-and-the-first-night-the-merge-had-something-to-stop-on) | — | 49524 |
 | **D451** | [The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding](DECISIONS.md#d451--the-logic-tests-items-come-from-the-open-matrices-item-bank--and-the-licence-sweep-is-the-finding) | D452 | 49764 |
 |  | ↳ *amendment 2026-09-11, the same evening* — [The archive read: the bank is a vocabulary, not artwork — and its answer key is public](DECISIONS.md#d451-amendment-2026-09-11-the-same-evening--the-archive-read-the-bank-is-a-vocabulary-not-artwork--and-its-answer-key-is-public) | — | 49861 |
-| **D452** | [OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank](DECISIONS.md#d452--omib-phase-1-the-server-scores-by-θ-dark--and-practice-is-a-stateless-callable-on-the-same-bank) | — | 49936 |
+| **D452** | [OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank](DECISIONS.md#d452--omib-phase-1-the-server-scores-by-θ-dark--and-practice-is-a-stateless-callable-on-the-same-bank) | D453 | 49936 |
+| **D453** | [OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now](DECISIONS.md#d453--omib-phase-2-the-screen-the-wire-and-the-flip--the-logic-test-is-the-calibrated-bank-now) | — | 50024 |

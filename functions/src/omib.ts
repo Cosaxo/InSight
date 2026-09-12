@@ -95,6 +95,9 @@ export interface OmibScore {
   se: number;
   /** the bank's item numbers, in form order — the ledger's key */
   itemIds: number[];
+  /** the published difficulty of each item, in form order — for the Answers
+   *  lens to rank rows on; public parameters, disclosed only after scoring */
+  diffs: number[];
 }
 
 /**
@@ -108,7 +111,10 @@ export function scoreOmibPicks(seed: number, picks: readonly string[]): OmibScor
   const attempted = picks.map((p) => p !== EMPTY_CELL);
   const params: ItemParams[] = form.map((it) => ({ a: it.a as number, b: it.b as number }));
   const { theta, se } = eap(params, marks.map((m) => (m ? 1 : 0)));
-  return { marks, attempted, score: marks.filter(Boolean).length, theta, se, itemIds: form.map((it) => it.n) };
+  return {
+    marks, attempted, score: marks.filter(Boolean).length, theta, se,
+    itemIds: form.map((it) => it.n), diffs: form.map((it) => it.b as number),
+  };
 }
 
 // ── norms ─────────────────────────────────────────────────────────────────

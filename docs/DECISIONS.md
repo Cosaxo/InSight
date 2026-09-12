@@ -50020,3 +50020,93 @@ copy for the model percentile — the sentence that says whom Φ compares
 against. Those are phase 2 and 3. The two honest limits stand as recorded:
 the 90 s is the bank's demo default until the paper is read, and the
 answer key is public.
+
+## D453 · OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now
+
+**Date:** 2026-09-12 · **Status:** built and live, on the owner's *"go
+ahead with phase 2"*. `docs/OMIB-PLAN.md` §8's phase 2, plus the flip
+phase 1 held back. Visual requests 13 and 8 → built.
+
+**The flip.** `LOGIC_BANK = "omib"` (`functions/src/logic.ts`), in the
+same commit as the screen that can answer a code, so no deployed tree
+ever serves codes to a client that cannot draw them. An attempt minted
+under the generator and submitted after this deploys still scores on the
+generator (D452's design: the bank is the attempt's). The e2e's verified
+leg now sends twenty-five 20-bit cells and asserts `bank: "omib"`, `theta`,
+`se` and the disclosed `diffs` on the way back.
+
+**The screen** (`src/v2/spec/logic-test.jsx`, replacing the six-tile
+picker; `design/logic-build-cell-2026-09-12/` is what it builds). A cell
+is drawn from `src/v2/data/omib-shapes.ts` — the twenty paths derived from
+the bank's own geometry, in the bank's counter-clockwise order, arrows out
+— so what a solver sees is what 2,572 people were calibrated on. The board
+composes the goal cell live from the ids placed; the palette is the
+alphabet laid out as one, column = family and row = member, tap to place
+and tap again to remove, a lit tile and the goal sharing the one accent;
+Clear appears once something is placed; Done commits. Done is dormant
+while the cell is empty and pressable throughout — an item a taker cannot
+solve is skipped by committing the empty cell, not by waiting out the
+clock — and the screen never infers "complete": only Done says so. The
+current item's segment drains over its 90 s, the numeral surfaces for the
+final 20 s, the sitting's remainder sits in the header, and a time-out
+commits the cell as it stands: a partial build is the answer, an empty one
+a miss. The worked example (request 8) is the design's own addition
+puzzle, shown solved over the resting palette on a first open, with Start
+— not a bank item, so it teaches without leaking — and reachable again
+from the result screen.
+
+**Both modes on the one screen** (D452, the owner's call). Practice:
+`startPractice` hands out a seed and the codes, `submitPractice` returns
+the seed with the cells, the server scores and keeps nothing. Verified:
+`startVerified` / `submitVerified` as before, the cells the only payload.
+The wire (`src/v2/data/logic-verify.ts`) carries `theta`, `se`, `bank` and
+the form's `diffs` back; the saved result is `v: 3` with them, and
+`LogicResult` says so. The generator is no longer imported by the overlay
+— it stays in the tree, byte-synced, for the results it produced and the
+forms a seed must reconstruct (D31).
+
+**What the number says, and why the sentence changed.** Both modes are
+scored against the bank's calibration, so the percentile below the D60
+floor is Φ(θ̂): the share of the calibration sample below the taker. That
+sample is 2,572 medical-school applicants, and a typical taker reads
+below its median — which is a fact about the sample, so the claim names
+it: *"Sharper than X% of the 2572 people this test was calibrated on
+(likely a–b)."* Once the verified histogram clears the floor the claim is
+*"of N verified players"* as before. The notes under the lenses say which
+mode was scored and that the charts are still sketches. **Practice now
+sends its cells to the server** — the device never has the key — which
+retired the sentence *"practice sends nothing anywhere"*: the example
+screen says what practice sends beside Start, `docs/data-inventory.md`
+row 17 says the same, and `web/privacy.html` needed nothing, because it
+never promised otherwise (its pins are the four-bands disclosure and the
+answer key, both intact — `check:policy-claims`). Generator-era results
+keep their old wording, and the v1 payload still renders.
+
+**Verified.** `logic-overlay.test.jsx`, rewritten: the example on a first
+open and from the result screen; a practice run building every cell
+(toggle on, toggle off, Clear, Done), the payload asserted cell for cell
+with the seed the start handed out, the result saved as v3 and counted
+nowhere, times to the millisecond; the clock (hidden, then 20 s, then 10 s,
+then the partial build committed at 90 s and the rest skipped empty); a
+refused start; Retry resubmitting the same twenty-five; a verified run
+badged; the measured claim; the five lenses on an OMIB result and the
+generator-era wording on a v1 one. `smoke-overlays`: the fresh start
+renders the example and the twenty shapes. `test:unit` 3,157;
+`test:scripts` 1,364; functions 1,036; the emulator 154 checks, 0
+failures, the verified leg on OMIB by θ. `tsc` both packages, eslint,
+`check:globals` (coupling 27, unchanged), `check:tap-targets` (the Clear
+control grown, the tiles ≈ 68 px), `check:a11y`, `check:public-copy`,
+`check:eager-content`, `check:bundle`, `check:docs`, `check:figures`.
+
+**Designed and not built, named rather than pretended.** The graded
+haptics (place light, remove softer, Done medium, none on a time-out): the
+web overlay has no haptic channel, and Capacitor's is a later increment.
+The drag alternative, which the design itself put second. The tap-to-
+explain on struck options from request 8 dissolved with the format —
+there are no struck options when the answer is built.
+
+**What phase 3 still owes** (`OMIB-PLAN.md` §4 is built server-side since
+D452; the rest): nothing on the norms — they fold and rank today. Phase 4
+— adaptive selection and the §6 report — waits on hundreds of first
+attempts. The two honest limits stand: the 90 s is the bank's demo
+default until the paper is read, and the answer key is public.

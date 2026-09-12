@@ -18,11 +18,19 @@
 // number means the same thing wherever it was computed.
 
 export interface LogicResult {
-  /** payload version: absent = pre-generator (v1), 2 = generator era */
+  /** payload version: absent = pre-generator (v1), 2 = generator era,
+   *  3 = the OMIB bank (D451, D453) */
   v?: number;
-  /** the seed the attempt's form was generated from (v2) */
+  /** "omib" since D453; absent = the generator's */
+  bank?: string;
+  /** the ability estimate on the calibration sample's scale (OMIB) */
+  theta?: number;
+  /** its standard error — the range printed is θ̂ ∓ se, read the same way */
+  se?: number;
+  /** the seed the attempt's form was drawn from (v2, v3) */
   seed?: number;
-  /** generator version the seed means something under (v2) */
+  /** the version the seed means something under — the generator's (v2)
+   *  or the bank's (v3); which one `bank` says */
   gv?: number;
   /** D57: scored server-side — marks and pctile are the server's */
   verified?: boolean;

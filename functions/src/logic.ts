@@ -94,12 +94,13 @@ export const LOGIC_SEM_ITEMS = 2;
 // stamped at start and honoured at submit whatever this constant says by
 // then — so an attempt straddling the flip scores on the bank it was
 // minted on, and both paths are testable without touching this line.
-// Phase 1 ships the OMIB path DARK: this stays "generator" until the screen
-// that can answer an OMIB item exists (phase 2), because the current
-// overlay sends six-way indexes and would render nothing on a code. The
-// practice callable below is OMIB-only regardless; nothing calls it yet.
+// Phase 1 shipped the OMIB path DARK on "generator", because the overlay of
+// the day sent six-way indexes and would have rendered nothing on a code.
+// Phase 2 (D453) is the screen that answers a code, and flips this with it —
+// the same PR, so no deployed tree ever serves codes to a client that cannot
+// draw them. The practice callable below is OMIB-only regardless.
 export type LogicBank = "generator" | "omib";
-export const LOGIC_BANK = "generator" as LogicBank;
+export const LOGIC_BANK = "omib" as LogicBank;
 
 // The percentile curves, byte-for-byte the client's logicPctileFor
 // (src/v2/data/logic-score.ts) — one per form length, landmarks asserted
@@ -481,7 +482,7 @@ async function submitOmib(
   if (!validOmibPicks(picks)) {
     throw new HttpsError("invalid-argument", `picks must be ${OMIB_FORM_ITEMS} twenty-character cells of 0 and 1`);
   }
-  const { marks, attempted, score, theta, se, itemIds } = scoreOmibPicks(attempt.seed, picks);
+  const { marks, attempted, score, theta, se, itemIds, diffs } = scoreOmibPicks(attempt.seed, picks);
   const durationMs = now - attempt.startedAtMs;
 
   const privRef = db.collection("v2_logic_norms_private").doc("global");
@@ -561,6 +562,10 @@ async function submitOmib(
     seed: attempt.seed,
     gv: OMIB_BANK_VERSION,
     bank: "omib" as const,
+    // Disclosed only now, like the seed: the published difficulty of each
+    // item in form order, so the Answers lens can rank its rows on the real
+    // ramp. Public parameters; nothing here that scores anything.
+    diffs,
   };
 }
 
@@ -759,7 +764,7 @@ async function readPublicNorms(): Promise<Norms | null> {
 
 /** Pure: a practice score ranked the way a verified one would be, folding nothing. */
 export function scorePractice(seed: number, picks: string[], norms: Norms | null) {
-  const { marks, score, theta, se } = scoreOmibPicks(seed, picks);
+  const { marks, score, theta, se, diffs } = scoreOmibPicks(seed, picks);
   const prevNorms = isOmibEra(norms) ? norms : null;
   const measured = measuredPctileTheta(prevNorms, theta, LOGIC_NORMS_MIN_N);
   const rank = (t: number) =>
@@ -777,5 +782,6 @@ export function scorePractice(seed: number, picks: string[], norms: Norms | null
     gv: OMIB_BANK_VERSION,
     bank: "omib" as const,
     practice: true as const,
+    diffs,
   };
 }
