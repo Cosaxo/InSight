@@ -156,6 +156,29 @@ ${body}
 `;
 }
 
+/**
+ * The door, on both bodies.
+ *
+ * This page is the only surface in the product that a prospective buyer
+ * reads BEFORE they have any reason to look for the door: it is public,
+ * it is shared by the buyer themselves, and the person reading it is
+ * looking at exactly the thing they would be buying. It carried no way
+ * to get one until now.
+ *
+ * It is here rather than in the app because D368 took the purchase
+ * funnel out of the binary — a call to action inside the app is what
+ * store anti-steering rules police, and this is the open web, which
+ * they do not reach. `/ask` and not the absolute address: the page is
+ * served from the hosting origin the door is on, so a relative link is
+ * both correct today and correct the day a real domain replaces the
+ * .web.app default (src/v2/data/siteOrigin.ts).
+ *
+ * No price. The card moves — `content/pricing.json` through
+ * `web/ask-pricing.json`, held to its sources by check:ask-pricing —
+ * and a figure printed here is a figure nothing regenerates.
+ */
+const ASK_DOOR = '<p class="link"><a href="/ask" rel="noreferrer">Ask your own question →</a></p>';
+
 /** The 404 body: says what a page here IS rather than nothing, because
  * the address was shared by somebody and the reader deserves a sentence. */
 function notFound(): string {
@@ -163,6 +186,7 @@ function notFound(): string {
   <div class="kicker"><span>InSight</span></div>
   <h1>No results page here.</h1>
   <p class="by">A results page exists for a question somebody paid to ask on InSight, while it is live and after. This address is not one.</p>
+  ${ASK_DOOR}
 `);
 }
 
@@ -268,6 +292,7 @@ export function renderResultsPage(input: ResultsInput): { status: number; html: 
   <p class="total"><strong>${fmtN(total)}</strong> ${total === 1 ? "answer" : "answers"}${total ? "" : " so far — the split appears with the first one"}</p>
   ${breakdown}
   ${domain && typeof sponsor.link === "string" ? `<p class="link"><a href="${esc(sponsor.link)}" rel="noreferrer noopener">${esc(domain)} ↗</a> · the buyer's page</p>` : ""}
+  ${ASK_DOOR}
   <p class="foot">These are the same public numbers everyone reads in the app — there is no private cut, and nobody who answered is named here. The buyer paid for the place and the window, never for the review. <a href="/privacy.html" rel="noreferrer">How InSight handles data</a>.</p>
 `;
   return { status: 200, html: page(`${prompt} · InSight`, body) };
