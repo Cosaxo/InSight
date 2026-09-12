@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.cosaxo.insight",
-  appName: "InSight",
+  appName: "Doxa",
   // Vite outputs to ./dist; Capacitor copies from here into the native
   // shells on `cap sync`.
   webDir: "dist",

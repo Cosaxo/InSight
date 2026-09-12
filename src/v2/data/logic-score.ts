@@ -7,8 +7,10 @@
 //
 // Everything HERE is a MODEL — the logistic below, the lens formulas the
 // overlay draws — and the result screen discloses it (LOGIC_FIELD_NOTE /
-// LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). Practice attempts stay
-// on-device and always score against the modelled curve. Verified
+// LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). The generator era's practice
+// attempts stayed on-device and scored against the modelled curve; since
+// D477 there is no practice attempt at all — the test is taken like an IQ
+// test — and every result is the server's. Verified
 // attempts (D57) are seeded and scored server-side, and since D60 their
 // percentile FLIPS to a measurement once the anonymous histogram clears
 // its floor: the server compares the score against the verified first
@@ -18,11 +20,23 @@
 // number means the same thing wherever it was computed.
 
 export interface LogicResult {
-  /** payload version: absent = pre-generator (v1), 2 = generator era */
+  /** payload version: absent = pre-generator (v1), 2 = generator era,
+   *  3 = the OMIB bank (D473, D475) */
   v?: number;
-  /** the seed the attempt's form was generated from (v2) */
+  /** "omib" since D475; absent = the generator's */
+  bank?: string;
+  /** how an OMIB form was served (D476): "stratified" — the whole form from
+   *  the seed — or "adaptive", one item per answer, replayed from the seed
+   *  and the picks. Absent on results saved before D476: stratified. */
+  mode?: string;
+  /** the ability estimate on the calibration sample's scale (OMIB) */
+  theta?: number;
+  /** its standard error — the range printed is θ̂ ∓ se, read the same way */
+  se?: number;
+  /** the seed the attempt's form was drawn from (v2, v3) */
   seed?: number;
-  /** generator version the seed means something under (v2) */
+  /** the version the seed means something under — the generator's (v2)
+   *  or the bank's (v3); which one `bank` says */
   gv?: number;
   /** D57: scored server-side — marks and pctile are the server's */
   verified?: boolean;
@@ -34,7 +48,7 @@ export interface LogicResult {
   n?: number;
   /** the likely range round `pctile`: the score ± LOGIC_SEM_ITEMS read
    *  through the same curve or count (D402). The server's for verified
-   *  results; logicBandFor's for practice ones */
+   *  results; logicBandFor's for the generator era's practice ones */
   band?: [number, number];
   /** server-observed attempt duration (verified results only) */
   durationMs?: number;
@@ -51,6 +65,14 @@ export interface LogicResult {
 }
 
 export const LKEY = "insight.logicTest.v1";
+
+/**
+ * One attempt every 30 days, counted from the start of the last (D478) —
+ * the server's LOGIC_REVERIFY_DAYS (functions/src/logic.ts), pinned in
+ * both suites. The client uses it only to say when the next opens; the
+ * server is the one that refuses.
+ */
+export const LOGIC_RETAKE_DAYS = 30;
 
 /** modelled median seconds per puzzle — the Pace lens's yardstick */
 export const FIELD_MED = 17;
@@ -138,7 +160,9 @@ export function saveResult(r: LogicResult): void {
 /** mean seconds per puzzle; a result saved before timing existed reads as
  *  the modelled median rather than as instant */
 export function logicSecs(r: LogicResult | null): number {
-  return r && Array.isArray(r.times) && r.times.length
-    ? r.times.reduce((a, b) => a + b, 0) / r.times.length / 1000
-    : FIELD_MED;
+  // A resumed attempt (D478) has no timing for the items answered before
+  // the interruption — nulls in the array — so the pace is the mean of the
+  // items this device timed, and the modelled median if it timed none.
+  const timed = r && Array.isArray(r.times) ? r.times.filter((t): t is number => typeof t === "number") : [];
+  return timed.length ? timed.reduce((a, b) => a + b, 0) / timed.length / 1000 : FIELD_MED;
 }

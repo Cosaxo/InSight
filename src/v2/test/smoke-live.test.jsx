@@ -37,7 +37,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 vi.setConfig({ testTimeout: 15000 });
 import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FIXTURE_THIRD_DAY, FEED_PROMPT, LEARN_CARD_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
-import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
+import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL, PATTERNS_MIN_SKILL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
 import { awaitText, growFeed, openHeaderOverlay, resetSitting, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
@@ -66,7 +66,7 @@ import { IS_DATA } from "../spec/sample-data.js";
 // a constant compared with itself, which stays green for any fixture and
 // leaves the real assertion to fail with the wrong diagnosis.
 const FIXTURE_DAILY_COUNTS = DAILY_COUNTS;
-const BOUNDARY_LOG = "[InSight] boundary caught:";
+const BOUNDARY_LOG = "[Doxa] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
 let App;
@@ -270,7 +270,7 @@ describe("spec layer mounts in live mode", () => {
     // at PATTERNS_MIN_BASIS, and a viewer with PATTERNS_MIN_MINE answers
     // among the ones it folds.
     const expectNoBoundary = mountLive({
-      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE, skill: PATTERNS_MIN_SKILL },
     });
     expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(3);
     const btn = screen.getByRole("button", { name: /^patterns$/i });
@@ -296,6 +296,29 @@ describe("spec layer mounts in live mode", () => {
     // shell keys its scroll memory on it.
   });
 
+  it("stays a two-tab bar on a fit that has learned nothing, however much data it has", async () => {
+    // THE CASE THE OTHER TWO NUMBERS CANNOT SEE. `pool` and `mine` count
+    // ANSWERS; the tab draws a MODEL of them, and
+    // docs/ALGORITHM-REFLECTION.md §1.2 measured the shipped fit at
+    // surprisal equal to a marginal-only guess with 113 of 113 loadings
+    // still within cosine 0.9 of their hash seed — a state that satisfies
+    // both counts comfortably. Opening there would draw the Map on
+    // `seedLoading` and the People lens would put real, named strangers on
+    // that geometry, beside agreement rows that ARE true. One frame, one
+    // visual vocabulary, one invented half.
+    //
+    // Ten times both floors, and the bar is still two tabs.
+    const expectNoBoundary = mountLive({
+      patterns: {
+        pool: PATTERNS_MIN_POOL * 10, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE * 10,
+        skill: 0,
+      },
+    });
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(2);
+    expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
+    expectNoBoundary("patterns gate shut on a learned-nothing fit/live");
+  });
+
   it("puts the tab in the bar mid-session, without a reload", async () => {
     // THE TRANSITION, which the case above cannot see: it mounts with the
     // signal already published, so only `useState`'s first read runs. This
@@ -308,6 +331,7 @@ describe("spec layer mounts in live mode", () => {
     act(() => {
       live.LIVE.patternsSignal = () => ({
         pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE,
+        skill: PATTERNS_MIN_SKILL,
       });
       live.LIVE.vote("daily-000", "1");           // …and the store notifies
     });
@@ -326,7 +350,7 @@ describe("spec layer mounts in live mode", () => {
     // it — and the exit D166 §1 licensed is the whole reason the near end
     // is reachable at all.
     const expectNoBoundary = mountLive({
-      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE, skill: PATTERNS_MIN_SKILL },
     });
     expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:world");
     swipeDaily(1);
@@ -342,7 +366,7 @@ describe("spec layer mounts in live mode", () => {
     // inherits a tab it has not earned — and a viewer standing on the tab
     // has to be moved, or they are left on one the bar no longer carries.
     const expectNoBoundary = mountLive({
-      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE, skill: PATTERNS_MIN_SKILL },
     });
     act(() => { NAV.goNav("patterns"); });
     expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
@@ -371,7 +395,7 @@ describe("spec layer mounts in live mode", () => {
     // both, which is exactly the shape the regression would take: the
     // hook rewritten as a plain derived boolean.
     const expectNoBoundary = mountLive({
-      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE, skill: PATTERNS_MIN_SKILL },
     });
     act(() => { NAV.goNav("patterns"); });
     expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
@@ -456,9 +480,16 @@ describe("spec layer mounts in live mode", () => {
     // so the app must carry NO ask-a-question call to action. This asserted
     // the door was present until the decision; it now pins its absence,
     // which is the property App Review reads the app for.
+    //
+    // NARROWED at D-2026-09-12c. One door came back, on Android only: a header "+"
+    // that opens the WEB ask page (data/askDoor.ts asks the platform).
+    // jsdom has no Capacitor, so this mounts as the web build, where the
+    // door is off — this case still holds, and still proves the door does
+    // not leak onto a platform nobody set. The iOS assertion, which is the
+    // one a reviewer's phone makes, is ask-door-platform.test.jsx's.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),
-      "an ask-a-question door is still in the binary (D368 removed all five)",
+      "an ask-a-question door is drawn with no platform set (D368; D-2026-09-12c allows it on Android only)",
     ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
@@ -1714,7 +1745,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // paid door, and the button wears the door's own name. The header's
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
-    // INVERTED at D368, same reason as the profile case above.
+    // INVERTED at D368, same reason as the profile case above — and the
+    // sheet's own door does NOT return at D-2026-09-12c: the one door that did is
+    // the header's, Android's, and this mounts with no platform.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),
       "the sheet still offers a purchase door",

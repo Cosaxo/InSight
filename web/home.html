@@ -3,15 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>InSight</title>
+  <title>Doxa</title>
   <meta name="description" content="Answer blind — then see exactly how everyone else answered." />
   <link rel="icon" href="/favicon.svg" />
   <!--
     The web root for prvfire33.web.app, served at "/" by a rewrite in
-    firebase.json. Deliberately NOT the app: InSight is a native product,
-    and this page exists because both app stores require a reachable
-    privacy-policy URL (and the App Store a support URL) before they will
-    accept a submission.
+    firebase.json. Deliberately NOT the app: Doxa is a native product,
+    and this page existed at first only because both app stores require a
+    reachable privacy-policy URL (and the App Store a support URL) before
+    they will accept a submission.
+
+    SINCE 2026-09-12 IT IS ALSO WHERE THE DOOR IS FOUND — STORE-CUT-PLAN.md
+    phase 4 (D-2026-09-12b), built a week after D368 took the purchase funnel out
+    of the binary. That is the whole of the acquisition path: buying a
+    question is on the web because store anti-steering rules police a call
+    to action inside an app and do not reach this page, which leaves this
+    page and the results pages at /q/ as the only places the door can be
+    offered at all.
 
     Served at "/" by a rewrite rather than being named index.html. This
     directory is deliberately NOT Vite's public/: an index.html there
@@ -21,9 +29,10 @@
     sitting in publicDir from being served. A dedicated directory has
     neither failure mode.
 
-    Keep it spare. It is a legal landing page, not marketing, and the two
-    links below are the only reason it is deployed at all. If invite deep
-    links get built (D3's amendment), this origin is also where
+    Keep it spare — spare is not the same as bare. It is a legal landing
+    page carrying one door, not marketing, and a price belongs on the ask
+    page (which regenerates it) rather than here (which would not). If
+    invite deep links get built (D3's amendment), this origin is also where
     /.well-known/assetlinks.json and /apple-app-site-association go.
   -->
   <style>
@@ -92,7 +101,7 @@
     <circle cx="35.3" cy="41.5" r="6" fill="var(--m-195)"/>
     <circle cx="50" cy="50" r="8" fill="var(--m-pupil)"/>
   </svg>
-  <h1>InSight</h1>
+  <h1>Doxa</h1>
   <!-- THE CLAIM, NOT THE CADENCE (the owner, 2026-09-07). This page said
        "Answer one question a day. See where you stand." in both places a
        stranger reads — the meta description that becomes the link preview
@@ -110,6 +119,22 @@
   <p class="lede">Answer blind — then see exactly how everyone else answered.</p>
 
   <ul>
+    <!-- THE DOOR (STORE-CUT-PLAN.md phase 4). D368 took the purchase
+         funnel out of the app binary, which is the half that needed no
+         permission from anybody; this is the half that was never built,
+         so from 2026-09-05 until now the only address that reached the
+         door was one sentence inside the terms of service.
+
+         First in the list, above the legal links, because this page IS
+         where the door is found now — the header comment above says so.
+         The qualifier is not a caption (COPY.md): this page is also the
+         App Store support URL, so "Ask a question" alone reads as a
+         support form, which is the one thing it is not.
+
+         No price. The card moves (content/pricing.json → the menu the
+         ask page prints, held to its source by check:ask-pricing) and a
+         figure typed here is a figure nothing regenerates. -->
+    <li><a href="/ask">Ask a question &rarr;</a> — put your own question to the people answering</li>
     <li><a href="/privacy.html">Privacy policy</a></li>
     <li><a href="/terms.html">Terms of service</a></li>
   </ul>

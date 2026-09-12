@@ -157,6 +157,22 @@ describe("renderResultsPage", () => {
     expect(renderResultsPage({ qid: "nope", question: null, agg: null, today: TODAY }).html).toContain("No results page here");
   });
 
+  // D368 took the purchase funnel out of the binary, which left the door
+  // reachable only by typing its address. This page is the one public
+  // surface a prospective buyer already reads, so it carries the door —
+  // on the 404 too, which otherwise dead-ends a shared address.
+  it("offers the door on both bodies, relative so it survives a domain change", () => {
+    const live = renderResultsPage({ qid: "x", question: QUESTION, agg: AGG, today: TODAY }).html;
+    const gone = renderResultsPage({ qid: "nope", question: null, agg: null, today: TODAY }).html;
+    for (const html of [live, gone]) {
+      expect(html).toContain('href="/ask"');
+      expect(html).toContain("Ask your own question");
+      // Relative, not the .web.app origin: siteOrigin.ts's single edit
+      // only stays single if nothing hardcodes the host behind its back.
+      expect(html).not.toContain("prvfire33.web.app");
+    }
+  });
+
   it("carries the three headers every page under web/ carries, plus nosniff spelled right", () => {
     expect(RESULTS_HEADERS["X-Content-Type-Options"]).toBe("nosniff");
     expect(RESULTS_HEADERS["Referrer-Policy"]).toBe("no-referrer");

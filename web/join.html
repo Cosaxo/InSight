@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex" />
-  <title>Join a group · InSight</title>
+  <title>Join a group · Doxa</title>
   <!--
     The invite-link fallback. Firebase Hosting rewrites /join/** here
     (firebase.json). Once the app-links files carry real fingerprints
@@ -41,7 +41,10 @@
       padding: 24px;
     }
     main { max-width: 420px; width: 100%; text-align: center; }
-    .mark { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+    /* The wordmark (D472): Doxa in a serif with the x in the accent. The
+       app draws it in DM Serif Display; this page cannot — the hosting
+       CSP is default-src 'none' with no font-src — so Georgia stands in. */
+    .mark { font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-weight: 400; letter-spacing: -0.01em; }
     .mark em { font-style: normal; color: var(--accent); }
     h1 { margin-top: 18px; font-size: 26px; letter-spacing: -0.02em; line-height: 1.15; }
     p { margin-top: 10px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
@@ -80,7 +83,7 @@
       <circle cx="35.3" cy="41.5" r="6" fill="#007b7c"/>
       <circle cx="50" cy="50" r="8" fill="#1d1914"/>
     </svg>
-    <div class="mark">In<em>Sight</em></div>
+    <div class="mark">Do<em>x</em>a</div>
     <h1>You’re invited</h1>
     <!-- TWO RETIRED CLAIMS IN ONE SENTENCE, on the page an invited person
          reads BEFORE they have the app.
@@ -106,8 +109,8 @@
          be the same failure as the reverse, which is the reasoning D98
          gives for saying it plainly in the account panel. -->
     <p id="lead">Everyone answers the same question, sealed until the reveal — then it opens with names, to anyone signed in who has the group&rsquo;s id.</p>
-    <div><a class="btn" id="open" href="#" hidden>Open in InSight</a></div>
-    <p class="quiet" id="note" hidden>Don’t have it yet? Install InSight, then open this link again.</p>
+    <div><a class="btn" id="open" href="#" hidden>Open in Doxa</a></div>
+    <p class="quiet" id="note" hidden>Don’t have it yet? Install Doxa, then open this link again.</p>
     <p class="quiet">You&rsquo;ll sign in when you open it &mdash; Apple, Google or an email address. That is what keeps your answers yours.</p>
   </main>
   <script>

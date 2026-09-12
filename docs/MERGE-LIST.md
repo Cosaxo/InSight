@@ -40,28 +40,26 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-12T15:14:58Z -->
+<!-- console:generated 2026-09-12T18:23:20Z -->
 
 ## Open
 
-- [ ] **#510** · a session · *what:* One hand row in `docs/OWNER-LIST.md` § Store and legal, above the console's fold block so the daily fold keeps it. · *how:* The owner asked whether InSight should be an ENK or an AS, and reaffirmed D345's ENK on 2026-09-12 on the grounds that it can be upgraded to an AS later. · CI running (9 pending) · current with main · opened 2026-09-12 · stage **new**
-- [ ] **#509** · a session · *what:* The owner noticed there was no way from the app to the page where a question is bought. · *how:* That was half by design and half unbuilt, and this PR closes both halves. · CI green (9) · 3 behind main · opened 2026-09-12 · stage **new**
-- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 96 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 4 behind main · conflicts · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 401 behind main · opened 2026-09-01 · stage **new**
+- [ ] **#510** · a session · *what:* One hand row in `docs/OWNER-LIST.md` § Store and legal, above the console's fold block so the daily fold keeps it. · *how:* The owner asked whether InSight should be an ENK or an AS, and reaffirmed D345's ENK on 2026-09-12 on the grounds that it can be upgraded to an AS later. · CI green (9) · 59 behind main · opened 2026-09-12 · stage **new**
+- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 155 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 460 behind main · opened 2026-09-01 · stage **new**
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260912 (D470) · nightb-20260912 (D470) · night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · and 14 more.
 
 **Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
 
-- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 31 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 80 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 80 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 80 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 80 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 81 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 81 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 81 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 55 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 139 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 139 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 139 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 139 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 140 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 140 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 140 behind main · opened 2026-09-11 · stage **new**
 
 ## In the shift
 
@@ -77,6 +75,14 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#516** · The offline-wake case stops asking elapsed time to prove a negative · merged 2026-09-12
+- **#515** · The logic test on the Open Matrices Item Bank: built cell by cell, scored by θ, one attempt every 30 days — adaptive selection dark behind its own report (D473–D478) · merged 2026-09-12
+- **#514** · The review Routine is created and registered, and two unreportable public surfaces get a row · merged 2026-09-12
+- **#511** · Rename the app to Doxa (D472): the name changes, the identifiers do not · merged 2026-09-12
+- **#509** · The buy door is findable: four web routes (D-2026-09-12b), and the Android door + Website link (D-2026-09-12c) · merged 2026-09-12
+- **#513** · OWNER-LIST: tick the two answer-log rows, on the owner's word · merged 2026-09-12
+- **#512** · The answer log's setup becomes a reading, and the grant names the account the trigger runs as (D-2026-09-12a) · merged 2026-09-12
+- **#478** · Eight improvements from the project review: the blind vote becomes real, the Patterns gate learns about the model, and five meters go on things nothing was measuring · merged 2026-09-12
 - **#508** · The hard stop: billing detaches at three budgets — 1,500 NOK — and the phone rings only for money (D471) · merged 2026-09-12
 - **#507** · Learn 2026-09-12: the sixteenth field opens — Sayings & idioms — and six floors rise · merged 2026-09-12
 - **#506** · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a cohort hole that existed only in the sum of two correct changes (D470) · merged 2026-09-12
@@ -123,11 +129,3 @@ merge shift like any other PR.
 - **#388** · MAP_OPEN_GROUP off the bridge: the Learn card's "See it" takes the typed Map cue, 32 → 30 · merged 2026-09-09
 - **#334** · Bump actions/setup-java from 5.7.0 to 6.0.0 · merged 2026-09-09
 - **#389** · Add check:pick-crowds gate for pick-card contract · merged 2026-09-09
-- **#390** · The fit scorecard readable from main: scorecard --fetch writes the fit block (D363, Status: Proposed), plus the axiom builder's first list rows · merged 2026-09-09
-- **#340** · The first retro: the dispatcher stall was invisible from every lane it silenced · merged 2026-09-09
-- **#459** · Build 35 is in App Store Connect (run 59, the release that carries #456); appBuild is 36 — the bump run 57 owed, then the one run 59 owes · merged 2026-09-09
-- **#458** · Rules budget, Phase 3: the gate — every probe pinned at its measured headroom, a floor of 50 fillers, and a denial by budget is a red test (D438) · merged 2026-09-09
-- **#456** · How 1v1s and Groups work now: rounds without a call, the cast, the seats and the instrument, built to the owner's 2026-09-09 brief (D434–D437) · merged 2026-09-09
-- **#457** · Rules budget, Phases 0–2: the answer rule restructured with every verdict identical — refusals by budget 13 → 0 (D432, D433) · merged 2026-09-09
-- **#455** · Plan: buying back the rules expression budget, and holding it (RULES-BUDGET-PLAN.md) · merged 2026-09-09
-- **#454** · The owner's three follow-ups: testResults bounded by a server that can loop, Apple's portal half measured, and the console half still one click (D431) · merged 2026-09-09

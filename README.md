@@ -2,7 +2,7 @@
 
 **Answer things. See what they add up to.**
 
-InSight is a two-tab app — **daily · mirror** — that becomes a three-tab
+Doxa is a two-tab app — **daily · mirror** — that becomes a three-tab
 one when it has the data for it: **patterns** puts itself in front of the
 other two once the nightly fit has published enough to draw and you have
 answered enough to be drawn in it (D265; still on trial, D166 §1). The
@@ -78,7 +78,7 @@ Firestore, Cloud Functions) with CI auto-deploy.
 
 ## Answers are public — and honesty is still the architecture
 
-InSight is not a private app, and says so at the top of the account
+Doxa is not a private app, and says so at the top of the account
 panel. What the UI claims about who can see what is enforced
 server-side, not promised — that discipline is unchanged; what it
 enforces is the opposite of what it used to (decision **D98**):

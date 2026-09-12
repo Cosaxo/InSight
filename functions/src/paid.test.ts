@@ -26,6 +26,7 @@ import {
   heldPageFrom,
   SWEEP_PAGE,
   WINDOW_DAYS,
+  PAID_RETURN,
   runReviewSweep,
   type ReviewSweepStore,
   paidPurchaseDoc,
@@ -50,6 +51,7 @@ import {
 } from "./paid";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKey } from "./pure";
+import { SITE_ORIGIN } from "./ops";
 import { PRICING_CARD, type PricingCard } from "./pricing";
 
 const BOOKING: PaidBookingPayload = {
@@ -1055,7 +1057,7 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
     // This sentence is the contract the buyer reads at the moment of
     // paying. Every number in it comes off the locked quote.
     const d = checkoutLineItem(q).price_data.product_data;
-    expect(d.name).toBe("InSight paid question");
+    expect(d.name).toBe("Doxa paid question");
     expect(d.description).toContain(`${q.windowDays}-day window`);
     expect(d.description).toContain(`€${q.ratePerAnswer}`);
     expect(d.description).toContain(`up to ${q.cap} answers`);
@@ -1205,3 +1207,26 @@ describe("the project-wide review budget (COST-EXPOSURE.md §6 C3)", () => {
 });
 
 // ── D455's gate, appended after main's review-budget suite ──────────
+
+// siteOrigin.ts called itself "the single edit" for a domain change while
+// these two URLs spelled the host out, which would have walked a paying
+// buyer back to the old .web.app origin after the swap. Pinned here
+// because nothing else in the tree can see a string agreeing with a
+// constant in another package by coincidence.
+describe("the hosting origin is one constant per side, not one constant and one promise", () => {
+  it("builds Stripe's return URLs from ops.ts's SITE_ORIGIN", () => {
+    expect(PAID_RETURN.success).toBe(`${SITE_ORIGIN}/paid-done.html`);
+    expect(PAID_RETURN.cancel).toBe(`${SITE_ORIGIN}/paid-cancel.html`);
+    for (const url of [PAID_RETURN.success, PAID_RETURN.cancel]) {
+      expect(url.startsWith(SITE_ORIGIN), `${url} does not start at the origin`).toBe(true);
+    }
+  });
+
+  it("names pages that exist under web/", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    for (const url of [PAID_RETURN.success, PAID_RETURN.cancel]) {
+      const file = url.slice(SITE_ORIGIN.length + 1);
+      expect(() => readFileSync(resolve(here, "../../web", file), "utf8")).not.toThrow();
+    }
+  });
+});

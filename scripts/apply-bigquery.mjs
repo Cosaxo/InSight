@@ -21,12 +21,25 @@
 // to the named database's (D165): the privacy page places the data in
 // Google Cloud's EU infrastructure, and a dataset elsewhere would move it.
 //
+// WHO THE GRANT GOES TO is READ, never typed (D-2026-09-12a). From
+// 2026-09-09 to 2026-09-12 this printed `${PROJECT}@appspot…`, the gen-1
+// default, and the owner ran the click against it on 2026-09-10 — while
+// every function in this tree is gen-2 and runs as the Compute Engine
+// default account. So the account is looked up on the deployed trigger
+// (`serviceConfig.serviceAccountEmail`), the project's policy and the
+// dataset's access list are read for what it already holds
+// (bigquery-grants.mjs, the arithmetic observe.mjs shares), and the two
+// commands print only for a role that is actually missing. Before the
+// first deploy there is no function to read, and the fallback says so.
+//
 // Env: FIREBASE_SERVICE_ACCOUNT (the deploy service-account JSON, contents).
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { api, serviceAccount, accessToken, googleFetch } from "./google-api.mjs";
+import { stripComments } from "./strip-comments.mjs";
+import { logAccess, grantCommands } from "./bigquery-grants.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -37,6 +50,17 @@ const PROJECT = argOf("--project") || process.env.FIREBASE_PROJECT_ID || "prvfir
 export const DATASET = "insight";
 export const TABLE = "answers";
 export const LOCATION = "europe-west1";
+/** The trigger's own name, the function the grant is for. */
+export const TRIGGER = "onV2AnswerCreated";
+
+// READ, not retyped (D200/D201), the way observe.mjs reads it — through
+// stripComments, so a superseded region parked in a comment above the live
+// line cannot be the one this matches (source-pins.test.mjs).
+const REGION = (() => {
+  const m = stripComments(readFileSync(resolve(root, "src/lib/region.ts"), "utf8")).match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  if (!m) { console.error("apply-bigquery: could not read FUNCTIONS_REGION from src/lib/region.ts"); process.exit(1); }
+  return m[1];
+})();
 
 /** The request bodies, pure so scripts/apply-bigquery.test.mjs can hold
  *  them to the schema file and to log.ts's own reading of the table. */
@@ -84,9 +108,14 @@ async function main() {
   const base = api("bigquery.googleapis.com", `/bigquery/v2/projects/${PROJECT}`);
   console.log(`apply-bigquery: project ${PROJECT}, ${DATASET}.${TABLE} in ${LOCATION}${APPLY ? "  [APPLY]" : "  [dry run]"}`);
 
+  // The dataset's own access list, for the grant reading below — a console
+  // grant lands there rather than on the project, and a reading that only
+  // asked the project would send the owner to grant what is already held.
+  let datasetAccess = null;
   const ds = await googleFetch(`${base}/datasets/${DATASET}`, token);
   if (ds.ok) {
     const where = ds.body.location || "?";
+    datasetAccess = ds.body.access || [];
     console.log(`  dataset ${DATASET}: exists (${where})`);
     if (where.toLowerCase() !== LOCATION) {
       console.error(`  ✗ dataset ${DATASET} is in ${where}, not ${LOCATION} — the log must stay in the named database's region; delete and re-create it, or point LOG_DATASET at one that is`);
@@ -96,6 +125,7 @@ async function main() {
     if (APPLY) {
       const made = await googleFetch(`${base}/datasets`, token, { method: "POST", body: datasetBody(PROJECT) });
       if (!made.ok) { console.error(`  ✗ dataset create failed: ${made.status} ${made.message}`); process.exit(1); }
+      datasetAccess = made.body.access || [];
       console.log(`  dataset ${DATASET}: created in ${LOCATION}`);
     } else {
       console.log(`  dataset ${DATASET}: would create in ${LOCATION}`);
@@ -125,13 +155,37 @@ async function main() {
     process.exit(1);
   }
 
+  // THE GRANT, read rather than assumed: which account the trigger runs
+  // as, and what it already holds. Both reads are dry in every mode.
   console.log("");
-  console.log("  The functions' runtime service account must be able to append rows and run the");
-  console.log("  erasure DELETE — two roles, granted once by the project owner (OWNER-LIST.md):");
-  console.log(`    gcloud projects add-iam-policy-binding ${PROJECT} --member=serviceAccount:${PROJECT}@appspot.gserviceaccount.com --role=roles/bigquery.dataEditor`);
-  console.log(`    gcloud projects add-iam-policy-binding ${PROJECT} --member=serviceAccount:${PROJECT}@appspot.gserviceaccount.com --role=roles/bigquery.jobUser`);
-  console.log("  (a project whose default service account still holds Editor already has both;");
-  console.log("   the first answer after the deploy tells — `log_append_failed` in the function's log.)");
+  const fn = await googleFetch(
+    api("cloudfunctions.googleapis.com", `/v2/projects/${PROJECT}/locations/${REGION}/functions/${TRIGGER}`), token);
+  const account = fn.ok ? fn.body.serviceConfig?.serviceAccountEmail || null : null;
+  const policy = await googleFetch(
+    api("cloudresourcemanager.googleapis.com", `/v1/projects/${PROJECT}:getIamPolicy`), token,
+    { method: "POST", body: { options: { requestedPolicyVersion: 3 } } });
+  const access = logAccess({ account, bindings: policy.ok ? policy.body.bindings || [] : null, access: datasetAccess });
+  console.log("  The account the trigger runs as must be able to append rows (BigQuery Data Editor) and");
+  console.log("  run the reconcile's SELECT and the erasure's DELETE (BigQuery Job User) — granted once,");
+  console.log("  by the project owner (OWNER-LIST.md). A default account that still holds Editor has both.");
+  if (!account) {
+    console.log(`  ✗ ${TRIGGER} could not be read (${fn.status} ${fn.message}) — not deployed yet, or the credential`);
+    console.log("    lacks roles/cloudfunctions.viewer. Once it is deployed, Actions → Observe production prints the");
+    console.log("    account it runs as and whether it holds both, with the two commands if not. The gen-2 default");
+    console.log(`    is the Compute Engine account (PROJECT_NUMBER-compute@developer.gserviceaccount.com), NOT ${PROJECT}@appspot…`);
+  } else {
+    console.log(`  ${TRIGGER} runs as ${account} (read off the deployment)`);
+    const line = (ok, what, via, no) => console.log(`    ${ok === null ? "·" : ok ? "✓" : "✗"} ${what}: ${ok === null ? "unreadable — the IAM policy was refused" : ok ? `yes — ${via.join(", ")}` : no}`);
+    line(access.canAppend, "append rows", access.appendVia ?? [], "no role that writes rows, on the project or on the dataset");
+    line(access.canQuery, "run a query job", access.queryVia ?? [], "no role that runs a query job (a project permission)");
+    if (access.canAppend === false || access.canQuery === false) {
+      console.log("    Until both are ✓ every append logs `log_append_failed` (the count is untouched) and the nightly");
+      console.log("    reconcile cannot catch the day up — for THIS account, not a default:");
+      for (const c of grantCommands(PROJECT, account)) console.log(`      ${c}`);
+    } else if (access.canAppend && access.canQuery) {
+      console.log("    nothing to grant.");
+    }
+  }
   if (!APPLY) console.log("\n  dry run — nothing was created. Re-run with --apply.");
 }
 

@@ -27,7 +27,14 @@ type Doc = Record<string, unknown>;
 const store = new Map<string, Doc>();
 
 function ref(path: string) {
-  return { path, id: path.split("/").pop() as string };
+  return {
+    path,
+    id: path.split("/").pop() as string,
+    // A plain read outside a transaction — what the practice callable did to
+    // the public norms mirror until D477 retired it; kept for the next
+    // callable that reads without a transaction, unused by the cases today.
+    get: async () => ({ exists: store.has(path), data: () => store.get(path) }),
+  };
 }
 const fakeDb = {
   collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
@@ -82,8 +89,11 @@ const fakeDb = {
 
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
-const { logicSubmitV2, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } = await import("./logic");
+const { logicSubmitV2, logicNextV2, logicStartV2, mintAttempt, OMIB_SELECTION, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } =
+  await import("./logic");
 const { version: GEN_VERSION } = await import("./logic-gen");
+const { OMIB_FORM_ITEMS, OMIB_BANK_VERSION, EMPTY_CELL, omibForm, omibNextItem, replayAdaptive } = await import("./omib");
+const { OMIB_KEY } = await import("./omib-bank");
 
 const UID = "u1";
 const ATTEMPT = `v2_logic_attempts/${UID}`;
@@ -221,5 +231,272 @@ describe("submitting a logic test", () => {
     ).rejects.toThrow(/integers/);
     // The form the client was handed is the length the submit must be.
     expect(clientItems(7, GEN_VERSION).length).toBe(LOGIC_ITEMS);
+  });
+});
+
+// ── the OMIB bank (D473) ──────────────────────────────────────────────────
+// The attempt's own `bank` decides how it is scored, never the constant —
+// which is what lets these run with LOGIC_BANK still "generator", and what
+// scores an attempt that straddles the flip on the bank it was minted on.
+describe("submitting on the OMIB bank", () => {
+  const SEED = 7;
+  const keyFor = (seed: number) => omibForm(seed).map((i) => OMIB_KEY[i.n]);
+  const blanks = () => new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) as string[];
+  const submitOmib = (picks: unknown) =>
+    (logicSubmitV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data: { picks } });
+  const openOmib = (over: Doc = {}) =>
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: SEED, startedAtMs: Date.now() - OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM - 1, ...over });
+
+  it("mints an attempt stamped with its bank and the bank's own version, and hands out codes only", () => {
+    const m = mintAttempt(null, Date.now(), SEED, "omib");
+    expect(m.attempt.bank).toBe("omib");
+    expect(m.attempt.gv).toBe(OMIB_BANK_VERSION);
+    expect(m.items).toHaveLength(OMIB_FORM_ITEMS);
+    for (const it of m.items as { code: string }[]) {
+      expect(Object.keys(it)).toEqual(["code"]);
+      expect(it.code.split(",")[8]).toBe(EMPTY_CELL);
+    }
+    const g = mintAttempt(null, Date.now(), SEED, "generator");
+    expect(g.attempt.bank).toBe("generator");
+    expect(g.attempt.gv).toBe(GEN_VERSION);
+    expect("opts" in (g.items[0] as object)).toBe(true);
+  });
+
+  it("scores by θ, writes v:3 with the bank named, and folds a first counted attempt into a θ histogram", async () => {
+    openOmib();
+    const out = await submitOmib(keyFor(SEED));
+    expect(out.score).toBe(OMIB_FORM_ITEMS);
+    expect(typeof out.theta).toBe("number");
+    expect(typeof out.se).toBe("number");
+    expect(out.bank).toBe("omib");
+    expect(out.source).toBe("model"); // nobody counted yet → Φ against the calibration sample
+    expect(out.n).toBeUndefined();
+    const result = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
+    expect(result.v).toBe(3);
+    expect(result.bank).toBe("omib");
+    expect(result.verified).toBe(true);
+    expect(result.theta).toBe(out.theta);
+    expect(result.gv).toBe(OMIB_BANK_VERSION);
+    // the histogram is the OMIB era's, one reading in one θ bin
+    const norms = store.get("v2_logic_norms_private/global") as Doc;
+    expect(norms.bank).toBe("omib");
+    expect(norms.n).toBe(1);
+    expect(Object.keys(norms).filter((k) => k.startsWith("t"))).toHaveLength(1);
+    expect(store.get("v2_logic_norms/global")).toMatchObject({ bank: "omib", n: 1 });
+    // …and the ledger is per item, under the same era
+    const ledger = store.get("v2_logic_norms_private/families") as Doc;
+    expect(ledger.bank).toBe("omib");
+    expect(Object.keys(ledger).filter((k) => /^i_\d+_seen$/.test(k))).toHaveLength(OMIB_FORM_ITEMS);
+    expect(store.get(ATTEMPT)?.normsCounted).toBe(true);
+  });
+
+  it("refuses the generator's pick shape on an OMIB attempt, and vice versa", async () => {
+    openOmib();
+    await expect(submitOmib(new Array(OMIB_FORM_ITEMS).fill(0))).rejects.toThrow(/twenty-character/);
+    expect(store.get(ATTEMPT)?.status).toBe("open");
+    store.clear();
+    openAttempt(); // a generator attempt (no bank field — a pre-D473 document)
+    await expect(submitOmib(blanks())).rejects.toThrow(/integers/);
+  });
+
+  it("a blank sheet scores zero, is marked unattempted in the ledger, and still folds", async () => {
+    openOmib();
+    const out = await submitOmib(blanks());
+    expect(out.score).toBe(0);
+    expect(out.theta as number).toBeLessThan(0);
+    const ledger = store.get("v2_logic_norms_private/families") as Doc;
+    expect(Object.keys(ledger).filter((k) => /^i_\d+_blank$/.test(k))).toHaveLength(OMIB_FORM_ITEMS);
+    expect(Object.keys(ledger).some((k) => /_solved$/.test(k))).toBe(false);
+  });
+
+  it("a click-through is scored and never counted (the effort floor, D402, both banks)", async () => {
+    openOmib({ startedAtMs: Date.now() - 1000 });
+    await submitOmib(keyFor(SEED));
+    expect(store.get(ATTEMPT)?.status).toBe("scored");
+    expect(store.get(ATTEMPT)?.normsCounted).toBe(false);
+    expect(store.has("v2_logic_norms_private/global")).toBe(false);
+  });
+
+  it("never folds a generator-era histogram into the OMIB one — the first OMIB submit starts fresh", async () => {
+    store.set("v2_logic_norms_private/global", { items: 25, gv: GEN_VERSION, n: 500, b12: 500 });
+    openOmib();
+    const out = await submitOmib(keyFor(SEED));
+    expect(out.source).toBe("model");
+    const norms = store.get("v2_logic_norms_private/global") as Doc;
+    expect(norms.n).toBe(1);
+    expect(norms.b12).toBeUndefined();
+  });
+});
+
+// ── an adaptive attempt (D476, docs/OMIB-PLAN.md §3.3) ───────────────────
+// DARK behind OMIB_SELECTION, so the emulator cannot mint one; this is
+// where the per-item callable's branching is proved — the walk, the hold,
+// the repeat, the out-of-step refusal, the lost final answer, and which
+// ledger the counts fold into.
+describe("an adaptive attempt", () => {
+  const SEED = 4242;
+  const next = (index: number, pick: unknown) =>
+    (logicNextV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data: { index, pick } });
+  const openAdaptive = (over: Doc = {}) =>
+    openAttempt({
+      bank: "omib", gv: OMIB_BANK_VERSION, mode: "adaptive", seed: SEED, picks: [],
+      startedAtMs: Date.now() - OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM - 1,
+      ...over,
+    });
+  const keyOfNext = (picks: string[]) => OMIB_KEY[(replayAdaptive(SEED, picks).next as { n: number }).n];
+
+  it("is minted with its first item only, the selection on the document", () => {
+    const a = mintAttempt(null, Date.now(), SEED, "omib", "adaptive");
+    expect(a.attempt).toMatchObject({ bank: "omib", mode: "adaptive", gv: OMIB_BANK_VERSION });
+    expect(a.attempt.picks).toBeUndefined();
+    expect(a.items).toEqual([{ code: omibNextItem(SEED, []).code }]);
+    const s = mintAttempt(null, Date.now(), SEED, "omib", "stratified");
+    expect(s.attempt.mode).toBe("stratified");
+    expect(s.items).toHaveLength(OMIB_FORM_ITEMS);
+    expect(mintAttempt(null, Date.now(), SEED, "omib").attempt.mode).toBe(OMIB_SELECTION);
+  });
+
+  it("walks the form one pick at a time, holding the picks and no timing, then scores and folds — into its own ledger", async () => {
+    openAdaptive();
+    const picks: string[] = [];
+    for (let k = 0; k < OMIB_FORM_ITEMS - 1; k++) {
+      const pick = keyOfNext(picks);
+      const out = await next(k, pick);
+      picks.push(pick);
+      expect(out).toEqual({ items: [{ code: (replayAdaptive(SEED, picks).next as { code: string }).code }], index: k + 1, total: OMIB_FORM_ITEMS });
+      const doc = store.get(ATTEMPT) as Doc;
+      expect(doc.status).toBe("open");
+      expect(doc.picks).toEqual(picks);
+      // nothing per item but the cell: no item list, no arrival times
+      expect(Object.keys(doc).sort()).toEqual(["bank", "dayKey", "deadlineMs", "gv", "mode", "normsCounted", "picks", "seed", "startedAtMs", "startsToday", "status"]);
+      expect(store.has(`v2_users/${UID}`)).toBe(false);
+    }
+    const out = await next(OMIB_FORM_ITEMS - 1, keyOfNext(picks));
+    expect(out).toMatchObject({ score: OMIB_FORM_ITEMS, bank: "omib", mode: "adaptive", seed: SEED, gv: OMIB_BANK_VERSION, source: "model" });
+    expect(out.diffs).toHaveLength(OMIB_FORM_ITEMS);
+    expect(out.marks).toEqual(new Array(OMIB_FORM_ITEMS).fill(true));
+    const doc = store.get(ATTEMPT) as Doc;
+    expect(doc.status).toBe("scored");
+    expect(doc.picks).toHaveLength(OMIB_FORM_ITEMS);
+    expect(doc.normsCounted).toBe(true);
+    const result = ((store.get(`v2_users/${UID}`) as Doc).testResults as Doc).logic as Doc;
+    expect(result).toMatchObject({ v: 3, verified: true, bank: "omib", mode: "adaptive", seed: SEED, theta: out.theta, se: out.se });
+    // the θ histogram counts it like any first attempt…
+    expect(store.get("v2_logic_norms_private/global")).toMatchObject({ bank: "omib", n: 1 });
+    expect(store.get("v2_logic_norms/global")).toMatchObject({ bank: "omib", n: 1 });
+    // …and the item counts go to the ADAPTIVE ledger, never the report's
+    expect(store.has("v2_logic_norms_private/families")).toBe(false);
+    expect(store.has("v2_logic_norms/families")).toBe(false);
+    const ledger = store.get("v2_logic_norms_private/adaptive") as Doc;
+    expect(ledger).toMatchObject({ bank: "omib", mode: "adaptive", n: 1 });
+    expect(Object.keys(ledger).filter((k) => /^i_\d+_seen$/.test(k))).toHaveLength(OMIB_FORM_ITEMS);
+    expect(store.get("v2_logic_norms/adaptive")).toMatchObject({ mode: "adaptive", n: 1 });
+  });
+
+  it("says the same thing twice to a client that did not hear it, and refuses one out of step", async () => {
+    openAdaptive();
+    const first = keyOfNext([]);
+    const a = await next(0, first);
+    const b = await next(0, first);
+    expect(b).toEqual(a);
+    expect((store.get(ATTEMPT) as Doc).picks).toEqual([first]);
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/expected the pick for item 2/);
+    await expect(next(5, EMPTY_CELL)).rejects.toThrow(/expected the pick for item 2/);
+    await expect(next(1, "1".repeat(19))).rejects.toThrow(/twenty-character/);
+    await expect(next(OMIB_FORM_ITEMS, EMPTY_CELL)).rejects.toThrow(/index/);
+    await expect(next(-1, EMPTY_CELL)).rejects.toThrow(/index/);
+    expect((store.get(ATTEMPT) as Doc).picks).toEqual([first]);
+  });
+
+  it("hands the result over again when the final call's answer was lost, and refuses a different final pick", async () => {
+    openAdaptive();
+    for (let k = 0; k < OMIB_FORM_ITEMS - 1; k++) await next(k, EMPTY_CELL);
+    const out = await next(OMIB_FORM_ITEMS - 1, EMPTY_CELL);
+    expect(out).toMatchObject({ score: 0, mode: "adaptive" });
+    const again = await next(OMIB_FORM_ITEMS - 1, EMPTY_CELL);
+    expect(again).toEqual(out);
+    await expect(next(OMIB_FORM_ITEMS - 1, "1".repeat(20))).rejects.toThrow(/already scored/);
+    await expect(next(3, EMPTY_CELL)).rejects.toThrow(/already scored/);
+    expect(store.get("v2_logic_norms_private/global")).toMatchObject({ n: 1 }); // folded once
+  });
+
+  it("refuses the one-shot submit on an adaptive attempt, and the per-item call on a stratified one", async () => {
+    openAdaptive();
+    const submitBlank = () =>
+      (logicSubmitV2 as unknown as { run: (r: unknown) => Promise<unknown> }).run({
+        auth: { uid: UID }, data: { picks: new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) },
+      });
+    await expect(submitBlank()).rejects.toThrow(/item by item/);
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "stratified", seed: SEED });
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/not an adaptive attempt/);
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: SEED }); // a pre-D476 document: stratified
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/not an adaptive attempt/);
+  });
+
+  it("refuses past the deadline, and a signed-out caller before touching the store", async () => {
+    openAdaptive({ deadlineMs: Date.now() - 1 });
+    await expect(next(0, EMPTY_CELL)).rejects.toThrow(/expired/);
+    store.clear();
+    await expect(
+      (logicNextV2 as unknown as { run: (r: unknown) => Promise<unknown> }).run({ auth: null, data: { index: 0, pick: EMPTY_CELL } }),
+    ).rejects.toThrow(/signed in/);
+    expect(store.size).toBe(0);
+  });
+});
+
+// ── starting: one attempt every 30 days, resumed inside its window (D478) ─
+describe("starting an attempt", () => {
+  const start = () =>
+    (logicStartV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data: {} });
+
+  it("mints a fresh attempt when there is none: the whole window, the form, no day counter", async () => {
+    const out = await start();
+    expect(out.deadlineMs).toBe(LOGIC_DEADLINE_MS);
+    expect(out.resumed).toBeUndefined();
+    expect(out.index).toBeUndefined();
+    expect(out.items).toHaveLength(OMIB_SELECTION === "adaptive" ? 1 : OMIB_FORM_ITEMS);
+    const doc = store.get(ATTEMPT) as Doc;
+    expect(doc.status).toBe("open");
+    expect(doc.startsToday).toBeUndefined();
+    expect(doc.dayKey).toBeUndefined();
+  });
+
+  it("hands an open attempt back as it stands — the same items, the time that is left — and writes nothing", async () => {
+    const startedAtMs = Date.now() - 5 * 60_000;
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "stratified", seed: 4242, startedAtMs, deadlineMs: startedAtMs + LOGIC_DEADLINE_MS });
+    const before = { ...(store.get(ATTEMPT) as Doc) };
+    const out = await start();
+    expect(out.resumed).toBe(true);
+    expect(out.index).toBe(0);
+    expect(out.mode).toBe("stratified");
+    expect(out.items).toEqual(omibForm(4242).map((i) => ({ code: i.code })));
+    expect(out.deadlineMs as number).toBeLessThanOrEqual(LOGIC_DEADLINE_MS - 5 * 60_000);
+    expect(out.deadlineMs as number).toBeGreaterThan(LOGIC_DEADLINE_MS - 6 * 60_000);
+    expect(store.get(ATTEMPT)).toEqual(before);
+  });
+
+  it("resumes an adaptive attempt at its next unanswered item", async () => {
+    const startedAtMs = Date.now() - 60_000;
+    const picks = [EMPTY_CELL, EMPTY_CELL, EMPTY_CELL];
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "adaptive", seed: 4242, picks, startedAtMs, deadlineMs: startedAtMs + LOGIC_DEADLINE_MS });
+    const out = await start();
+    expect(out).toMatchObject({ resumed: true, index: 3, mode: "adaptive", total: OMIB_FORM_ITEMS });
+    expect(out.items).toEqual([{ code: (replayAdaptive(4242, picks).next as { code: string }).code }]);
+    expect((store.get(ATTEMPT) as Doc).picks).toEqual(picks);
+  });
+
+  it("refuses inside 30 days of the last start, whatever came of it — and says when the next opens", async () => {
+    const DAY = 86_400_000;
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: 1, status: "scored", startedAtMs: Date.now() - 10 * DAY, scoredAtMs: Date.now() - 10 * DAY + 60_000 });
+    await expect(start()).rejects.toThrow(/one attempt every 30 days — the next opens in 20 days/);
+    // an attempt that expired unscored was the chance too
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: 1, status: "open", startedAtMs: Date.now() - 2 * DAY, deadlineMs: Date.now() - 2 * DAY + LOGIC_DEADLINE_MS });
+    await expect(start()).rejects.toThrow(/the next opens in 28 days/);
+    // and after 30 days a new one is minted
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: 1, status: "scored", startedAtMs: Date.now() - 31 * DAY, scoredAtMs: Date.now() - 31 * DAY + 60_000, normsCounted: true });
+    const out = await start();
+    expect(out.resumed).toBeUndefined();
+    expect((store.get(ATTEMPT) as Doc).normsCounted).toBe(true); // the D32 flag carries across attempts
+    expect((store.get(ATTEMPT) as Doc).seed).not.toBe(1);
   });
 });

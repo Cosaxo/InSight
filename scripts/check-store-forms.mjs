@@ -25,6 +25,12 @@
 //      an ATT prompt; it should never change as a side effect.
 //   5. Every age-rating answer agrees with the prose, KEY AND VALUE.
 //   6. Play's Data Safety form agrees with STORE-FORMS.md §3, row for row.
+//   7. The two STORES are told the same thing. Rules 1-6 each hold ONE
+//      store's form against its own prose twin; nothing held the two
+//      forms against each other, and they are two legal attestations
+//      about one app in two vocabularies. A datum can be declared
+//      collected on one store and not on the other with every rule above
+//      green — which is what happened to Photos (see CROSS_STORE).
 //
 // Rule 6 was added 2026-09-01, and what it caught on the way in is the
 // argument for it: §3's Precise location row had its columns TRANSPOSED
@@ -45,6 +51,16 @@
 // column, App activity, Purchases — and this rule deliberately does not
 // arbitrate them; it holds the two copies equal so that whatever is
 // decided is decided once.
+//
+// Rule 7 DECIDES NO FILING, and the reason is authority rather than
+// convenience: a store form is one of the four things CLAUDE.md puts
+// OUTSIDE the D334 ask, so a routine may not rewrite a legal attestation
+// on its own reading of the app. It holds the pairs that already name the
+// same datum to the same answer, and requires every type or row to be
+// either paired in CROSS_STORE or written into DIVERGENT with what it
+// waits on. A divergence listed there is carried, not endorsed —
+// docs/OWNER-LIST.md is where the ones worth closing are put to the
+// owner.
 //
 // Rule 5 was added after the age rating failed to push at all. The privacy
 // half of app-privacy.json was gated by rules 1-4 from the day it was
@@ -80,6 +96,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { stripXmlComments } from "./strip-comments.mjs";
+import { refuseVacuous } from "./lib/compare.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The idiom check-policy-claims.mjs already uses: run as a gate, import as
@@ -617,6 +634,21 @@ const DIVERGENT = new Map([
   const playByKey = new Map((playJson.rows ?? []).map((r) => [norm(r.category), r]));
   const appleTypes = new Set(privacy.collected.map((r) => norm(r.type)));
 
+  // THE VACUITY FLOOR. The pairing loop below cannot pass on an empty
+  // parse — CROSS_STORE is a literal, so a missing Play row is an error
+  // rather than a skip — but the two completeness sweeps after it are
+  // exactly the shape that reports success on a scan that found nothing:
+  // they iterate what was PARSED, and an empty parse iterates zero times.
+  // D179, D197 and D275 are three instances of that class in this repo.
+  // Both sides are declared non-empty here so a parser that stops
+  // matching fails loudly instead of going quiet.
+  try {
+    refuseVacuous(appleTypes.size, { side: "app-privacy.json collected types" });
+    refuseVacuous(playByKey.size, { side: "play-data-safety.json rows" });
+  } catch (err) {
+    errors.push(`cross-store: ${err.message}`);
+  }
+
   for (const [type, category] of CROSS_STORE) {
     const row = playByKey.get(norm(category));
     if (!row) {
@@ -684,5 +716,12 @@ console.log(
   // stops matching reports zero rows and passes every comparison — the
   // D275 shape exactly — so the number goes in the success line where a
   // reader sees it fall.
-  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3.`,
+  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3; `
+  // Rule 7's own line. The compared count is printed for the same reason
+  // the Play count is — a pairing that silently stops matching reports
+  // zero and passes — and the carried divergences are NAMED rather than
+  // merely tolerated, so a green run still says out loud that two legal
+  // attestations about this app do not yet agree.
+  + `${CROSS_STORE.size} datum(s) paired across the two stores, `
+  + `${DIVERGENT.size} divergence(s) carried (${[...DIVERGENT.keys()].join(", ")}) — docs/OWNER-LIST.md.`,
 );

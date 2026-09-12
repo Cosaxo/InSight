@@ -37,9 +37,14 @@ import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { utcDayKeyOf } from "./pure";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
+import {
+  OMIB_FORM_ITEMS, OMIB_BANK_VERSION, OMIB_ERA, omibClientItems, validOmibPicks, validOmibCell,
+  omibNextItem, replayAdaptive, scoreOmib,
+  foldThetaNorms, foldItemStats, measuredPctileTheta, modelPctileTheta, isOmibEra,
+  type Norms, type OmibClientItem, type OmibItem, type OmibScore, type OmibSelection,
+} from "./omib";
 import { db as firestore } from "./db";
 
 const REGION = FUNCTIONS_REGION;
@@ -60,15 +65,23 @@ export const LOGIC_DEADLINE_MS = LOGIC_ITEMS * LOGIC_ITEM_CAP_MS + LOGIC_ITEM_CA
 export function logicItemsFor(gv: number): number {
   return gv >= 3 ? 25 : 12;
 }
-// Starting an attempt previews a fresh form, so unfinished restarts
-// are a preview channel — bounded per UTC day rather than closed, because
-// a crashed app must be able to start again.
-export const LOGIC_MAX_STARTS_PER_DAY = 3;
-// One verified score is THE score for a while: re-verification opens after
-// this many days. (First scored attempt feeds the norms histogram either
-// way — the D32 "first attempt counts" rule, for the same reason: retakes
-// measure practice, not the population.)
+// ── ONE ATTEMPT EVERY 30 DAYS (D478; the owner, 2026-09-12: "one chance
+// can only be taken once every 30 days") ──
+// The interval runs from the START of the previous attempt, whatever came
+// of it — scored, abandoned, expired: each was the chance. Before D478 the
+// rule was one VERIFIED score per 30 days plus three starts a day, and the
+// three starts were a preview channel: a start hands out a form, and with
+// practice gone (D477) an unscored restart was the last way to see the
+// bank without being measured on it. What a crash needs is not a new form
+// but the SAME one back, so an open attempt inside its deadline is RESUMED
+// rather than restarted — the same seed, the same items, the time that is
+// left — and nothing else opens the door early. The client mirrors the
+// number as LOGIC_RETAKE_DAYS (src/v2/data/logic-score.ts), pinned in both
+// suites. (First scored attempt feeds the norms histogram either way — the
+// D32 "first attempt counts" rule, for the same reason: retakes measure
+// practice, not the population.)
 export const LOGIC_REVERIFY_DAYS = 30;
+export const LOGIC_RETAKE_MS = LOGIC_REVERIFY_DAYS * 86_400_000;
 // An attempt finished faster than this per item is scored but never
 // COUNTED (D402): twenty-five matrices cannot be read, let alone solved,
 // in under two seconds each, so such an attempt is a click-through — and
@@ -82,6 +95,41 @@ export const LOGIC_MIN_MS_PER_ITEM = 2_000;
 // client (src/v2/data/logic-score.ts) carries the same constant and the
 // same arithmetic for practice results, pinned equal in both suites.
 export const LOGIC_SEM_ITEMS = 2;
+
+// ── which bank a NEW attempt is minted on (D473, docs/OMIB-PLAN.md §8) ──
+// "generator" is D31's procedural bank scored by count; "omib" is the Open
+// Matrices Item Bank scored by θ. The bank is a property of the ATTEMPT,
+// stamped at start and honoured at submit whatever this constant says by
+// then — so an attempt straddling the flip scores on the bank it was
+// minted on, and both paths are testable without touching this line.
+// Phase 1 shipped the OMIB path DARK on "generator", because the overlay of
+// the day sent six-way indexes and would have rendered nothing on a code.
+// Phase 2 (D475) is the screen that answers a code, and flips this with it —
+// the same PR, so no deployed tree ever serves codes to a client that cannot
+// draw them. (The practice callable that stood below until D477 was
+// OMIB-only regardless; the owner retired practice the day it shipped.)
+export type LogicBank = "generator" | "omib";
+export const LOGIC_BANK = "omib" as LogicBank;
+
+// ── how a NEW OMIB attempt picks its items (D476, docs/OMIB-PLAN.md §3.3) ──
+// "stratified" mints the whole form at start from the seed, scored at one
+// submit; "adaptive" serves one item at a time, each chosen for the taker's
+// current θ̂, through logicNextV2. Like the bank, the selection is a
+// property of the ATTEMPT — stamped at start, honoured to the end — so a
+// flip mid-attempt changes nothing for the person holding a form.
+//
+// DARK ON PURPOSE, and not for want of a screen: the client walks the
+// adaptive path already, logic-submit.test.ts proves the callable through
+// the fake transaction, and the emulator's verified leg walks whichever
+// selection a start declares — so a flip is proved there before it
+// deploys. What the flip waits on is the §6 report: it reads per-item
+// solve rates off the stratified ledger to say whether the bank's published
+// difficulties hold for this app's takers, and adaptive administration
+// meets every item near its taker's 50 % point, which makes those rates say
+// nothing about b. So the stratified era has to run long enough to answer
+// the question first — hundreds of counted attempts — and the flip is the
+// owner's, on the r figure, recorded when it happens (OWNER-LIST.md).
+export const OMIB_SELECTION = "stratified" as OmibSelection;
 
 // The percentile curves, byte-for-byte the client's logicPctileFor
 // (src/v2/data/logic-score.ts) — one per form length, landmarks asserted
@@ -106,13 +154,22 @@ export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 // ── the attempt doc (v2_logic_attempts/{uid} — one per account) ──
 export interface LogicAttempt {
   seed: number;
+  /** generator version, or OMIB_BANK_VERSION when `bank` is "omib" */
   gv: number;
+  /** absent on documents from before D473 — those are the generator's */
+  bank?: LogicBank;
+  /** OMIB only; absent before D476 = stratified */
+  mode?: OmibSelection;
+  /** adaptive only: the cells committed so far, in the order served — the
+   *  form is replayed from these and the seed, so nothing else is held */
+  picks?: string[];
   status: "open" | "scored";
+  /** what the 30-day rule counts from (D478) */
   startedAtMs: number;
   deadlineMs: number;
-  /** UTC day the start counter refers to */
-  dayKey: string;
-  startsToday: number;
+  /** the per-day start counter of D57, retired at D478 — on older documents only */
+  dayKey?: string;
+  startsToday?: number;
   /** true once ANY attempt by this account has fed the norms histogram */
   normsCounted?: boolean;
   scoredAtMs?: number;
@@ -122,26 +179,62 @@ export interface LogicAttempt {
 
 // ── pure decision logic (unit-tested without an emulator) ──
 
-export type StartVerdict = { ok: true } | { ok: false; code: string; msg: string };
+/** `resume`: the open attempt inside its window is handed back, not a new one. */
+export type StartVerdict = { ok: true; resume: boolean } | { ok: false; code: string; msg: string };
 
 export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVerdict {
-  if (prev) {
-    if (
-      prev.status === "scored"
-      && prev.scoredAtMs != null
-      && nowMs - prev.scoredAtMs < LOGIC_REVERIFY_DAYS * 86_400_000
-    ) {
-      return { ok: false, code: "cooldown", msg: "verified recently — try again later" };
-    }
-    if (prev.dayKey === utcDayKeyOf(nowMs) && prev.startsToday >= LOGIC_MAX_STARTS_PER_DAY) {
-      return { ok: false, code: "rate-limited", msg: "too many starts today" };
-    }
+  if (!prev) return { ok: true, resume: false };
+  if (prev.status === "open" && nowMs <= prev.deadlineMs) return { ok: true, resume: true };
+  const since = nowMs - prev.startedAtMs;
+  if (since < LOGIC_RETAKE_MS) {
+    const days = Math.ceil((LOGIC_RETAKE_MS - since) / 86_400_000);
+    return {
+      ok: false,
+      code: "cooldown",
+      msg: `one attempt every ${LOGIC_REVERIFY_DAYS} days — the next opens in ${days} day${days === 1 ? "" : "s"}`,
+    };
   }
-  return { ok: true };
+  return { ok: true, resume: false };
 }
 
-export function nextStartsToday(prev: LogicAttempt | null, nowMs: number): number {
-  return prev && prev.dayKey === utcDayKeyOf(nowMs) ? prev.startsToday + 1 : 1;
+/**
+ * A fresh attempt document and what the client may see of it, for the bank
+ * named. Pure: the callable supplies the seed and the clock. The gv stamped
+ * is the bank's own version, so `{seed, gv, bank}` reconstructs the form
+ * forever (D31's rule, both banks).
+ */
+export function mintAttempt(
+  prev: LogicAttempt | null,
+  nowMs: number,
+  seed: number,
+  bank: LogicBank,
+  selection: OmibSelection = OMIB_SELECTION,
+): { attempt: LogicAttempt; items: LogicClientItem[] | OmibClientItem[] } {
+  const attempt: LogicAttempt = {
+    seed,
+    gv: bank === "omib" ? OMIB_BANK_VERSION : GEN_VERSION,
+    bank,
+    ...(bank === "omib" ? { mode: selection } : {}),
+    status: "open",
+    startedAtMs: nowMs,
+    deadlineMs: nowMs + LOGIC_DEADLINE_MS,
+    normsCounted: prev?.normsCounted === true,
+  };
+  // An adaptive attempt hands out its first item only: the rest do not
+  // exist until the answers that choose them do.
+  const items = bank !== "omib" ? clientItems(seed, GEN_VERSION)
+    : selection === "adaptive" ? [{ code: omibNextItem(seed, []).code }]
+    : omibClientItems(seed);
+  return { attempt, items };
+}
+
+/** What a resumed attempt is handed: its own form again, or its next item. */
+function resumeItems(prev: LogicAttempt): LogicClientItem[] | OmibClientItem[] {
+  if (prev.bank !== "omib") return clientItems(prev.seed, prev.gv);
+  if (prev.mode !== "adaptive") return omibClientItems(prev.seed);
+  const next = replayAdaptive(prev.seed, prev.picks ?? []).next;
+  if (!next) throw new HttpsError("failed-precondition", "already scored");
+  return [{ code: next.code }];
 }
 
 // Picks: one per item, -1 = expired/unanswered, else an option index.
@@ -276,30 +369,37 @@ export const logicStartV2 = onCall(
     const now = Date.now();
     const seed = randomBytes(4).readUInt32BE(0);
 
-    await firestore().runTransaction(async (tx: Transaction) => {
+    const minted = await firestore().runTransaction(async (tx: Transaction) => {
       const ref = attemptRef(uid);
       const snap = await tx.get(ref);
       const prev = snap.exists ? (snap.data() as LogicAttempt) : null;
       const verdict = canStartLogic(prev, now);
       if (!verdict.ok) throw new HttpsError("failed-precondition", verdict.msg, { code: verdict.code });
-      const attempt: LogicAttempt = {
-        seed,
-        gv: GEN_VERSION,
-        status: "open",
-        startedAtMs: now,
-        deadlineMs: now + LOGIC_DEADLINE_MS,
-        dayKey: utcDayKeyOf(now),
-        startsToday: nextStartsToday(prev, now),
-        normsCounted: prev?.normsCounted === true,
-      };
-      tx.set(ref, attempt);
+      // RESUME (D478): the open attempt inside its window comes back as it
+      // stands — the same seed, so the same items, and for an adaptive one
+      // the next unanswered item. Nothing is written: the document already
+      // says everything the client is about to be told.
+      if (verdict.resume && prev) return { attempt: prev, items: resumeItems(prev), resumed: true };
+      const m = mintAttempt(prev, now, seed, LOGIC_BANK);
+      tx.set(ref, m.attempt);
+      return { ...m, resumed: false };
     });
 
-    logger.info(`[logicStartV2] uid=${uid} attempt opened`);
+    const a = minted.attempt;
+    logger.info(`[logicStartV2] uid=${uid} attempt ${minted.resumed ? "resumed" : "opened"} on ${a.bank ?? "generator"}${a.mode ? ` (${a.mode})` : ""}`);
     return {
-      items: clientItems(seed, GEN_VERSION),
+      items: minted.items,
       capMs: LOGIC_ITEM_CAP_MS,
-      deadlineMs: LOGIC_DEADLINE_MS,
+      // What is LEFT of the attempt's window — the whole of it on a fresh
+      // start, less on a resume — so the client's sitting clock is honest.
+      deadlineMs: a.deadlineMs - now,
+      // The selection and the form's length travel with an OMIB start, so
+      // the client knows whether the items it holds are the whole form or
+      // the first of twenty-five it will be handed one at a time.
+      ...(a.bank === "omib" ? { mode: a.mode ?? "stratified", total: OMIB_FORM_ITEMS } : {}),
+      // A resumed adaptive attempt continues at `index`: the picks before
+      // it are the server's already.
+      ...(minted.resumed ? { resumed: true, index: a.mode === "adaptive" ? (a.picks ?? []).length : 0 } : {}),
     };
   },
 );
@@ -381,6 +481,185 @@ export function rankAndFold(a: {
   };
 }
 
+/**
+ * rankAndFold for the OMIB bank: the same four decisions — era, first
+ * attempt, effort floor, measured-or-model — over θ instead of a count.
+ * The band is θ̂ ± its own SE read through whatever ranked θ̂, so the range
+ * and the number rest on the same thing, and the range is the person's
+ * rather than a constant (D402's ±2 items was a modelled stand-in for
+ * exactly this). Below the floor the model is Φ(θ̂) against the calibration
+ * sample — a real population, named in the sentence that prints it
+ * (docs/OMIB-PLAN.md §4).
+ */
+export function rankAndFoldTheta(a: {
+  theta: number;
+  se: number;
+  durationMs: number;
+  stored: Norms | null;
+  alreadyCounted: boolean;
+}): {
+  pctile: number;
+  band: [number, number];
+  source: "measured" | "model";
+  countsNorms: boolean;
+  norms: Norms | null;
+  n: number | null;
+} {
+  const prevNorms = isOmibEra(a.stored) ? a.stored : null;
+  const measured = measuredPctileTheta(prevNorms, a.theta, LOGIC_NORMS_MIN_N);
+  const effort = a.durationMs >= OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM;
+  const countsNorms = !a.alreadyCounted && effort;
+  const rank = (t: number) =>
+    (measured ? measuredPctileTheta(prevNorms, t, LOGIC_NORMS_MIN_N)?.pctile : undefined) ?? modelPctileTheta(t);
+  return {
+    pctile: rank(a.theta),
+    band: [rank(a.theta - a.se), rank(a.theta + a.se)],
+    source: measured ? "measured" : "model",
+    countsNorms,
+    norms: countsNorms ? { ...foldThetaNorms(prevNorms, a.theta), ...OMIB_ERA } : null,
+    n: measured ? measured.n : null,
+  };
+}
+
+/**
+ * The OMIB submit, inside logicSubmitV2's transaction. The same shape as the
+ * generator's body below — validate, score, read the norms PRE-fold, rank,
+ * fold the ledger under the same gate, write the attempt, the profile's
+ * verified result, the norms and their mirror — over the bank's own pure
+ * functions. Kept as its own body rather than interleaved conditionals so
+ * the generator path, which is what production runs until the flip, stays
+ * byte-for-byte what it was.
+ */
+async function submitOmib(
+  tx: Transaction,
+  db: ReturnType<typeof firestore>,
+  uid: string,
+  ref: ReturnType<typeof attemptRef>,
+  attempt: LogicAttempt,
+  picks: unknown,
+  now: number,
+) {
+  if (attempt.mode === "adaptive") {
+    throw new HttpsError("failed-precondition", "an adaptive attempt is scored item by item — through logicNextV2");
+  }
+  if (!validOmibPicks(picks)) {
+    throw new HttpsError("invalid-argument", `picks must be ${OMIB_FORM_ITEMS} twenty-character cells of 0 and 1`);
+  }
+  return finishOmib(tx, db, uid, ref, attempt, scoreOmib("stratified", attempt.seed, picks), now);
+}
+
+/**
+ * The end of an OMIB attempt, whichever selection served it: rank, fold,
+ * write the attempt, the profile's verified result, the norms and their
+ * mirrors, and return the result. The scorer ran before this; what differs
+ * by selection is only which ledger the item counts fold into.
+ */
+async function finishOmib(
+  tx: Transaction,
+  db: ReturnType<typeof firestore>,
+  uid: string,
+  ref: ReturnType<typeof attemptRef>,
+  attempt: LogicAttempt,
+  scored: OmibScore,
+  now: number,
+) {
+  const { marks, attempted, score, theta, se, itemIds, diffs } = scored;
+  const mode: OmibSelection = attempt.mode === "adaptive" ? "adaptive" : "stratified";
+  const durationMs = now - attempt.startedAtMs;
+
+  const privRef = db.collection("v2_logic_norms_private").doc("global");
+  const privSnap = await tx.get(privRef);
+  const stored = privSnap.exists ? (privSnap.data() as Norms) : null;
+  const { pctile, band, source, countsNorms, norms, n: measuredN } = rankAndFoldTheta({
+    theta,
+    se,
+    durationMs,
+    stored,
+    alreadyCounted: attempt.normsCounted === true,
+  });
+  // The ledger is per ITEM for this bank (docs/OMIB-PLAN.md §3.2), on the
+  // same document the generator kept its families on; the era stamp is
+  // what keeps the two from ever folding into each other. AND PER
+  // SELECTION (D476): a stratified attempt's counts are the §6 report's
+  // instrument — an item's solve rate against its published b — and an
+  // adaptive attempt's are not, because adaptive administration meets every
+  // item near its taker's 50 % point. So the two fold into different
+  // documents: `families` stays the stratified ledger the report reads,
+  // and `adaptive` is exposure accounting for the day the flip happens.
+  const ledgerRef = db.collection("v2_logic_norms_private").doc(mode === "adaptive" ? "adaptive" : "families");
+  let ledger: Norms | null = null;
+  if (countsNorms) {
+    const snap = await tx.get(ledgerRef);
+    const prev = snap.exists && isOmibEra(snap.data() as Norms) ? (snap.data() as Norms) : null;
+    ledger = { ...foldItemStats(prev, itemIds, marks, attempted), ...OMIB_ERA, mode };
+  }
+
+  tx.set(ref, {
+    ...attempt,
+    status: "scored",
+    normsCounted: attempt.normsCounted === true || countsNorms,
+    scoredAtMs: now,
+    score,
+    durationMs,
+  });
+  // v: 3 is the OMIB era of the verified record; `bank` says so in words and
+  // `theta`/`se` are the measurement. `gv` is the bank's own version, so a
+  // reader that reconstructs the form does it on the right bank — and
+  // `mode` says how: from the seed alone, or from the seed and the picks.
+  tx.set(
+    db.collection("v2_users").doc(uid),
+    {
+      testResults: {
+        logic: {
+          v: 3,
+          verified: true,
+          bank: "omib",
+          mode,
+          seed: attempt.seed,
+          gv: OMIB_BANK_VERSION,
+          marks,
+          theta,
+          se,
+          pctile,
+          band,
+          durationMs,
+          source,
+          ...(measuredN != null ? { n: measuredN } : {}),
+          when: now,
+        },
+      },
+    },
+    { mergeFields: ["testResults.logic"] },
+  );
+  if (norms) {
+    tx.set(privRef, norms);
+    tx.set(db.collection("v2_logic_norms").doc("global"), { ...norms, updatedAtMs: now });
+  }
+  if (ledger) {
+    tx.set(ledgerRef, ledger);
+    tx.set(db.collection("v2_logic_norms").doc(ledgerRef.id), { ...ledger, updatedAtMs: now });
+  }
+  return {
+    marks,
+    score,
+    theta,
+    se,
+    pctile,
+    band,
+    durationMs,
+    source,
+    ...(measuredN != null ? { n: measuredN } : {}),
+    seed: attempt.seed,
+    gv: OMIB_BANK_VERSION,
+    bank: "omib" as const,
+    mode,
+    // Disclosed only now, like the seed: the published difficulty of each
+    // item in form order, so the Answers lens can rank its rows on the real
+    // ramp. Public parameters; nothing here that scores anything.
+    diffs,
+  };
+}
+
 export const logicSubmitV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
@@ -397,6 +676,10 @@ export const logicSubmitV2 = onCall(
       const attempt = snap.data() as LogicAttempt;
       if (attempt.status !== "open") throw new HttpsError("failed-precondition", "already scored");
       if (now > attempt.deadlineMs) throw new HttpsError("deadline-exceeded", "attempt expired");
+
+      // The bank the attempt was minted on decides how it is scored — never
+      // LOGIC_BANK, which may have flipped since it opened.
+      if (attempt.bank === "omib") return submitOmib(tx, db, uid, ref, attempt, picks, now);
 
       // Validated against the ATTEMPT's form length: an attempt opened just
       // before a form-length deploy still scores against its own era.
@@ -522,7 +805,111 @@ export const logicSubmitV2 = onCall(
       };
     });
 
-    logger.info(`[logicSubmitV2] uid=${uid} scored ${out.score}/${LOGIC_ITEMS}`);
+    logger.info(`[logicSubmitV2] uid=${uid} scored ${out.score}/${"bank" in out ? OMIB_FORM_ITEMS : LOGIC_ITEMS}`);
     return out;
   },
 );
+
+// ── the adaptive attempt's per-item call (D476, docs/OMIB-PLAN.md §3.3) ──
+//
+// One call per item: the pick for item `index` goes in, the next item comes
+// out — or, on the twenty-fifth, the result, scored and folded exactly as a
+// stratified submit is. The attempt document carries the picks so far and
+// nothing else new: the items served are replayed from the seed and the
+// picks, so the document never holds a list a reader could take for a key,
+// and NO PER-ITEM TIMING is written — the server could now observe one
+// arrival per item, and the D57 promise (per-item timings never leave the
+// device; the server records only the attempt's duration) is kept by not
+// recording what it sees.
+//
+// Idempotent on a repeat: the same index with the same pick is a client
+// that did not hear the answer, and gets the same answer again — the next
+// item, or, after the last one, the result already written to the profile.
+// A different pick at an index already taken, or a skipped index, is a
+// client out of step and is refused.
+const nextOut = (next: OmibItem | null, index: number) => ({
+  items: next ? [{ code: next.code }] : [],
+  index,
+  total: OMIB_FORM_ITEMS,
+});
+
+export const logicNextV2 = onCall(
+  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+    const uid = request.auth.uid;
+    const data = (request.data ?? {}) as { index?: unknown; pick?: unknown };
+    const index = data.index;
+    if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index >= OMIB_FORM_ITEMS) {
+      throw new HttpsError("invalid-argument", `index must be an integer in 0..${OMIB_FORM_ITEMS - 1}`);
+    }
+    const pick = data.pick;
+    if (!validOmibCell(pick)) throw new HttpsError("invalid-argument", "pick must be one twenty-character cell of 0 and 1");
+    const now = Date.now();
+    const db = firestore();
+
+    const out = await db.runTransaction(async (tx: Transaction) => {
+      const ref = attemptRef(uid);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new HttpsError("failed-precondition", "no open attempt");
+      const attempt = snap.data() as LogicAttempt;
+      if (attempt.bank !== "omib" || attempt.mode !== "adaptive") {
+        throw new HttpsError("failed-precondition", "not an adaptive attempt");
+      }
+      const picks = attempt.picks ?? [];
+      if (attempt.status === "scored") {
+        // The final call was scored and its answer lost on the way back:
+        // the result is on the profile, so hand it over rather than tell a
+        // finisher their attempt is gone.
+        if (index === OMIB_FORM_ITEMS - 1 && picks[index] === pick) return storedOmibResult(tx, db, uid, attempt);
+        throw new HttpsError("failed-precondition", "already scored");
+      }
+      if (now > attempt.deadlineMs) throw new HttpsError("deadline-exceeded", "attempt expired");
+      if (index === picks.length - 1 && picks[index] === pick) {
+        return nextOut(replayAdaptive(attempt.seed, picks).next, picks.length);
+      }
+      if (index !== picks.length) {
+        throw new HttpsError("failed-precondition", `expected the pick for item ${picks.length + 1}`);
+      }
+      const all = [...picks, pick];
+      if (all.length < OMIB_FORM_ITEMS) {
+        tx.set(ref, { ...attempt, picks: all });
+        return nextOut(replayAdaptive(attempt.seed, all).next, all.length);
+      }
+      const held = { ...attempt, picks: all };
+      return finishOmib(tx, db, uid, ref, held, scoreOmib("adaptive", attempt.seed, all), now);
+    });
+
+    if ("marks" in out) logger.info(`[logicNextV2] uid=${uid} scored ${out.score}/${OMIB_FORM_ITEMS} (adaptive)`);
+    return out;
+  },
+);
+
+/** The scored attempt's result, as the profile holds it, for a final call answered twice. */
+async function storedOmibResult(
+  tx: Transaction,
+  db: ReturnType<typeof firestore>,
+  uid: string,
+  attempt: LogicAttempt,
+) {
+  const snap = await tx.get(db.collection("v2_users").doc(uid));
+  const r = (snap.data()?.testResults as { logic?: Record<string, unknown> } | undefined)?.logic;
+  if (!r || r.seed !== attempt.seed || r.bank !== "omib") throw new HttpsError("failed-precondition", "already scored");
+  const { marks, score, diffs } = scoreOmib("adaptive", attempt.seed, attempt.picks ?? []);
+  return {
+    marks,
+    score,
+    theta: r.theta as number,
+    se: r.se as number,
+    pctile: r.pctile as number,
+    band: r.band as [number, number],
+    durationMs: r.durationMs as number,
+    source: r.source as "measured" | "model",
+    ...(typeof r.n === "number" ? { n: r.n } : {}),
+    seed: attempt.seed,
+    gv: OMIB_BANK_VERSION,
+    bank: "omib" as const,
+    mode: "adaptive" as const,
+    diffs,
+  };
+}

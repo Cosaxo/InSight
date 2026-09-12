@@ -49520,7 +49520,6 @@ Two gates cannot pass from here and neither is the composition's:
 `check:web-firebase` needs the release secrets and runs only on the
 release workflows; `check:store-copy` fails identically on `origin/main`,
 on the Play signing SHA-256 placeholder that is the owner's to fill.
-
 ## D450 · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on
 
 **2026-09-11.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
@@ -51317,7 +51316,6 @@ after first paint. Deferring it as D122's handles and invitations are
 deferred, one file over, is the next change to that graph — its own
 change, not a rider on a feature.
 
-
 ## D465 · The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads
 
 **Found and fixed 2026-09-11**, from the owner's question about their own
@@ -52512,7 +52510,1626 @@ Supersedes the *"recorded as available, not built"* line in `COSTS.md`
 § control 1 and the owner row it pointed at; amends nothing about D332's
 breaker, which stands as the first line the same wire crosses.
 
-## D472 · Nothing leads the feed but a pin the reader set: the continuum pin is gone, the pulses ride the stream, and a sitting is what refreshes
+## D-2026-09-09a · The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+`CLAUDE.md`'s opening says what is distinctive about this app: *"answering
+BLIND — committing before the crowd can anchor you."* The enforcement was
+one ternary. `daily-split.jsx:845` reads `revealed = voted || !blind`, and
+for the whole life of `live.ts` the boot read `refreshAggs(state.deckIds)`
+— the **whole deck**, seven documents — inside `hydrate()`. So every count
+the card was hiding was in the store, in memory, and on the wire before the
+first card painted. Devtools, a proxy, or thirty lines of patched client
+recovered it. The product's one distinctive claim was a render decision.
+
+**The change is one filter.** `readableDeckIds` admits a deck id only if
+this device has already answered it, and it sits in both places the deck is
+read: the boot read and the 60-second poll body. An unanswered question's
+crowd is not on the device, so there is nothing to reveal early.
+
+**It is also cheaper, which is worth stating because honesty fixes usually
+run the other way.** A cold boot for a new account reads **0** aggregates
+instead of 7, and a card the reader skips costs nothing at all. The counts
+a reader is entitled to still arrive: `scheduleAggRefresh` re-reads on the
+vote's ack, on both write paths, and that read has always been the one that
+puts the number on screen.
+
+**What the reader sees between the vote and that read** is not blank and
+does not claim an empty crowd. `noCountsYet` (`deck.ts` `hasPublishedCounts`)
+already distinguishes *the aggregate has not landed* from *the aggregate
+says nobody*, and `daily-split` already draws **"You're first — the count
+lands in a moment."** for exactly this state. The flag existed for the
+first-vote case; this widens the window it covers rather than adding a
+state.
+
+**What it does NOT change.** The feed never bulk-prefetched, so it was
+already blind; the Mirror's score profiles and the learn stack read their
+own aggregates on their own paths and are untouched; the 6-hourly answered
+top-up (`insight.aggCheck.v1`) was already answered-only.
+
+**What was reversed to do it.** D129 replaced seven `onSnapshot` listeners
+with one boot read, and its case in `idle-detach.test.ts` said *"so a card
+renders with real numbers on first paint"*. That sentence was true and it
+was the leak, written down as a requirement. The case now pins the opposite
+and names why.
+
+**Pinned, and mutation-checked.** Three cases across two files
+(`idle-detach.test.ts`, `vote.test.ts`) — the refusal on an unanswered
+deck, the refusal in the timer body, and the admission of an answered
+question. Deleting the filter fails all three. `_deliverAggsForTest` was
+added so the cache-coalescing cases can receive an aggregate without
+borrowing the poll: borrowing a filtered tick would have made them assert
+the filter and go vacuous on a filter change.
+
+**One tripwire moved with it.** `scripts/pulse.test.mjs` matched the poll
+body as the literal `refreshAggs(state.deckIds.slice(0, 1))` and went red
+on a change that makes the app cheaper — the shape that gets a tripwire
+deleted rather than fixed. It now matches the **slice**, which is what the
+cost model actually depends on, and names the filter separately.
+
+**One test-file leak closed on the way.** `takes.test.ts` had no
+`_teardownForTest()` in its `afterEach`, so the previous case's store kept
+running into the next one's fresh module registry; with the boot read gone
+the timing shifted enough for its dynamic `import("./circle")` to resolve
+outside the mocked registry and take the REAL `collection()`. Both cases
+passed in isolation, which is that class's signature.
+
+## D-2026-09-09b · The Patterns tab waits on the fit's own skill, not only on the answer counts
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+D265 mounts the Patterns tab on two numbers: questions the fit published
+at a worthwhile basis, and the viewer's own answers among them. **Both
+count DATA. The tab does not draw data; it draws a MODEL of it**, and the
+two can diverge.
+
+They do. `docs/ALGORITHM-REFLECTION.md` §1.2 is this project's own
+measurement of the shipped fit: one-step-ahead surprisal **equal to a
+marginal-only guess to three decimals**, and **113 of 113** loading vectors
+still within cosine 0.9 of the hash seed they were born as. A corpus that
+satisfies D265's counts on that model opens a Map that is a drawing of
+`seedLoading` — and the People lens places **real, named strangers** on it
+(`peopleMap.ts` positions every dot by a ridge solve over these loadings).
+Its agreement rows are counted straight off shared answers and are exactly
+true; the POSITIONS would not be. One picture, one visual vocabulary, one
+true half and one invented half. That is the failure D265's gate is for,
+one level deeper than D265 could see.
+
+**The instrument already existed and simply never reached the gate.** D394
+publishes `skill = 1 − bits/baselineBits` — the share of a marginal-only
+guess's surprisal the vectors remove, 0 for a fit that has learned nothing.
+It lives on `v2_patterns/loadings`, which is ~11 KB and is exactly the read
+the mount decision cannot afford (the whole argument for putting the gate's
+numbers on `v2_meta/app`). `patternsFit.sustainedSkill` reduces the
+published quality series to one scalar that document can carry.
+
+**Sustained, not newest.** The crossing is LATCHED — `patternsEarned`
+writes it down and never takes the tab away again — so one lucky night must
+not open it permanently. `sustainedSkill` returns the **worst** skill across
+the last `PATTERNS_SKILL_DAYS` (3) days that scored at least
+`PATTERNS_SKILL_MIN_N` (30) observations. A thin day is **skipped, not
+failed**: a quiet Sunday is an absence of evidence about the model, not
+evidence against it. Rows published before 2026-09-06 carry no
+`baselineBits` and are skipped rather than read as skill 0 — back-filling a
+number the run never computed is the invented figure that field's own note
+refuses. This is D395's fortnight streak for promoting a candidate engine,
+one feature over.
+
+**`PATTERNS_MIN_SKILL = 0.01`, and what it is a floor on.** It is a floor on
+*has learned anything at all*, not on *is good* — deliberately the smallest
+number that is not zero at the published precision, because the claim being
+gated is that the vectors carry something the question's popularity did not,
+and the honest threshold for that claim is any measurable amount. Raising it
+makes the tab arrive later and mean more; it is one constant with its
+reasoning beside it and an argument to `patternsReady`.
+
+**Absent ≠ zero, all the way down.** The fit OMITS `patternsSkill` when it
+has not posted enough scorable days (`dropUndefined`'s idiom, one field
+over); `live.ts` reads it for presence rather than `|| 0`; `patternsSignal`
+spreads it so the key is absent rather than present-and-undefined; and
+`patternsReady` refuses a signal with no skill. *Not measured yet* and
+*measured, and it learned nothing* both keep the tab shut, and only one of
+them will ever move on its own. A device running against a backend that has
+not deployed the publishing half fails CLOSED for the same reason: the tab
+waits a night rather than opening on a number nobody sent.
+
+**This is not a privacy floor**, and it has the shape of one, so: nothing
+is withheld from anybody. Every number these lenses read publishes exactly
+and at any size (D98). What is withheld is the TAB, until what it draws can
+be believed — which is D265's own sentence, now measured against the model
+rather than against the corpus.
+
+**Pinned:** five cases in `patternsReady.test.ts` (a learned-nothing fit
+with ten times both counts, the floor exactly, a fit that hurts, a signal
+with no skill, and the absent-vs-zero distinction), six in
+`patternsFit.test.ts` for `sustainedSkill`, one in `patterns.test.ts` for
+the publish, and one mount case in `smoke-live.test.jsx` proving the bar
+stays at two tabs on `skill: 0`.
+
+**On the owner's list**, because the floor is a product judgement rather
+than an engineering one: whether an honest tab is worth waiting for at all,
+or whether the Map and Oracle should ship with the seed caveat drawn on
+them instead.
+
+## D-2026-09-09c · Comparison gates get a library, and the two store forms are compared for the first time
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+**The finding.** This tree's gates fall into two classes and the class
+boundary predicts which have ever caught anything. A **comparison** gate
+reads two artifacts that must agree and diffs them — `check:content`
+regenerates `v2content.ts` and byte-compares, `check:logic-sync` holds two
+copies identical, `check:data-inventory` holds a doc against
+`firestore.rules`, `rules-coverage` holds the ruleset against the
+emulator's own execution report. Every one has a named kill on the record.
+A **presence** gate reads one artifact and asserts a pattern inside it, and
+`check-policy-claims.mjs` states the limit in its own header: *"matching a
+phrase proves the sentence is present, not that it is true."* It is right,
+and it is also structurally unable to notice a required clause that was
+never written at all — an omission has nothing to match.
+
+Presence gates are not a mistake; some properties have one artifact. But
+where there are two, writing the comparison has been harder than writing
+the grep, so the grep is what got written.
+
+**`scripts/lib/compare.mjs`** reverses that ordering: `compareSets`,
+`compareValues`, `findingsOf` and `finish`, and a comparison is four lines.
+Three properties come with it and are the point:
+
+1. **A vacuity floor that is not optional.** Every entry point REFUSES to
+   return a clean result on an empty side unless the caller passes a
+   REASON string — a boolean would let *"0 is fine here"* be asserted
+   without an argument, which is how a stale scan shape survives review.
+   D179, D197 and D275 are three separate occasions in this repository
+   where a check went silently vacuous.
+2. **Both artifacts named on every line.** A failure that names one file
+   makes the reader open two to learn which is wrong.
+3. **A required success sentence.** `finish()` will not print a bare "OK";
+   a green gate says what it compared and how much of it, so the coverage
+   question is answerable by running the gate.
+
+**The first conversion found a live divergence.** `check:store-forms` rules
+1–6 each hold ONE store's form against its own prose twin. Nothing had ever
+compared the two FORMS to each other — and they are two legal attestations
+about one app, filed with two companies, in two vocabularies. Rule 7 does,
+through a written-out mapping (the vocabularies genuinely differ; Play
+splits Apple's single sensitive bucket), and it found the same two this
+branch and `main` independently named:
+
+- **Health** — `app-privacy.json` declares `HEALTH_AND_FITNESS/HEALTH`
+  collected; `play-data-safety.json` has no Health row at all.
+- **App activity** — Apple is told `OTHER_USER_CONTENT` and
+  `PRODUCT_INTERACTION` are collected (answers, takes, and the interest
+  profile that sizes the feed's topic pages, D322) while the Play form
+  answers its combined *App activity, Web browsing, Contacts, Financial,
+  Purchases* row as **not collected**. That is a strong claim about an app
+  whose product IS the activity.
+
+**Both branches wrote rule 7 on the same night, and the merge kept main's.**
+D452's shift reached the same gap from the other side and its version is a
+superset: it compares the paired data *by value in both directions* rather
+than by name in one, which is the shape that would have caught the Photos
+under-declaration `play-data-safety.json`'s own `$photos` note records; its
+completeness sweep runs both ways, so a Play row with no Apple type is a
+finding too; and its `DIVERGENT` list carries a fourth divergence this
+branch missed entirely — **Gender**, declared on Play with no Apple type,
+the under-declaration pointing the other way. What this branch's version
+contributed and the merge kept is the **vacuity floor**: both sides of the
+comparison are now declared non-empty through `refuseVacuous`, because the
+two completeness sweeps iterate what was *parsed*, and an empty parse
+iterates zero times and reports success. Measured: emptying
+`privacy.collected` prints `matched 0 items, under the floor of 1` and
+exits non-zero, where before it would have skipped both sweeps in silence.
+
+**It decides no filing, and the reason is authority rather than
+convenience.** A store form is one of the four things `CLAUDE.md` puts
+OUTSIDE the D334 ask: a routine may not rewrite a legal attestation on its
+own reading of the app. So the divergences are carried in `DIVERGENT` with
+what each waits on, an unlisted one fails the gate, the green line names
+them on every run, and `docs/OWNER-LIST.md` is where the ones worth closing
+are put to the owner.
+
+## D-2026-09-09d · The tests are tested: a nightly mutation lane, and the ratchet it starts at
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+48 gates and ~5,100 tests, and nothing in the tree could answer the only
+question that matters about any of them: **do they fail when the code is
+wrong?** A suite that runs, passes and asserts nothing is indistinguishable
+from one that guards the invariant — in CI, in coverage, and in review.
+`check:panel-suites` proves a suite EXISTS, by `existsSync`; `src/v2/README.md`
+and `ORIENTATION` §3 have both described `src/v2/ui/` as *"one suite each,
+mutation-checked"* for months, which was true of the first half.
+
+**`scripts/mutate.mjs`** is the second half, in this repo's own idiom — a
+nightly lane plus a shrink-only baseline. A run takes a handful of mutants
+from a rotating pool seeded by the date, applies each to ONE file, runs
+only that file's owning suite, and records how many survived. Deliberately
+a SAMPLE: a full sweep would be tens of thousands of test invocations and
+would say less, because the value is the named survivor and not a score.
+
+Four properties, each with a failure behind it:
+
+- **Reproducible.** `Math.random()` would make a survivor an anecdote. The
+  seed is the date, the site selection is a hash, and `--dry` re-prints any
+  night's exact plan.
+- **Plausible mutants only.** Seven textual operators, each a defect a
+  person could write — a boundary off by one, an inverted guard, a min used
+  as a max — and comments and imports are refused, because a suite that
+  fails to notice a mangled comment tells you nothing.
+- **Restores in a `finally`, and refuses a dirty tree.** It writes the
+  defect into the real file (the only way to run the real suite), so it
+  will not start when a file it plans to touch has uncommitted changes.
+  The workflow asserts `git diff --quiet` afterwards, in the run rather
+  than in its own header.
+- **Not a `check:*` script, on purpose.** Every `check:*` runs on every PR;
+  this costs minutes per mutant and a survivor is a finding to read, not a
+  reason to block a merge. It runs from `.github/workflows/mutate.yml` at
+  04:20 UTC — the placement rule `ci.yml` already applies to the audit.
+
+**Its first real run found a live gap.** 6 mutants: 5 killed, 1 survived —
+`typeMix.ts:184`, the country scope's `&&` flipped to `||`, which makes the
+guard read *"I have a country, OR this person's city ends with it"* and so
+admits **everyone** the moment the viewer has a country set. The card says
+*"in your country"* over that reading, on a screen whose entire claim is
+which population you are being compared to. `typeMixFor` had **no scope
+case at all**, and `check:panel-suites` was satisfied throughout. Four
+cases were added; the mutant now dies, so `scripts/mutation-baseline.json`
+starts at **0** rather than at 1.
+
+**The baseline may only go down**, and the repair for a survivor is to fix
+the suite. Raising the number is the one repair that is never right,
+because the number is the whole instrument.
+
+## D-2026-09-09e · The decision number stops being a global lock
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+`D` plus the next integer is a **global lock**, and this repository runs
+several scheduled lanes against one `main`. Two lanes that branch on the
+same morning both read the same highest record and both claim the number after it; whichever merges second
+renumbers its record and every reference to it. Measured 2026-09-09:
+**90 of 1,503 commits** match `git log -i --grep=renumber` — one commit in
+seventeen, spent entirely on an identifier that carries no meaning. D299
+and D408 are the two records about managing this cost; neither could
+remove it, because the cost is in the shape of the name.
+
+**Nothing about a decision needs its number to be dense, consecutive or
+allocated.** The number is a name. So a new record may take a **dated id**
+— `D-YYYY-MM-DDx`, the letter distinguishing records made on one day. Two
+lanes can now collide only by choosing the same letter on the same date,
+which is a one-line rename of one record instead of a cascade; and
+`doc-index.mjs` now **fails on a duplicate id**, because under dated ids a
+collision stops being self-announcing (two lanes appending
+`D-2026-09-09a` in different sections merge cleanly and produce one anchor
+pointing at two records).
+
+**D1–D449 are not renumbered.** They are cited by number in thousands of
+places across the tree and in every commit message that ever referenced
+one; rewriting them to buy consistency would be the largest possible
+instance of the exact churn this change exists to stop. `orderOf` gives
+dated records a sort key far above any number this file will reach, so the
+index reads as the historical run followed by a continuous dated tail, and
+the two vocabularies cannot interleave.
+
+The citation column follows: the matcher takes both shapes (the dated
+alternative first, so `D-2026-09-09a` is not also read as a citation of
+`D2026`), and the rendered cell names the id rather than the sort key.
+
+**This record and the four above it are the first users of the scheme**,
+which is also the end-to-end proof of it.
+
+## D-2026-09-09f · The cost alarm learns about the other bill
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+`pulse --check` is the one automated financial control in this repository,
+and D332 pointed it at Firebase: modelled burn against recorded revenue,
+allowance $50/month, and the tree's own model prices the running app at
+about **$28/month**.
+
+`docs/USAGE-REDUCTION.md` §1 measured the other bill on 2026-09-03, from
+`list_sessions` rather than by estimate: the program that WRITES this app —
+the scheduled lanes, the dispatchers, the night worker — metered
+**$7,011.27 over eighteen days**, about **$390/day**. That is roughly
+**410×** the thing every instrument in the tree was watching. `pulse.mjs`
+reads `monitoring/rates.json`, and `rates.json` had no notion of session
+spend; there is no `cost_usd` anywhere in `scripts/`. The measurement
+existed and nothing read it back.
+
+**What was added.** A `program` section on the rate card carrying the
+measured figure, the window it was measured over, its date, an allowance,
+and the largest single line (the night worker, **$2,325.68**, two thirds of
+all routine spend, on 968.8M cache-read tokens). `programVerdict` in
+`pulse-collect.mjs` is the same shape as `guardVerdict` one panel over —
+unarmed · unmeasured · over · stale · ok — and `pulse --check` trips on
+`over` and `stale`.
+
+**Staleness is the property that matters.** This checkout cannot call
+`list_sessions`, so the figure is RECORDED and moves only when a person
+refreshes it. A recorded number that passes forever would be the same blind
+spot in a new place, so `PROGRAM_MAX_AGE_DAYS = 30` makes an unrefreshed
+figure a condition rather than a pass — the asymmetry
+`MEASURE_MAX_AGE_DAYS` already carries: over wins over stale, because an
+overshoot is true at the size it was measured at and what staleness makes
+unbelievable is the PASS.
+
+**The allowance is a threshold, not a target.** $450/day is the measured
+$390 plus room for a heavy day, so the alarm means *this changed* rather
+than *this is Tuesday*. **Nobody has decided what this program should
+cost**, and that decision is not a routine's to make; the row says so and
+points at `OWNER-LIST.md`. A threshold with no decision behind it is still
+better than no threshold, because it turns an unwatched number into a
+watched one.
+
+**And it is trended.** `programUsdPerDay` joins `netBurnUsd` and
+`answersCounted` on the pulse trail row. Those three on one line is the
+whole point: two of them were already there and the number that dwarfs both
+was in a document nothing read.
+
+## D-2026-09-09g · One generated page that says where the project is
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+~93,000 lines of markdown, nine vision documents, 442 decision records, six
+owner-facing lists. Every number a person actually wants — what is live,
+what is stuck, what waits on the owner and for how long, what it costs, how
+many answers exist — is already computed by something in `scripts/`, and
+none of it is in one place. Answering *where are we* means opening five
+documents and trusting each is current.
+
+`docs/STATE.md` is generated by `scripts/state.mjs` and holds no reasoning
+of its own — the contract `ORIENTATION.md` already declares. Every figure is
+READ from the tree at generation time, so a stale line is impossible by
+construction rather than by discipline; the page can only be OLD, and it
+stamps the day it was made.
+
+**The answer is not writing less.** The documents are the tree's memory and
+this record does not propose trimming them. What was missing is an index of
+FACTS, the way `DECISIONS-INDEX.md` is an index of records.
+
+**It leads with the two bills side by side** — ~$28/month to run against
+~$390/day to build — and puts *answers counted* (**107**) directly beneath,
+because a program is only expensive relative to what it has produced, and
+nothing in the tree had ever printed those three numbers together.
+
+**It does not judge.** *"121 open owner rows against 3 ticked"* is a fact;
+*"the owner queue is a bottleneck"* is a reading, and a generated page that
+editorialises is one nobody trusts the facts of.
+
+It rides `pulse.yml`'s existing daily commit rather than taking a workflow
+of its own: it is derived from the tree and the date exactly as the trail
+row is, so it converges under the same retry — and a second workflow would
+be a second thing that can stop, on a page whose whole claim is that it
+cannot be more than a day old. `state.mjs` is Node stdlib plus
+`pulse-collect.mjs`, so that job still needs no `npm ci`.
+
+## D-2026-09-09h · The first slice leaves live.ts, and a meter goes on the file
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+**The measurement.** `src/v2/data/live.ts` went **1,285 → 8,682 lines in 39
+days**, and **one commit in ten** in the whole repository lands in it —
+which is where several scheduled lanes against one `main` start colliding.
+`src/v2/spec/world-feed.jsx` is a single 4,200-line class with 102 methods.
+`functions/src/v2content.ts` went **2,926 → 25,993 GENERATED lines in five
+weeks**, is imported statically into all 42 Cloud Functions so every one
+parses it on every cold start, and has already hit the TypeScript TS2590
+wall once. None of it is broken today, which is exactly the window in which
+a meter is cheap and an extraction is not.
+
+**Why nothing caught it.** This tree's method is *put a meter on it*, and it
+works — `check:globals` rule 4 took the shared-global bridge from 799
+references to 30 by refusing to let the number rise. But every meter here
+reads a RELATIONSHIP: coupling between modules, a doc against the code, a
+form against its twin. None reads the simplest property there is.
+
+**`check:file-size`** is that meter, in rule 4's shape: a shrink-only
+ceiling per watched file, seeded at each file's current length so the gate
+starts green and every later line is a decision. It is **not a line limit**
+and carries no opinion about whether a big file is bad; the only claim is
+that these files do not get bigger by ACCIDENT. A file that SHRINKS fails
+too, asking for the ceiling to come down with it, and a watched file that
+is renamed or deleted fails rather than reading as zero lines comfortably
+under the ceiling — the D275 class specific to this gate. Generated files
+count, and `v2content.ts` is the argument for that rather than an exception
+to it: nobody reads its diff, so nothing else would ever notice it doubling.
+
+**And the first slice moved.** `data/localWrite.ts` takes the quota
+instrument — `isQuotaError` and the guarded `lsSet` — out of `live.ts`.
+Small (34 lines) and deliberately so: it is here to prove the method on the
+cleanest seam in the file before anything harder is attempted.
+
+**Why the method is safe, and why it had not been used.** The safety net
+already existed and nobody had reached for it: `src/v2/test/live-surface.ts`
+pins all **95** exported members across three surfaces, and **57** suites
+mock the module rather than its internals. So a slice whose seam is INSIDE
+the module cannot change the facade, and `vote.test.ts` proves it did not.
+`lsSet` is a factory taking the store's failure counter, so all nine call
+sites keep their exact spelling and the diff reads as a pure move — and
+`quotaReported` becomes per-writer rather than module state, which is what
+made the old version awkward to test.
+
+**What remains** is written down rather than done: `live.ts` is still
+thousands of lines, and the next slices (the aggregate cache, the presence
+loop, the takes bounds) each need the shared mutable `state` threaded
+through a seam rather than closed over. The ceiling is what makes that a
+decision somebody takes rather than a thing that quietly stops mattering.
+
+**And the meter said something on its first real day, which is the point
+of building it.** The slice put this branch at 8,648 lines. `main`'s own
+shifts added 409 over the same three nights, reaching 9,179; the merge is
+9,257. The file grew roughly four times faster than it was being split, on
+nights when somebody was actively splitting it — so the honest reading is
+that one slice does not turn a trend, and without a number on the file
+nobody would have known which direction it was going. The 2026-09-11 merge
+raises the baseline to 9,257 in the commit that says why, together with
+three other watched files main grew (`world-feed.jsx` +31,
+`vote.test.ts` +191, `rules.test.ts` +151). A raise is allowed; a silent
+one is not.
+
+
+## D-2026-09-12a · The answer log's setup becomes a reading, and the grant names the account the trigger runs as
+
+**Decided:** 2026-09-12 · **Status:** binding
+
+**The ask.** The owner, 2026-09-12: *"Lets setup bigquerry lay a plan and
+a step by step do as much of the setup you can."* Phase A of D447 — every
+answer a row in BigQuery — was built on 2026-09-09 and left two clicks on
+`OWNER-LIST.md`. The first thing this session established is that **both
+clicks had been made, on 2026-09-10, by the owner, and nothing in the
+tree recorded it**: the two rows still stood as open, the runbook still
+said *"Click:"*, and the only way to learn otherwise was to read the
+workflow runs.
+
+**Measured, off the run logs rather than the prose.** *Apply BigQuery*
+ran twice on 2026-09-10 — run 1 at 12:34Z dry (*"would create"*), run 2
+at 12:38Z with `apply` (`dataset insight: created in europe-west1`,
+`table answers: created`). *Backfill answer log* ran three times — run 1
+dry with `before=2026-09-09` (42 answers scanned, 32 rows before the
+cutoff), run 2 dry with `before=2026-09-10` (32), run 3 with `apply` and
+`before=2026-09-10` (**32 appended** over one call). The deploy carrying
+`functions/src/log.ts` is #460, merged 2026-09-09 at 19:57Z; the two dry
+runs agree at 32, so no answer was dated 2026-09-09 and the cutoff loaded
+exactly the rows the trigger never saw, none twice. *Observe production*,
+dispatched the same afternoon with `functions`: 57 functions deployed,
+every one `GEN_2`; `onBudgetAlert` — and with it every function in the
+deploy, since `ops.ts` sets no `serviceAccount` — runs as
+`437999864865-compute@developer.gserviceaccount.com`; two datasets in
+`europe-west1`, `insight` and BigQuery's own anonymous results dataset.
+
+**The defect the measurement exposed.** `scripts/apply-bigquery.mjs`
+printed its two grant commands for `prvfire33@appspot.gserviceaccount.com`
+— the App Engine default, which is what a GEN-1 function runs as. Every
+function in this tree is gen-2 (`firebase-functions/v2`), and gen-2 runs
+as the Compute Engine default unless a deploy says otherwise. So the
+click the owner made against those commands, if made, granted an account
+nothing runs as, and whether the trigger's append has worked since
+2026-09-10 depended on whether the Compute account still holds Editor —
+a fact no line in the repository could read. The row's own escape hatch,
+*"the first answer after the deploy tells — `log_append_failed` in the
+function's log"*, points at a log nobody reads on a schedule. This is
+D296's shape one layer over: a setting nobody could see, and a
+confident sentence standing in for the reading.
+
+**What is built.**
+
+1. `scripts/bigquery-grants.mjs`, pure and tested: which project roles
+   write rows and which run a query job, which dataset access entries
+   write rows (and that none of them gives `bigquery.jobs.create`, a
+   project permission), a verdict that is `null` wherever an input was
+   refused — a refused policy is not a missing role — and the two
+   commands for an account that was READ, never a default.
+2. `scripts/observe.mjs` reads two more objects, the dataset and the
+   table (`numRows`, the streaming buffer's own estimate,
+   `lastModifiedTime`, partition, clustering; a 404 on either is *not
+   created* and not *enable the API*, which `probe()` now lets a
+   resource path say), joins the policy the hard-stop probe already
+   fetches with the account `onV2AnswerCreated` runs as, and prints
+   **The answer log** as three lines — table, trigger, append/query —
+   with the commands only for a role a reading SAID is missing. The
+   policy and the access list stay out of the `observe-json` artifact:
+   they name every principal on the project, and the artifact carries
+   only the roles one service account holds.
+3. `scripts/apply-bigquery.mjs` looks the account up on the deployed
+   trigger and reads the same verdict in every mode; before the first
+   deploy it says so instead of guessing a default.
+4. `apply-bigquery.test.mjs` refuses a typed `--member=` in the script;
+   `observe.test.mjs` pins each state (not created, rows and buffer, the
+   wrong region, a grant to the gen-1 default read as no grant, Editor
+   as both, a dataset WRITER as rows only, a refused policy as
+   unreadable, the trigger not deployed); `bigquery-grants.test.mjs` the
+   arithmetic.
+
+**What stays the owner's.** The tick on both rows (the clicks happened;
+ticking is the owner's, D352). The two roles IF the reading prints ✗ —
+for the Compute account, with the commands the reading prints — and
+nothing if it prints ✓. Cloud Billing export to BigQuery (runbook 5.12),
+a console toggle the observer already detects by its table names. A.9
+and the 500-a-day sentence, unchanged.
+
+**Measured the same hour, on the branch's own run** (*Observe
+production* #26, 2026-09-12 16:13Z, all ten readings available):
+`insight.answers` holds **137 rows**, last written 02:29Z that morning —
+the reconcile's hour; `onV2AnswerCreated` runs as the Compute account;
+**✓ append and ✓ query, both through `roles/editor`**, the broad role the
+default account still holds. So the append has been working since the
+table was created, the grant the script asked for was never needed on
+this project, and the click the row asked for was a click at the wrong
+account that happened not to matter. What the reading buys is the day it
+would: a fresh project, or the day the least-privilege runbook trims
+Editor off the default account, is a ✗ line with the right command
+beside it rather than a silent `log_append_failed`.
+
+## D-2026-09-12b · The door nobody could reach: shape A's acquisition half, built — and the €320 premise it was argued from
+
+**2026-09-12.** **Status:** binding, BUILT. The owner, reading the
+app: *"i noticed there is no way to get from the app to the page where
+you can buy questions?"* — and, on being told that was D368 working as
+designed: *"but how will they find the website then?"*
+
+**The absence from the app is right and stays.** D368 took the purchase
+funnel out of the binary and two `smoke-live.test.jsx` cases were
+inverted to pin it; a link from the app to `web/ask.html` is precisely
+what store anti-steering rules police, and re-adding one would fail
+those tests on purpose. Nothing here touches the app. The second
+question is the one that had no answer.
+
+### What was measured, before anything was built
+
+Every route to the door in the tree on 2026-09-11:
+
+| route | exists | reaches `/ask` |
+| --- | --- | --- |
+| store listing → `prvfire33.web.app` (privacy URL both stores require; Apple also a support URL) | yes | **no** — `home.html` linked privacy and terms and nothing else |
+| app → `/privacy.html`, `/terms.html` (`LivePrivacyPanel`, `LiveSignInGate`) | yes | **by accident** — `terms.html` carried the only link in the tree |
+| `/q/{qid}` sponsored results pages (D379) | yes | **no** |
+| `/join/**` invite pages | yes | no |
+| a sales page, or an email list | **no** | — |
+
+So a buyer found the door by typing its address or by reading the terms
+of service. `STORE-CUT-PLAN.md` phase 4 — *"`web/home.html` … becomes
+where the door is found"* — was written and never built, and between
+D368 (2026-09-05) and this record that was the whole of the funnel.
+
+**Nothing could have caught it.** `check:web-headers` reads header keys,
+`check:csp-hashes` reads script digests, `ask-page.test.mjs` drives the
+door itself and cannot ask whether anybody can reach it. A page can be
+perfect and unreachable with every gate green — which is the same shape
+as D369's CSP hash, one level up: the page was right and the way in was
+not a thing anything looked at.
+
+### What was built
+
+1. **`/q/{qid}` carries the door, and so does its 404.** The one public
+   surface a prospective buyer reads *before* they have a reason to look
+   for the door: the buyer shares it themselves, and the reader is
+   looking at exactly the thing they would be buying. `/ask` relative,
+   not the absolute host — correct today and after a domain change.
+2. **`web/home.html` carries it, first in the list**, above the legal
+   links, with one clause saying what it is: the page is also the App
+   Store support URL, so *"Ask a question"* alone reads as a support
+   form. No price, deliberately — the card moves and nothing would
+   regenerate a figure typed there.
+3. **`privacy.html` and `terms.html` lead somewhere.** They are the two
+   pages the app links out to and they dead-ended: no link back to the
+   root, from either. Those links are required and are not purchase
+   calls to action, which makes them the one route out of the binary
+   store rules leave alone — worth nothing while it arrived nowhere.
+   The wordmark in each footer is now a link to `/`. `terms.html`'s
+   existing ask link was normalised to the canonical `/ask`.
+4. **The domain swap is one edit per side, which it was not.**
+   `siteOrigin.ts` called itself *"the single edit"* for replacing the
+   `.web.app` default; `functions/src/paid.ts` spelled the host out
+   twice, on Stripe's `success_url` and `cancel_url`. A custom domain
+   would have moved every link in the app and still walked a paying
+   buyer back to the old host. A Cloud Function cannot import from
+   `src/`, so the honest shape is two constants naming each other —
+   `ops.ts`'s `SITE_ORIGIN` beside the client's — and `PAID_RETURN`
+   builds both URLs from it.
+
+`scripts/web-doors.test.mjs` is the gate for the first three: it tests
+the ROUTES rather than the pages, and it deliberately asserts nothing
+about the binary, where `smoke-live` pins the opposite. Its price
+assertion strips comments, so the reasoning may name a figure the body
+may not. `paid-landing.test.mjs` — which broke on this change, reading
+the literal URLs that moved, exactly the class of failure CLAUDE.md's
+fifth-runner note describes — now reads both forms and **refuses** a
+hardcoded landing host outright. All four gates were mutation-tested by
+breaking the thing each protects.
+
+### The premise underneath D368 went stale, and it is worth saying so
+
+D368's discoverability argument is one sentence, in the record and in
+`STORE-CUT-PLAN.md` §5:
+
+> *"In practice nobody was going to spend €320 from a profile tab —
+> which is both why the discoverability loss is small and exactly why a
+> reviewer would read the app as a general-audience app selling
+> in-app."*
+
+`content/pricing.json` today: `base` €0.02, budgets €5 · €10 · €25 ·
+€50, menu city €10 · country €25 · everyone €50. **D373 and D376 cut
+the price 6–60× after D368 reasoned about it**, and §1's cut table is
+still arithmetic on €320 (€96 / €48 / ≈€5; at €50 it is €15 / €7.50 /
+≈€1). At €320 the buyer is a city or an advertiser arriving from a sales
+page. At €10 it is a user who just thought of a question — and that
+person is in the app, which is the one place the door is not. The
+D179/D183 failure mode: the app moved, the argument did not.
+
+**The structural half of D368 is untouched and still decides it.** IAP
+has no programmatic partial-refund primitive, so billing on answers
+(D164) cannot exist inside it. Shape A stays right. What is stale is
+only *"the discoverability loss is small"*, and the four routes above
+are the answer to it that costs nothing anywhere.
+
+### What is NOT decided here
+
+Three, all on `OWNER-LIST.md` rather than taken by a routine:
+
+1. **Does an in-app path come back at €10?** The owner's, and the reason
+   it is theirs is that the number D368 was decided on has changed. The
+   honest options are shape B (Android only — Play has never enforced
+   its billing for ad spend) or a non-CTA mention; both need a ruling
+   before anything touches the binary.
+2. **The domain itself.** A routine cannot invent one. The swap is now
+   genuinely two one-line edits, which is the part that could be built.
+3. **Whether `/q/` results pages should be indexable.** They carry
+   `noindex`, listed at D379 §3 as a bound on the scraping surface, so
+   the door on them reaches people who are *sent* a link and nobody who
+   searches. Lifting it widens what D379 deliberately narrowed and makes
+   a buyer's name searchable — a D334 ask, not a routine's call.
+
+
+## D-2026-09-12c · The door comes back on Android and the account panel links the site: the owner's four answers on D-2026-09-12b's open row
+
+**2026-09-12.** **Status:** binding, BUILT. The owner, on being told
+the four web routes made the door reachable but not findable — *"so
+pepole cant go from the app to the website then it is useless?"* — and
+then, on Apple's anti-steering rule: *"we cant even have a 'call to
+action' that does not mention anything about a sale there has to be a
+way around that?"*
+
+**The rule, stated so the way around is visible.** Apple judges where a
+button GOES, not what it says. A control labelled "Ask a question" that
+opens a page with a price and a pay tap is a purchase link whatever the
+label — that is Meta's "Boost Post" shape and Meta lost it. So the way
+around is not wording; it is making the thing in the app genuinely not a
+purchase, or putting the door on the platform whose store does not
+police it. Four shapes were put to the owner with what each costs, and
+the owner ruled on each:
+
+| shape | the owner | why |
+| --- | --- | --- |
+| free "Suggest a question" in the app, the paid door for deliberate buyers | **no** — *"that like giving away youtube premium for free thats suposd to be the income source"* | asking is the product, not a funnel to it |
+| a "Website" link beside Privacy and Terms in the account panel | **yes** — *"tell me more"*, then *"go build both"* | a website link is a website link; the root now carries the door (D-2026-09-12b) |
+| the header "+" back, on Android only, opening the WEB door | **yes** — *"agree"* | Play does not police ad-type spend the way Apple does |
+| email or opted-in push to signed-in users, which Apple explicitly allows | **no** — *"acouts should be anonymous"* | D3, and a reach of nearly nobody |
+
+The three suggestion callables therefore stay callerless and the
+OWNER-LIST row on retiring them stands; the free path is not coming
+back as a product.
+
+### What was built
+
+**`src/v2/data/askDoor.ts` — the rule, one platform in.**
+`askDoorOffered()` is `platform === "android"`, read off the
+`window.Capacitor` global the runtime injects (engagement.ts's reason:
+import-free for node tests, and a mount test sets the platform with one
+assignment). iOS, web, no bridge, a throwing bridge — all off. The
+build is one bundle for both stores, so the iOS build cannot leave the
+door out at build time; it leaves it out at render time, and the test
+below is what makes that a fact rather than a hope. `openAskDoor()` is
+`window.open(ASK_URL, "_blank", "noopener,noreferrer")` — the same hop
+the pre-D368 pay tap made to Stripe.
+
+**The header "+", Android only** (`app-shell.jsx`, where D368's comment
+said the door used to be). Same class and glyph weight as Search — a
+peer, not a promotion. It opens the web page that already carries the
+menu, the audience, the quote and the pay tap (D369–D378, D455): no
+composer, no billing code, no product change in the binary.
+`STORE-CUT-PLAN.md` §3 priced shape B as *"two code paths forever"*;
+this is shape B at one boolean, because the web door IS the second
+path and it exists anyway.
+
+**"Website" beside Privacy policy and Terms** (`LivePrivacyPanel.tsx`).
+Opens the root — the address both stores already hold as the privacy
+and support URL, whose first row since D-2026-09-12b is the door. Labelled what
+it is and going where it says. Deliberately not "Ask a question": that
+name is the Android header's, and the iOS build must carry nothing of
+the kind.
+
+### What pins it, and what was proved by breaking it
+
+- `askDoor.test.ts` — the rule on every platform value and on a bridge
+  that throws or lacks `getPlatform`; the URL; the open call's three
+  arguments.
+- `ask-door-platform.test.jsx` — the whole App through the smoke
+  harness three times: as **Android**, exactly one door, in the header,
+  `.icon-btn`, a click calls `window.open(ASK_URL, "_blank")` and opens
+  nothing inside the app; as **iOS**, zero controls named ask-a-question
+  while Search is still there (so the absence is the door's, not the
+  header's); with **no platform**, zero. Mutation-tested: letting iOS
+  through the rule fails the iOS case; taking the button out of the
+  header fails the Android case.
+- `LivePrivacyPanel.test.tsx` — the three links, their hrefs, `_blank`
+  and `noopener`, and no link or button named ask on the panel.
+- `smoke-live.test.jsx`'s two inverted cases (D368) are **narrowed, not
+  reversed**: jsdom has no Capacitor, so they mount as the web build and
+  still hold — and now they prove the door does not leak onto a
+  platform nobody set, while the iOS assertion a reviewer's phone makes
+  is this file's. Their comments say so.
+- `CLAUDE.md`'s suite count moved eleven → twelve and `check:figures`
+  caught it before the commit, which is the gate doing what D39 built
+  it for.
+
+### Two chunks, for 484 bytes
+
+The door as one eager module failed `check:bundle` on the merge — by
+**135 bytes**. Measured, not estimated: `origin/main`'s shipping build
+sat 484 bytes under the eager-graph ceiling (567,836 of 568,320) and
+the door was 619, so the sum was 568,455. The gate's own text says
+defer before raise, and this repo moves that ceiling down with a win
+rather than up with a feature (`check-bundle.mjs` §"the ceiling comes
+down WITH the win"). So `data/askDoor.ts` keeps only the platform rule
+— the shell has to ask it before first paint — and the button's body,
+glyph, address and click are `ui/AskDoorButton.tsx`, a `React.lazy`
+chunk (530 bytes) fetched on a yes: iOS never requests it. Split that
+way with a same-size hidden Suspense fallback it was **still 38 over**,
+so the fallback is null and the address is the lazy module's: the slot
+cost 75 eager bytes and the exported address 40, and on native Capacitor
+serves the chunk from the app's own bundle, so the import resolves
+within a tick and there is no gap to hold a slot for. Final measure,
+same build flags: 568,122 eager bytes, **198 under** the ceiling, the
+door's share 286. `ask-door-platform.test.jsx` waits for the chunk the
+way the harness waits for every other lazy chunk (`awaitNode`).
+
+### What is exposed, and to whom
+
+Nothing new. The button and the link open pages every stranger on the
+web can already open; the app learns nothing from either (the webhook
+is the truth, Asked by you reads it). No data is collected, so the
+store forms move by nothing — but `PLAY-RELEASE.md` §3.4's question is
+LIVE again rather than moot, and only for Play: the thing bought is
+served inside the app, which makes Google's "consumed outside the app"
+exemption a read in the Play Console policy flow before first
+submission, not an engineer's conclusion. `STORE-CUT-PLAN.md` §3 called
+shape B *"Play risk retained"*; this record keeps that phrase rather than
+the softer one the owner was first given (*"Google doesn't police
+this"*), which is the plan's claim and not a policy read. It goes to
+`OWNER-LIST.md`, and `askDoorOffered` is one boolean from off if the
+read says so.
+
+On Apple's side the residual is the one every app with a website link
+carries: review is a person, and a reviewer who taps Website → Ask a
+question → sees a price could call the settings link a disguised
+checkout. Unlikely — the label is honest and the destination is the
+root Apple already has on file — and not zero.
+
+### What this reshapes, and what it does not
+
+- D368's amendment removed *"all five"* entry points; one returns, on
+  one platform, opening the web rather than a composer. D368 itself is
+  untouched: buying stays on the web, the funnel stays out of the iOS
+  binary, and the reason (IAP has no partial-refund primitive) stands.
+- D-2026-09-12b's three open calls stand as written: the domain, the `/q/`
+  `noindex`, and — now answered — the in-app path.
+- The Play policy read joins them.
+
+## D472 · The app is Doxa: the name changes, and nothing under it does
+
+**2026-09-12.** **Status:** binding. The owner's call, in the naming
+session of this date and in these words: *"lets go with Doxa, do the
+rename"*. This record is the arithmetic that preceded it, what the
+rename touched, what it deliberately left alone, and the three things
+only the owner can finish.
+
+### Why the name moved
+
+InSight was not unoriginal so much as unfindable. Insight Timer, at
+twenty-five million downloads, is the first result for "Insight" in
+both stores; "Insight: Group Party Games" is a social question game in
+this app's own category; NASA's InSight lander owns the capitalised
+spelling on the web; and plain "InSight" was already reserved on the
+App Store on 2026-08-05, which is the only reason the listing read
+"InSight: Daily Perspective" (`design/store/listing.json`'s note). The
+word is also descriptive — every analytics product promises insight —
+and so close to unregistrable in software classes as makes no
+difference.
+
+**Doxa** is the Greek for opinion, Plato's word for belief as against
+knowledge, and the root of Aristotle's *endoxa* — the opinions held by
+everyone, by most people, or by the wise — which is what this app
+collects and what the Mirror draws a person against. Two beats, four
+letters, one ascender. The owner's objection to the string *dox* inside
+it was met by the treatment rather than the spelling: the 2026-09-12
+upload (`design/standalone-2026-09-12/`) sets the word in DM Serif
+Display with the x in the tab accent, so on screen it reads Do·x·a and
+the string never assembles; spoken, the syllable is the one in
+*paradox*. What the name shares its spelling with — Doxa dive watches
+(class 14), a medical-English course, a Ugandan media app, church apps,
+a procurement platform, the Russian student magazine — is nothing in
+this category.
+
+Considered and not taken, so the next naming pass need not repeat it:
+**Endoxa** (the fuller word, three beats — the owner's ceiling was two),
+**Doksa** (the transliteration, free, and the k's ascender breaks the
+low silhouette that made Doxa sit quietly), **Enoxa** (a blood thinner's
+brand name in three countries), **Endox** (a defence-AI startup, and it
+ends on the string), **Ygg** and **Yggdrasil** (a Web3 guild's token and
+everything else), **Consilience** and its forms, and some forty short
+plain words each already held by a social, dating or voting app.
+
+### What changed, in this commit
+
+- **The display name.** `capacitor.config.ts` `appName`, the iOS
+  `CFBundleDisplayName`, Android's `app_name` and `title_activity_main`,
+  `index.html`'s title, and the boot mark.
+- **The wordmark.** The header lockup is `Do<em>x</em>a` in DM Serif
+  Display 400 at 25 px, tracked −0.01em, the x taking the tab accent as
+  `Sight` did (`app-shell.jsx`, `.wm-serif` in `styles.css`); the
+  sign-in gate's stacked lockup is the same at 36 px; `web/join.html`'s
+  twin is in Georgia, because the hosting CSP is `default-src 'none'`
+  with no `font-src`. The face ships as a **four-glyph subset** — D, a,
+  o, x; 1.2 KB from Google Fonts' `text=` endpoint, OFL — because
+  `check:bundle` holds fonts to 96 KB, the tree carried 86 KB, and the
+  upload's own latin subset is 24.7 KB. The word is the only place the
+  face is used; any other use falls back to Spectral and is the
+  font-ceiling conversation `styles.css` has always required. The boot
+  mark keeps the system stack and its reasons (no swap mid-boot) — the
+  one deviation from the upload.
+- **The copy.** The sign-in sentence ("Answers on Doxa are public, yours
+  included"), the walkthrough's title and the account panel row ("How
+  Doxa works"), the location-denied line, the linked-account refusal,
+  the budget-mode line, the demo demographics titles, and the pinned
+  tests for each. The console prefix is `[Doxa]`, and the mount harness
+  asserts the new one.
+- **The web.** `web/privacy.html` first (D183's rule), then terms, ask,
+  delete-account, home, join and the two paid pages; the paid results
+  pages `functions/src/share.ts` renders; the Stripe line item "Doxa
+  paid question" and the reviewer guidelines; the push-notification
+  title fallbacks in `v2social.ts`; the question report's wordmark; and
+  the auth mail sender name in `scripts/auth-config.mjs`, with its tests.
+- **The store listing.** The bare "Doxa" was pushed first and Apple
+  refused it — 409, *"The app name you entered is already being used"*,
+  another account's first-come reservation, released only to a
+  trademark claim. So `apple.name` and `play.title` are "Doxa: What
+  Everyone Thinks": the product's own sentence, and the half the
+  subtitle ("Answer blind, then compare") does not already say. The
+  on-device name under the icon is the bare Doxa either way.
+- **The record.** `CLAUDE.md`, `README.md`, `SECURITY.md`,
+  `STORE-FORMS.md`'s 1.2 table, `design/README.md`, the vision
+  lineage, and this entry.
+
+### What did not change, on purpose
+
+- `com.cosaxo.insight` — the bundle id, `applicationId` and namespace —
+  the `insight://` deep-link scheme, and every `insight.*` storage key.
+  Changing the first is a new app in both stores; changing the second
+  breaks every invite link already sent; changing the third orphans
+  every device's caches and reopens the patterns gate (D265).
+- The Firebase project, and the GCP budget named "InSight" with its
+  "InSight oncall" channel: existing cloud resources, and `budget.yml`
+  already records what a second budget of the same name costs.
+- The GitHub repository `Cosaxo/InSight`, and the scripts that name it.
+- The generated catalogue headers and the generators that write them:
+  the drift gates compare the committed files to generator output, so
+  a header change is a regeneration, not a rename.
+- Internal tooling (the console, the pulse, the cost comparison, the
+  routine names in `ROUTINES.md`), CI artifact names, the header
+  comments that cite each spec module's provenance, and every earlier
+  decision record — history keeps the name it was written under.
+
+### The owner's three steps
+
+1. **App Store Connect:** reserve "Doxa" (the push will fail with a 409
+   naming the attribute if it is taken; then the suffix).
+2. **`node scripts/auth-config.mjs`** against the project, so the
+   verification and reset mails send as Doxa rather than InSight.
+3. **Trademark and domains:** classes 9 and 42 at Patentstyret and
+   TMview, and `doxa.no` / `doxa.app`, neither reachable from the
+   session that made this change.
+
+### Gates
+
+The full client and functions suites, every `check:*` this change can
+reach, and the docs index regenerated — the run is in the commit's
+message. The rules and e2e suites need Java and were not touched by a
+rename that changes no rule.
+
+## D473 · The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding
+
+**Date:** 2026-09-11 · **Status:** adopted by the owner (four options put,
+*Use OMIB* chosen), **not yet built** — one dependency is outside the tree
+and two questions are on `OWNER-LIST.md`.
+
+**The ask.** The owner, on the v4 instrument: *"the logic test is not as
+good as a real ravens matric test, how could we get some real test
+insted?"* — then, on the options: *"i think we should use these … as they
+have to be correct from the start."* That second sentence is the binding
+one. It rules out the design the session recommended first (ship the
+generator, calibrate it on our own players as they arrive), because that
+design is a test which is not yet valid on the day it launches. Items
+whose difficulty is measured BEFORE the first user is the requirement.
+
+**A correction on the record, because the owner decided on it.** The
+session's first answer told the owner MaRs-IB was *"free to use
+commercially"*. **It is not.** The bank's own paper says the items are
+"freely available for **non-commercial** use", and the lab's page adds the
+sentence that settles it: the task "is not intended to be used to determine
+someone's intelligence or cognitive ability in, for example, educational,
+clinical or **commercial** contexts" — which is this app, described. The
+error was reading the ARTICLE's CC BY licence (which is real, and covers
+the paper) as the ITEMS' licence (which is separate, and is not CC BY).
+
+**The sweep, which is the part that took the work.** Every openly
+published matrix bank was held to one question: may a paid app ship it?
+
+| Bank | Items | Validated on | Licence as published | Usable here |
+| --- | --- | --- | --- | --- |
+| Raven's SPM · APM · Raven's 2 | 60 · 36 | the reference standard | Pearson; qualification-gated, per-administration | no |
+| MaRs-IB | 80 + clones | N = 659, then IRT at N = 1,501 | items non-commercial; ability judgement in commercial contexts named and excluded | no |
+| ICAR (matrix reasoning) | 11 | large SAPA samples | public domain **for non-commercial research** | no |
+| Sandia Matrices | 1,685 stimulus files + the 2010 norming data | Matzen et al. 2010 | **no LICENSE file at all** | no |
+| UCMRT | 23 × 3 forms | correlates with APM about as well as APM does with itself | "freely available for researchers" | no |
+| **OMIB** | **220** | **N = 2,572, IRT-calibrated** | **GPLv3** | **yes** |
+
+Sandia's row was **verified rather than read about**: the repository was
+cloned and it carries no licence file, only a README asking to be cited in
+research. A citation request is not a grant, and a public repository with
+no licence is all rights reserved. Every other row is from the banks' own
+published statements.
+
+The pattern is not an accident and is worth stating plainly: the
+restriction these labs write is aimed at precisely the use this app makes
+— an application telling a person how clever they are.
+
+**Why OMIB clears it.** 220 items (2.75× MaRs-IB), each one's difficulty
+measured on 2,572 people before we ship a line; 1 to 5 rules applied
+row-wise; and a licence its authors chose deliberately to make it the
+royalty-free bank the field did not have. It is the only bank in the sweep
+that survives the question, and it also happens to be the best-powered
+calibration of the six.
+
+**What it costs — both real, neither hidden.**
+
+1. **The answer is BUILT, not picked.** An OMIB taker constructs the
+   missing cell by selecting a subset of 20 figural elements. The overlay's
+   six raised tiles and their single tap do not survive that, so this is a
+   new screen and a new interaction — a **visual request (#13)** under
+   D352's rule, not a build. The return is arithmetic: the present form's
+   six options put ~4.2 of 25 in the guessing floor (`logic-score.ts`'s own
+   chance figure), and a constructed response puts it at approximately
+   zero, which hands back the bottom of the scale that D53's curve had to
+   model its way around.
+2. **GPLv3 is a software licence carried on pictures.** Commercial use is
+   unambiguous — that is the whole reason this row clears. Whether shipping
+   the items inside a closed app raises a source obligation is not a
+   question a session answers, and it is in the class `CLAUDE.md` keeps
+   OUTSIDE D334's ask: a licence is met by complying with it, never by
+   deciding it away. On `OWNER-LIST.md` for a real answer before anything
+   ships.
+
+**What does not change, and is the reason this is affordable.** The server
+holds the key (D57): an OMIB item would be served and scored on exactly
+the path a generated one is, so no part of the anti-cheat posture moves.
+And the era stamp already written (D61's `items`, D402's `gv`) is the
+mechanism that keeps an OMIB score from ever mixing into a generated
+population — a bank change is an era change under a rule that exists.
+
+**The generator is not deleted, and here is the arithmetic for keeping
+it.** 220 fixed items is an answer key with a slower leak than 80, not the
+absence of one, and the app permits three starts a day
+(`LOGIC_MAX_STARTS_PER_DAY`). Two things follow, each its own decision once
+OMIB is in: adaptive administration over a calibrated bank spreads exposure
+(a taker meets ~15–20 of 220 rather than a fixed 25), and the generator
+remains the only source that can mint a fresh item at a target difficulty
+for as long as the app runs. D62's ledger keeps folding either way, and
+under the era stamp the two banks' ledgers cannot contaminate each other.
+
+**Blocked, and where.** The session that recorded this could not fetch the
+bank: this environment's egress reaches neither `osf.io` (where OMIB
+lives) nor any mirror of it — probed, not assumed; `github.com` is the only
+research host that answers. The 220 items and their published item
+parameters have to arrive by another route before any of this is built.
+On `OWNER-LIST.md`.
+
+## D473 amendment (2026-09-11, the same evening) · The archive read: the bank is a vocabulary, not artwork — and its answer key is public
+
+The owner supplied the bank by hand (the egress block stands; that row on
+`OWNER-LIST.md` is closed by the upload, not by a policy change). Reading
+it moved four things, two of them in the app's favour and one against.
+
+**The items are COMPOSITIONS, and this is the finding that matters.** An
+OMIB item is not a picture. It is nine cells over **twenty construction
+elements** — five families of four: a corner triangle, a diagonal line, an
+edge box, a centre shape (filled/outline × square/circle) and an edge
+arrow — one bit each, so an item is 9×20 bits and the bank's own renderer
+draws it from twenty path definitions totalling about forty lines. The
+practical consequences: **nothing is imported as artwork**, the committed
+bank is a 116 KB JSON, and the overlay composes OMIB items exactly the way
+it already composes generated ones. Visual request 14's stated binding
+constraint — "220 items of imported artwork" — was wrong and is corrected
+there. What survives of it is the interaction, which is the real cost.
+
+**Where the codes came from, and why two sources.** The spreadsheet's last
+column carries the full nine-group code, so the codes did not have to be
+inferred. They were ALSO recovered independently from the 226 published
+SVGs, by matching each drawn shape against the bank's own `drawing.js`
+table — string equality on path data, not image recognition. **All 220
+agree on all eight visible cells, and all 220 put the published answer in
+the ninth.** `check:omib` keeps both sources in the loop on every run
+rather than trusting either: a drift in one now shows up as a
+disagreement instead of as items that merely look plausible.
+
+**The artwork carries no answer.** All 226 SVGs render eight cells and
+omit the ninth. The gate stops if that ever changes, because a ninth
+rendered cell would mean the published pictures now show the solution.
+
+**But the ANSWER KEY IS PUBLIC, and that is the honest cost of this
+route.** The authors publish the solutions themselves, in the same
+spreadsheet, on the same open repository. D31 removed a shipped answer key
+and D57 moved the remaining one behind the server; neither of those is
+weakened here — `content/omib-key.json` is a separate file, the rules
+posture is unchanged, and a test holds `src/` to naming it nowhere — but
+the app can no longer say what it could say of the generator, which is
+that there is no key to find. There is one, it is two clicks away, and no
+amount of server discipline changes that. Recorded rather than
+engineered around: it is the price of items calibrated before launch, the
+owner's stated requirement, and it is the same price every published
+instrument pays. What it argues for is the thing already recorded at
+D473 — adaptive administration over the calibrated bank, and the
+generator kept for the forms nobody can look up.
+
+**The calibration, now measured rather than cited.** 219 of 220 items
+carry IRT parameters (one published without). Difficulty **b** spans
+−8.98 to +2.41, mean −0.17; discrimination **a** spans 0.11 to 5.16, mean
+2.09; proportion correct spans 0.06 to 0.98, mean 0.60. Rules per item
+form a clean pyramid — 20 · 50 · 80 · 50 · 20 for one through five. Two
+things to carry forward: a handful of items have **a** near zero and earn
+nothing, so the bank wants a floor before use; and **b**'s origin is the
+calibration sample, 2,572 medical-school applicants, so the ORDER
+transfers to this app's population and the zero point does not. The
+percentile still has to be ours.
+
+**No licence file in the archive.** Six files, none of them a licence —
+the GPLv3 statement lives in the paper, not in the bank. That is weaker
+than a LICENSE in the tree and stronger than Sandia's nothing (D473's
+table), and it does not change the `OWNER-LIST.md` row: the question was
+already what GPLv3 reaches, and it now also wants the paper's exact
+wording quoted where the bank is committed. `content/omib.json` and
+`content/omib-key.json` both carry the attribution and the caveat in
+their headers.
+
+**What is built:** `scripts/build-omib.mjs` (+ `--check`),
+`npm run build:omib` / `check:omib` wired into CI's lint job,
+`scripts/build-omib.test.mjs` (9 cases — the element vocabulary id by id,
+the refusal to skip an unknown shape, the nine-cell tripwire, and the
+key's absence from `src/`), the archive under `content/omib-source/`, and
+the two built files. **What is NOT built:** anything a user can see. The
+screen waits on visual request 14, which waits on a design.
+
+## D474 · OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank
+
+**Date:** 2026-09-12 · **Status:** built, deployed dark (`LOGIC_BANK =
+"generator"`), on the owner's *"go ahead with phase 1, use the same
+screen for practice"*. `docs/OMIB-PLAN.md` §8's phase 1, plus the practice
+call §5 left to the owner.
+
+**The one design decision, and what it buys.** The bank is a property of
+the ATTEMPT: `mintAttempt` stamps `bank` and the bank's own version on the
+document at start, and `logicSubmitV2` dispatches on the document, never
+on the constant. Three things follow. An attempt that straddles the flip
+scores on the bank it was minted on. The OMIB path is fully exercised by
+the fake-Firestore suite with `LOGIC_BANK` untouched — an OMIB attempt in
+the store submits, scores, folds and writes. And the flip itself (phase 2)
+is one word in one file, made when the screen that can answer a code
+exists; until then the current overlay, which sends six-way indexes, keeps
+getting the form it can render.
+
+**What is built.** `functions/src/irt.ts` — the 2PL, EAP on a 201-point
+grid under N(0, 1), the posterior SD as the standard error, Φ; pure.
+`functions/src/omib-bank.ts` — GENERATED by `scripts/build-omib.mjs` from
+the two content files, held byte-for-byte by `check:omib`, the
+`v2content.ts` discipline, because functions/ cannot import across the
+package and needs the key beside the items. `functions/src/omib.ts` — the
+218 usable items (one unparameterised, one under `OMIB_MIN_A = 0.5`),
+stratified seeded forms of 25 (2 · 6 · 9 · 6 · 2 by rule count, each
+stratum its own salted stream, the form ordered easy → hard by published
+*b*), exact-match dichotomous scoring, a 40-bin θ histogram, a per-item
+ledger (seen · solved · blank), the mid-rank measured percentile and the
+Φ model. `functions/src/logic.ts` — `rankAndFoldTheta` beside
+`rankAndFold` (same four decisions over θ; the band is θ̂ ± its own SE read
+through whatever ranked it), `submitOmib` as its own transaction body so
+the generator's stays byte-for-byte what production runs, `v: 3` on the
+verified record with `bank`, `theta`, `se`. `logicPracticeV2` — one
+callable, two calls, writes nothing (§ below). Exported, on the deploy
+list, App Check enforced, `functions/README.md`'s count moved to 47.
+
+**Practice, on the owner's word.** Without `picks` it mints a seed and
+returns the 25 codes — the bank is not in the client bundle, so the client
+cannot render what it was not handed. With `{seed, picks}` it scores that
+seed's form and returns θ with its SE, ranked against the public norms
+mirror when the reading is measured and against the model otherwise. No
+attempt document, no cooldown, no fold: the same seed scores again, and
+the emulator asserts that it does, because that is the property that
+distinguishes practice from a verified attempt. Unbounded per account,
+deliberately and recorded: one document read and 25 × 201 logistic
+evaluations, and a bound would want the attempt document practice does
+not have. The seed round-trips through the client on purpose — nothing is
+at stake — and marks are right-or-wrong per item, never the answer, which
+is public anyway (D473).
+
+**What the build's own tests found, and the plan now says.** With every
+discrimination equal the 2PL is the Rasch model, under which the raw count
+is a sufficient statistic: solving only the hardest item and solving only
+the easiest give the same θ̂ to six decimals. It looked like a bug and is
+a theorem, so `irt.test.ts` pins it, and pins beside it that it is the
+DISCRIMINATIONS that make which item you solved carry information — the
+bank's *a* runs 0.5 to 5.2 across the usable items, which is what makes
+"which eighteen" a question with an answer. `OMIB-PLAN.md` §2.2 carries
+the precision. The test that found it was wrong twice first — a two-item
+mirrored form is symmetric whichever item is solved, and "solved only the
+hardest" is not the mirror of "solved only the easiest" — and both
+mistakes are pinned too, so the reason stays true.
+
+**Verified, and how.** `irt.test.ts`, `omib.test.ts`; `rankAndFoldTheta`
+and `mintAttempt` in `logic.test.ts`; in `logic-submit.test.ts` an OMIB
+attempt's full submit (θ written, the θ histogram and per-item ledger
+folded under the OMIB era, `normsCounted` set), the generator's pick
+shape refused on an OMIB attempt and vice versa, a blank sheet scored
+zero and ledgered as unattempted, the effort floor holding for both
+banks, a generator-era histogram never folded into the OMIB one, and the
+practice callable starting, scoring, ranking against a measured mirror
+when one exists, refusing malformed input, and writing nothing. On the
+emulator, `e2e-v2-loop.mjs` gained the practice leg — start, score,
+score again on the same seed, refuse the generator's shape — beside the
+D57 verified leg, which is unchanged because production is. `tsc` on both
+packages, `typecheck:tests`, `check:appcheck` (33 callables),
+`check:deploy-targets` (47), `check:omib`, `check:content`,
+`check:data-inventory` (rows 17–19 now describe both eras),
+`check:figures`, `check:docs`, `check:monitoring`, eslint, `test:scripts`.
+
+**Not built, by design.** The flip, the screen (visual request 14 →
+built), the client wire (`logic-verify.ts` still sends indexes), and the
+copy for the model percentile — the sentence that says whom Φ compares
+against. Those are phase 2 and 3. The two honest limits stand as recorded:
+the 90 s is the bank's demo default until the paper is read, and the
+answer key is public.
+
+## D475 · OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now
+
+**Date:** 2026-09-12 · **Status:** built and live, on the owner's *"go
+ahead with phase 2"*. `docs/OMIB-PLAN.md` §8's phase 2, plus the flip
+phase 1 held back. Visual requests 14 and 8 → built.
+
+**The flip.** `LOGIC_BANK = "omib"` (`functions/src/logic.ts`), in the
+same commit as the screen that can answer a code, so no deployed tree
+ever serves codes to a client that cannot draw them. An attempt minted
+under the generator and submitted after this deploys still scores on the
+generator (D474's design: the bank is the attempt's). The e2e's verified
+leg now sends twenty-five 20-bit cells and asserts `bank: "omib"`, `theta`,
+`se` and the disclosed `diffs` on the way back.
+
+**The screen** (`src/v2/spec/logic-test.jsx`, replacing the six-tile
+picker; `design/logic-build-cell-2026-09-12/` is what it builds). A cell
+is drawn from `src/v2/data/omib-shapes.ts` — the twenty paths derived from
+the bank's own geometry, in the bank's counter-clockwise order, arrows out
+— so what a solver sees is what 2,572 people were calibrated on. The board
+composes the goal cell live from the ids placed; the palette is the
+alphabet laid out as one, column = family and row = member, tap to place
+and tap again to remove, a lit tile and the goal sharing the one accent;
+Clear appears once something is placed; Done commits. Done is dormant
+while the cell is empty and pressable throughout — an item a taker cannot
+solve is skipped by committing the empty cell, not by waiting out the
+clock — and the screen never infers "complete": only Done says so. The
+current item's segment drains over its 90 s, the numeral surfaces for the
+final 20 s, the sitting's remainder sits in the header, and a time-out
+commits the cell as it stands: a partial build is the answer, an empty one
+a miss. The worked example (request 8) is the design's own addition
+puzzle, shown solved over the resting palette on a first open, with Start
+— not a bank item, so it teaches without leaking — and reachable again
+from the result screen.
+
+**Both modes on the one screen** (D474, the owner's call). Practice:
+`startPractice` hands out a seed and the codes, `submitPractice` returns
+the seed with the cells, the server scores and keeps nothing. Verified:
+`startVerified` / `submitVerified` as before, the cells the only payload.
+The wire (`src/v2/data/logic-verify.ts`) carries `theta`, `se`, `bank` and
+the form's `diffs` back; the saved result is `v: 3` with them, and
+`LogicResult` says so. The generator is no longer imported by the overlay
+— it stays in the tree, byte-synced, for the results it produced and the
+forms a seed must reconstruct (D31).
+
+**What the number says, and why the sentence changed.** Both modes are
+scored against the bank's calibration, so the percentile below the D60
+floor is Φ(θ̂): the share of the calibration sample below the taker. That
+sample is 2,572 medical-school applicants, and a typical taker reads
+below its median — which is a fact about the sample, so the claim names
+it: *"Sharper than X% of the 2572 people this test was calibrated on
+(likely a–b)."* Once the verified histogram clears the floor the claim is
+*"of N verified players"* as before. The notes under the lenses say which
+mode was scored and that the charts are still sketches. **Practice now
+sends its cells to the server** — the device never has the key — which
+retired the sentence *"practice sends nothing anywhere"*: the example
+screen says what practice sends beside Start, `docs/data-inventory.md`
+row 17 says the same, and `web/privacy.html` needed nothing, because it
+never promised otherwise (its pins are the four-bands disclosure and the
+answer key, both intact — `check:policy-claims`). Generator-era results
+keep their old wording, and the v1 payload still renders.
+
+**Verified.** `logic-overlay.test.jsx`, rewritten: the example on a first
+open and from the result screen; a practice run building every cell
+(toggle on, toggle off, Clear, Done), the payload asserted cell for cell
+with the seed the start handed out, the result saved as v3 and counted
+nowhere, times to the millisecond; the clock (hidden, then 20 s, then 10 s,
+then the partial build committed at 90 s and the rest skipped empty); a
+refused start; Retry resubmitting the same twenty-five; a verified run
+badged; the measured claim; the five lenses on an OMIB result and the
+generator-era wording on a v1 one. `smoke-overlays`: the fresh start
+renders the example and the twenty shapes. `test:unit` 3,157;
+`test:scripts` 1,364; functions 1,036; the emulator 154 checks, 0
+failures, the verified leg on OMIB by θ. `tsc` both packages, eslint,
+`check:globals` (coupling 27, unchanged), `check:tap-targets` (the Clear
+control grown, the tiles ≈ 68 px), `check:a11y`, `check:public-copy`,
+`check:eager-content`, `check:bundle`, `check:docs`, `check:figures`.
+
+**Designed and not built, named rather than pretended — and one of the
+names was wrong, corrected the same day.** This paragraph first said the
+graded haptics (place light, remove softer, Done medium, none on a
+time-out) could not be built because *the web overlay has no haptic
+channel*. It has one: `spec/haptics.js` has been a named export since
+D39's conversion, and the feed, the tab bar and the sheet drag all speak
+through it — `navigator.vibrate`, felt on Android, silent on iOS and
+under reduced motion, which is the honest size of the claim. One grep
+would have found it; the sentence was written from memory of the
+standalone instead. So the screen speaks through it too, in the same
+afternoon: a placement is `tick` (the light weight), Done is `tap` (the
+committed one, a skip included — a Done on an empty cell is still a
+Done), the clock's commit at zero is silent by design, and REMOVE is
+silent as well — the module has two point weights and nothing softer
+than `tick`, so the softest thing it can say is nothing, and felt-versus-
+not is the difference the grading was there to make. Clear says nothing,
+being a removal. Pinned in `logic-overlay.test.jsx` through a mocked
+module, because jsdom has no `vibrate` and the real one proves nothing
+there. iOS feels none of it until a Capacitor bridge exists, which is
+what the first sentence meant and did not say. The drag alternative,
+which the design itself put second, stays unbuilt. The tap-to-explain on
+struck options from request 8 dissolved with the format — there are no
+struck options when the answer is built.
+
+**What phase 3 still owes** (`OMIB-PLAN.md` §4 is built server-side since
+D474; the rest): nothing on the norms — they fold and rank today. Phase 4
+— adaptive selection and the §6 report — waits on hundreds of first
+attempts. The two honest limits stand: the 90 s is the bank's demo
+default until the paper is read, and the answer key is public.
+
+## D476 · OMIB phase 4: adaptive selection built dark behind the report that decides its flip — and the report's own bar corrected by its test
+
+**Decision (2026-09-12, the owner: *"go ahead with phase 4"*).** Three
+things, in the order the plan's §8 sequenced them and one it did not:
+
+1. **Adaptive item selection is BUILT END TO END and shipped DARK.** The
+   pure selection (`omibNextItem`, `replayAdaptive`, `scoreOmibAdaptive`
+   in `functions/src/omib.ts`), a per-item callable `logicNextV2`, adaptive
+   practice through `logicPracticeV2`'s optional `mode`, and the overlay's
+   item-by-item walk (`nextVerified` / `nextPractice`, `isScore`) are all
+   in the tree and proved; what a phone meets is decided by ONE constant,
+   `OMIB_SELECTION = "stratified"` in `functions/src/logic.ts`, pinned in
+   `logic.test.ts` and by the emulator's start-shape check. Like the bank
+   (D474), the selection is a property of the ATTEMPT — stamped at start
+   as `mode`, honoured to the end — so a flip mid-attempt changes nothing
+   for anyone holding a form.
+2. **The §6 report exists:** `scripts/omib-report.mjs` (`npm run
+   report:omib`, `--emulator`, `--from docs.json`, `--json`), a pure
+   scorecard over the three public mirrors and the bank's published
+   parameters, rendered the way the console prints its scorecards. Run by
+   hand until the counts justify a schedule.
+3. **The flip is the owner's, on the report's verdict**, and is on
+   `OWNER-LIST.md` with what it costs. Not a label, not a routine: a
+   one-line change to the constant, recorded when it happens.
+
+**Why dark — the sentence the whole phase turns on.** The report reads
+per-item solve rates off the STRATIFIED ledger to say whether the bank's
+published difficulties hold for this app's takers. Adaptive
+administration meets every item near its taker's 50 % point, so under it
+an item's solve rate says nothing about its b — the report's instrument
+would be spoiled by the very thing it is meant to license. So the
+stratified era has to run long enough to answer the question first, and
+adaptive attempts, when they come, fold their item counts into their OWN
+document (`v2_logic_norms/adaptive`, `finishOmib`'s ledger choice by
+`mode`) and never into `families`. The θ̂ histogram folds both: θ is one
+scale whichever way the items were chosen, and a rank is a rank.
+
+**What the selection decides, and why.**
+
+- **Content balance is the pyramid, as hard quotas.** `OMIB_STRATA`'s
+  slots (2·6·9·6·2 by rule count) are ceilings on an adaptive form too,
+  so every taker still meets the same KIND of test — which the histogram
+  mixing both modes' θ̂ requires: two forms that measure different
+  constructs cannot share a rank. The price is stated by the probe rather
+  than hidden: on an all-wrong path the easy strata's slots are spent by
+  the middle of the form, and the last seven items served are the four-
+  and five-rule ones the pyramid still owes (b −0.3 → +1.1 on seed 7),
+  served because they are owed, not because they are informative there;
+  an all-right path meets the mirror image plus the bank's own ceiling —
+  the four-rule stratum tops out at b 0.88 and the three-rule at 1.65, so
+  few items exist above b 1.5 at any quota. Pinned in `omib.test.ts`
+  ("climbs … until the pyramid's quotas bind").
+- **The next item is a randomesque draw among the K most informative
+  eligible items at the current θ̂** (Kingsbury & Zara), K = max(5, 15 −
+  2·step). Wide at the start because every taker's θ̂ is the same prior
+  there — a pure maximum would open every attempt with one item — and
+  narrowing to five once the answers have separated the takers. Over 200
+  seeds the opener takes at least ten values, all from the fifteen most
+  informative at the start; pinned.
+- **θ̂ before any answer is −0.5, not the prior's 0.** The calibration
+  sample is selected upward (§4 expects this app's takers below its
+  median), and a first puzzle slightly on the easy side of a taker's
+  level is the standard opening — a fraction of one item's information
+  for a start that is not a wall.
+- **Deterministic in (seed, picks).** The same seed and the same picks
+  name the same items, so the form is REPLAYED rather than stored:
+  practice stays stateless (every pick so far goes back with the seed,
+  ≤ 25 × 20 characters), and a verified attempt's document holds the
+  picks alone — no item list a reader could take for a key. Replay costs
+  at most 25 EAPs on the 201-point grid, under five milliseconds.
+
+**What it buys, measured** (`omib.test.ts` "what adaptive selection
+buys": 60 simulated takers per level answering under the bank's own 2PL,
+seeded, each once on their seed's stratified form and once adaptively):
+
+| θ | SE stratified | SE adaptive | RMSE stratified | RMSE adaptive |
+| --- | --- | --- | --- | --- |
+| −2 | 0.440 | 0.364 | 0.391 | 0.295 |
+| −1 | 0.306 | 0.221 | 0.280 | 0.198 |
+| 0 | 0.210 | 0.143 | 0.197 | 0.125 |
+| 1 | 0.294 | 0.231 | 0.304 | 0.205 |
+| 2 | 0.471 | 0.363 | 0.378 | 0.373 |
+| all | 0.344 | 0.264 | 0.318 | 0.254 |
+
+A 23 % narrower standard error over the whole, a fifth less error against
+the ability that generated the answers, and the gain is smallest at +2,
+where the bank runs out of hard items (the paragraph above). §2.4's
+"≈ 0.25 with the same 25" was an estimate; 0.264 is the measurement, and
+the test holds the ratio under 0.8 so the claim cannot quietly stop being
+true.
+
+**The protocol, and the promise it keeps.** Twenty-five transactions per
+attempt instead of two. `logicNextV2({ index, pick })` appends the pick,
+replays the form, answers with the next item — or, on the twenty-fifth,
+scores and folds exactly as a stratified submit does (`finishOmib`, one
+body for both). Idempotent on a repeat (the same index with the same pick
+is a client that did not hear the answer, and gets it again); a
+different pick at a taken index or a skipped index is refused; and a
+final call whose answer was lost on the way back is answered a second
+time from the profile's stored result, so a phone's network cannot cost
+a finisher their attempt. The attempt document gains `mode` and `picks`
+and NOTHING ELSE: the server could now observe one arrival per item, and
+the D57 promise — per-item timings never leave the device; the server
+records only the attempt's duration — is kept by not recording what it
+sees. `data-inventory.md` rows 18–19 say so; `web/privacy.html` needed no
+word changed, and `check:policy-claims` agrees.
+
+On the phone the pick leaves under the reveal delay, so the round trip
+and the 520 ms animation overlap and the next item is shown when both
+are done; the committed board is the waiting state (a slow network shows
+the landed cell a little longer — no spinner, by the design's own
+economy), a failed call holds the cell under a Retry that sends the same
+pick again, and the per-item clock re-arms as each item appears, so a
+round trip never costs solving time (`logic-overlay.test.jsx` pins the
+times at exactly the dwell). The strip draws the form's full length from
+the start. The two disclosure sentences did not move and are still true:
+verified cells are scored on the server and join an anonymous count;
+practice sends its cells and keeps nothing — now every cell so far, each
+time.
+
+**Cost arithmetic.** Firestore: 24 more small writes per adaptive
+attempt (the held picks) and 24 more reads; at a thousand attempts a day
+that is 24k of each, ≈ $0.04 + $0.01 a day at list price. Callable
+invocations: 25 per attempt instead of 2, each ~10 ms of compute on the
+light tier — 25k a day against a free tier of two million a month. The
+cost that is real is latency: one round trip per item on a phone's
+network, which the overlap above hides when the network is ordinary and
+shows when it is not.
+
+**The report's bar, corrected by its own test — the finding of the
+phase.** §6 said *r beyond −0.8* between an item's published b and its
+observed solve rate. `omib-report.test.mjs` generated 400 attempts' worth
+of answers FROM the published parameters — the case where the
+calibration transferred perfectly — and the figure read **−0.76**. Not
+noise alone: b predicts a solve rate only through the item's
+discrimination and the population's θ, and with a varying across the bank
+the NOISE-FREE ceiling of r(b, rate) at this population is **−0.83**
+(computed, and printed on the page beside the figure). A bar of −0.8 on
+that pair would have called a perfect transfer a failure at any count
+short of a thousand attempts. So the verdict rests on the pair that is
+linear by construction when the calibration holds: **each item's
+EXPECTED solve rate under the 2PL at the θ̂ distribution actually observed,
+against its observed rate — r ≥ 0.8**. On the synthetic ledgers that
+figure reads 0.75 at 100 attempts, 0.86 at 200, 0.93 at 400 and 0.97 at
+800 when the answers came from the published parameters, and 0.12–0.19
+at every size when they came from a scrambled difficulty; the plan's r is
+still printed, with its ceiling, and Spearman's ρ beside it. **The floor
+is 300 counted attempts** (`OMIB_REPORT_MIN_N`), not the norms' hundred:
+at a hundred the transferred case reads under the bar — a false "did not
+transfer" — and clears it from two hundred with little margin. Both
+numbers are pinned in the test, on both cases. The page also prints the
+clock's signature (the share of sightings that ended blank, and whether
+it rises with b), the population (θ̂ mean, SD, median, share below the
+calibration sample's median — a mean below 0 is expected, and the
+sentence says why), the five items whose observed rate moved furthest
+from the model's, and exposure per ledger against an even draw.
+
+**Practice's `mode` is a seam, named.** The overlay never sends one and
+gets `OMIB_SELECTION`; the emulator suite sends `"adaptive"` to prove the
+path while the constant is `"stratified"`; and the owner can try the
+adaptive test on a phone before deciding the flip — by calling the
+practice callable with the mode, since no control offers it (a control
+would be a toggle on the example screen, not a visual, and is not built
+until asked). A practice attempt counts for nothing either way.
+
+**Proved by.** `omib.test.ts` 25 cases (seven on the selection, one
+simulation); `logic-submit.test.ts` 27 (six on the adaptive attempt's
+callable through the fake transaction, three on adaptive practice);
+`logic.test.ts` pins `OMIB_SELECTION` and the minted shapes; the
+emulator's loop at 209 checks — the start shapes pinned with `mode` and
+`total`, and 11c, adaptive practice: one item at a time, twenty-five
+without a repeat, θ on the last, the same picks replaying the same path,
+26 picks refused; `logic-overlay.test.jsx` 14 (practice adaptive with the
+payload asserted on every Done, the lost pick and its Retry, verified
+adaptive with each index); `omib-report.test.mjs` 8 (transferred,
+scrambled, the floors, another era, the adaptive ledger kept out of the
+correlation, determinism). `tsc` both packages, eslint, `check:globals`
+(coupling 27), `check:appcheck` (35 callables), `check:deploy-targets`
+and `check:fn-runtime` at 50 functions, `test:unit` 3,281.
+
+**Records moved.** `docs/OMIB-PLAN.md` — the status line, §2.4's
+measured line, §3.3 rewritten as built, §6's instrument, §8's row 4;
+`docs/data-inventory.md` rows 18–19; `docs/VISUAL-REQUESTS.md` request 14
+and the design README (the screen also walks an adaptive form; fourteen
+cases); `functions/README.md` at 50; the deploy list; `OWNER-LIST.md`.
+
+**Known limits, named rather than pretended.** Exposure under adaptive
+selection is only MONITORED (the `adaptive` ledger, the report's exposure
+line) — no Sympson–Hetter control, which needs a population to tune on
+and can be added when the ledger has one. The overlay has no "waiting"
+state beyond the committed board, so a network that takes seconds shows
+a landed cell for seconds. The θ̂ histogram mixes the two modes' readings,
+which differ in SE though not in scale. And the whole phase is dark until
+a number that needs three hundred honest attempts exists — which is the
+plan working as written, not a shortfall of it.
+
+## D477 · No practice: the logic test is taken like an IQ test — the practice half of D474 retired the day it shipped, and the callable with it
+
+**Decision (the owner, 2026-09-12, reading the built test: *"i dont
+thik they should be able to practice theis should be simlar to a iq
+test"*).** Practice on the bank is retired whole. `logicPracticeV2` is
+DELETED — not left deployed and unused, because a callable that hands
+out bank items and scores them IS practice, whoever calls it — and the
+client's practice paths go with it: `startPractice`, `submitPractice`,
+`nextPractice`, the `practice` flag on the wire. The one screen has one
+kind of attempt: the worked example, then Start, which is the verified
+attempt. The example stays — an IQ test shows an example before the
+first scored item, and request 8 teaches the format, not the items.
+"Again" is the server's cooldown as D57 set it — one verified score per
+30 days, three starts a day — shown where the button is ("verified
+recently — try again later"), and the interval is the knob if the owner
+wants it longer.
+
+**Why the reversal is right, on its own arithmetic.** A practice form is
+25 of the bank's 218 items; ten practice runs would have shown most of
+the bank, and a score after previews measures preparation rather than
+the ability the parameters were calibrated on — first sight, every item,
+for all 2,572 people. D474's "use the same screen for practice" was the
+owner's answer to a question the plan put (§9) before the built test
+was in their hand; this is the same owner reversing it with the reason,
+and the reversal is recorded rather than the earlier record edited.
+
+**What changed, exactly.**
+
+- **Server**: the callable, `scorePractice`, `readPublicNorms` and the
+  mirror read — 49 functions on the deploy list, 34 callables under App
+  Check. Nothing else moves: the attempt document, the ledgers, the
+  histogram, `logicNextV2` and the adaptive path are as D476 left them.
+- **Client**: Start on the example screen begins the verified attempt,
+  and the example screen carries the verified disclosure — a consent
+  notice, shown before the first Start as the copy rule requires
+  (COPY.md §3). The result screen's two buttons (*Retake* · *Verified
+  attempt*) become one, *Take again*. A practice result saved on a
+  device before today still reads with the note it earned; nothing new
+  can earn it.
+- **The privacy page needed no word** — it never named practice — and
+  `check:policy-claims` agrees.
+
+**What it costs the proof of the adaptive path, and the way through.**
+The emulator's practice legs (11b, 11c) were how the adaptive path was
+exercised end to end while `OMIB_SELECTION` is stratified; they go with
+practice. So the verified leg now WALKS WHICHEVER SELECTION THE START
+DECLARES — one submit for a stratified form, twenty-five `logicNextV2`
+calls for an adaptive one, each asserted — which means the day the
+constant flips, the same leg proves the adaptive path on the emulator in
+the PR that flips it, before it deploys. Until then the callable is
+proved through the fake transaction (`logic-submit.test.ts`, six cases).
+The owner's "try adaptive on a phone first" now means a test build with
+the constant flipped; the OWNER-LIST row says so.
+
+**Proved by.** `logic-overlay.test.jsx` (the example screen's Start is
+the verified attempt and carries its disclosure; the mechanics — Clear,
+the clock, a commit as it stands, a lost submit's Retry — on the one
+attempt; *Take again*; the adaptive walk and its lost pick);
+`logic-submit.test.ts` without its practice suites; the emulator's loop
+with the mode-aware verified leg; `check:deploy-targets` and
+`check:fn-runtime` at 49, `check:appcheck` at 34; every gate green.
+
+**Records moved.** `docs/OMIB-PLAN.md` §5 (the practice paragraph, now
+the reversal), §9, §8 rows 1 and 4, §3.3's replay bullet;
+`docs/data-inventory.md` row 19; `docs/VISUAL-REQUESTS.md` request 14;
+`OWNER-LIST.md` — the practice row superseded, the flip row's "try it"
+sentence; the design README's "both modes" line.
+
+## D478 · One attempt every 30 days, from the start of the last — and an attempt interrupted inside its window is resumed, never restarted
+
+**Decision (the owner, 2026-09-12, one line after D477: *"and one
+change can only be taken once every 30 days"*).** One attempt every 30
+days, and the interval runs from the START of the previous attempt,
+whatever came of it: scored, abandoned, or expired unscored — each was
+the chance. `canStartLogic` in `functions/src/logic.ts` is the whole of
+the rule; `LOGIC_REVERIFY_DAYS = 30` is the number, mirrored on the
+client as `LOGIC_RETAKE_DAYS` (`src/v2/data/logic-score.ts`), pinned at
+30 in both suites so neither side moves alone.
+
+**What it replaces, and why the replacement is stricter on purpose.**
+D57 allowed one VERIFIED score per 30 days and three STARTS a day, the
+starts being "a preview channel — bounded per UTC day rather than
+closed, because a crashed app must be able to start again". Two things
+changed under that sentence. Practice is gone (D477), so an unscored
+restart became the last way to see the bank without being measured on
+it: three fresh forms a day is 75 of 218 items, and a fortnight of it
+is the bank. And the reason for the bound — the crash — never needed a
+NEW form; it needed the same one back. So the daily counter is retired
+(`dayKey` and `startsToday` stop being written; older documents keep
+theirs and are judged by their start alone), and **an open attempt
+inside its window is RESUMED**: `logicStartV2` hands the same attempt
+back — the same seed, so the same items; for an adaptive attempt the
+next unanswered item with `index`, the picks before it being the
+server's already — with `deadlineMs` now meaning what is LEFT of the
+window (the whole of it on a fresh start), and writes nothing. Past the
+window, the attempt was the chance, and the next opens 30 days after
+it started.
+
+**The refusal says when.** "one attempt every 30 days — the next opens
+in N days", computed server-side and shown where a refused start always
+has been. The result screen reads the same countdown off the saved
+result's `when` — *Next attempt in N days* in the button's place until
+the day it opens — so a person is not offered a button the server will
+refuse; the server's line still lands if the device's clock disagrees.
+A resumed attempt's sitting clock is the shorter of the form's length
+at the cap and the window left; the items answered before the
+interruption carry no timing on this device (nulls, which the Pace lens
+skips), and the marks are the server's regardless.
+
+**Proved by.** `logic.test.ts` (the rule: fresh, resume, expired-open
+refused, scored refused with the days and the singular, the boundary at
+exactly 30 days, a pre-D478 document judged by its start);
+`logic-submit.test.ts` (the callable through the fake transaction: a
+mint without the day counter, a stratified resume handing the same form
+back and writing nothing, an adaptive resume at its next item, the
+refusals and the day the next opens, the D32 flag carried across); the
+emulator's verified leg (a second start inside the window resumes the
+same items with the time left; after scoring, a new start is refused
+naming the day); `logic-overlay.test.jsx` (the refusal shown, the
+countdown in the button's place and the button back on the day, a
+resumed adaptive attempt continuing at its index with the header
+showing the window left); `logic-score.test.ts` (the mirror at 30, the
+pace with nulls).
+
+**Records moved.** `docs/OMIB-PLAN.md` §5; `docs/data-inventory.md` row
+18. The privacy page needed no word: it never named a cadence for the
+test, and `check:policy-claims` agrees.
+
+## D479 · Nothing leads the feed but a pin the reader set: the continuum pin is gone, the pulses ride the stream, and a sitting is what refreshes
 
 **2026-09-12.** **Status:** binding. Amends D139/D203's placement of the
 pulses and retires their cadence whole. Closes the blocking bullet in

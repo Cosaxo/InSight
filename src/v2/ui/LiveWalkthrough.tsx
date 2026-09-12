@@ -264,7 +264,7 @@ function LiveWalkthrough({ onDone, again = false }: { onDone: () => void; again?
   const [page, setPage] = React.useState(0);
   const cur = PAGES[page];
   const last = page === PAGES.length - 1;
-  const dlg = useDialog(onDone, "How InSight works");
+  const dlg = useDialog(onDone, "How Doxa works");
 
   // ANDROID'S BACK BUTTON, which `useDialog` above does not cover. D24 gave
   // this overlay Escape and a focus trap — the keyboard path — and
@@ -344,7 +344,7 @@ function LiveWalkthrough({ onDone, again = false }: { onDone: () => void; again?
       paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)",
     }}>
       <div style={{ width: "100%", maxWidth: 420, margin: "0 auto", padding: "0 22px", boxSizing: "border-box", flex: 1, display: "flex", flexDirection: "column" }}>
-        <div className="kicker" style={{ marginBottom: 0 }}>How InSight works</div>
+        <div className="kicker" style={{ marginBottom: 0 }}>How Doxa works</div>
 
         {/* Keyed by page so each one rises in (the paid door's own
             entrance, styles.css .sg-rise, which reduced motion turns

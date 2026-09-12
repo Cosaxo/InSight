@@ -47,9 +47,12 @@
     "check:catalog-art": "node scripts/check-catalog-art.mjs",
     "build:catalog-art": "node scripts/build-catalog-art.mjs",
     "check:eager-content": "node scripts/check-eager-content.mjs",
+    "check:omib": "node scripts/build-omib.mjs --check",
+    "check:file-size": "node scripts/check-file-size.mjs",
     "check:logic-sync": "node scripts/check-logic-sync.mjs",
     "check:calls": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-calls.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
+    "build:omib": "node scripts/build-omib.mjs",
     "build:doc-index": "node scripts/doc-index.mjs --write",
     "check:content": "node scripts/check-content.mjs",
     "check:learn-sample": "node scripts/gen-learn-sample.mjs",
@@ -129,8 +132,12 @@
     "mod:queue": "node scripts/mod-queue.mjs",
     "budget:mode": "node scripts/budget-mode.mjs",
     "budget:loadings": "node scripts/loadings-budget.mjs",
+    "report:omib": "node scripts/omib-report.mjs",
     "budget:apply": "node scripts/apply-budget.mjs",
-    "observe": "node scripts/observe.mjs"
+    "observe": "node scripts/observe.mjs",
+    "mutate": "node scripts/mutate.mjs",
+    "state": "node scripts/state.mjs",
+    "build:state": "node scripts/state.mjs --write"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

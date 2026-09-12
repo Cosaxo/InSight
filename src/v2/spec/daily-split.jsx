@@ -55,7 +55,7 @@ function dq(onReady) {
   if (DQ) return DQ;
   loadDQ()
     .then(() => { if (onReady) onReady(); })
-    .catch((e) => { console.error('[InSight] daily-questions chunk failed to load:', e); });
+    .catch((e) => { console.error('[Doxa] daily-questions chunk failed to load:', e); });
   return null;
 }
 // duels-data.js is loaded on demand, not imported — it pulled
@@ -82,7 +82,7 @@ function duels(onReady) {
   if (DUELSTORE) return DUELSTORE;
   loadDuels()
     .then(() => { if (onReady) onReady(); })
-    .catch((e) => { console.error('[InSight] duels chunk failed to load:', e); });
+    .catch((e) => { console.error('[Doxa] duels chunk failed to load:', e); });
   return null;
 }
 import { Sheet } from './primitives.jsx';

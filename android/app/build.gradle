@@ -41,7 +41,7 @@ def hasReleaseSigning = ksPath && ksStorePass && ksAlias && ksKeyPass && file(ks
 
 if (!hasReleaseSigning) {
     logger.lifecycle(
-        "[InSight] release signing is NOT configured — a release build will be UNSIGNED "
+        "[Doxa] release signing is NOT configured — a release build will be UNSIGNED "
         + "and Play will reject it. Set ANDROID_KEYSTORE_PATH / _PASSWORD / ANDROID_KEY_ALIAS "
         + "/ ANDROID_KEY_PASSWORD, or create android/keystore.properties. "
         + "Harmless for assembleDebug. See docs/PLAY-RELEASE.md §2.1.")
