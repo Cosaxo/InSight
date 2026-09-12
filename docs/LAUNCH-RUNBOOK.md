@@ -2243,10 +2243,11 @@ That is a tester-count problem, not a workflow problem.
       the dataset (`apply-bigquery.yml`) and the backfill
       (`backfill-log.yml` with the deploy's day), on `OWNER-LIST.md`, and
       the backfill loads what the extension's late import would have.
-      Both were clicked 2026-09-10; what stays open is the trigger's two
-      roles, for the account the functions RUN AS rather than the one the
-      script printed, which *Observe production* now reads
-      (D-2026-09-12a).
+      Both were clicked 2026-09-10, and on 2026-09-12 the trigger's
+      account was read as already holding what it needs through Editor —
+      *Observe production* prints that line every morning now, for the
+      account the functions RUN AS rather than the one the script had
+      printed (D-2026-09-12a).
 
       **Why the timing is the whole step.** The extension streams from the
       moment it is installed. Install it late and you are running

@@ -53049,6 +53049,15 @@ nothing if it prints ✓. Cloud Billing export to BigQuery (runbook 5.12),
 a console toggle the observer already detects by its table names. A.9
 and the 500-a-day sentence, unchanged.
 
-**What this record does not decide.** Whether the append has been
-working since 2026-09-10. The reading answers that on its next run;
-this record does not guess, and the rows say what to do in either case.
+**Measured the same hour, on the branch's own run** (*Observe
+production* #26, 2026-09-12 16:13Z, all ten readings available):
+`insight.answers` holds **137 rows**, last written 02:29Z that morning —
+the reconcile's hour; `onV2AnswerCreated` runs as the Compute account;
+**✓ append and ✓ query, both through `roles/editor`**, the broad role the
+default account still holds. So the append has been working since the
+table was created, the grant the script asked for was never needed on
+this project, and the click the row asked for was a click at the wrong
+account that happened not to matter. What the reading buys is the day it
+would: a fresh project, or the day the least-privilege runbook trims
+Editor off the default account, is a ✗ line with the right command
+beside it rather than a silent `log_append_failed`.

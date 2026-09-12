@@ -27,7 +27,7 @@ window; loosen a rule; touch the three denies; skip a test.
 
 ---
 
-## Phase A — the log · **M, one pull request** · **BUILT 2026-09-09, clicked 2026-09-10, the grant a reading since 2026-09-12**
+## Phase A — the log · **M, one pull request** · **BUILT 2026-09-09, clicked 2026-09-10, read whole 2026-09-12**
 
 The ledger's mirror in BigQuery: every row the nightly folds will one day
 compute from, appended as the count commits, reconciled every morning,
@@ -55,8 +55,9 @@ until phase D.
       and runs as the Compute Engine default. The account is now READ off
       the deployed trigger, and *Observe production* prints whether it may
       append and query, with the commands for it where a role is missing
-      (`OWNER-LIST.md`); a Compute default that still holds Editor has
-      both already.
+      (`OWNER-LIST.md`). **Read 2026-09-12:** 137 rows in the table, the
+      Compute account holds `roles/editor`, ✓ append and ✓ query —
+      nothing to grant, and the log had been filling since the click.
 - [x] **A.2 The trigger appends. DONE 2026-09-09** —
       `functions/src/log.ts`: `logRow` built at every ledger site of
       `onV2AnswerCreated` and `onV2AnswerUpdated` (the vote, the edit, the
@@ -389,12 +390,12 @@ the three trigger reads per answer are gone from `npm run costs`.
 ## Waiting on the owner, not on this file
 
 - **Phase A's clicks were made 2026-09-10** — the dataset and table, and
-  the backfill (D-2026-09-12a read them off the run logs). **Still the
-  owner's: the two roles, for the account the trigger RUNS AS** — the
-  Compute Engine default, not the gen-1 default the script printed until
-  2026-09-12. *Observe production*'s answer-log block says whether they
-  are held and prints the two commands if not. On `OWNER-LIST.md`
-  § Clicks.
+  the backfill (D-2026-09-12a read them off the run logs). **The roles
+  needed no click; they needed a reading:** the script had printed them
+  for the gen-1 default while the trigger runs as the Compute Engine
+  default, and *Observe production*'s answer-log block read both ✓
+  through `roles/editor` on 2026-09-12. What is left on `OWNER-LIST.md`
+  § Clicks is the two ticks.
 - **When phase B starts** — the condition above, the owner's to move
   (`OWNER-LIST.md` § Decisions).
 - **A.9's sentence** — whether an erased account's rows may outlive the
