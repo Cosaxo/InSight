@@ -51800,8 +51800,11 @@ the compactor a query's worth of reads a minute per dirty question.
 
 **2026-09-12.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 sixty-three commits are kept as written; nothing was reverted. What this
-review adds is the composition, two conflict resolutions, one regression
-fix and two corrections for things no shift could see alone. The owner's
+review adds is the composition — two conflicts between the shifts and six
+more against a `main` that moved while it ran — plus one security fix,
+one regression fix and two corrections for things no shift could see
+alone. The security fix is the one to read: a hole that existed in
+neither shift's work and neither `main`'s, only in their sum. The owner's
 instruction was *"review tonight night shifts and merge the parts you
 approve"*: every part is approved, and this record says which parts the
 composition had to change to say so.
