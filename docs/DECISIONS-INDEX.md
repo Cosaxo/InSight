@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 520 lines instead of
-54,131. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 521 lines instead of
+54,231. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -172,13 +172,13 @@ detect it.
 | **D150** | [Near is a field again, and nobody in it is named](DECISIONS.md#d150--near-is-a-field-again-and-nobody-in-it-is-named) | D181 (+1) | 14848 |
 | **D151** | [The general info is asked at the start, because an answer cannot be re-filed](DECISIONS.md#d151--the-general-info-is-asked-at-the-start-because-an-answer-cannot-be-re-filed) | D393 (+5) | 14888 |
 | **D152** | [Explore is the World's; the People lens gets its shape back; Circle and Groups get theirs](DECISIONS.md#d152--explore-is-the-worlds-the-people-lens-gets-its-shape-back-circle-and-groups-get-theirs) | D262 (+4) | 14968 |
-| **D153** | [Build 15's pre-flight: the first one where the number was already right](DECISIONS.md#d153--build-15s-pre-flight-the-first-one-where-the-number-was-already-right) | D324 (+5) | 15067 |
+| **D153** | [Build 15's pre-flight: the first one where the number was already right](DECISIONS.md#d153--build-15s-pre-flight-the-first-one-where-the-number-was-already-right) | D479 (+6) | 15067 |
 | **D154** | [The Map's mainstream boundary is sized by the map, not by a constant](DECISIONS.md#d154--the-maps-mainstream-boundary-is-sized-by-the-map-not-by-a-constant) | D158 | 15180 |
 | **D155** | [The tabs sit at the bottom, the four instruments take turns, and the age is the age](DECISIONS.md#d155--the-tabs-sit-at-the-bottom-the-four-instruments-take-turns-and-the-age-is-the-age) | D328 (+7) | 15278 |
 | **D156** | [The live 1v1 and Group get the sample's shape — a rail, marks, bars, and a guess that arrives second](DECISIONS.md#d156--the-live-1v1-and-group-get-the-samples-shape--a-rail-marks-bars-and-a-guess-that-arrives-second) | D426 (+6) | 15362 |
 | **D157** | [The test surfaces stop describing a crowd they never counted](DECISIONS.md#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted) | D415 (+10) | 15509 |
-| **D158** | [Build 16's pre-flight: the number was already right for the second time running](DECISIONS.md#d158--build-16s-pre-flight-the-number-was-already-right-for-the-second-time-running) | D381 (+7) | 15689 |
-| **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D381 (+11) | 15804 |
+| **D158** | [Build 16's pre-flight: the number was already right for the second time running](DECISIONS.md#d158--build-16s-pre-flight-the-number-was-already-right-for-the-second-time-running) | D479 (+8) | 15689 |
+| **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D479 (+12) | 15804 |
 | **D160** | [An empty field is still a field, the row actually snaps, and Near's switch goes in the corner](DECISIONS.md#d160--an-empty-field-is-still-a-field-the-row-actually-snaps-and-nears-switch-goes-in-the-corner) | D190 (+1) | 15876 |
 | **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D462 (+27) | 15970 |
 | **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D367 (+5) | 16108 |
@@ -203,21 +203,21 @@ detect it.
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18113 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18218 |
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D-2026-09-12b (+24) | 18316 |
-| **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18475 |
+| **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D479 (+8) | 18475 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18626 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18800 |
 | **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D350 (+5) | 18870 |
 | **D188** | [The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour](DECISIONS.md#d188--the-mirrors-tab-row-sits-where-a-tab-bar-sits-and-stops-arguing-with-the-stop-about-colour) | D191 (+2) | 19030 |
 | **D189** | [The design gate was never looking, and two group hues never met the palette](DECISIONS.md#d189--the-design-gate-was-never-looking-and-two-group-hues-never-met-the-palette) | D191 | 19153 |
 | **D190** | [Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row](DECISIONS.md#d190--your-name-and-your-handle-belong-to-the-account-the-topic-list-opens-onto-the-topics-and-circle-and-groups-get-their-row) | D415 (+4) | 19349 |
-| **D191** | [Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable](DECISIONS.md#d191--build-20s-pre-flight-nothing-to-bump-and-checkbundles-second-load-bearing-variable) | D324 (+4) | 19530 |
+| **D191** | [Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable](DECISIONS.md#d191--build-20s-pre-flight-nothing-to-bump-and-checkbundles-second-load-bearing-variable) | D479 (+5) | 19530 |
 | **D192** | [The docs get a map, and the map gets a gate](DECISIONS.md#d192--the-docs-get-a-map-and-the-map-gets-a-gate) | D199 (+2) | 19641 |
 | **D193** | [Compare draws the comparison it was always described as drawing](DECISIONS.md#d193--compare-draws-the-comparison-it-was-always-described-as-drawing) | D202 (+2) | 19765 |
 | **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D258 (+7) | 19927 |
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D377 (+12) | 20100 |
 | **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D341 (+4) | 20213 |
 | **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D-2026-09-09c (+20) | 20321 |
-| **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D381 (+6) | 20470 |
+| **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D479 (+7) | 20470 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20666 |
 | **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D442 (+5) | 20748 |
 | **D201** | [The functions follow the database to europe-west1](DECISIONS.md#d201--the-functions-follow-the-database-to-europe-west1) | D301 (+1) | 20897 |
@@ -248,7 +248,7 @@ detect it.
 | **D226** | [The edit-flow matrix — second thoughts become a published number](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number) | D290 (+4) | 23092 |
 | **D227** | [The logic cut — the who-voted sheet groups answers by the verified score](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score) | D304 (+3) | 23162 |
 | **D228** | [The buyer model: three dims, nameless if wanted, and the lens waits](DECISIONS.md#d228--the-buyer-model-three-dims-nameless-if-wanted-and-the-lens-waits) | D313 (+3) | 23229 |
-| **D229** | [Two releases shipped unrecorded, and the sixth skip is the one that costs](DECISIONS.md#d229--two-releases-shipped-unrecorded-and-the-sixth-skip-is-the-one-that-costs) | D381 (+5) | 23301 |
+| **D229** | [Two releases shipped unrecorded, and the sixth skip is the one that costs](DECISIONS.md#d229--two-releases-shipped-unrecorded-and-the-sixth-skip-is-the-one-that-costs) | D479 (+6) | 23301 |
 | **D230** | [An instrument's colour is where you stand now, not where you finished](DECISIONS.md#d230--an-instruments-colour-is-where-you-stand-now-not-where-you-finished) | D251 | 23364 |
 | **D231** | [Current events get a lane: a topic that expires, and the questions to fill it](DECISIONS.md#d231--current-events-get-a-lane-a-topic-that-expires-and-the-questions-to-fill-it) | D425 (+7) | 23455 |
 | **D232** | [Catalog questions go live: seventeen picks, promoted through one pen](DECISIONS.md#d232--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen) | D469 (+5) | 23682 |
@@ -293,8 +293,8 @@ detect it.
 | **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D412 (+6) | 27144 |
 | **D271** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d271--per-question-attention-aggregate-only--the-r4-gate) | D412 (+2) | 27236 |
 | **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D356 (+3) | 27277 |
-| **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D381 (+3) | 27348 |
-| **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | D381 (+2) | 27470 |
+| **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D479 (+4) | 27348 |
+| **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | D479 (+3) | 27470 |
 | **D275** | [The private aggregate mirror collapses into the published one](DECISIONS.md#d275--the-private-aggregate-mirror-collapses-into-the-published-one) | D-2026-09-09h (+9) | 27541 |
 | **D276** | [The suite audited itself: what stayed green while being wrong](DECISIONS.md#d276--the-suite-audited-itself-what-stayed-green-while-being-wrong) | D352 (+9) | 27661 |
 | **D277** | [The similarity surfaces were ranking on a tier that could not fire](DECISIONS.md#d277--the-similarity-surfaces-were-ranking-on-a-tier-that-could-not-fire) | D299 (+4) | 27806 |
@@ -347,7 +347,7 @@ detect it.
 | **D321** | [The feed tail leaves the boot fetch, and the whole-bank install is over](DECISIONS.md#d321--the-feed-tail-leaves-the-boot-fetch-and-the-whole-bank-install-is-over) | D425 (+4) | 32439 |
 | **D322** | [The profile is real: feed answers counted by topic, and pages sized by them](DECISIONS.md#d322--the-profile-is-real-feed-answers-counted-by-topic-and-pages-sized-by-them) | D-2026-09-09c (+2) | 32488 |
 | **D323** | [The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded](DECISIONS.md#d323--the-2026-08-27-night-audit-reviewed--21-fixes-kept-five-limits-recorded) | D387 (+4) | 32598 |
-| **D324** | [Build 26's pre-flight: run as-is, and the one surface no release gate can see](DECISIONS.md#d324--build-26s-pre-flight-run-as-is-and-the-one-surface-no-release-gate-can-see) | D381 (+1) | 32713 |
+| **D324** | [Build 26's pre-flight: run as-is, and the one surface no release gate can see](DECISIONS.md#d324--build-26s-pre-flight-run-as-is-and-the-one-surface-no-release-gate-can-see) | D479 (+2) | 32713 |
 | **D325** | [The bridge's first crossing: the fit publishes its own scorecard](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard) | D439 (+3) | 32865 |
 | **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | D403 (+3) | 32941 |
 | **D327** | [The console kept selling the floor: twelve captions that outlived the arithmetic](DECISIONS.md#d327--the-console-kept-selling-the-floor-twelve-captions-that-outlived-the-arithmetic) | D367 (+4) | 33022 |
@@ -363,7 +363,7 @@ detect it.
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34181 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D455 (+5) | 34312 |
 | **D338** | [The 2026-08-31 night audit, reviewed and merged — 35 commits kept, two hand-written figures corrected, and one live bias that is the owner's call](DECISIONS.md#d338--the-2026-08-31-night-audit-reviewed-and-merged--35-commits-kept-two-hand-written-figures-corrected-and-one-live-bias-that-is-the-owners-call) | D387 (+1) | 34390 |
-| **D339** | [Build 27 was delivered and unrecorded; the pre-flight opened on a spent number, and the counts are level](DECISIONS.md#d339--build-27-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-and-the-counts-are-level) | D381 | 34517 |
+| **D339** | [Build 27 was delivered and unrecorded; the pre-flight opened on a spent number, and the counts are level](DECISIONS.md#d339--build-27-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-and-the-counts-are-level) | D479 (+1) | 34517 |
 |  | ↳ *amendment 2026-08-31* — [Build 28 is delivered, and the bump held off step 17](DECISIONS.md#d339-amendment-2026-08-31--build-28-is-delivered-and-the-bump-held-off-step-17) | — | 34611 |
 | **D340** | [The app icon moves to the paper tile, and the two-palette rule survives the move](DECISIONS.md#d340--the-app-icon-moves-to-the-paper-tile-and-the-two-palette-rule-survives-the-move) | — | 34664 |
 | **D341** | [Crossroads is a question TYPE, and its stories ride the feed as members](DECISIONS.md#d341--crossroads-is-a-question-type-and-its-stories-ride-the-feed-as-members) | D413 | 34746 |
@@ -412,7 +412,7 @@ detect it.
 | **D378** | [A sponsored question may carry one reviewed link, shown after the answer and counted by nobody](DECISIONS.md#d378--a-sponsored-question-may-carry-one-reviewed-link-shown-after-the-answer-and-counted-by-nobody) | D-2026-09-12c (+2) | 39805 |
 | **D379** | [The shareable results page: a sponsored question's numbers as one public web page](DECISIONS.md#d379--the-shareable-results-page-a-sponsored-questions-numbers-as-one-public-web-page) | D-2026-09-12b (+1) | 39889 |
 | **D380** | [The 2026-09-06 night review: two shifts merged as one tree — 68 commits kept, two defects the composition created, and a fix whose tests a third PR deleted](DECISIONS.md#d380--the-2026-09-06-night-review-two-shifts-merged-as-one-tree--68-commits-kept-two-defects-the-composition-created-and-a-fix-whose-tests-a-third-pr-deleted) | D430 (+3) | 39967 |
-| **D381** | [Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on](DECISIONS.md#d381--build-29-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-again-and-the-gate-built-to-stop-that-has-never-been-switched-on) | D398 (+2) | 40212 |
+| **D381** | [Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on](DECISIONS.md#d381--build-29-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-again-and-the-gate-built-to-stop-that-has-never-been-switched-on) | D479 (+3) | 40212 |
 |  | ↳ *amendment 2026-09-06* — [Build 30 is delivered, and the whole release happened in one sitting](DECISIONS.md#d381-amendment-2026-09-06--build-30-is-delivered-and-the-whole-release-happened-in-one-sitting) | — | 40362 |
 | **D382** | [Question content is not first-paint bytes, and a gate says so](DECISIONS.md#d382--question-content-is-not-first-paint-bytes-and-a-gate-says-so) | D418 (+2) | 40428 |
 | **D383** | [The daily pages: a published length, seven documents, and the density it rests on](DECISIONS.md#d383--the-daily-pages-a-published-length-seven-documents-and-the-density-it-rests-on) | D384 | 40507 |
@@ -448,12 +448,12 @@ detect it.
 | **D411** | [`main`'s e2e flake: the aggregate was always there, and the client could not see it](DECISIONS.md#d411--mains-e2e-flake-the-aggregate-was-always-there-and-the-client-could-not-see-it) | — | 43652 |
 | **D412** | [Ad-network tracking is deferred with a trigger, not refused — and counting was never the thing being deferred](DECISIONS.md#d412--ad-network-tracking-is-deferred-with-a-trigger-not-refused--and-counting-was-never-the-thing-being-deferred) | — | 43735 |
 | **D413** | [The first two Crossroads stories are retired, and four take their place](DECISIONS.md#d413--the-first-two-crossroads-stories-are-retired-and-four-take-their-place) | — | 43835 |
-| **D414** | [The account wall goes back up, and D219's own condition is why](DECISIONS.md#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why) | D453 (+4) | 43953 |
+| **D414** | [The account wall goes back up, and D219's own condition is why](DECISIONS.md#d414--the-account-wall-goes-back-up-and-d219s-own-condition-is-why) | D479 (+5) | 43953 |
 | **D415** | [The 2026-09-07 vision arrives: the instruments in depth, the first day of Circle and 1v1, and the plan for measuring the facets and positions](DECISIONS.md#d415--the-2026-09-07-vision-arrives-the-instruments-in-depth-the-first-day-of-circle-and-1v1-and-the-plan-for-measuring-the-facets-and-positions) | D416 | 44236 |
 | **D416** | [The owner rules on the 09-07 rows: the feed is the only door, the sub-scales stay on the device, and the facet items are written](DECISIONS.md#d416--the-owner-rules-on-the-09-07-rows-the-feed-is-the-only-door-the-sub-scales-stay-on-the-device-and-the-facet-items-are-written) | D417 | 44363 |
 | **D417** | [The instruments' deep items land in the bank: thirty facets written, eighteen positions carried, and the prompts kept out of first paint](DECISIONS.md#d417--the-instruments-deep-items-land-in-the-bank-thirty-facets-written-eighteen-positions-carried-and-the-prompts-kept-out-of-first-paint) | — | 44421 |
 | **D418** | [The other two lanes leave first paint, and three stale notes are why they were still there](DECISIONS.md#d418--the-other-two-lanes-leave-first-paint-and-three-stale-notes-are-why-they-were-still-there) | — | 44547 |
-| **D419** | [Build 33 on a real phone: the wall would not lift, the setup sheet did not fit, and the cadence is not the product](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product) | D426 | 44651 |
+| **D419** | [Build 33 on a real phone: the wall would not lift, the setup sheet did not fit, and the cadence is not the product](DECISIONS.md#d419--build-33-on-a-real-phone-the-wall-would-not-lift-the-setup-sheet-did-not-fit-and-the-cadence-is-not-the-product) | D479 (+1) | 44651 |
 | **D420** | [The 2026-09-08 night review: two shifts merged as one tree — 75 commits kept, three defects the composition created, and two duplicates one shift had already named](DECISIONS.md#d420--the-2026-09-08-night-review-two-shifts-merged-as-one-tree--75-commits-kept-three-defects-the-composition-created-and-two-duplicates-one-shift-had-already-named) | D449 (+1) | 44783 |
 | **D421** | [The pick tiles get pictures: the owner rules attempt-and-take-down, the art is hosting content so a takedown is a commit, and the credits ship beside the keys](DECISIONS.md#d421--the-pick-tiles-get-pictures-the-owner-rules-attempt-and-take-down-the-art-is-hosting-content-so-a-takedown-is-a-commit-and-the-credits-ship-beside-the-keys) | D468 (+2) | 45010 |
 | **D422** | [The ruling reaches every domain: Pokémon artwork and the dogs join the pipeline, every picture is re-encoded on the way in, and what the pictures cost](DECISIONS.md#d422--the-ruling-reaches-every-domain-pokémon-artwork-and-the-dogs-join-the-pipeline-every-picture-is-re-encoded-on-the-way-in-and-what-the-pictures-cost) | D423 | 45224 |
@@ -515,7 +515,7 @@ detect it.
 | **D469** | [Name the thing, not its class — the fourth device report, and the catalogue cards that were written and never dealt](DECISIONS.md#d469--name-the-thing-not-its-class--the-fourth-device-report-and-the-catalogue-cards-that-were-written-and-never-dealt) | D470 | 51953 |
 | **D470** | [The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes](DECISIONS.md#d470--the-2026-09-12-night-review-two-shifts-merged-as-one-tree--63-commits-kept-and-a-security-hole-that-existed-only-in-the-sum-of-two-correct-changes) | — | 52068 |
 | **D471** | [The hard stop: the budget's function detaches billing at three budgets — the owner's ceiling of 1,500 NOK — and the phone rings only for money](DECISIONS.md#d471--the-hard-stop-the-budgets-function-detaches-billing-at-three-budgets--the-owners-ceiling-of-1500-nok--and-the-phone-rings-only-for-money) | — | 52331 |
-| **D472** | [The app is Doxa: the name changes, and nothing under it does](DECISIONS.md#d472--the-app-is-doxa-the-name-changes-and-nothing-under-it-does) | — | 53320 |
+| **D472** | [The app is Doxa: the name changes, and nothing under it does](DECISIONS.md#d472--the-app-is-doxa-the-name-changes-and-nothing-under-it-does) | D479 | 53320 |
 | **D473** | [The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding](DECISIONS.md#d473--the-logic-tests-items-come-from-the-open-matrices-item-bank--and-the-licence-sweep-is-the-finding) | D474 | 53441 |
 |  | ↳ *amendment 2026-09-11, the same evening* — [The archive read: the bank is a vocabulary, not artwork — and its answer key is public](DECISIONS.md#d473-amendment-2026-09-11-the-same-evening--the-archive-read-the-bank-is-a-vocabulary-not-artwork--and-its-answer-key-is-public) | — | 53538 |
 | **D474** | [OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank](DECISIONS.md#d474--omib-phase-1-the-server-scores-by-θ-dark--and-practice-is-a-stateless-callable-on-the-same-bank) | D477 (+2) | 53613 |
@@ -523,6 +523,7 @@ detect it.
 | **D476** | [OMIB phase 4: adaptive selection built dark behind the report that decides its flip — and the report's own bar corrected by its test](DECISIONS.md#d476--omib-phase-4-adaptive-selection-built-dark-behind-the-report-that-decides-its-flip--and-the-reports-own-bar-corrected-by-its-test) | D477 | 53808 |
 | **D477** | [No practice: the logic test is taken like an IQ test — the practice half of D474 retired the day it shipped, and the callable with it](DECISIONS.md#d477--no-practice-the-logic-test-is-taken-like-an-iq-test--the-practice-half-of-d474-retired-the-day-it-shipped-and-the-callable-with-it) | D478 | 54004 |
 | **D478** | [One attempt every 30 days, from the start of the last — and an attempt interrupted inside its window is resumed, never restarted](DECISIONS.md#d478--one-attempt-every-30-days-from-the-start-of-the-last--and-an-attempt-interrupted-inside-its-window-is-resumed-never-restarted) | — | 54072 |
+| **D479** | [Build 36's pre-flight: three deliveries went unrecorded, build 32 never existed, and the bump that skipped it landed between a dry run and its upload](DECISIONS.md#d479--build-36s-pre-flight-three-deliveries-went-unrecorded-build-32-never-existed-and-the-bump-that-skipped-it-landed-between-a-dry-run-and-its-upload) | — | 54132 |
 | **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 52513 |
 | **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 52578 |
 | **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 52655 |

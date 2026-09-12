@@ -589,6 +589,22 @@ arithmetic.
       are the worked example: same commit `2933dc0`, eight minutes apart,
       `skipped` then `success`, so only one of the two spent a build.
 
+      **BUILD 33 UPLOADED 2026-09-07** (run 56, `a59c40e`, upload step
+      `success` 16:50:19Z → 16:51:59Z, 1m 40s) — the first build carrying
+      the account wall, and **the one not to submit**: it also carries
+      D419's sign-in defect, so 6.2's block quote stands. The bump after
+      it held (`72336dea`, 33 → 34, inside the hour).
+
+      **BUILD 32 NEVER EXISTED.** Run 55 (`39a26f0`, 2026-09-07 14:43,
+      upload `skipped`) dry-ran the tree at 32, and `b5cb845a` bumped
+      32 → 33 in the two hours before run 56 uploaded. Harmless — Apple
+      wants monotonic, not contiguous, and build 2 was struck the same way
+      on 2026-08-08 — but the shape is the expensive half of D159's trap:
+      the bump landed *between a dry run and its upload*, so the number
+      run 55 rehearsed is not the number run 56 sent, across a 47-file
+      diff that includes the wall itself. D479 and `IOS-RELEASE.md` have
+      the arithmetic.
+
       **BUILD 34 UPLOADED 2026-09-07** (run 57, `9069f62`, upload step
       `success`) — the first submittable build. The bump after it did not
       happen: run 58 on 2026-09-09 (a dry run, upload `skipped`) and the
@@ -603,6 +619,17 @@ arithmetic.
       refuse one went live. **`appBuild` is now 36**, bumped off run 59's
       step 17 in the same session, before the run's record was written —
       the convention's second half, done in the order it asks for.
+
+      **BUILD 36's PRE-FLIGHT FOUND NOTHING TO DO** (D479, 2026-09-12).
+      Run 59 is the highest run in `ios-release.yml`'s list, 59 of 59;
+      its step 17 is `success`; `appBuild` at run 59's **own `head_sha`**
+      `2d286f8` is **35**, against a tree reading **36**. 36 is greater
+      than 35, so the answer is *run as-is* and no number moved — the
+      seventh pre-flight to come out that way, and build 35's bump is why.
+      What it found instead is that `IOS-RELEASE.md` had no record of runs
+      55–59 at all: three deliveries reconstructed from the run list at
+      once, the most any one pre-flight has had to recover, and step 18
+      printed `release recorder not wired` for the sixth release running.
 
       **BUILD 12 UPLOADED 2026-08-13** (run 18, `d0cf435`, 5m 32s, upload
       step `success`). Builds 11 and 12 went up a day apart — run 17
