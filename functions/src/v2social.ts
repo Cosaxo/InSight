@@ -80,6 +80,7 @@ import {
   type RoomCounts,
   type DuelVoteLike,
   isStamped,
+  turnBody,
   type TurnRecipient,
 } from "./pure";
 
@@ -681,8 +682,9 @@ async function sendPushToUids(
 // The volley's other half: the answer trigger decides WHO is told inside
 // its transaction (turnRecipients, pure.ts — stamped in the same commit
 // as the mark) and hands the list here after the commit. One body per
-// count, so a partner who ran ahead is told how far: *Leo answered — your
-// turn* / *Leo played 4 rounds — your turn*. Channel `turns`, importance
+// count, so somebody with rounds stacked up is told how many: *Leo
+// answered — your turn* / *Leo answered — 4 rounds waiting for you*
+// (`turnBody`, which says why the count is not the sender's). Channel `turns`, importance
 // 3 on the client: a nudge, not a result, and the one control Android
 // gives a person is the channel.
 //
@@ -699,9 +701,7 @@ export async function notifyTurn(
   const title = room.name || (room.mode === "duo" ? "Your 1v1" : "Your group");
   const byBody = new Map<string, string[]>();
   for (const r of recipients) {
-    const body = r.waiting > 1
-      ? `${who} played ${r.waiting} rounds — your turn.`
-      : `${who} answered — your turn.`;
+    const body = turnBody(who, r.waiting);
     byBody.set(body, [...(byBody.get(body) || []), r.uid]);
   }
   for (const [body, uids] of byBody) {
