@@ -291,7 +291,10 @@ export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 // red build rather than a quiet allowance.
 // 32 → 33 when `v2_questions` stopped being exempt and became a row:
 // the bank is content, but a BOUGHT question carries the buyer's name.
-const READER_EXPECTED = 36;
+// 36 → 37 on 2026-09-13: the friend-request notice marker
+// (`v2_users/{uid}/followNotices/{targetUid}`), which is denied in both
+// directions — the row rule 2 reads is the "nobody" in its reader column.
+const READER_EXPECTED = 37;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;
 for (const row of inventoryRows(inventory, named)) {

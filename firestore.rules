@@ -686,6 +686,33 @@ service cloud.firestore {
       // take is other people's follows OF the deleted account: those are
       // documents under their uid, and they are cleaned in the same
       // callable rather than left as pointers to nothing.
+      // ── the friend-request notice marker, SERVER ONLY ──────────
+      //
+      // One document per (follower, target) pair, written by
+      // `onV2FollowCreated` and read by nothing. It is what keeps that
+      // trigger from notifying the same person twice: the push fires on a
+      // follow row's create and a delete fires nothing, so without this
+      // marker create → delete → create is an unbounded stream of
+      // notifications to any uid, carrying the writer's own display name.
+      // Anonymous auth is the default here, so that needed no account
+      // worth the name. Measured: twenty cycles, twenty pushes.
+      //
+      // DENIED IN BOTH DIRECTIONS, and the write half is the load-bearing
+      // one — a marker the writer can clear is not a bound at all, which
+      // is why it is not a field on their own profile document. The read
+      // half is denied too because there is nothing here anyone needs and
+      // an open read would state who has been told what, which is the
+      // followed account's business rather than the follower's.
+      //
+      // Erasure needs no new arm: this sits under `v2_users/{uid}`, so
+      // deleteAccount's recursive delete takes it with the rest of the
+      // subtree — the same property the `following` and `push`
+      // subcollections rely on, and the reason the marker is filed under
+      // the FOLLOWER rather than the person notified.
+      match /followNotices/{targetUid} {
+        allow read, write: if false;
+      }
+
       match /following/{targetUid} {
         allow read: if request.auth != null;
         // Create-or-delete only. An "edit" to a follow has no meaning,

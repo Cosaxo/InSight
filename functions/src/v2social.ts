@@ -724,10 +724,10 @@ export async function notifyTurn(
 //
 // A Firestore trigger rather than a callable, on purpose: the write path
 // does not change (no new callable, no App Check row, no client await on a
-// function), follows are capped at fifty an account so the invocation
-// count is nil, and a push that fails is the fan-out's problem — this
-// never throws and never rolls a follow back. A DELETE fires nothing: *X
-// isn't told* is what the remove sheet promises.
+// function), and a push that fails is the fan-out's problem — this never
+// throws and never rolls a follow back. A DELETE fires nothing: *X isn't
+// told* is what the remove sheet promises, and it is also why the create
+// side has to carry a once-per-pair marker; see `followNotices` below.
 //
 // Light options, not HOT_TRIGGER: one document read and one getAll per
 // follow, a few times a day per account at most.
@@ -738,6 +738,57 @@ export const onV2FollowCreated = onDocumentCreated(
     const target = String(event.params.targetUid || "");
     if (!uid || !target || uid === target) return;
     const db = firestore();
+    // ONCE PER PAIR, AND THIS IS A SECURITY BOUND RATHER THAN A POLITENESS.
+    //
+    // The push above fires on the row's CREATE, and a DELETE fires nothing
+    // — which is what the remove sheet promises. Those two together made
+    // create → delete → create a free loop: unbounded notifications to any
+    // uid, carrying whatever the writer has set as their display name, from
+    // an account that costs nothing because anonymous auth is the default
+    // here. Uids are world-readable through the voter lists and handles, so
+    // the target is anyone. Each cycle also billed an invocation, a two-doc
+    // getAll, a push-doc read and an FCM multicast.
+    //
+    // Measured before this change by driving this exported trigger with a
+    // faked Firestore and FCM: twenty create/delete cycles produced twenty
+    // pushes, each body carrying text the writer chose.
+    //
+    // The header above argued the invocation count was "nil" because
+    // "follows are capped at fifty an account". That cap is a client-side
+    // READ limit — `fsLimit(FOLLOW_CAP)` in src/v2/data/circle.ts, whose own
+    // comment says "the cap is client-only and leaky … firestore.rules caps
+    // nothing" — and the create clause in the rules has no count constraint.
+    // The argument was never true; it is removed rather than weakened.
+    //
+    // WHY THE MARKER LIVES UNDER THE WRITER, not the target. It has to be
+    // somewhere the writer cannot reach, or the loop simply clears it first
+    // — which rules out their own profile document, the cheap spot this
+    // trigger already reads. `followNotices` is denied to every client in
+    // firestore.rules and written only here. Under the WRITER's own subtree
+    // because `deleteAccount` already does `recursiveDelete(v2_users/{uid})`,
+    // so erasure carries it with no new sweep to keep in step — a marker
+    // under the target's tree would have needed one, and an erasure path
+    // that has to be remembered is an erasure path that gets forgotten.
+    //
+    // `create()` rather than a read-then-write: it fails on an existing
+    // document, which is the whole test, and costs one write instead of a
+    // read plus a write. FIRST, before the push — the other order leaves a
+    // crash between them able to notify twice.
+    //
+    // A failure that is NOT "already exists" also stops the push, and that
+    // direction is deliberate: a transient error costs one person one
+    // notification, where sending anyway reopens the loop.
+    const notice = db.doc(`v2_users/${uid}/followNotices/${target}`);
+    try {
+      await notice.create({ at: FieldValue.serverTimestamp() });
+    } catch (err) {
+      const code = (err as { code?: unknown })?.code;
+      // 6 = ALREADY_EXISTS. The ordinary case — this pair has been told.
+      if (code !== 6 && code !== "already-exists") {
+        logger.warn(`[friend] notice marker failed for ${uid}->${target}; not pushing:`, err);
+      }
+      return;
+    }
     const [me, back] = await db.getAll(db.doc(`v2_users/${uid}`), db.doc(`v2_users/${target}/following/${uid}`));
     const who = String((me.exists && me.get("displayName")) || "").trim() || "Someone";
     const mutual = back.exists;
