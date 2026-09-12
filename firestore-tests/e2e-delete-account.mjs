@@ -150,17 +150,51 @@ await adb.doc("v2_patterns/sample-daily-000").set({
   n: 2,
 });
 // A SECOND world sample, so the scrub's walk crosses more than one
-// document. The arm reads the `sample-` family by id range and PAGES it
-// (patternsSamples.WORLD_SAMPLE_PAGE) — with one document the loop
-// cannot tell a correct `startAfter` from a missing one, and the walk
-// that ships holds hundreds. This one carries only the erased account,
-// so a scrub that stops after the first document leaves a row here.
+// document. This one carries only the erased account, so a scrub that
+// stops after the first document leaves a row here.
 await adb.doc("v2_patterns/sample-daily-001").set({
   qid: "daily-001",
   rows: {
     [uid]: { o: 2, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
   },
   n: 1,
+});
+// …AND PAST THE PAGE BOUNDARY, which two documents never reach. The arm
+// reads the `sample-` family by id range, orders by document id and pages
+// it at WORLD_SAMPLE_PAGE (50) — so with two documents the loop sees
+// `page.size < 50` and breaks on its first pass, and the `startAfter`
+// line, which is the only line paging can get wrong, is never evaluated.
+// The comment here used to claim this pair proved "the paged walk"; what
+// it proved is that the scrub crosses more than one document, which is a
+// different and smaller claim, and a broken cursor stayed green under it.
+//
+// Fifty fillers to fill page one, and a SENTINEL whose id sorts after all
+// of them: ids order `sample-daily-*` < `sample-fill-*` < `sample-zzz-last`,
+// so the sentinel is on page two and unreachable unless the cursor
+// advances correctly. Each filler carries the erased account's row too,
+// so a walk that advances but skips what it passed is caught by the same
+// sweep.
+const FILLERS = 50;
+const fillerId = (i) => `sample-fill-${String(i).padStart(3, "0")}`;
+const SENTINEL = "v2_patterns/sample-zzz-last";
+{
+  const batch = adb.batch();
+  for (let i = 0; i < FILLERS; i++) {
+    batch.set(adb.doc(`v2_patterns/${fillerId(i)}`), {
+      qid: `fill-${i}`,
+      rows: { [uid]: { o: 0, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null } },
+      n: 1,
+    });
+  }
+  await batch.commit();
+}
+await adb.doc(SENTINEL).set({
+  qid: "zzz-last",
+  rows: {
+    [uid]: { o: 1, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
+    [OTHER]: { o: 0, a: { city: "Bergen, NO" }, d: DAY },
+  },
+  n: 2,
 });
 // …and the per-city sample (DATA-EFFICIENCY-RUNBOOK 2.5), which the arm
 // reaches through the account's own answers rather than by listing the
@@ -889,7 +923,24 @@ if (secondAfter.get("rows")?.[uid] !== undefined)
   fail("the scrub stopped at the first world sample — a row survived in the second (the paged walk)");
 if (secondAfter.get("n") !== 0)
   fail("the second sample's basis did not follow the scrub: n is " + secondAfter.get("n"));
-ok("the scrub crossed both world samples, which is what the paged walk has to do");
+ok("the scrub crossed more than one world sample");
+// THE PAGE BOUNDARY. The sentinel sorts after all fifty fillers, so no
+// first-page read can reach it: a cursor that does not advance leaves
+// this row standing, and that is the only way this line can fail.
+const sentinelAfter = await adb.doc(SENTINEL).get();
+if (!sentinelAfter.exists)
+  fail("the sentinel world sample was deleted outright rather than scrubbed");
+if (sentinelAfter.get("rows")?.[uid] !== undefined)
+  fail("the scrub never reached the second page — the erased row survived past the page boundary");
+if (sentinelAfter.get("rows")?.[OTHER] === undefined)
+  fail("the scrub took the other voter's row from the sentinel sample");
+if (sentinelAfter.get("n") !== 1)
+  fail("the sentinel sample's basis did not follow the scrub: n is " + sentinelAfter.get("n"));
+// …and the first page was not skipped on the way there.
+const fillerAfter = await adb.doc(`v2_patterns/${fillerId(0)}`).get();
+if (fillerAfter.get("rows")?.[uid] !== undefined)
+  fail("a filler on the first page kept its row — the walk advanced without scrubbing what it passed");
+ok("the scrub crossed the page boundary: the sentinel past fifty fillers was scrubbed too");
 const citySampleAfter = await adb.doc(CITY_SAMPLE).get();
 if (!citySampleAfter.exists)
   fail("the per-city voter sample was deleted outright — it is everyone else's list");
