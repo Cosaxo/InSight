@@ -1451,12 +1451,13 @@ export let PICK_QS;
       ageBand: {
         // what you quote is what you watched at fifteen: the young cell
         // runs on Mean Girls and the Joker, the older on the Dude and
-        // the Corleones — reorder, never flip
-        '18-24': { 631103: 8, 163872: 7, 104123: 6, 17738: 5, 83495: 4 },
-        '25-34': { 104123: 8, 337078: 7, 47703: 6, 25043: 5, 170564: 4 },
+        // the Corleones — reorder, never flip. Cell counts stay inside
+        // each film's crowd total (Mean Girls holds 7 whole).
+        '18-24': { 631103: 5, 163872: 4, 104123: 3, 17738: 3, 83495: 2 },
+        '25-34': { 104123: 8, 337078: 6, 47703: 6, 25043: 5, 170564: 4 },
       },
       gender: {
-        Women: { 631103: 8, 104123: 7, 17738: 6, 132689: 5, 163872: 4 },
+        Women: { 104123: 6, 631103: 5, 17738: 4, 132689: 4, 163872: 3 },
         Men: { 104123: 8, 47703: 7, 25043: 6, 337078: 5, 170564: 4 },
       },
     },
