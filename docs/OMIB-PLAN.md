@@ -1,7 +1,7 @@
 # OMIB plan — the logic test on a calibrated bank, scored for accuracy
 
-**Status: plan notes — phases 0–3 BUILT 2026-09-12 (D473, D474) and LIVE; phase 4 BUILT the same day (D475) and DARK: adaptive selection sits behind `OMIB_SELECTION = "stratified"` until the §6 report — built, `npm run report:omib` — says the calibration transferred, on 300 counted attempts.** The owner chose the Open
-Matrices Item Bank for the logic test on 2026-09-11 (D472) on one
+**Status: plan notes — phases 0–3 BUILT 2026-09-12 (D474, D475) and LIVE; phase 4 BUILT the same day (D476) and DARK: adaptive selection sits behind `OMIB_SELECTION = "stratified"` until the §6 report — built, `npm run report:omib` — says the calibration transferred, on 300 counted attempts.** The owner chose the Open
+Matrices Item Bank for the logic test on 2026-09-11 (D473) on one
 requirement, *"they have to be correct from the start"*, and asked on
 2026-09-12 for *"the best way to implement this to get the most accurate
 scores"*. This is that plan. The bank is in the tree and gated
@@ -143,7 +143,7 @@ few items are informative, nearer 0.5. In percentile terms that is a band
 of roughly ±10 points in the middle — comparable to what D402 modelled
 with its ±2 items, now measured rather than assumed. An adaptive form
 (§3.3) was estimated here at ≈ 0.25 with the same 25; **measured at
-D475** on simulated takers answering under the bank's own parameters, it
+D476** on simulated takers answering under the bank's own parameters, it
 is 0.264 against the stratified form's 0.344 over five ability levels
 (0.143 against 0.210 at θ = 0), a fifth less error against the generating
 ability, and least gain at +2, where the bank has few items left to ask.
@@ -177,7 +177,7 @@ generator itself stays in the tree, byte-synced and gated
 (`check:logic-sync`), for two reasons: a saved result's `seed + gv` must
 reconstruct its form forever (D31), and it remains the only source that
 can mint a fresh item at a target difficulty for as long as the app runs
-— the answer to D472's recorded limit that the OMIB key is public.
+— the answer to D473's recorded limit that the OMIB key is public.
 
 ### 3.2 Exposure
 
@@ -188,11 +188,11 @@ document, same gate, same era stamp. Two things fall out of it: which
 items are over-drawn (a stratum with few items, the 1- and 5-rule ones,
 exposes each of its members more), and §6's validity check.
 
-### 3.3 Adaptive selection — the accuracy ceiling, built dark (D475)
+### 3.3 Adaptive selection — the accuracy ceiling, built dark (D476)
 
 Choosing each next item to maximise information at the current θ̂ is
 what "most accurate" means in this field, and 218 calibrated items make
-it entirely feasible. It is BUILT (D475) and DARK, for the reason §6 ends
+it entirely feasible. It is BUILT (D476) and DARK, for the reason §6 ends
 on: the report that says whether the calibration transferred reads
 per-item solve rates off the stratified ledger, and adaptive
 administration — every item met near its taker's 50 % point — would make
@@ -272,9 +272,9 @@ the answer with `cellOf`. Everything the design decided — tap to toggle,
 Clear, Done, the draining segment, the two clocks, a time-out that
 commits as it stands — is the screen's; this plan does not re-decide it.
 
-**Practice mode — RETIRED (D476).** This paragraph recommended a practice
+**Practice mode — RETIRED (D477).** This paragraph recommended a practice
 attempt on the same bank and the same screen, scored by a stateless
-callable that folded nothing, and the owner said yes (D473, 2026-09-12)
+callable that folded nothing, and the owner said yes (D474, 2026-09-12)
 — then, the same day, having seen the built test: *"i dont think they
 should be able to practice, this should be similar to an iq test"*. So
 there is no practice attempt. The reason holds on its own arithmetic: a
@@ -307,7 +307,7 @@ parameters, proved in `omib-report.test.mjs` on synthetic ledgers whose
 truth is known. Run by hand until the counts justify a schedule; the
 pure half is what a console lane will call when they do.
 
-**The instrument, corrected by its own test (D475).** This section first
+**The instrument, corrected by its own test (D476).** This section first
 said *r beyond −0.8* between an item's published b and its observed solve
 rate. Answers generated FROM the published parameters read −0.76 at 400
 attempts: b predicts a rate only through the item's discrimination and
@@ -351,10 +351,10 @@ byte-identical. `check:omib` keeps the bank the authors' bank.
 | Phase | What | Needs | Proves |
 | --- | --- | --- | --- |
 | **0** — done | Bank in and gated; shapes derived; 25 × 90 s; design filed | — | `check:omib`, `omib-shapes.test.ts` |
-| **1** — done (D473) | `irt.ts` (EAP + SE); `omib.ts` with the quality floor, stratified seeded selection, exact-match scoring, the θ histogram and per-item ledger; the OMIB era stamp; the bank stamped on the attempt and honoured at submit, `LOGIC_BANK` still `"generator"`; `logicPracticeV2`, stateless, on the owner's call (retired the same day, D476) | `omib-bank.ts` generated and gated by `check:omib` | functions suite; the emulator's practice leg — start, score, score again, refuse the generator's shape (gone with practice) |
-| **2** — done (D474) | The screen (VR 14 → built), the wire, the worked example (VR 8 → built), and the flip | — | `logic-overlay.test.jsx` (11), the smoke mount on the example, the mount-app suites, `check:tap-targets`; the emulator's verified leg on OMIB by θ |
-| **3** — done (D473, D474) | θ histogram, Φ fallback with its sentence, measured rank, the band from SE — the server half in phase 1, the sentence in phase 2 | — | rules suite on the same document paths (nothing new); `check:policy-claims` unchanged |
-| **4** — built, DARK (D475) | Adaptive selection behind `OMIB_SELECTION`; the §6 report, `npm run report:omib` | 300 counted attempts before the report's verdict, then the owner's flip | `omib.test.ts` (the selection's seven, the simulation's table), `logic-submit.test.ts` (the callable through the fake transaction), the emulator's verified leg — which walks whichever selection the start declares, so the flip is proved on the emulator before it deploys — `logic-overlay.test.jsx` (the adaptive walk, the lost pick, each index), `omib-report.test.mjs` (transferred · scrambled · the floors) — and, on real counts, the expected-against-observed figure |
+| **1** — done (D474) | `irt.ts` (EAP + SE); `omib.ts` with the quality floor, stratified seeded selection, exact-match scoring, the θ histogram and per-item ledger; the OMIB era stamp; the bank stamped on the attempt and honoured at submit, `LOGIC_BANK` still `"generator"`; `logicPracticeV2`, stateless, on the owner's call (retired the same day, D477) | `omib-bank.ts` generated and gated by `check:omib` | functions suite; the emulator's practice leg — start, score, score again, refuse the generator's shape (gone with practice) |
+| **2** — done (D475) | The screen (VR 14 → built), the wire, the worked example (VR 8 → built), and the flip | — | `logic-overlay.test.jsx` (11), the smoke mount on the example, the mount-app suites, `check:tap-targets`; the emulator's verified leg on OMIB by θ |
+| **3** — done (D474, D475) | θ histogram, Φ fallback with its sentence, measured rank, the band from SE — the server half in phase 1, the sentence in phase 2 | — | rules suite on the same document paths (nothing new); `check:policy-claims` unchanged |
+| **4** — built, DARK (D476) | Adaptive selection behind `OMIB_SELECTION`; the §6 report, `npm run report:omib` | 300 counted attempts before the report's verdict, then the owner's flip | `omib.test.ts` (the selection's seven, the simulation's table), `logic-submit.test.ts` (the callable through the fake transaction), the emulator's verified leg — which walks whichever selection the start declares, so the flip is proved on the emulator before it deploys — `logic-overlay.test.jsx` (the adaptive walk, the lost pick, each index), `omib-report.test.mjs` (transferred · scrambled · the floors) — and, on real counts, the expected-against-observed figure |
 
 Phases 1 and 3 are one deploy if built together, and nothing a user sees
 moves until phase 2 ships. That is the order that keeps every commit
@@ -366,7 +366,7 @@ phone — which phase 4 then demonstrated on its own bar (§6).
 Two calls, neither blocking phase 1:
 
 - **Practice mode** — answered twice on 2026-09-12: the same screen
-  scored by a light callable (D473), then no practice at all (D476, §5).
+  scored by a light callable (D474), then no practice at all (D477, §5).
 - **The two hosts** — `www.mdpi.com` and `pmc.ncbi.nlm.nih.gov` on the
   environment's allowlist, so the calibration study's own administration
   can be read rather than inferred from its demo code (§1). Already on

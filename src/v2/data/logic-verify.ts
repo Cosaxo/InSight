@@ -1,17 +1,17 @@
-// Client transport for the logic test on the OMIB bank (D57, D472, D474,
-// D475, D476).
+// Client transport for the logic test on the OMIB bank (D57, D473, D475,
+// D476, D477).
 //
 // One kind of attempt. The server is never told anything it could be lied
 // to about: it mints the seed, keeps it, and hands out the items with the
 // ninth cell empty — the client's only way to a score is sending its
 // constructed cells back for server-side marking. There is no practice
-// attempt (D476, the owner: the test is taken like an IQ test; the practice
-// mode D473 put on the same screen lasted a day), so every start is the
+// attempt (D477, the owner: the test is taken like an IQ test; the practice
+// mode D474 put on the same screen lasted a day), so every start is the
 // verified one, and the server's cooldown and daily start limit are the
 // only answer to "again".
 //
 // Two shapes of form. A STRATIFIED one is two round trips: the start hands
-// out all 25 items, the submit sends 25 cells back. An ADAPTIVE one (D475,
+// out all 25 items, the submit sends 25 cells back. An ADAPTIVE one (D476,
 // dark behind the server's OMIB_SELECTION until the §6 report clears its
 // bar) is a round trip per item: the start hands out the first item alone,
 // each pick goes back through `nextVerified` and the next item comes out —
@@ -37,7 +37,7 @@ export interface VerifiedItem {
   code: string;
 }
 
-/** How the form is served: whole at start, or one item per answer (D475). */
+/** How the form is served: whole at start, or one item per answer (D476). */
 export type Selection = "stratified" | "adaptive";
 
 export interface VerifiedStart {
@@ -62,7 +62,7 @@ export interface NextItem {
 export interface VerifiedScore {
   marks: boolean[];
   score: number;
-  /** the ability estimate on the calibration sample's scale (D472) */
+  /** the ability estimate on the calibration sample's scale (D473) */
   theta: number;
   /** its standard error — the person's own likely range, not a constant */
   se: number;

@@ -1,5 +1,5 @@
 // What build:omib / check:omib DEMAND. The gate's whole job is that the bank
-// the app scores is the bank the authors published (D472), so the cases here
+// the app scores is the bank the authors published (D473), so the cases here
 // are the ways that could quietly stop being true: an element read as the wrong
 // one, a shape skipped instead of refused, artwork that starts carrying the
 // answer, and the key escaping into the client.
@@ -107,7 +107,7 @@ describe("the committed bank", () => {
     const bank = JSON.parse(readFileSync(join(here, "content", "omib.json"), "utf8"));
     expect(bank.items).toHaveLength(220);
     expect(bank.items.filter((i) => typeof i.b === "number")).toHaveLength(219);
-    // The reason the bank was chosen over the generator (D472): every item
+    // The reason the bank was chosen over the generator (D473): every item
     // carries a difficulty measured before we shipped a line.
     for (const item of bank.items) {
       expect(item.code.split(",")).toHaveLength(9);

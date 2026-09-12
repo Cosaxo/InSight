@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Logic overlay's behaviour on the OMIB bank (D472, D474) — the layer
+// The Logic overlay's behaviour on the OMIB bank (D473, D475) — the layer
 // between omib-shapes (unit-tested) and the smoke suite (mounts only):
 // building a cell, committing it, the clock, both round trips, and the
 // result screen's five lenses.
@@ -76,7 +76,7 @@ const savedOmib = (over = {}) => ({
 });
 
 const tile = (name) => screen.getByRole("button", { name });
-// what logicStartV2 answers for a stratified form (D475's shape)
+// what logicStartV2 answers for a stratified form (D476's shape)
 const stratified = () => ({ mode: "stratified", items: codes(), total: N, capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
 const done = () => {
   fireEvent.click(screen.getByRole("button", { name: "Done" }));
@@ -95,7 +95,7 @@ describe("the worked example (visual request 8)", () => {
     screen.getByRole("button", { name: "Start" });
     expect(screen.queryByRole("timer")).toBeNull();
     // what Start sends is stated where Start is, before it is pressed — the
-    // consent sentence, since D476 the only kind of attempt there is
+    // consent sentence, since D477 the only kind of attempt there is
     screen.getByText(/scored on the server and join an anonymous count/i);
     expect(screen.queryByText(/practice/i)).toBeNull();
     expect(vi.mocked(startVerified)).not.toHaveBeenCalled();
@@ -112,9 +112,9 @@ describe("the worked example (visual request 8)", () => {
 });
 
 // The screen's mechanics — Clear, the clock, a commit as it stands, a lost
-// submit — on the one kind of attempt there is since D476 (these ran on
+// submit — on the one kind of attempt there is since D477 (these ran on
 // the practice attempt for the day it existed; the mechanics did not move).
-describe("the attempt, from Start (D57 · D476)", () => {
+describe("the attempt, from Start (D57 · D477)", () => {
   it("Start → build every cell → Done ×25 → the server's result, saved as v3 and badged", async () => {
     vi.useFakeTimers();
     vi.mocked(startVerified).mockResolvedValue(stratified());
@@ -334,11 +334,11 @@ describe("the result screen's five lenses", () => {
   });
 });
 
-// ── an adaptive attempt (D475): one item at a time ───────────────────────
+// ── an adaptive attempt (D476): one item at a time ───────────────────────
 // Dark behind the server's OMIB_SELECTION, so what a phone meets today is
 // the stratified form above; this is the screen's half of the adaptive
 // path, proved against the wire shapes the server serves.
-describe("an adaptive attempt (D475)", () => {
+describe("an adaptive attempt (D476)", () => {
   const first = () => [codes()[0]];
   const start = () => ({ mode: "adaptive", items: first(), total: N, capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
   // the server's answer to the pick at `index`: the next item, or the result on the last

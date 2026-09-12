@@ -11,8 +11,8 @@ import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEM
 import { HAPTIC } from './haptics.js';
 
 // ─────────────────────────────────────────────────────────────
-// Logic · matrix reasoning on the Open Matrices Item Bank (D472,
-// D474), run as a full overlay like the other tests. Twenty-five
+// Logic · matrix reasoning on the Open Matrices Item Bank (D473,
+// D475), run as a full overlay like the other tests. Twenty-five
 // 3×3 matrices, each a form the SERVER draws from a seed — a
 // stratified sample of a published, calibrated bank — and each
 // answered by BUILDING the missing cell out of twenty shapes rather
@@ -20,7 +20,7 @@ import { HAPTIC } from './haptics.js';
 // visual request 14). The device never holds an answer: the attempt
 // sends the constructed cells to the server, which scores them by
 // ability θ against the bank's calibration (functions/src/irt.ts)
-// and returns the percentile. ONE KIND OF ATTEMPT (D476): the test is
+// and returns the percentile. ONE KIND OF ATTEMPT (D477): the test is
 // taken like an IQ test — no practice on the bank, every start is the
 // verified one, scored and folded into the norms once (D57), and
 // "again" is the server's cooldown. Each puzzle is timed
@@ -167,7 +167,7 @@ export let LOGIC;
   // items learning the format. The design's own addition puzzle, not a bank
   // item — so it teaches without leaking. Shown with the answer already in
   // the goal cell; Start begins THE attempt (verified — there is no other
-  // kind since D476) and no clock runs here.
+  // kind since D477) and no clock runs here.
   const EXAMPLE = '10000000000000000000,00000000000000100000,10000000000000100000,00000000100000000000,00000001000000000000,00000001100000000000,00100000000000000100,00000000000001000000,00100000000001000100';
   const EXAMPLE_LINE = 'Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.';
 
@@ -335,7 +335,7 @@ export let LOGIC;
   // and the result screen says so once rather than letting five charts
   // imply five measurements.
   //
-  // The NUMBER is a different matter since D474, and the notes below say
+  // The NUMBER is a different matter since D475, and the notes below say
   // what it is. Both modes are scored on the server against the bank's
   // calibration; the percentile is Φ(θ̂) — the share of the 2,572 people
   // the bank was calibrated on who sit below you — until the verified
@@ -346,7 +346,7 @@ export let LOGIC;
   // a claim, not a caption). An attempt is counted once and goes on the
   // profile in four broad bands. Old generator-era results (v ≤ 2) keep
   // their old notes, and so does a practice result saved on a device
-  // before D476 retired practice — the note it earned is the note it keeps.
+  // before D477 retired practice — the note it earned is the note it keeps.
   const CALIBRATION_N = 2572;
   const CALIBRATED_ON = 'the ' + CALIBRATION_N + ' people this test was calibrated on';
   const LOGIC_PRACTICE_NOTE = 'Practice: scored on the server against a calibrated bank, counted nowhere. Until enough verified players exist here, the percentile is against ' + CALIBRATED_ON + '.';
@@ -388,7 +388,7 @@ export let LOGIC;
     const [screen, setScreen] = useState(() => (result ? 'result' : 'example'));
     // The attempt's form, as served: { mode, items: [{code}], total, seed?,
     // practice?, verified? }. Under "stratified" `items` is the whole form;
-    // under "adaptive" (D475) it is the items served SO FAR — one more
+    // under "adaptive" (D476) it is the items served SO FAR — one more
     // arrives with each answer — and `total` is the form's length.
     const [form, setForm] = useState(null);
     const [qi, setQi] = useState(-1); // -1 = no item on screen
@@ -456,7 +456,7 @@ export let LOGIC;
       setScreen('item'); setQi(0);
     };
     // What a start says the form is. `mode` and `total` are the server's
-    // since D475; the fallbacks are for the deploy window in which a new
+    // since D476; the fallbacks are for the deploy window in which a new
     // client meets the old start shape, and read it as what it was.
     const served = (s) => ({ mode: s.mode || 'stratified', items: s.items, total: s.total || s.items.length });
     // ── the round trip (D57): the server mints and keeps the seed ──
@@ -495,7 +495,7 @@ export let LOGIC;
         (err) => setNet({ phase: 'send-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
       );
     };
-    // ── the adaptive round trip, one per item (D475) ──
+    // ── the adaptive round trip, one per item (D476) ──
     // The pick for item `pk.length - 1` goes to the server with its index and
     // the next item comes back — or, on the last, the result.
     const askNext = (f, pk) => nextVerified(pk.length - 1, pk[pk.length - 1]);
@@ -718,7 +718,7 @@ export let LOGIC;
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                {/* one button, one kind of attempt (D476): the server's cooldown
+                {/* one button, one kind of attempt (D477): the server's cooldown
                     answers "again" — "verified recently — try again later"
                     lands under the buttons, where a refused start always has */}
                 <button onClick={beginVerified} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(false), opacity: net && net.phase === 'starting' ? 0.5 : 1 }}>

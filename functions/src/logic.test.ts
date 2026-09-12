@@ -409,16 +409,16 @@ describe("rankAndFold", () => {
 });
 
 
-// ── the OMIB bank's rank-and-fold (D472, docs/OMIB-PLAN.md §4) ───────────
+// ── the OMIB bank's rank-and-fold (D473, docs/OMIB-PLAN.md §4) ───────────
 describe("rankAndFoldTheta", () => {
   const enough = OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM;
   const base = { theta: 0.3, se: 0.35, durationMs: enough, stored: null, alreadyCounted: false };
 
-  it("is LIVE since D474: new attempts are minted on the OMIB bank", () => {
+  it("is LIVE since D475: new attempts are minted on the OMIB bank", () => {
     expect(LOGIC_BANK).toBe("omib");
   });
 
-  it("mints STRATIFIED forms until the §6 report says the calibration transferred (D475)", () => {
+  it("mints STRATIFIED forms until the §6 report says the calibration transferred (D476)", () => {
     // Adaptive administration meets every item near its taker's 50 % point,
     // which makes per-item solve rates say nothing about b — and those rates
     // are the report's instrument. The flip is the owner's, on the r figure.

@@ -1,4 +1,4 @@
-// The logic test on the Open Matrices Item Bank — the pure layer (D472,
+// The logic test on the Open Matrices Item Bank — the pure layer (D473,
 // docs/OMIB-PLAN.md). What a form is, how it is drawn from a seed, how a
 // pick is scored, and how a score folds into norms. No Firestore, no
 // callables: logic.ts is the decision layer that knows the floors and the
@@ -127,7 +127,7 @@ function scoreForm(form: readonly OmibItem[], marks: boolean[], picks: readonly 
   };
 }
 
-// ── adaptive selection (docs/OMIB-PLAN.md §3.3, D475) ─────────────────────
+// ── adaptive selection (docs/OMIB-PLAN.md §3.3, D476) ─────────────────────
 // The accuracy ceiling: each next item is chosen to be most informative at
 // the taker's CURRENT θ̂, so a strong taker is not spending items on puzzles
 // they were always going to solve and a weak one is not spending them on

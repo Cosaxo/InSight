@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the app's OMIB bank out of the published archive, and gates it.
 //
-// WHY THIS SCRIPT EXISTS. The Open Matrices Item Bank (D472) ships its 220
+// WHY THIS SCRIPT EXISTS. The Open Matrices Item Bank (D473) ships its 220
 // items twice over: as rendered SVG, and as a spreadsheet whose last column
 // holds the thing the app actually needs — the 9x20 bit CODE (nine cells,
 // twenty construction elements, one bit each) that the bank's own renderer
@@ -23,7 +23,7 @@
 // only in the spreadsheet, and this script keeps them in a
 // SEPARATE output (`content/omib-key.json`) so that "the key never reaches a
 // device" stays a property something can check, the way D57 made it one for the
-// generator. Note the honest limit, recorded at D472: the authors publish that
+// generator. Note the honest limit, recorded at D473: the authors publish that
 // spreadsheet themselves, so the key is public on the internet whatever this
 // repository does.
 //
@@ -256,7 +256,7 @@ function build() {
 
 const banner = (what) => ({
   _source: "Open Matrices Item Bank (Koch, Spinath, Greiff & Becker 2022), https://osf.io/4km79/",
-  _licence: "GPLv3, per the bank's paper. The archive itself ships no licence file — see D472.",
+  _licence: "GPLv3, per the bank's paper. The archive itself ships no licence file — see D473.",
   _generated: "npm run build:omib — do not hand-edit; npm run check:omib fails on drift.",
   _what: what,
 });
@@ -278,14 +278,14 @@ function functionsModule(items, key) {
     "// content/ change without a regen) fails the gate.",
     "//",
     "// The Open Matrices Item Bank (Koch, Spinath, Greiff & Becker 2022,",
-    "// https://osf.io/4km79/, GPLv3 per the paper — D472) as the server needs",
+    "// https://osf.io/4km79/, GPLv3 per the paper — D473) as the server needs",
     "// it: per item the 9x20 construction code (eight visible cells, the ninth",
     "// all zeros), the published 2PL calibration (`a` discrimination, `b`",
     "// difficulty — one item carries neither), and the rule count a form is",
     "// stratified on. OMIB_KEY is the answer key, item number → the 20-bit",
     "// solution. THIS FILE IS SERVER-SIDE ONLY: functions/ is never shipped to a",
     "// client, and scripts/build-omib.test.mjs holds src/ to never naming the",
-    "// key. The honest limit stands (D472): the bank's authors publish this key",
+    "// key. The honest limit stands (D473): the bank's authors publish this key",
     "// themselves.",
     "",
     "export const OMIB_BANK_VERSION = 1;",

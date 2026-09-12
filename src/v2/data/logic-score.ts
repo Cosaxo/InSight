@@ -9,7 +9,7 @@
 // overlay draws — and the result screen discloses it (LOGIC_FIELD_NOTE /
 // LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). The generator era's practice
 // attempts stayed on-device and scored against the modelled curve; since
-// D476 there is no practice attempt at all — the test is taken like an IQ
+// D477 there is no practice attempt at all — the test is taken like an IQ
 // test — and every result is the server's. Verified
 // attempts (D57) are seeded and scored server-side, and since D60 their
 // percentile FLIPS to a measurement once the anonymous histogram clears
@@ -21,13 +21,13 @@
 
 export interface LogicResult {
   /** payload version: absent = pre-generator (v1), 2 = generator era,
-   *  3 = the OMIB bank (D472, D474) */
+   *  3 = the OMIB bank (D473, D475) */
   v?: number;
-  /** "omib" since D474; absent = the generator's */
+  /** "omib" since D475; absent = the generator's */
   bank?: string;
-  /** how an OMIB form was served (D475): "stratified" — the whole form from
+  /** how an OMIB form was served (D476): "stratified" — the whole form from
    *  the seed — or "adaptive", one item per answer, replayed from the seed
-   *  and the picks. Absent on results saved before D475: stratified. */
+   *  and the picks. Absent on results saved before D476: stratified. */
   mode?: string;
   /** the ability estimate on the calibration sample's scale (OMIB) */
   theta?: number;

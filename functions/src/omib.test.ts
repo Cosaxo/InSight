@@ -191,7 +191,7 @@ describe("the era", () => {
   });
 });
 
-// ── adaptive selection (D475, docs/OMIB-PLAN.md §3.3) ─────────────────────
+// ── adaptive selection (D476, docs/OMIB-PLAN.md §3.3) ─────────────────────
 describe("adaptive selection", () => {
   const params = (it: OmibItem) => ({ a: it.a as number, b: it.b as number });
   const ids = (items: readonly OmibItem[]) => items.map((i) => i.n);
@@ -317,7 +317,7 @@ describe("adaptive selection", () => {
   });
 });
 
-// ── what adaptive selection buys (docs/OMIB-PLAN.md §2.4, D475) ───────────
+// ── what adaptive selection buys (docs/OMIB-PLAN.md §2.4, D476) ───────────
 // Simulated takers answer under the bank's own 2PL, each once on a
 // stratified form and once adaptively, and the two estimates are compared
 // against the ability that generated the answers. The seeded RNG makes

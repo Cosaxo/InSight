@@ -2079,7 +2079,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items", "mode", "total"])) {
     fail("logicStartV2 returned unexpected keys: " + JSON.stringify(keys));
   }
-  // The selection is STRATIFIED until the §6 report clears its bar (D475):
+  // The selection is STRATIFIED until the §6 report clears its bar (D476):
   // pinned here as well as in logic.test.ts, because this is the deployed
   // shape a phone meets, and a flip that skipped the report would spoil
   // the report's own instrument.
@@ -2101,14 +2101,14 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // …and the key IS disclosed once the attempt is scored, which is what
   // makes the assertion above about TIMING rather than about the field
   // never existing.
-  // Since D474 a verified form is the OMIB bank's: 25 twenty-bit cells, a
+  // Since D475 a verified form is the OMIB bank's: 25 twenty-bit cells, a
   // blank sheet being the honest "answered nothing" (scored zero, θ low).
-  // THE LEG WALKS WHICHEVER SELECTION THE START DECLARED (D475, D476): a
+  // THE LEG WALKS WHICHEVER SELECTION THE START DECLARED (D476, D477): a
   // stratified form is one submit; an adaptive one is twenty-five calls,
   // each answered with the next item — never a repeat, never more than the
   // code — and the last with the result. Practice, which was the way onto
   // the adaptive path while the constant is stratified, is retired
-  // (D476); this leg is what proves the flip on the emulator the day the
+  // (D477); this leg is what proves the flip on the emulator the day the
   // constant moves, before it deploys.
   const blank = "0".repeat(20);
   let submitted;
@@ -2144,7 +2144,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   if (!Array.isArray(submitted.data.diffs) || submitted.data.diffs.length !== 25) {
     fail("the verified result did not disclose the form's difficulties after scoring");
   }
-  ok(`…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ, ${started.data.mode} (D474, D475)`);
+  ok(`…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ, ${started.data.mode} (D475, D476)`);
 
   // One attempt per window. Without this the client can resubmit until the
   // score it wants, and the norms histogram counts every try.

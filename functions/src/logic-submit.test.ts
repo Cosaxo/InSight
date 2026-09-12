@@ -31,7 +31,7 @@ function ref(path: string) {
     path,
     id: path.split("/").pop() as string,
     // A plain read outside a transaction — what the practice callable did to
-    // the public norms mirror until D476 retired it; kept for the next
+    // the public norms mirror until D477 retired it; kept for the next
     // callable that reads without a transaction, unused by the cases today.
     get: async () => ({ exists: store.has(path), data: () => store.get(path) }),
   };
@@ -234,7 +234,7 @@ describe("submitting a logic test", () => {
   });
 });
 
-// ── the OMIB bank (D472) ──────────────────────────────────────────────────
+// ── the OMIB bank (D473) ──────────────────────────────────────────────────
 // The attempt's own `bank` decides how it is scored, never the constant —
 // which is what lets these run with LOGIC_BANK still "generator", and what
 // scores an attempt that straddles the flip on the bank it was minted on.
@@ -295,7 +295,7 @@ describe("submitting on the OMIB bank", () => {
     await expect(submitOmib(new Array(OMIB_FORM_ITEMS).fill(0))).rejects.toThrow(/twenty-character/);
     expect(store.get(ATTEMPT)?.status).toBe("open");
     store.clear();
-    openAttempt(); // a generator attempt (no bank field — a pre-D472 document)
+    openAttempt(); // a generator attempt (no bank field — a pre-D473 document)
     await expect(submitOmib(blanks())).rejects.toThrow(/integers/);
   });
 
@@ -328,7 +328,7 @@ describe("submitting on the OMIB bank", () => {
   });
 });
 
-// ── an adaptive attempt (D475, docs/OMIB-PLAN.md §3.3) ───────────────────
+// ── an adaptive attempt (D476, docs/OMIB-PLAN.md §3.3) ───────────────────
 // DARK behind OMIB_SELECTION, so the emulator cannot mint one; this is
 // where the per-item callable's branching is proved — the walk, the hold,
 // the repeat, the out-of-step refusal, the lost final answer, and which
@@ -429,7 +429,7 @@ describe("an adaptive attempt", () => {
     await expect(submitBlank()).rejects.toThrow(/item by item/);
     openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "stratified", seed: SEED });
     await expect(next(0, EMPTY_CELL)).rejects.toThrow(/not an adaptive attempt/);
-    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: SEED }); // a pre-D475 document: stratified
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: SEED }); // a pre-D476 document: stratified
     await expect(next(0, EMPTY_CELL)).rejects.toThrow(/not an adaptive attempt/);
   });
 

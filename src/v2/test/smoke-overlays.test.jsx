@@ -52,7 +52,7 @@ describe("the overlays with no button — opened through the nav registry", () =
     await openVia("openLogicTest");
     expectOpened(/Logic/, "logic overlay");
     // With no saved result the overlay opens on the worked example (visual
-    // request 8, D474): one solved matrix drawn from the twenty shapes in
+    // request 8, D475): one solved matrix drawn from the twenty shapes in
     // src/v2/data/omib-shapes.ts, the palette shown but resting, and Start —
     // which is the first call to the server, so nothing here needs one.
     // This executes the whole shape path (code → bitsOf → SHAPES → <path>)
