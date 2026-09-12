@@ -3014,6 +3014,45 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-142",
+  "surface": "daily",
+  "seq": 142,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A dish you loved as a kid: still delicious, or best left in memory?",
+  "options": [
+   "Still delicious",
+   "Leave it in memory"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Memory",
+  "tag": "Kid food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-143",
+  "surface": "daily",
+  "seq": 143,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Small steps beat big leaps.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Method",
+  "tag": "How you move",
+  "axis": "small steps",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3979,7 +4018,9 @@ const BANK_0: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s01",
   "surface": "feed",
@@ -4012,9 +4053,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s03",
   "surface": "feed",
@@ -8141,7 +8180,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 12,
   "unit": "friends"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl35",
   "surface": "feed",
@@ -8197,9 +8238,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "books"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl37",
   "surface": "feed",
@@ -12518,7 +12557,9 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "feed-f318",
   "surface": "feed",
@@ -12553,9 +12594,7 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-f320",
   "surface": "feed",
@@ -16499,7 +16538,9 @@ const BANK_3: V2SeedQuestion[] = [
    "seat": "hands"
   },
   "active": false
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gr14",
   "surface": "group",
@@ -16543,9 +16584,7 @@ const BANK_3: V2SeedQuestion[] = [
    "Open door",
    "Full — sorry"
   ]
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gr15",
   "surface": "group",
@@ -20136,7 +20175,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "tech",
   "test": "political"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-political-28",
   "surface": "test",
@@ -20172,9 +20213,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "estab",
   "test": "political"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-00",
   "surface": "test",
@@ -23879,7 +23918,9 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "A",
   "test": "big5",
   "facet": "sympathy"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-118",
   "surface": "test",
@@ -23918,9 +23959,7 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "sympathy",
   "invert": true
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-120",
   "surface": "test",
@@ -28026,7 +28065,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 52,
   "k": "Humans differ by 0.1%",
   "w": "Any two people are about 99.9% identical — the ~1% figure people reach for is the human-chimp comparison."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-gene10",
   "surface": "learn",
@@ -28070,9 +28111,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 44,
   "k": "About 20,000 human genes",
   "w": "Far fewer than the pre-genome guess of 100,000. The famous 3 billion counts base pairs, not genes."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-gene12",
   "surface": "learn",
