@@ -3014,6 +3014,45 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-142",
+  "surface": "daily",
+  "seq": 142,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A dish you loved as a kid: still delicious, or best left in memory?",
+  "options": [
+   "Still delicious",
+   "Leave it in memory"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Memory",
+  "tag": "Kid food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-143",
+  "surface": "daily",
+  "seq": 143,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Small steps beat big leaps.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Method",
+  "tag": "How you move",
+  "axis": "small steps",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3978,7 +4017,9 @@ const BANK_0: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s01",
   "surface": "feed",
@@ -4011,9 +4052,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s03",
   "surface": "feed",
@@ -8140,7 +8179,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 12,
   "unit": "friends"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl35",
   "surface": "feed",
@@ -8196,9 +8237,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "books"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl37",
   "surface": "feed",
@@ -12517,7 +12556,9 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "feed-f318",
   "surface": "feed",
@@ -12552,9 +12593,7 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-f320",
   "surface": "feed",
@@ -16580,7 +16619,9 @@ const BANK_3: V2SeedQuestion[] = [
    "Gentle",
    "Brutal"
   ]
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gs7",
   "surface": "group",
@@ -16624,9 +16665,7 @@ const BANK_3: V2SeedQuestion[] = [
    "One house",
    "Rooms apart"
   ]
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gs9",
   "surface": "group",
@@ -20180,7 +20219,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "meaning",
   "test": "values"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-values-07",
   "surface": "test",
@@ -20216,9 +20257,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "moral",
   "test": "values"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-09",
   "surface": "test",
@@ -23936,7 +23975,9 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "C",
   "test": "big5",
   "facet": "orderliness"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-127",
   "surface": "test",
@@ -23976,9 +24017,7 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "orderliness",
   "invert": true
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-129",
   "surface": "test",
@@ -28106,7 +28145,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 55,
   "k": "Denim: de Nîmes",
   "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-sol9",
   "surface": "learn",
@@ -28150,9 +28191,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 62,
   "k": "Red Spot: Jupiter's storm",
   "w": "A storm wider than Earth that has been blowing for at least 200 years."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol11",
   "surface": "learn",
