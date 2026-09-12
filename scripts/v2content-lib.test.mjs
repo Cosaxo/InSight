@@ -114,7 +114,11 @@ describe("a pulse's window start survives the emitter", () => {
     // The other half, and the reason for the conditional spread: the five
     // shipped pulses predate any window that can be drawn, and the drift
     // gate compares bytes.
-    const { since: _drop, ...bare } = PULSE;
+    // Built by deletion rather than by a rest-destructure: the discarded
+    // binding that form needs is an unused variable, and eslint's
+    // no-unused-vars is an ERROR here with no underscore carve-out.
+    const bare = { ...PULSE };
+    delete bare.since;
     const entry = buildEntries(withPulse(bare)).find((e) => e.id === "pulse-probe");
     expect(Object.prototype.hasOwnProperty.call(entry, "since"),
       "an empty `since` was emitted, which moves every shipped pulse's bytes").toBe(false);
