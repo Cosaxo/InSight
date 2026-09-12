@@ -80,6 +80,23 @@ export const CLAIMS = [
   // here.
   ["D236 · the token is used for the reveal, the turn (D426), AND the three group notices",
     /revealed,\s*it is your\s+turn[\s\S]{0,160}?someone invited you[\s\S]{0,200}?asked to join[\s\S]{0,120}?approved/i],
+  // D-2026-09-12d · THE ROW THIS FILE'S HEADER PREDICTED. The page said
+  // for one day that following "is one-way — they are not asked and not
+  // notified" while the build shipped that morning pushed the follower's
+  // display name to the target on every follow. A promise left behind by
+  // a change three commits away, exactly as the header describes — and
+  // this gate was green throughout, because the sentence it was asked to
+  // find was still there. It could not have been otherwise: nothing named
+  // the follow notice, so nothing could notice it going or staying wrong.
+  //
+  // Two rows, not one. The first holds the page to SAYING the follow
+  // reaches them; the second holds it to the retired wording being gone,
+  // which is the half a re-edit would otherwise restore by accident (the
+  // same pair D175 and D441 needed after the same kind of day).
+  ["D-2026-09-12d · a follow reaches the other person, by notification, carrying your name",
+    /following someone[\s\S]{0,400}?notification carrying your display\s+name/i],
+  ["D-2026-09-12d · and the retired \"not asked and not notified\" wording is gone",
+    (src) => !/not asked and not\s+notified/i.test(src)],
   // One pattern, not an alternation. It shipped as
   // `/…from the first answer|no minimum, no delay/` and the gate's own
   // test caught it inside an hour: with two spellings of one claim, either

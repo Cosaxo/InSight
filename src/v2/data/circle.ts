@@ -475,8 +475,9 @@ export async function loadCircle(
     Promise.all(uids.map((u) => fetchAnswersOf(db, u).catch(() => null))),
     // null, NOT an empty set. An empty set is a real answer — "nobody
     // follows you back" — and swallowing the refusal into it is what let
-    // the Circle stop print "following is one-way, nobody is told" after a
-    // read it never got. This function's own docstring names that outcome
+    // the Circle stop print "nobody follows you back yet" (which then read
+    // "following is one-way, nobody is told", retired 2026-09-12 when it
+    // stopped being true) after a read it never got. This function's own docstring names that outcome
     // as the failure it exists to prevent; the paging cause was fixed and
     // the swallowed-error cause outlived it. Every sibling loader in the
     // store keeps the same distinction ("absent is 'we could not ask',

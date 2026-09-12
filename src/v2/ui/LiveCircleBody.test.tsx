@@ -144,7 +144,7 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     LIVE.follows = () => ["u_a", "u_b"];
     render(<LiveCircleBody />);
     expect(screen.getByText(/By likeness/)).toBeTruthy();
-    expect(screen.queryByText(/nobody is told/)).toBeNull();
+    expect(screen.queryByText(/follows you back yet/)).toBeNull();
   });
 
   it("…and does say it when the read landed and nobody does", () => {
@@ -154,7 +154,13 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     LIVE.circle = () => [placed("u_a"), placed("u_b")];
     LIVE.follows = () => ["u_a", "u_b"];
     render(<LiveCircleBody />);
-    expect(screen.getByText(/following is one-way, nobody is told/)).toBeTruthy();
+    expect(screen.getByText(/nobody follows you back yet/)).toBeTruthy();
+    // …and does NOT tell the reader nobody was told. That clause was here
+    // until 2026-09-12, when following began pushing your display name to
+    // the person you followed — a reassurance the app had stopped being
+    // able to make, on the screen where it is acted on.
+    expect(document.body.textContent, "the stop still says a follow reaches nobody")
+      .not.toMatch(/nobody is told/);
   });
 
   it("draws the rings and you when you follow nobody", () => {

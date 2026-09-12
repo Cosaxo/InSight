@@ -4,9 +4,16 @@
 // one-to-one connections aren't built yet". That was honest and it was
 // the right thing to ship while it was true; what made it stop being
 // true is not new plumbing but D98. Once every answer is readable, a
-// follow is a bookmark rather than a permission grant, so the whole
-// request/accept apparatus a friend graph normally needs simply is not
-// needed — see data/circle.ts.
+// follow grants no permission — that half stands, and it is why there is
+// no accept step gating what you can see.
+//
+// THE OTHER HALF STOPPED BEING TRUE ON 2026-09-12. This said the whole
+// request/accept apparatus "simply is not needed"; D-2026-09-12d made the
+// follow row the request and gave it a notification carrying your name
+// (onV2FollowCreated). Nothing about access changed — the person you
+// followed learns, they do not approve — but a sentence on this stop and
+// one on the privacy page were both still telling the reader nobody is
+// told. See data/circle.ts and data/friends.ts.
 //
 // WHAT IT DRAWS. The people you follow, ranked by how alike your answers
 // are, and under them the questions your circle is most divided on. Both
@@ -307,7 +314,13 @@ function LiveCircleBody() {
             {mutuals > 0
               ? <>By likeness · {mutuals} {mutuals === 1 ? "follows" : "follow"} you back</>
               : mutualsKnown
-              ? <>By likeness · following is one-way, nobody is told</>
+              /* "nobody is told" until 2026-09-12, when it stopped being
+                 true: a follow now pushes your display name to the person
+                 you followed, saying you want to compare answers
+                 (onV2FollowCreated). The reassurance went; the fact it was
+                 explaining — why there is no number here — is what the
+                 line was for, and it says that instead. */
+              ? <>By likeness · nobody follows you back yet</>
               : <>By likeness</>}
           </div>
         )}
