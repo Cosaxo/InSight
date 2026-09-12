@@ -662,13 +662,40 @@ service cloud.firestore {
 
       // The follow graph (D101) — the Mirror's Circle stop.
       //
-      // A follow is a BOOKMARK, not a permission grant, and that is the
-      // whole design. Since D98 every answer and profile is already
+      // A follow is a BOOKMARK, not a permission grant, and that half of
+      // the design stands. Since D98 every answer and profile is already
       // readable by any signed-in user, so following someone gives the
       // follower no access they did not have — which is why there is no
-      // request, no acceptance, and no notification to the followed
-      // account. One-way, like a subscription. Mutual follows are a
-      // reading the client derives, not a state the server keeps.
+      // acceptance step and no state the server keeps about a pair.
+      // Mutual follows are a reading the client derives.
+      //
+      // IT DOES NOTIFY NOW, and this paragraph said the opposite for a
+      // day. It read "which is why there is no request, no acceptance,
+      // and no notification to the followed account" — and that sentence
+      // is the written reason the grant below is as open as it is, so a
+      // maintainer weighing a cap, a mutual-only gate or a block list
+      // read it, concluded the row was inert, and priced the change
+      // against a system that no longer exists. D-2026-09-12d made the
+      // follow row the REQUEST: `onV2FollowCreated` pushes the follower's
+      // display name to the target on every create ("X wants to compare
+      // answers with you", or the acceptance body when it completes a
+      // pair). A delete fires nothing.
+      //
+      // WHAT THAT COSTS, stated here because this is where it would be
+      // weighed: create is shape-checked and nothing else, update is
+      // denied so a repeat follow is refused — but create → delete →
+      // create is allowed and each create pushes again. There is no
+      // cooldown, no dedupe in `sendPushToUids`, no block list and no
+      // per-target preference, and the fifty-follow ceiling the trigger's
+      // own comment leans on is the CLIENT's (src/v2/data/circle.ts), not
+      // this file's. So one free anonymous account can deliver an
+      // unbounded stream of named pushes to any uid it can name. The fix
+      // is a per-pair cooldown on the PUSH rather than a new bound on the
+      // row — the row is honest, the notification is what repeats — and
+      // it is not in this commit because it wants a collection of its
+      // own, with its rules row, its data-inventory line, its export
+      // entry and its erasure arm. Tracked; do not read the silence above
+      // as a finding that it is fine.
       //
       // READABLE BY ANYONE, and this is a judgement call rather than a
       // consequence of D98 (which published answers, not the social
