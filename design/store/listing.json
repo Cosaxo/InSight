@@ -3,7 +3,7 @@
     "Store listing copy, in the shape the two consoles ask for. Kept as data",
     "The App Store NAME is not the on-device name. What shows under the icon",
     "is CFBundleDisplayName (Info.plist) / appName (capacitor.config.ts) /",
-    "app_name (strings.xml), all of which say \"Doxa\" since D471. This field is",
+    "app_name (strings.xml), all of which say \"Doxa\" since D472. This field is",
     "the listing title only. Under the old name it read \"InSight: Daily",
     "Perspective\", because plain \"InSight\" was already taken on the App Store on",
     "2026-08-05 — a first-come reservation by another developer, not a trademark",

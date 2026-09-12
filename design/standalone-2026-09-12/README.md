@@ -31,7 +31,7 @@ and does not move: a name is not a vision.
   (24.7 KB) and latin-ext (10.8 KB), under the bundler's asset ids
   `ae63319f-…` and `d18569a3-…`.
 
-## What was built from it (D471, same commit)
+## What was built from it (D472, same commit)
 
 - `src/v2/spec/app-shell.jsx` — the lockup, with `.wm-serif` on the
   title; `src/v2/styles.css` — the face and the two rules, scoped with

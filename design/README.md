@@ -95,7 +95,7 @@ and seventeen were never uploaded here) carries one thing, the NAME:
 the app is **Doxa**, set in DM Serif Display with the x in the tab
 accent — recorded in `standalone-2026-09-12/` as the wordmark's rules
 and markup rather than as a module extraction, because that is all the
-upload changed, and built by D471 in the same commit. It does not move
+upload changed, and built by D472 in the same commit. It does not move
 the vision. Each
 directory README is its inventory; none re-points this file.
 

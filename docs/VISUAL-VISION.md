@@ -161,7 +161,7 @@ it is moving toward.
 | 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
 | 2026-09-08 | `design/rounds-card-2026-09-08/` | the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
 | 2026-09-08 | `design/standalone-2026-09-08/` | the group as a cast: role votes in packs, a rating every fourth round, the crown and the contested pair | `VISION-2026-09-08.md`, D434 |
-| 2026-09-12 | `design/standalone-2026-09-12/` | the name — Doxa, in DM Serif Display with the x in the tab accent. A wordmark, not a vision: the current vision above stays where it is | D471 |
+| 2026-09-12 | `design/standalone-2026-09-12/` | the name — Doxa, in DM Serif Display with the x in the tab accent. A wordmark, not a vision: the current vision above stays where it is | D472 |
 | **2026-09-09** | `design/standalone-2026-09-09/` | **the current vision** — how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab | `VISION-2026-09-09.md`, D436 |
 
 ## How the next one arrives

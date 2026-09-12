@@ -690,7 +690,7 @@ export function App() {
                   stranded the old icon's sienna. The wordmark span is
                   load-bearing: h-title is a flex row, and bare text here
                   would let the gap split "Do" from "xa". The wordmark is
-                  Doxa in DM Serif Display since D471 — the one serif in
+                  Doxa in DM Serif Display since D472 — the one serif in
                   the chrome, drawn by .wm-serif — and the x is the <em>,
                   so it takes the tab accent the way "Sight" did. */}
               <svg viewBox="0 0 100 100" width="21" height="21" aria-hidden="true">

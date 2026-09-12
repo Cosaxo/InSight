@@ -52330,7 +52330,7 @@ the release `VITE_FIREBASE_*` secrets, and `check:store-copy` wants the
 Play signing SHA-256, which is a placeholder because Play is deferred
 (D42). Both were run against a `main` worktree to confirm it.
 
-## D471 · The app is Doxa: the name changes, and nothing under it does
+## D472 · The app is Doxa: the name changes, and nothing under it does
 
 **2026-09-12.** **Status:** binding. The owner's call, in the naming
 session of this date and in these words: *"lets go with Doxa, do the

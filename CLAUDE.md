@@ -24,7 +24,7 @@ an ASK, not a stop (D334, below). The ratio in the next paragraph — the
 Mirror's modules outweighing the daily's and the feed's put together —
 is that focus measured, not an accident of what got built first.
 
-Doxa (InSight until D471, which changed the name and none of the
+Doxa (InSight until D472, which changed the name and none of the
 identifiers under it) ships v1 as a two-tab app (daily · mirror) **until the data can
 carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered

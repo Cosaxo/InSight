@@ -14,7 +14,7 @@
 /* vietnamese */
 /* latin-ext */
 /* latin */
-/* ── The wordmark (D471) ────────────────────────────────────────────────
+/* ── The wordmark (D472) ────────────────────────────────────────────────
    DM Serif Display, FOUR GLYPHS. The name is Doxa and the design
    (design/standalone-2026-09-12/) sets it in this face with the x in the
    tab accent — the one serif in the chrome, and the only place the face
@@ -442,7 +442,7 @@
    for plain text titles, which need no flex and must not inherit a gap. */
 .h-center .h-title { display: inline-flex; align-items: center; gap: 7px; }
 .h-center .h-title svg { display: block; flex: none; }
-/* The wordmark itself (D471): Doxa in the serif at 25px, tracked −0.01em,
+/* The wordmark itself (D472): Doxa in the serif at 25px, tracked −0.01em,
    400 in both the word and its accented x — the design's own values.
    Scoped with .h-center for the same reason as the lockup above: overlay
    headers reuse .h-title for plain text and must stay sans. */
