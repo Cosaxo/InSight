@@ -77,11 +77,15 @@
    HERE rather than inline, so check-tap-targets cannot see it: same
    class-sized case as .pm-chip / .wf-chip / .mmt-card-x, named so the next
    reader knows it was measured rather than missed. */
-.pt-topic{position:relative;flex:none;display:inline-flex;align-items:center;height:44px;border:1px solid var(--rule);border-radius:999px;background:var(--surface-2);color:var(--ink);padding:0 14px}
+/* A <button> since 2026-09-12 (it was a <label> with an invisible <select>
+   laid over it), so it needs the two resets a control brings with it:
+   `font:inherit` against the UA's form font, and no tap highlight. The
+   `>span` rule below still draws the label and its chevron — OptionMenu
+   renders that span as a direct child for exactly that reason. */
+.pt-topic{position:relative;flex:none;display:inline-flex;align-items:center;height:44px;border:1px solid var(--rule);border-radius:999px;background:var(--surface-2);color:var(--ink);padding:0 14px;font:inherit;cursor:pointer;-webkit-appearance:none;appearance:none}
 .pt-topic.is-on{border-color:var(--ink);background:var(--ink);color:var(--surface)}
 .pt-topic>span{font-size:12.5px;font-weight:600;white-space:nowrap;pointer-events:none;display:inline-flex;align-items:center;gap:6px}
 .pt-topic>span::after{content:"";width:5px;height:5px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-1.5px) rotate(45deg);opacity:.7}
-.pt-topic select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font:inherit}
 .pt-kick{font-size:12px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
 .pt-cat{display:inline-flex;align-items:center;font-size:12px;font-weight:750;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
 .pt-done{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 16px}

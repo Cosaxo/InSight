@@ -60,6 +60,9 @@
 import React from "react";
 import LIVE from "../data/live";
 import { pushBackLayer } from "../data/backLayers";
+// The app's own menu — a <select> would hand this screen's lists to the OS,
+// and this screen is the app's first impression (the owner, 2026-09-12).
+import OptionMenu from "./OptionMenu";
 import CityPicker from "./CityPicker";
 import { mergeProfileVitals } from "../data/cityAnchor";
 import { CITY_OK_LEAF } from "../data/cityConfirm";
@@ -104,22 +107,41 @@ const control: React.CSSProperties = {
  */
 const textField: React.CSSProperties = { ...control, fontSize: "var(--field-size)" };
 
-function PsSelect({ id, value, onChange, options, placeholder }: {
-  id: string; value: string; onChange: (v: string) => void;
+/**
+ * One asked field: its caption, and the app's own menu under it.
+ *
+ * This was a native <select> inside a <label htmlFor>, and both halves
+ * changed on 2026-09-12 for one reason each.
+ *
+ * THE MENU. A <select> gives the LIST to the OS, which draws it in the OS's
+ * vocabulary — and this is the FIRST screen after the sign-in gate, so the
+ * app's first impression was a platform sheet (the owner, on build 33:
+ * "these default menus dont fit the app we should make our own").
+ * ui/OptionMenu.tsx is that menu.
+ *
+ * THE CAPTION. A <span>, not a <label>, because OptionMenu renders a
+ * <button> and a <button> is a labelable element: a wrapping <label> wins
+ * the accessible-name computation and the chosen value stops reaching a
+ * screen reader at all. That is not a hypothetical — CityPicker.tsx carries
+ * an aria-label added to work around this exact wrapper on the profile's own
+ * City row. The caption is visual; the control names itself.
+ *
+ * `clearable`, unlike the Basics card's, because the placeholder here was a
+ * real <option value=""> and putting a field back to "prefer not to say by
+ * saying nothing" is a first-run screen's job. The Basics card refuses it on
+ * purpose — see its blank-anchors guard.
+ */
+function PsSelect({ title, value, onChange, options, placeholder }: {
+  title: string; value: string; onChange: (v: string) => void;
   options: string[]; placeholder: string;
 }) {
   return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} style={control}>
-      <option value="">{placeholder}</option>
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
-    </select>
+    <span style={label}>
+      {title}
+      <OptionMenu label={title} value={value} onChange={onChange} options={options}
+        placeholder={placeholder} clearable style={control} />
+    </span>
   );
-}
-
-function PsField({ id, title, children }: {
-  id: string; title: string; children: React.ReactNode;
-}) {
-  return <label style={label} htmlFor={id}>{title}{children}</label>;
 }
 
 interface Vitals { [k: string]: string }
@@ -164,7 +186,9 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
 
   // What the anchors WOULD be, so the screen can count them without
   // restating the mapping. Recomputed per render rather than tracked:
-  // it is a pure fold over eight <select>s.
+  // it is a pure fold over eight closed-vocabulary picks and the city.
+  // (It said "eight <select>s" until 2026-09-12, when they stopped being
+  // <select>s — the fold is the same one either way, which is the point.)
   const anchors: Record<string, string> = anchorsFrom(v);
   // The DERIVED keys do not count. `country` comes from the city,
   // `age`/`ageBand` both come from the birthday, and `jobField` (D328)
@@ -332,16 +356,23 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
             and none of them should ask again. The name is what a reveal
             calls you; the handle is how someone adds you to a circle. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, margin: "16px 0 0" }}>
-          <PsField id="ps-name" title="Your name">
+          {/* A real <label htmlFor> on the two TYPED fields, and a <span> on
+              the seven menus below, and the split is not inconsistency: an
+              <input> is the case labelling was designed for and the caption
+              is the only name it has. A <button> cannot afford one — see
+              PsSelect. Written out rather than wrapped in a helper because
+              the helper's `htmlFor={id}` was a pair check:labels could not
+              resolve once the <select>s beside it stopped taking an id. */}
+          <label style={label} htmlFor="ps-name">Your name
             <input id="ps-name" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="What friends see" maxLength={60} style={textField} />
-          </PsField>
-          <PsField id="ps-handle" title="Your handle">
+          </label>
+          <label style={label} htmlFor="ps-handle">Your handle
             <input id="ps-handle" value={handle}
               onChange={(e) => { setHandle(e.target.value); setHErr(null); }}
               placeholder="@yourname" autoCapitalize="none" autoCorrect="off" spellCheck={false}
               style={{ ...textField, fontFamily: "var(--mono, monospace)" }} />
-          </PsField>
+          </label>
           {/* A claim, not a caption: "picked once" is a thing the app will
               hold you to, and docs/COPY.md §3 keeps those at full strength
               however short the rest gets. */}
@@ -370,15 +401,9 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
               is what the Basics card asks, and one vocabulary means one
               set of values reaching the server. */}
           <div style={{ display: "grid", gridTemplateColumns: "0.9fr 1.5fr 1.1fr", gap: 8 }}>
-            <PsField id="ps-bornD" title="Day">
-              <PsSelect id="ps-bornD" value={v.bornD || ""} onChange={(x) => set("bornD", x)} options={DAYS} placeholder="—" />
-            </PsField>
-            <PsField id="ps-bornM" title="Month">
-              <PsSelect id="ps-bornM" value={v.bornM || ""} onChange={(x) => set("bornM", x)} options={MONTHS} placeholder="—" />
-            </PsField>
-            <PsField id="ps-born" title="Year">
-              <PsSelect id="ps-born" value={v.born || ""} onChange={(x) => set("born", x)} options={YEARS} placeholder="—" />
-            </PsField>
+            <PsSelect title="Day" value={v.bornD || ""} onChange={(x) => set("bornD", x)} options={DAYS} placeholder="—" />
+            <PsSelect title="Month" value={v.bornM || ""} onChange={(x) => set("bornM", x)} options={MONTHS} placeholder="—" />
+            <PsSelect title="Year" value={v.born || ""} onChange={(x) => set("born", x)} options={YEARS} placeholder="—" />
           </div>
           {/* Said out loud, because a birthday field on a first-run screen
               is the one people are right to be suspicious of.
@@ -393,9 +418,7 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
             The date stays on this phone.
           </span>
 
-          <PsField id="ps-gender" title="Gender">
-            <PsSelect id="ps-gender" value={v.gender || ""} onChange={(x) => set("gender", x)} options={GENDER_OPTS} placeholder="—" />
-          </PsField>
+          <PsSelect title="Gender" value={v.gender || ""} onChange={(x) => set("gender", x)} options={GENDER_OPTS} placeholder="—" />
 
           {/* The catalogue picker (D9), not a text field: free text mints a
               bucket per spelling and the country breakdown published
@@ -412,23 +435,15 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
               onChange={(x, ok) => { set("city", x); set(CITY_OK_LEAF, ok ? x : ""); }} />
           </div>
 
-          <PsField id="ps-education" title="Education">
-            <PsSelect id="ps-education" value={v.education || ""} onChange={(x) => set("education", x)} options={EDU_OPTS} placeholder="Level…" />
-          </PsField>
+          <PsSelect title="Education" value={v.education || ""} onChange={(x) => set("education", x)} options={EDU_OPTS} placeholder="Level…" />
           {/* Profession is deliberately NOT a breakdown dim (D8) — as free
               text every spelling would mint a bucket forever — but it is
               an anchor, and the Map's centre ring reads it. */}
-          <PsField id="ps-job" title="Work">
-            <PsSelect id="ps-job" value={v.job || ""} onChange={(x) => set("job", x)} options={JOB_OPTS} placeholder="Field…" />
-          </PsField>
-          <PsField id="ps-relationship" title="Relationship">
-            <PsSelect id="ps-relationship" value={v.relationship || ""} onChange={(x) => set("relationship", x)} options={REL_OPTS} placeholder="—" />
-          </PsField>
+          <PsSelect title="Work" value={v.job || ""} onChange={(x) => set("job", x)} options={JOB_OPTS} placeholder="Field…" />
+          <PsSelect title="Relationship" value={v.relationship || ""} onChange={(x) => set("relationship", x)} options={REL_OPTS} placeholder="—" />
           {/* A band select, never a centimetre field (D140) — coarse by
               construction, the same posture locate.ts takes. */}
-          <PsField id="ps-heightBand" title="Height">
-            <PsSelect id="ps-heightBand" value={v.heightBand || ""} onChange={(x) => set("heightBand", x)} options={HEIGHT_OPTS} placeholder="—" />
-          </PsField>
+          <PsSelect title="Height" value={v.heightBand || ""} onChange={(x) => set("heightBand", x)} options={HEIGHT_OPTS} placeholder="—" />
         </div>
 
         {/* NOT ONE OF THE SEVEN, and deliberately outside the grid and

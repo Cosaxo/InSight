@@ -53,6 +53,8 @@ import PATTERNS, { ensureLive } from "../data/patterns";
 import PatternsMap from "./PatternsMap";
 import PatternsOracle from "./PatternsOracle";
 import PatternsPeople, { type PeoplePop } from "./PatternsPeople";
+// The app's own menu, where the pill used to wear an invisible <select>.
+import OptionMenu from "./OptionMenu";
 import { countryOf } from "../data/peopleMap";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
 import { WORLD_TOPICS } from "../spec/world-feed-topics.js";
@@ -443,12 +445,19 @@ export default function PatternsTab({ lens: lensProp, onLens, ruler = false, onD
             aria-expanded={guide} aria-label="Legend"
             onClick={() => setGuide((g) => !g)}>i</button>
           {lens === "map" ? (
-            <label className={"pt-topic" + (topic !== "all" ? " is-on" : "")}>
-              <span>{(chips.find((c) => c.id === topic) ?? chips[0]).label}</span>
-              <select value={topic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
-                {chips.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-              </select>
-            </label>
+            /* The pill was a <label> with an invisible <select> stretched
+               over it — the app drawing the control and the OS drawing the
+               list, which is the split the owner named on 2026-09-12. The
+               pill is unchanged; only the list moved in-house. `chevron`
+               off because `.pt-topic > span::after` already draws one, and
+               the label span stays a DIRECT child so that rule still
+               matches. */
+            <OptionMenu
+              className={"pt-topic" + (topic !== "all" ? " is-on" : "")}
+              label="Topic" chevron={false}
+              value={topic} onChange={setTopic}
+              options={chips.map((p) => ({ value: p.id, label: p.label }))}
+            />
           ) : lens === "people" ? (
             <div className="pt-pops h-scroll" role="tablist" aria-label="Population">
               {pops.map((p) => (

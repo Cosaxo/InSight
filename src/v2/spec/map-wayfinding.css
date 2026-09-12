@@ -17,8 +17,18 @@
 .mmt-find-back, .mmt-find-field, .mmt-findf { height: 36px; border: 1px solid var(--rule); background: var(--surface-2); box-shadow: var(--shadow-card); }
 .mmt-find-back { flex: none; position: relative; width: 36px; border-radius: 50%; color: var(--ink-2); font-size: 22px; line-height: 1; padding: 0 0 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .mmt-find-back::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
-.mmt-find-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; border-radius: 999px; color: var(--ink-3); transition: border-color 0.16s ease; }
-.mmt-find-field:focus-within { border-color: var(--ink-3); }
+.mmt-find-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; border-radius: 999px; color: var(--ink-3); transition: border-color 0.16s ease, box-shadow 0.16s ease; }
+/* The app's ONE focused-field look, `.search-field:focus-within`'s (accent
+   edge, 3px accent halo) — this said `border-color: var(--ink-3)`, a grey
+   one shade off the resting grey, which is why the only thing that read as
+   focus here was the platform ring styles.css now clears off the input.
+   --shadow-card is restated because the shared rule above sets it: a
+   box-shadow declaration replaces, it does not add, so the field lost its
+   lift the moment it took focus. */
+.mmt-find-field:focus-within {
+  border-color: color-mix(in oklch, var(--accent) 55%, var(--rule));
+  box-shadow: var(--shadow-card), 0 0 0 3px color-mix(in oklch, var(--accent) 13%, transparent);
+}
 /* var(--field-size), never a literal: the 16px floor that stops iOS zooming
    the whole app on focus (check:touch-zoom) */
 .mmt-find-field input { flex: 1; min-width: 0; border: none; background: none; outline: none; font-family: var(--sans); font-size: var(--field-size); color: var(--ink); padding: 0; -webkit-appearance: none; appearance: none; }

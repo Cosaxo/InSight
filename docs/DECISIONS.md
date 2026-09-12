@@ -54837,3 +54837,144 @@ it into the bank is that the corpus could then be held to it forever; the
 argument against is that it is schema for a guard a human merge already
 provides, on a lane that merges by hand by construction. Recorded so the
 second reader knows it was weighed rather than missed.
+
+## D482 · The app draws its own menus, and the field's focus ring was the platform's
+
+**2026-09-12.** **Status:** binding. Replaces every native `<select>` in
+the tree with `src/v2/ui/OptionMenu.tsx`. Does not amend D352 — §1 below
+is the argument that it does not reach this.
+
+> *"these default menus dont fit the app we should make our own and this
+> searchfield looks wierd"*
+
+Three screenshots from a device, build 33: the profile's Basics card with
+the Education menu open, the same card with Job open, and the Map's Find
+field with the keyboard up. Two different faults, one sentence each.
+
+### 1 · The menus, and why this is not a visual request
+
+A `<select>` draws its own field and gives the **list** away. On iOS that
+list comes back as a dark translucent sheet in the OS's type scale over a
+warm paper app — and in the first screenshot it has ticked `Level…`, the
+`disabled` placeholder, as though that were the education somebody chose.
+Nothing in `styles.css` reaches inside it: not the font, not the ground,
+not the radius. So the one screen where the app asks who you are was the
+one screen that looked like somebody else's.
+
+`ui/OptionMenu.tsx` is the app's own: a `<button role="combobox">` styled
+by whatever the caller already styled its field with, and a
+`role="listbox"` panel anchored under it. Three call sites, which is every
+`<select>` that existed — the Basics card (8 fields), the account-setup
+sheet (7), and the patterns tab's topic pill.
+
+**D352 says a new overlay or visual language is a request in
+`VISUAL-REQUESTS.md` before it is a build, and a control added to a
+surface that exists is not.** This is the second, and the test is not a
+reading of the words — it is that **no measurement here is new**. The
+panel is `CityPicker.tsx`'s shipped listbox one control over: the same
+`--surface-2` ground on a `--rule` hairline, the same radius and lift, the
+same anchored placement under the field, the same `role="option"` rows
+walked by `aria-activedescendant`. The rows the profile already had are
+the rows it has now. If the owner wants a menu that is *designed* — one
+that does not look like the city picker — that is a row in
+`VISUAL-REQUESTS.md` and this is not it.
+
+### 2 · What the platform was giving away for free
+
+A `<select>` is correct for nothing and free, which is the trap: the
+replacement owes back keyboard walking, type-ahead, a value announced
+apart from its name, and an Escape that does not also dismiss the dialog
+behind it. `tsc`, eslint and `check:globals` are all green on a menu that
+has none of them, so `OptionMenu.test.tsx` is where each one is held.
+Three of its cases pin a decision rather than a behaviour:
+
+- **The accessible name is the FIELD's, never the value's.** A name that
+  folded the value in would rename the control on every edit — "Education"
+  could not be found twice running by a test, or by a voice-control user
+  saying it. The value lives in the button's contents, which is where a
+  combobox's value is read from.
+- **The placeholder is not a row unless the caller asks.** `GeneralPanel`'s
+  blank-anchors guard gives, as its stated reason, that every Basics field
+  "offers no path back to it" — that guard is what stops a mount race
+  writing an all-empty anchor map over a real account, and it would have
+  been quietly falsified by a menu that offered `—` as a choice.
+  `clearable` defaults to false; the setup sheet, whose placeholder was a
+  real `<option value="">`, opts in.
+- **Escape is swallowed.** The enclosing overlay is a dialog whose own
+  Escape closes it (`primitives.jsx` `useDialog`), and the menu renders
+  through a PORTAL — React propagates the synthetic event up the component
+  tree regardless, so one press would otherwise throw away the whole
+  profile edit. The case renders the real `useDialog`, not a stand-in.
+
+**The `<label>` had to go, and that is the same bug the city row already
+carries a workaround for.** `OptionMenu` renders a `<button>`, a
+`<button>` is a labelable element, so a wrapping `<label htmlFor>` WINS
+the accessible-name computation and the chosen value stops reaching a
+screen reader. `CityPicker.tsx` carries an `aria-label` added for exactly
+this, on this exact card. Every converted caption is a `<span>` now and
+the control names itself; the two TYPED fields on the setup sheet keep
+their real `<label htmlFor>`, because an `<input>` is the case labelling
+was designed for.
+
+The `useId` prefix went with them. It existed to keep eight `htmlFor`/`id`
+pairs unique, and `check:labels` cannot see an id nothing points at — so
+left in place it would have read as an association forever.
+
+### 3 · The field that "looks wierd" — `:focus-visible` is not keyboard-only
+
+The Map's Find field had a 2px accent **rectangle**, offset 2px, drawn
+inside its own rounded pill. That is `styles.css`'s own rule:
+
+```css
+.app :focus-visible { outline: 2px solid …var(--accent)…; outline-offset: 2px; }
+```
+
+written under the heading *"One accent ring, keyboard-only"* — and the
+heading is wrong about text fields. `:focus-visible` matches whenever an
+element that expects keyboard input takes focus, **tap included**. The
+line directly under that block already knew it: `.search-field
+input:focus-visible { outline: none }` exists because the search overlay
+hit this first. Nothing generalised it, so the Map's field shipped with
+the platform's box inside the app's pill.
+
+Two lines. The input joins that exemption, and `.mmt-find-field`'s own
+`:focus-within` becomes the app's one focused-field look — the accent edge
+and 3px halo `.search-field` already wears, instead of
+`border-color: var(--ink-3)`, a grey one shade off the resting grey. It
+restates `var(--shadow-card)`, because a `box-shadow` declaration replaces
+rather than adds and the field lost its lift the moment it took focus.
+
+### 4 · The arithmetic: 47 bytes, and why the sheet is co-located
+
+`MAX_BLOCKING_CSS_KB` is the number `check:bundle` calls *"tight on
+purpose"*. The menu's rules in `styles.css` measured **74.2 KB** against a
+74 KB ceiling — over by a tenth of a kilobyte, and the temptation the
+gate's own header names twice is to raise it.
+
+Every caller is behind a lazy import (the profile overlay, the setup
+chunk, the patterns tab), so the rules moved to `ui/optionMenu.css`
+imported by the component: 1.1 KB in its own chunk, blocking sheet back to
+**73 KB**, entry preloads unchanged at 41. `patterns.css` and
+`map-wayfinding.css` are the same split for the same reason.
+
+**`MAX_CSS_KB` was NOT raised, and the number to know is 47.** Total
+stylesheet weight is 94.954 KB against a 95 KB ceiling — 47 bytes of
+headroom, consumed by this change. It passes, so raising it here would be
+moving a ceiling nothing has hit; but the next commit that adds a rule
+anywhere will hit it, and the note it writes should know that these bytes
+are what it is paying for.
+
+### 5 · What is not built
+
+**No flip test.** `place()` opens the menu upward when there is less than
+168px under the field, and no case covers it: jsdom measures every box at
+zero, so `getBoundingClientRect()` cannot express the situation at all —
+the same blindness `check:touch-zoom`'s header records about
+stylesheet-driven sizes. The arithmetic is pure and inline; what a test
+here would assert is that jsdom returns zeros. Recorded rather than
+faked.
+
+**No search inside the menu.** The longest list is `YEARS`, and type-ahead
+plus a list centred on the current value covers it — a field is one letter
+from `1994`. A menu that needed a search field would be `CityPicker`,
+which is already that and already separate.

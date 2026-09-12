@@ -16,6 +16,10 @@ import { LOGIC } from './logic-test.jsx';
 import { MirrorFieldBody } from './mirror-field-pops.jsx';
 import { LENSES } from './lens-defs.js';
 import CityPicker from '../ui/CityPicker';
+// The app's own menu, where a native <select> used to hand the list to the
+// OS (the owner, 2026-09-12). Not lazy: the Basics card is the first thing
+// this panel draws, and the profile is one tap from first paint.
+import OptionMenu from '../ui/OptionMenu.tsx';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 // Where each instrument currently stands, as a colour and a two-tone split
@@ -63,7 +67,7 @@ import {
 // ─────────────────────────────────────────────────────────────
 const EXPORTS = {};
 (function () {
-  const { useState, useEffect, useRef, useId } = React;
+  const { useState, useEffect, useRef } = React;
 
   // Imported rather than restated: data/cityAnchor.ts writes vitals.city
   // into this same blob from the Mirror's needs-a-city empty state, and a
@@ -244,32 +248,38 @@ const EXPORTS = {};
   };
 
 
-  // `id` is threaded down to the native <select> so the caller's <label> can
-  // point at it with htmlFor. Nesting the control inside the label is valid
-  // implicit association on its own, but only to something that can see
-  // through this component — jsx-a11y cannot, and neither can a reader of the
-  // call site. The explicit pair states the association where both can check
-  // it, and survives the control moving out of the label.
-  function Select({ id, value, onChange, options, placeholder = 'Choose…' }) {
-    const [foc, setFoc] = useState(false);
+  // The field, drawn by the app rather than by the OS (ui/OptionMenu.tsx).
+  //
+  // This was a native <select> with a `disabled` placeholder and a chevron
+  // absolutely positioned over its right padding, and it drew the FIELD
+  // correctly — it was the LIST that belonged to somebody else. The owner,
+  // 2026-09-12, on build 33: "these default menus dont fit the app we should
+  // make our own." OptionMenu is that menu; everything below is the same
+  // field styling handed to a <button> instead.
+  //
+  // No `placeholder` default here any more: the Basics selects each pass
+  // their own ("—", "Field…", "Level…"), and a "Choose…" that no call site
+  // asked for was a fourth vocabulary nobody would see.
+  //
+  // `clearable` is deliberately NOT passed, and GeneralPanel's blank-anchors
+  // guard is the reason: its comment states that "every Basics select opens
+  // on a `disabled` placeholder and offers no path back to it", which is what
+  // makes an all-empty anchor map always accidental. OptionMenu defaults to
+  // the same refusal; the account-setup sheet is the one that opts in.
+  function Select({ id, label, value, onChange, options, placeholder }) {
     return (
-      <span style={{ position: 'relative', display: 'block', minWidth: 0 }}>
-        <select id={id} value={value} onChange={onChange} onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
-          style={{
-            ...inputBase, fontSize: 15, padding: '8px 30px 8px 11px', cursor: 'pointer',
-            fontWeight: 400, textTransform: 'none', letterSpacing: 'normal',
-            color: value ? 'var(--ink)' : 'var(--ink-3)',
-            borderColor: foc ? 'var(--accent)' : 'var(--rule)',
-            boxShadow: foc ? '0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent)' : 'none',
-          }}>
-          <option value="" disabled>{placeholder}</option>
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-          style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </span>
+      <OptionMenu
+        id={id}
+        label={label}
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder={placeholder}
+        style={{
+          ...inputBase, fontSize: 15, padding: '8px 11px',
+          fontWeight: 400, textTransform: 'none', letterSpacing: 'normal',
+        }}
+      />
     );
   }
 
@@ -329,10 +339,12 @@ const EXPORTS = {};
   // ── Basics (vitals) ──
   function BasicsCard({ data, set }) {
     const [editing, setEditing] = useState(false);
-    // One prefix per mounted card, so the ids stay unique if this ever
-    // renders twice on a screen. Suffixes are field names rather than
-    // indexes — a reordered grid must not silently re-point a label.
-    const uid = useId();
+    // The `useId` prefix left with the <select>s (2026-09-12). It existed to
+    // keep eight htmlFor/id pairs unique across two mounted cards, and the
+    // pairs are gone: OptionMenu names itself with aria-label, because a
+    // <label> wrapping a <button> would take that name away from it. An id
+    // nothing points at is one check:labels deliberately cannot see, so it
+    // would have sat here reading as an association forever.
     const v = data.vitals;
     const upd = (k, val) => set(d => ({ ...d, vitals: { ...d.vitals, [k]: val } }));
     // The city and its confirmation move as ONE write (D205). Two `upd`
@@ -358,16 +370,24 @@ const EXPORTS = {};
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.4fr 1.1fr 0.7fr', gap: 8 }}>
-              <label style={fieldLabel} htmlFor={`${uid}-bornD`}>Day<Select id={`${uid}-bornD`} value={DAYS.includes(v.bornD) ? v.bornD : ''} onChange={e => setPart('bornD', e.target.value)} options={DAYS} placeholder="—" /></label>
-              <label style={fieldLabel} htmlFor={`${uid}-bornM`}>Month<Select id={`${uid}-bornM`} value={MONTHS.includes(v.bornM) ? v.bornM : ''} onChange={e => setPart('bornM', e.target.value)} options={MONTHS} placeholder="—" /></label>
-              <label style={fieldLabel} htmlFor={`${uid}-born`}>Year<Select id={`${uid}-born`} value={YEARS.includes(v.born) ? v.born : ''} onChange={e => setPart('born', e.target.value)} options={YEARS} placeholder="—" /></label>
+              {/* <span>, not <label>, and the City row two comments down is
+                  the reason: OptionMenu renders a <button>, a <button> is a
+                  labelable element, so a wrapping <label> WINS the
+                  accessible-name computation and the chosen value stops
+                  reaching a screen reader. That already happened once on this
+                  card, to the city. The caption is visual; the control names
+                  itself through `label`, which stays the FIELD's name so it
+                  does not rename itself on every edit. */}
+              <span style={fieldLabel}>Day<Select label="Day" value={DAYS.includes(v.bornD) ? v.bornD : ''} onChange={x => setPart('bornD', x)} options={DAYS} placeholder="—" /></span>
+              <span style={fieldLabel}>Month<Select label="Month" value={MONTHS.includes(v.bornM) ? v.bornM : ''} onChange={x => setPart('bornM', x)} options={MONTHS} placeholder="—" /></span>
+              <span style={fieldLabel}>Year<Select label="Year" value={YEARS.includes(v.born) ? v.born : ''} onChange={x => setPart('born', x)} options={YEARS} placeholder="—" /></span>
               <span style={fieldLabel}>Age<span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{age || '—'}</span></span>
             </div>
-            <label style={fieldLabel} htmlFor={`${uid}-job`}>Job<Select id={`${uid}-job`} value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-education`}>Education<Select id={`${uid}-education`} value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-gender`}>Gender<Select id={`${uid}-gender`} value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-heightBand`}>Height<Select id={`${uid}-heightBand`} value={HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : ''} onChange={e => upd('heightBand', e.target.value)} options={HEIGHT_OPTS} placeholder="—" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-relationship`}>Relationship<Select id={`${uid}-relationship`} value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
+            <span style={fieldLabel}>Job<Select label="Job" value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={x => upd('job', x)} options={JOB_OPTS} placeholder="Field…" /></span>
+            <span style={fieldLabel}>Education<Select label="Education" value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={x => upd('education', x)} options={EDU_OPTS} placeholder="Level…" /></span>
+            <span style={fieldLabel}>Gender<Select label="Gender" value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={x => upd('gender', x)} options={GENDER_OPTS} placeholder="—" /></span>
+            <span style={fieldLabel}>Height<Select label="Height" value={HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : ''} onChange={x => upd('heightBand', x)} options={HEIGHT_OPTS} placeholder="—" /></span>
+            <span style={fieldLabel}>Relationship<Select label="Relationship" value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={x => upd('relationship', x)} options={REL_OPTS} placeholder="—" /></span>
             {/* One picker, not two free-text boxes (D9). Country is derived
                 from the chosen city rather than typed: as free text it was
                 minting a bucket per spelling ("Norway"/"norway"/"NO"), each

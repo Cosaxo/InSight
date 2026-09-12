@@ -1,0 +1,65 @@
+/* optionMenu.css — the app's own menu, where a native <select> used to hand
+   the list to the OS (ui/OptionMenu.tsx; the owner, 2026-09-12).
+
+   ITS OWN SHEET, NOT styles.css, and the reason is a measured one:
+   MAX_BLOCKING_CSS_KB is the number check:bundle calls "tight on purpose",
+   and these ~2.7 KB put the entry sheet one tenth of a kilobyte over it.
+   Every caller is behind a lazy import — the profile overlay, the
+   account-setup chunk, the patterns tab — so imported from the component
+   the bytes ride those chunks and the render-blocking number does not move.
+   `patterns.css` and `map-wayfinding.css` are the same split, made for the
+   same reason.
+
+   The look is not new: the panel is CityPicker's shipped listbox — same
+   ground, same hairline, same lift, same anchored placement — applied to
+   the fields the profile already had. See the component's header for why
+   that matters (D352: a new visual language is a design request; a control
+   on a surface that exists is not).
+
+   The layer is portaled to <body>, so it sits OUTSIDE `.app` and `.overlay`
+   and inherits neither: every token here has to be one `:root` defines, and
+   the z-index has to beat the tallest thing in the root stacking context
+   (the account-setup sheet at 39, `.wf-scrim` at 40) rather than a
+   sibling's. */
+.om-layer {
+  position: fixed; inset: 0; z-index: 90;
+  background: color-mix(in oklch, var(--ink) 9%, transparent);
+  animation: omLayerIn 0.12s ease both;
+}
+.om-menu {
+  position: absolute; box-sizing: border-box;
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 5px; border-radius: 14px; outline: none;
+  background: var(--surface-2); border: 1px solid var(--rule);
+  box-shadow: var(--shadow-lift);
+  animation: omMenuIn 0.16s var(--ease-out) both;
+}
+/* 44px is the floor, not the drawn height: the row is the whole hit box, so
+   there is nothing for `.tap44` to grow and check:tap-targets has nothing
+   inline to read. Kept in CSS beside `.pm-chip` and `.wf-chip`, the two
+   cases that gate's header already names as class-sized. */
+.om-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 44px; box-sizing: border-box;
+  padding: 6px 12px; border: none; border-radius: 10px;
+  background: transparent; cursor: pointer; text-align: left;
+  font-family: var(--sans); font-size: 15px; font-weight: 550; color: var(--ink);
+  -webkit-appearance: none; appearance: none;
+}
+.om-row-t { flex: 1; min-width: 0; }
+/* The highlight IS the focus indicator: focus stays on the listbox and
+   aria-activedescendant names the row, so a ring on the panel would mark the
+   box while the user is moving inside it. Drawn only while the KEYBOARD owns
+   it (`kb` in the component) — a tap-opened menu that greys its first row is
+   claiming an answer nobody gave, which is what the platform menu did with
+   its ticked placeholder. The pointer gets :hover; the tick says what is
+   chosen. */
+.om-row.is-hi, .om-row:hover { background: var(--surface-3); }
+.om-row.is-on { font-weight: 750; }
+.om-row:active { background: color-mix(in oklch, var(--surface-3), var(--ink) 4%); }
+.om-tick { flex: none; font-size: 13px; font-weight: 800; color: var(--accent-ink); }
+@keyframes omLayerIn { from { opacity: 0; } }
+@keyframes omMenuIn { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) {
+  .om-layer, .om-menu { animation: none; }
+}

@@ -1245,8 +1245,19 @@ button.card:active,
 .h-dockstop:focus-visible { outline-offset: 1px; }
 .avatar-btn:focus-visible, .icon-btn:focus-visible { outline-offset: 3px; }
 /* fields whose wrapper already carries the focus state — the ring would draw a
-   second box inside the first */
-.search-field input:focus-visible { outline: none; }
+   second box inside the first.
+   THE SECOND LINE IS NOT COSMETIC HOUSEKEEPING, and it is why this comment
+   now names a rule rather than a file. `:focus-visible` is NOT keyboard-only
+   on a text field: the selector matches whenever an element that expects
+   keyboard input takes focus, tap included (CSS UI 4 — the same clause that
+   made the line above necessary). So every field wrapped in a pill got a
+   2px accent RECTANGLE, offset 2px, drawn inside its own rounded border —
+   which is what the owner was looking at on 2026-09-12 when the Map's Find
+   field "looks wierd" (build 33, the field open with the keyboard up).
+   The pattern is the fix: the wrapper carries the state, the input clears
+   its ring. Any new pill-shaped field belongs on this list. */
+.search-field input:focus-visible,
+.mmt-find-field input:focus-visible { outline: none; }
 
 /* 2 · Press fidelity. Every control here already has a hand-tuned :active
    scale; the platform's grey tap-flash was landing on top of it. And

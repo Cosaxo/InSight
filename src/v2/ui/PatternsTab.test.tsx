@@ -154,8 +154,14 @@ describe("the sub-row (the ⓘ and one control, 2026-09-06)", () => {
     expect(screen.queryByLabelText("What the map holds")).toBeNull();
     const info = screen.getByRole("button", { name: "Legend" });
     expect(info.getAttribute("aria-expanded")).toBe("false");
-    // and the topic filter is one control, not a row that scrolls
-    expect(screen.getByLabelText("Topic").tagName).toBe("SELECT");
+    // and the topic filter is one control, not a row that scrolls. It is the
+    // app's own menu since 2026-09-12 rather than a native <select>, so the
+    // claim is the ROLE: one collapsed combobox, no list on the row until it
+    // is asked for.
+    const topic = screen.getByLabelText("Topic");
+    expect(topic.getAttribute("role")).toBe("combobox");
+    expect(topic.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("listbox", { name: "Topic" })).toBeNull();
   });
 
   it("opens the open lens's legend, and remembers across a lens swap", async () => {

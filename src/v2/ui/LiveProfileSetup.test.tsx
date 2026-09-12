@@ -70,8 +70,24 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const pick = (labelText: string | RegExp, value: string) => {
-  fireEvent.change(screen.getByLabelText(labelText), { target: { value } });
+// The seven asked fields are the app's own menu since 2026-09-12
+// (ui/OptionMenu.tsx), not native <select>s, so there is no `change` to
+// fire and no `.options` in the DOM to read: a value is chosen the way a
+// finger chooses it — open the menu, tap the row. `rowsOf` is shared with
+// the vocabulary case below, which reads the same list instead of tapping it.
+const rowsOf = (labelText: string): HTMLElement[] => {
+  fireEvent.click(screen.getByLabelText(labelText));
+  const list = screen.getByRole("listbox", { name: labelText });
+  return Array.from(list.querySelectorAll<HTMLElement>('[role="option"]'));
+};
+// The ticked row carries a "\u2713" span beside its label, so the text is
+// the label plus the mark — match on the label.
+const rowText = (el: HTMLElement): string => (el.textContent || "").replace("\u2713", "");
+
+const pick = (labelText: string, value: string) => {
+  const row = rowsOf(labelText).filter((o) => rowText(o) === value)[0];
+  if (!row) throw new Error(`no "${value}" row in the ${labelText} menu`);
+  fireEvent.click(row);
 };
 const blob = () => JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null");
 
@@ -395,9 +411,20 @@ describe("it holds no vocabulary of its own", () => {
     // check:anchors reads profile-general.jsx, so a label that drifted
     // here would silently stop that level counting in the aggregate.
     render(<LiveProfileSetup onDone={onDone} />);
-    const opts = (name: string | RegExp) =>
-      Array.from((screen.getByLabelText(name) as HTMLSelectElement).options)
-        .map((o) => o.value).filter(Boolean);
+    // Read off the OPEN menu, because the rows only exist while it is open
+    // (ui/OptionMenu.tsx replaced the native <select> on 2026-09-12, so
+    // there is no `.options` collection sitting in the DOM to read). The
+    // first row is the placeholder — `clearable`, the way the <option
+    // value=""> before it was — and `filter(Boolean)` drops it exactly as
+    // it dropped that one.
+    const opts = (name: string) => {
+      const values = rowsOf(name).map(rowText);
+      fireEvent.keyDown(screen.getByRole("listbox", { name }), { key: "Escape" });
+      // Row 0 is the placeholder — `clearable`, exactly as the <option
+      // value=""> before it was — and this drops it the way `filter(Boolean)`
+      // used to drop that one.
+      return values.slice(1);
+    };
     expect(opts("Gender")).toEqual(["Woman", "Man", "Non-binary", "Prefer not to say"]);
     expect(opts("Height")).toContain("190 cm or taller");
     expect(opts("Education")).toContain("Vocational or trade");
