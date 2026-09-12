@@ -54198,9 +54198,54 @@ blind to `- run: |`, the commoner of the two spellings; both are pinned.
 `manual` in ORIENTATION's gate table, correctly — CI still runs these as
 separate steps, where per-step logs beat a summary.
 
+**A second pass, asked for after the first — and what it says about
+where the floor is.** The owner: *"could we reduce it a bit more"*. Of
+the 16 billed minutes left, **3.9 are pure rounding** (a job bills a whole
+minute however little it uses) and **3.2 are setup repeated across 8 jobs**
+— checkout, toolchain and `npm ci`, 27% of the 12.1 minutes of actual
+work, done eight times because eight runners each start empty.
+
+Rounding is what merging attacks, and only where the absorbed job FITS
+the host's slack. Computed rather than assumed, which killed half the
+candidates: `unit-tests` runs 194s and is billed 240, so folding
+`typecheck-build`'s 19 seconds of unique work into that unused 46 costs
+19 seconds of wall clock and saves a billed minute and a duplicated
+install. `android-build` + `native-sync-drift` **saves nothing** — that
+job has 3 seconds of slack. 17 → **~11.8 min/run, 31% off**, and the job
+keeps the NAME `unit-tests`, because a check name is what a
+branch-protection rule refers to.
+
+Merging naively would have been a regression, and the guard is the same
+one `check:all` is: steps stop a job at the first failure, so a bundle
+overage would hide a unit failure — one round trip per problem. Each half
+is `continue-on-error` with an id and a final step fails on either, which
+`scripts/workflow-outcome.test.mjs` independently requires: it refused the
+first draft because a step reading `steps.X.outcome` whose target lacks
+`continue-on-error` is SKIPPED exactly when that outcome is 'failure'. It
+also caught the draft writing `- id:` before `- name:`, which its splitter
+reads as no step at all. Both were this branch's deviations from the house
+shape, found by a gate rather than by review.
+
+**Two reductions refused, on the ground that they are the wrong trade.**
+Folding `functions-build` into `rules-tests` or `e2e` saves a billed
+minute on 83% of runs — but both live on `backend-checks.yml`, and adding
+~24s to the path an emergency rules fix takes is the wrong direction on
+the value that workflow exists for. And caching `node_modules` rather than
+`~/.npm` would save ~12s a job, except a cache hit skips `npm ci`'s
+postinstall — the one that strips the Facebook SDK out of the iOS build,
+which `check:ios-facebook` exists because of. Both are recorded as
+declined rather than missed.
+
+**Where the floor is.** Each further CI-level cut is now worth ~$10/month
+and costs either diagnostic independence or deploy latency. The 3.2
+minutes of repeated setup is the larger number and cannot be fixed from
+inside a workflow — a persistent machine already has the checkout, the
+toolchain and node_modules. That is the same answer as the deferral below,
+arrived at from the other side.
+
 **Deferred to the owner, with the arithmetic.** The trims do not solve
-the bill: ~12.6 min × ~50 runs/day is still ~18,900 min/month, about
-$135. What solves it is a self-hosted runner, where minutes are unmetered
+the bill: ~11.8 min × ~50 runs/day is still ~17,700 min/month, about
+$126. What solves it is a self-hosted runner, where minutes are unmetered
 — a PC, 8 cores and 16–32 GB, roughly $20–40/month against ~$200. The
 security objection to self-hosted runners is untrusted fork PRs, which
 going private removes, so private and self-hosted argue for each other.

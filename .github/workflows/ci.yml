@@ -49,8 +49,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
-      - id: classify
-        name: Classify the diff
+      - name: Classify the diff
+        id: classify
         # No ${{ }} in this body on purpose: D465's failure class is an
         # expression substituted inside a `run:` block, and the default
         # environment already carries everything this needs.
@@ -435,7 +435,28 @@ jobs:
       # gets noticed.
       - run: npm run check:devicebind
 
-  typecheck-build:
+  # THE UNIT SUITE AND THE SHIPPING BUILD ON ONE RUNNER — because a job
+  # bills a whole minute however little of it it uses, and these two were
+  # paying for three. Measured on run 34709793254: `unit-tests` ran 194s
+  # and was billed 240, so 46 seconds of that runner was paid for and
+  # unused, while `typecheck-build` spent 41s of which 22 was a checkout,
+  # a toolchain and an `npm ci` identical to this job's. Its unique work is
+  # 19 seconds. Folded into the slack already being paid for, that is one
+  # billed minute and one duplicated install removed for 19 seconds of
+  # wall clock.
+  #
+  # The job keeps the name `unit-tests` deliberately: a check name is what
+  # a branch-protection rule refers to, and renaming one silently turns a
+  # required check into a missing one.
+  #
+  # BOTH HALVES STILL REPORT, which is the point on which a naive merge
+  # would have been a regression. Steps stop a job at the first failure, so
+  # folding these together would mean a bundle overage hides a unit failure
+  # and a unit failure hides the bundle — one round trip per problem, which
+  # is exactly the cost `check:all` exists to remove. Each half is
+  # `continue-on-error` with an id, and a final step fails the job if either
+  # did, so the two stay as independent as separate jobs were.
+  unit-tests:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
@@ -489,7 +510,10 @@ jobs:
       # build-time throw stays as the belt on a real release build (verified
       # by hand — a production web build with a Firebase key and no site key
       # refuses; with the site key it builds).
-      - run: npm run build
+      - name: Build the shipping bundle
+        id: build
+        continue-on-error: true
+        run: npm run build
         env:
           VITE_SENTRY_DSN: https://ci@example.invalid/0
           VITE_V2_LIVE: "true"
@@ -503,20 +527,34 @@ jobs:
       # The variable used to be repeated here as an assertion that they
       # agreed; an assertion made of the same variable it was checking is
       # what let a demo bundle be graded as the shipping one.
-      - run: npm run check:bundle
-
-  unit-tests:
-    needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:unit
+      - name: Bundle budget
+        id: bundle
+        # Only meaningful if the build produced a dist/ to weigh. Skipped
+        # rather than run against a stale one, which would grade the
+        # previous commit's bundle and call it this one's.
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: npm run check:bundle
+      - name: Unit suite
+        id: unit
+        continue-on-error: true
+        run: npm run test:unit
+      # The gate the three `continue-on-error`s above would otherwise have
+      # removed. Named outcomes rather than a bare `failure()`, so a step
+      # added here without a verdict cannot quietly stop counting.
+      - name: Fail if the build, the budget or the suite failed
+        if: steps.build.outcome != 'success' || steps.bundle.outcome == 'failure' || steps.unit.outcome == 'failure'
+        # Through `env:`, not interpolated into the body — D465's failure
+        # class is a `${{ }}` substituted inside a `run:`, and the `changes`
+        # job above refuses it for the same reason. An `if:` is where the
+        # expression layer belongs.
+        env:
+          BUILD: ${{ steps.build.outcome }}
+          BUNDLE: ${{ steps.bundle.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+        run: |
+          echo "build=$BUILD bundle=$BUNDLE unit=$UNIT"
+          exit 1
 
   # Capacitor copies the web build and rewrites native config on sync. If
   # that output drifts from what is committed, the native shells are built
