@@ -51316,3 +51316,254 @@ it statically, while all ~30 of its uses are in methods that run long
 after first paint. Deferring it as D122's handles and invitations are
 deferred, one file over, is the next change to that graph — its own
 change, not a rider on a feature.
+
+
+## D465 · The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads
+
+**Found and fixed 2026-09-11**, from the owner's question about their own
+inbox — *"Should all these runs fail?"* — over four screenshots of
+`[Cosaxo/InSight] Run failed: .github/workflows/fireb…`. No. 33 of the 38
+failures in the window were one mistake, and the subject line was the
+whole diagnosis, unread: **a run named after a workflow's PATH is a run
+GitHub could not name**, because it could not parse the file that holds
+the name.
+
+### What broke
+
+D455's step (`0a8994a`, PR #498) wrote this as a shell comment inside its
+own `run:` body:
+
+```
+# THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+# is a textual substitution GitHub performs before bash sees
+```
+
+The sentence is true, and being true is what made it fatal. GitHub
+substitutes `${{ … }}` textually across the whole file before anything
+runs, `run:` bodies included — where a `#` is shell, not YAML, and GitHub
+has no idea it is looking at a comment. So prose ABOUT an expression was
+an expression; `${{ }}` is empty; empty is not parsable; the file failed
+to **load**.
+
+The identical sentence sits in `auth-config.yml` and in
+`play-release.yml` and is harmless in both, because in both it is a YAML
+comment — stripped before GitHub sees anything. Where the text sits is
+the entire difference between documentation and an outage.
+
+### Why a load failure is worse than a failing job
+
+It is not a red job. It is a run with no jobs at all, and every channel
+that would normally tell you what happened is inside the file that did
+not parse:
+
+- **No log.** Nothing executed; the logs endpoint 404s.
+- **No name.** `name:` is in that file, so all 33 runs were titled
+  `.github/workflows/firebase-deploy.yml`.
+- **No `on:` filter.** `branches: [main]` is in that file too, so it was
+  never applied: every push to **every** branch produced a failed run —
+  `nightb-20260912` (11), `night-20260912` (8),
+  `claude/compassionate-sagan-uuenlz` (6), `main` (2),
+  `claude/category-images-voting-specificity-vm3olr` (2),
+  `claude/epic-fermi-p14ur0` (2), `claude/sharp-heisenberg-n7kuas` (1),
+  `claude/project-review-em3c5r` (1). Eight branches, none of which this
+  workflow is supposed to run on at all.
+- **No deploy.** The last one ran 2026-09-11T18:01Z. Both pushes to
+  `main` after the break deployed nothing — including, precisely, the
+  commit that broke it. **D455's buy door has never reached production**,
+  and the step written to configure it is the step that stopped it.
+
+The spread is the tell, and it is worth keeping: a mistake that reds one
+branch is a bug in a job; a mistake that reds *every* branch at once is a
+mistake in what GitHub reads before it reads anything else. It was
+visible for 31 hours — from 2026-09-10T14:28Z on a feature branch — and
+read as ordinary CI noise the whole time, because at a glance that is
+exactly what it looks like.
+
+### Why none of the 51 gates saw it
+
+Every gate reads the repository. None asked whether GitHub can load a
+workflow, and each tool that could have spoken was looking one layer off:
+
+- **`check:deploy-targets` reads this exact file** and went green
+  throughout — it validated the `--only` list of a workflow that never
+  ran. A correct answer about a dead file.
+- **YAML parsers accept it.** The file is valid YAML; `${{ }}` is a
+  plain string to YAML, and the fault is in GitHub's expression layer
+  *above* it. So "it parses" was true and useless.
+- **eslint parses no YAML**, the same blind spot D454 recorded for HTML.
+
+The class is the one D179 and D197 are about — a checker that cannot fail
+— pointed at the workflows instead of the scripts.
+
+### The fix, and the guard
+
+The sentence moved to YAML-comment level inside the step's `env:` block,
+where `auth-config.yml` has kept it safely all along. The `run:` body now
+holds no `${{` at all, which is the property `auth-config.yml`'s own
+comment names as the goal: *"the next input added here is then safe by the
+shape of the step rather than by someone remembering."*
+
+`check-deploy-targets.mjs` gained the prior question, ahead of everything
+it already asks: **does this file load?** Two refusals, on the raw text —
+
+1. `${{` inside a shell comment in a `run:` body. Fatal empty or not, and
+   a non-empty one is *worse* than this bug: `${{ secrets.X }}` written
+   as an aside pastes the secret into the script.
+2. An empty `${{ }}` anywhere GitHub actually reads it.
+
+It walks the file rather than grepping it, because where the text sits is
+the whole question — and the first cut of the check proved the point by
+failing on its own explanation, the same trap the comment-stripping
+directly beneath it exists to avoid. Note the inversion: that strip must
+*not* happen up here, because not stripping is precisely what GitHub does
+inside a block scalar.
+
+### Where it runs, which is the only interesting part
+
+The refusals live once, in `scripts/workflow-expressions.mjs`, and two
+gates ask them. One copy on purpose: D197 is the record of a bank parser
+living in three, where the copy with a `try/catch` reported an invented
+figure instead of failing, and a scanner whose whole subject is *prose
+that looks like code* is the last thing to keep three versions of.
+
+**`check:deploy-targets` asks it of `firebase-deploy.yml`, on the deploy
+path.** That path's rule is that nothing which cannot speak to whether a
+rules fix is safe may block one — and this one file clears that bar the
+short way rather than by exemption: a `firebase-deploy.yml` that cannot
+load has *already* blocked every deploy, so failing early only ever
+pre-empts a worse outcome and can never stop a deploy that would
+otherwise have worked.
+
+**`check:workflows` asks it of all 25, in ci only** — first in the lint
+job, because it is the only gate there whose subject is that job's own
+kind. The other 24 do **not** clear the bar above, and that is the whole
+reason for the split rather than a wider first gate: a prose mistake in
+`ios-release.yml` must never stand between an emergency rules fix and
+production, which is the trade CLAUDE.md names at length and refuses. The
+overlap on `firebase-deploy.yml` is deliberate and costs nothing — a gate
+that carved out the one file another gate happens to cover would be one
+reorganisation away from covering nothing.
+
+It is **not** a workflow linter, and should not grow into one. It asks the
+single question whose failure is silent. A wrong `runs-on` or a bad action
+SHA fails loudly, in a job, with a log; this class fails with no job, no
+log, and a run named after the file's own path on every branch at once.
+`check:workflows` also refuses an empty workflow directory, because a
+scanner that reads nothing and reports success is the D179/D197 shape and
+this gate's own glob is the thing that could go stale.
+
+Proved by running, both directions: the restored bug fails at
+`firebase-deploy.yml:246` naming the run body; the fixed file passes with
+46 exported functions matched. Two new suites pin thirteen cases between them
+(`check-deploy-targets.test.mjs`, `check-workflows.test.mjs`), and in both
+the discriminating case is the same sentence as a YAML comment, which must
+PASS. One of them earned its place immediately: moving the scanner into
+its own module broke all six of the first suite's cases at once, because
+the fixture copied the gate and not its new import — so the fixture now
+carries a named dependency list, and a missing one fails as an import
+error rather than as a refusal under test.
+
+`test:scripts` 86 files / 1435 tests, `test:unit` 217 files / 3205 tests,
+`check:figures`, `check:docs` (52 gates now), `check:globals`,
+`check:public-copy`, `check:policy-claims` and eslint all green, plus
+`actionlint` clean across all 25 workflows.
+
+### The other five failures, since the question was about all of them
+
+Two are real and neither is this:
+
+- **Pulse** was failing on a true tripwire, and it is fixed here rather
+  than deferred, because the diagnosis turned out to be the same one:
+  **nothing was on the clock.** The usage guard (D332) prices the
+  population out of `monitoring/engagement.json`, and that file only ever
+  moved when a person ran `npm run scorecard -- --fetch` by hand. Measured
+  on 2026-09-11: the committed trail's newest day was **2026-08-25**, 17
+  days old, so the guard's 7-day window was averaging days that had every
+  one left it — `pulse.mjs`'s own words, "a confident pass while measuring
+  nothing". The gate had been reporting it correctly every morning, naming
+  the fix, to an inbox with nobody in it.
+
+  So the fetch went on the clock beside the check that reads it, in
+  `pulse.yml`. Three things made that cheap and one made it safe:
+  `question-scorecard.mjs` is Node stdlib plus global `fetch`, so the job
+  keeps its no-`npm ci` property (which that file's comment calls
+  load-bearing, not a speed trick — a console that says the ground moved
+  must not be able to fail because a registry did); the only input is the
+  PUBLIC web API key, since `v2_engagement_daily` is world-readable
+  anonymous counts; and the step is `continue-on-error`, so a failed fetch
+  leaves the trail as it was and the gate reports the staleness it was
+  always going to report. The signal degrades to today's behaviour and
+  never inverts.
+
+  **It commits `engagement.json` and not `content/scorecard.json`**, which
+  the same fetch writes. That file is the question farm's, and the farm
+  lane moved it on 2026-09-11 without touching this trail — so the two
+  already travel separately, and this job drops the side effect rather
+  than racing for it. `pulse.yml`'s "WHAT IT COMMITS" contract moved with
+  the code: the trail qualifies under that paragraph's own stated reason,
+  being the one output that is fetched and so the one thing regenerating
+  cannot recover. For the same reason the fetched file is re-applied
+  *inside* the commit loop, because the reset-and-regenerate retry
+  destroys it rather than recomputing it.
+
+  **And an existing gate caught this change being wrong**, which is worth
+  more than the change. `workflow-pipefail.test.mjs` refused a
+  `continue-on-error` step with no `id:` that nothing reads: a failed
+  fetch would have left a green run and an unmoved trail — this bug
+  wearing a green tick. The step now has an id and a readback, and the
+  readback earns its place twice over, because it answers what
+  `pulse.mjs` structurally cannot: a stale guard has two causes, the fetch
+  not running or `digestEngagementV2` stopping, and from the tree they are
+  indistinguishable, which is why the message names both. From inside the
+  job it is decidable, and the annotation says which.
+
+  **The refresh is ON THE CLOCK ONLY, and that condition is a cost
+  decision with arithmetic.** `pulse.yml` also runs on every push to
+  main, and that is the dominant trigger by a wide margin: of its last
+  100 runs on main, 95 were pushes and 5 were the cron — 13 · 10 · 34 ·
+  14 · 13 · 15 runs a day over 09-06…09-11, ~17/day average. The fetch
+  pages the WHOLE `v2_question_aggs` collection (~1,536 documents at
+  pageSize 300), so firing it per push is ~26,000 billed reads a day —
+  about $0.50/month at $0.06–0.072 per 100k — to refresh a trail whose
+  newest row is a DAY old by construction. Once a day is the same signal
+  at 1/17th of the bill, and the guard's own window is 7 days
+  (`MEASURE_MAX_AGE_DAYS`), so nothing downstream can tell the
+  difference. `workflow_dispatch` is included because that is the
+  operator's "refresh it now" — the lever the gate's own message asks
+  for, hand-pulled rather than looping. The first draft of this change
+  had no condition, and the owner asking for the cost to be
+  double-checked is what found it: the measurement was the fix.
+
+  **And the arithmetic on the failures themselves, since the flood is
+  what prompted the question: they cost nothing.** The repository is
+  PUBLIC, and every `runs-on` in the tree is a standard label
+  (`ubuntu-latest` ×31, `macos-latest` ×3 — no larger runners, which are
+  the one thing a public repo still bills), so GitHub-hosted minutes are
+  free and unmetered however many runs go red. The path-named deploy
+  failures are stronger than that: each created ZERO jobs and ran zero
+  seconds (the logs endpoint 404s), so they would bill nothing even on a
+  private repo. A failing Pulse run is ~15 seconds of a free runner and
+  `pulse.mjs` makes no network call at all, so it reads nothing either.
+  And the broken deploy DEPLOYED NOTHING, so the outage's Firebase cost
+  is zero by construction — the bill did not move for 31 hours because
+  nothing ran, which is the same fact as the outage.
+
+  What is NOT claimed: this has not been observed fetching. The key is a
+  production variable and the trail's 8 days are contiguous up to the last
+  fetch (`2026-08-18`…`2026-08-25`, `fetchedOn: 2026-08-26`), which is
+  good evidence the digest was healthy and the fetch alone stopped — but
+  the first scheduled run on `main` is what proves it, and if the guard
+  stays stale after a successful refresh then the second cause is live and
+  `digestEngagementV2` is the place to look.
+- **CI** failed once on `main` (#1305, `1b2477308`, D453's sign-in wall)
+  on `vote.test.ts`'s "a wake while offline does not retry", 1 of 3160.
+  The two `main` commits after it passed, and the full suite is green
+  here. Worth naming rather than filing as noise: D464 found that same
+  test failing one run in three on the Patterns branch from a getter spy
+  leaking across a worker's files — a different cause, since
+  `worldPeople.test.ts` did not exist in `1b2477308`'s tree. So the
+  `main` occurrence is unexplained, not explained-and-fixed, and a second
+  sighting should be read as a real defect in the negative assertion
+  rather than as the leak D464 closed.
+
+The remaining CI failures are on other lanes' PR branches and are theirs.
