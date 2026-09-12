@@ -264,7 +264,17 @@ function WhosHere({ qs, shortName, scope }: {
   const genderPcts = sharePcts(genderRows.map((r) => r.n));
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>Nobody has filled in an age or gender yet.</LlEmpty>;
+    // BEFORE THE NETWORK BOOT THIS CARD HAS READ NOTHING, and it makes the
+    // broadest demographic claim in the app — about everybody, on the
+    // World stop. The cells it folds come from the published aggregates,
+    // which are empty for the whole of a cold first launch and for the
+    // whole session on a live build whose boot never attaches (D356). The
+    // two readings beside it in this same lens already say "Matching…"
+    // and "Reading who answered…"; this one asserted an empty world. Same
+    // guard the cohort hero and the Scores lens close it with.
+    return <LlEmpty>{LIVE.attached
+      ? <>Nobody has filled in an age or gender yet.</>
+      : <>Reading who is here…</>}</LlEmpty>;
   }
 
   return (

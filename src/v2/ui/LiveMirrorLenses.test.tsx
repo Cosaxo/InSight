@@ -192,6 +192,29 @@ describe("the lens bodies · cost", () => {
     expect(container.textContent).toBe("");
   });
 
+  it("does not report an empty world before the boot has read one", () => {
+    // "Nobody has filled in an age or gender yet" is the broadest claim in
+    // the app and it was made off the published cells alone — which are
+    // empty for the whole of a cold first launch, and for the whole
+    // session on a live build whose boot never attaches. The two readings
+    // beside it in the same lens already said "Matching…" and "Reading who
+    // answered…" while this one concluded.
+    LIVE.attached = false;
+    try {
+      mount("people", []);
+      expect(screen.getByText(/Reading who is here/)).toBeTruthy();
+      expect(screen.queryByText(/Nobody has filled in an age or gender yet/),
+        "a device that had not looked reported an empty world").toBeNull();
+    } finally {
+      LIVE.attached = true;
+    }
+  });
+
+  it("…and DOES say it once the boot has landed — the control", () => {
+    mount("people", []);
+    expect(screen.getByText(/Nobody has filled in an age or gender yet/)).toBeTruthy();
+  });
+
   it("Kindred says PAUSED under the read breaker, not 'fills in as you answer' (D332)", () => {
     // The refused fetch cannot fill anything in, however much is answered
     // — the promise would be false the moment it rendered.
