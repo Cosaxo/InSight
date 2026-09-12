@@ -54,6 +54,11 @@ const h = vi.hoisted(() => ({
   // per-test knobs (reset in beforeEach)
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
+  // Every collection read the store issues, counted. It exists for the
+  // offline-wake case below, which needs to assert that a wake made NO
+  // network attempt — a fact about what did not happen, which elapsed
+  // time cannot establish and a counter can.
+  getDocsCalls: 0,
   // Single-document reads, by path. Only `learnAnswer`'s re-read uses one
   // (D125/D157) and it is the whole race: the answer is written, this doc
   // is fetched, and whether it already counts the answer decides whether
@@ -274,6 +279,9 @@ vi.mock("firebase/firestore", () => {
         : { exists: () => false, get: () => undefined, data: () => ({}) });
     },
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
+      // Counted BEFORE the failure knob, so a refused read still counts as
+      // an attempt — which is the whole point for the offline-wake case.
+      h.getDocsCalls += 1;
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
       if (q?.path === "v2_questions") {
@@ -539,6 +547,7 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.setDocImpl = null;
   h.getDocsImpl = null;
+  h.getDocsCalls = 0;
   h.getDocImpl = null;
   h.aggDocs.length = 0;
   h.authCb = null;
@@ -1931,16 +1940,54 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
+    // THE NETWORK STAYS BROKEN, and that is the fix rather than an
+    // oversight. This case used to restore `getDocsImpl = null` here and
+    // then assert `enabled` was still false after three flushes — which
+    // asked elapsed real time to prove a negative, against the very
+    // in-flight boot the comment above this block warns about. `bootHasFailed`
+    // narrowed that window and did not close it: the boot's own catch had
+    // run, but work it had already started had not, so on a loaded runner
+    // something downstream of it could still land on a working network and
+    // enable the store with no wake involved. It failed about once in
+    // seven on CI, on `main` and on branches whose diffs could not reach
+    // `live.ts`, and cost a re-run each time.
+    //
+    // Leaving the network broken removes the confound entirely: nothing
+    // reachable from here can enable the store, so whatever else is in
+    // flight, the assertion below is about the wake and only the wake.
     vi.stubGlobal("navigator", { onLine: false });
-    h.getDocsImpl = null;
+    const readsBefore = h.getDocsCalls;
     listeners.window.online();
-    // Asserting a negative: give the mocked path (all microtasks) several
-    // full turns, so a wake that DID fire would have finished and flipped
-    // enabled before we look.
     await flush();
     await flush();
     await flush();
+    // THE ASSERTION IS THE READ COUNT, not the flag. `wake()` returns on
+    // `navigator.onLine === false` before it does any network work, so the
+    // observable fact is that it issued no read — a positive statement a
+    // counter settles, where "enabled is still false" is a negative that
+    // only gets truer the longer you wait and can be satisfied by a wake
+    // that ran and merely failed.
+    expect(h.getDocsCalls, "the wake issued a read while offline").toBe(readsBefore);
     expect(LIVE.enabled).toBe(false);
+  });
+
+  it("…and the same wake DOES read once the navigator says it is back", async () => {
+    // The other half, and the reason the case above can stop asserting a
+    // negative: this one shows the counter moves when the guard is not
+    // holding, so a wake that silently stopped working could not pass both.
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    h.getDocsImpl = () => { throw new Error("offline"); };
+    await mod.initLive(1);
+    await bootHasFailed();
+    expect(LIVE.enabled).toBe(false);
+
+    vi.stubGlobal("navigator", { onLine: true });
+    const readsBefore = h.getDocsCalls;
+    listeners.window.online();
+    await vi.waitFor(() => {
+      expect(h.getDocsCalls).toBeGreaterThan(readsBefore);
+    });
   });
 
   it("a uid change wipes the previous account's votes and local trace", async () => {
