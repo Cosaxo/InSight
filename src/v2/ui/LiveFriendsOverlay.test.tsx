@@ -13,6 +13,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 const NAMES: Record<string, string> = { ada: "Ada Byron", bo: "Bo Lind", cy: "Cy Moen", dee: "Dee Aas", eve: "Eve Roy", fay: "Fay Berg" };
 const LIVE = vi.hoisted(() => ({
   enabled: false,
+  demoInProd: false,
   uid: "me" as string | null,
   follows: () => null as string[] | null,
   loadFollows: vi.fn(async () => {}),
@@ -49,6 +50,7 @@ beforeEach(() => {
   window.dispatchEvent(new Event("insight:local-purge"));
   F._resetFriendsForTest();
   LIVE.enabled = false;
+  LIVE.demoInProd = false;
   LIVE.uid = "me";
   LIVE.follows = () => ["ada", "bo"];
   LIVE.nameFor = (uid: string) => NAMES[uid] || "";
@@ -168,6 +170,30 @@ describe("live — data/friends.ts over D101's rows", () => {
     // no row is a door: the person page would invent what it compares
     expect(screen.queryAllByRole("button", { name: /^Open / })).toHaveLength(0);
     expect(screen.queryByText(/Reading your friends/)).toBeNull();
+  });
+
+  it("a live build mid-boot draws NOBODY rather than the demo's invented people", async () => {
+    // `LIVE.enabled` is false for TWO reasons (D356): this is the demo
+    // build, or this is a LIVE build whose boot has not attached yet. Only
+    // the first should ever see spec/follows.js's seeded roster. Reading
+    // the flag as "is this the demo" put ~20 invented people into a real
+    // person's *Your friends* — with an Add button, an initials avatar and
+    // a line reading "a few streets away · 88 affinity", which is D1's
+    // "no seeded fake users, ever" drawn on their own account, two taps
+    // from first paint.
+    //
+    // app-shell.jsx:772 already guards the overlay one door over with
+    // `!liveOn && !LIVE.demoInProd` and a measured note from 2026-09-11.
+    // This is that reading, here.
+    LIVE.enabled = false;
+    LIVE.demoInProd = true;
+    render(<LiveFriendsOverlay onClose={() => {}} onPerson={vi.fn()} />);
+    await screen.findByText("Ada Byron");
+    // "affinity" is the demo's own word for it — the live path says
+    // "% alike" and never states a distance — so its absence is the
+    // assertion that the demo roster did not draw.
+    expect(screen.queryByText(/affinity/), "the demo roster drew on a live build").toBeNull();
+    expect(screen.queryByText(/streets away/), "an invented distance reached a real user").toBeNull();
   });
 
   it("Accept is my follow row; Ignore is the device's own mirror", async () => {

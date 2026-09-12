@@ -171,7 +171,23 @@ export default function LiveFriendsOverlay({ onClose, back, onPerson }: {
   onPerson?: (p: unknown) => void;
 }) {
   const dlg = useDialog(onClose, "Your friends");
-  const live = LIVE.enabled;
+  // `demoInProd` WITH `enabled`, because `enabled` alone answers the wrong
+  // question. It is false for TWO reasons (D356) — this is the demo build,
+  // or this is a LIVE build whose boot has not attached yet — and only the
+  // first should ever reach `demoLists()`. Without the second half, every
+  // cold start on a weak signal opened *Your friends* on spec/follows.js's
+  // seeded roster: invented people with working Add and Dismiss buttons and
+  // lines reading "through Henrik · 64 affinity", on a real person's own
+  // account, two taps from first paint (profile-overlay's friends door).
+  // That is D1's "no seeded fake users, ever" pointed at the user.
+  //
+  // app-shell.jsx guards the overlay one door over with exactly this pair
+  // (`samplePeople={!liveOn && !LIVE.demoInProd}`, measured 2026-09-11);
+  // this is that reading, here. Either half means "not the demo", which is
+  // right for all six uses below: on a live build that has not attached,
+  // the real store is still the one to subscribe to, load from and act on
+  // — it is simply empty until it lands.
+  const live = LIVE.enabled || LIVE.demoInProd;
   const [, bump] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => (live ? F.subscribeFriends(bump) : FRIENDS.subscribe(bump)), [live]);
   React.useEffect(() => (live ? LIVE.subscribe(bump) : undefined), [live]);
