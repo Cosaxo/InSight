@@ -874,10 +874,15 @@ describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
     const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
     expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
     await LIVE.social.voteDuel("g1", 1, 0);
-    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // `pickUid` is null on a classic round: the options are the question's
+    // own and cannot move, so the index is the whole of the answer. It
+    // carries a uid only on a PICK round, where the options are the roster
+    // and an index goes stale the moment somebody leaves (D224, and the
+    // card that reads it).
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0, pickUid: null });
     // A vote with no call reads as a pick alone, not as a missing vote.
     await LIVE.social.voteDuel("g1", 0);
-    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null, pickUid: null });
     expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
   });
 
@@ -1004,6 +1009,43 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     expect(LIVE.lensAgg("q_ed")!.counts.reduce((a, b) => a + b, 0) + 1).toBe(7);
     d.resolve();
     await flush();
+  });
+
+  it("phase B: the refresh keeps the mark until the published counts HOLD the answer — a document that exists is no longer proof", async () => {
+    // The daily's document is written by the compactor once a minute
+    // (D467), so the refresh two and a half seconds after a vote finds a
+    // document that exists and does not hold the vote. The old rule
+    // cleared on existence and hid the person's own +1 for a minute;
+    // the rule is now ANSWER-SCALE.md §4's — the count moved past what
+    // the device held.
+    h.bankDocs.push(bankDoc("q_hold", ["A", "B", "C"]));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_hold", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_hold");
+    });
+    await flush();
+    // Seven others, none on this device's option: the mark stays.
+    h.aggDocs = [{ id: "q_hold", data: { total: 7, counts: { "0": 7 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks(), "the mark cleared on a document that does not hold the vote").toHaveProperty("q_hold", 1);
+    // The next minute's document holds it: cleared.
+    mod._aggRefreshForTest().queue("q_hold");
+    h.aggDocs = [{ id: "q_hold", data: { total: 8, counts: { "0": 7, "1": 1 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).not.toHaveProperty("q_hold");
+    // An edit: held once the old option shrank or the new one grew, and
+    // not before — the same document again is not the edit landing.
+    expect(LIVE.editVote("q_hold", "0")).toBe(true);
+    await flush();
+    mod._aggRefreshForTest().queue("q_hold");
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).toHaveProperty("q_hold", 0);
+    mod._aggRefreshForTest().queue("q_hold");
+    h.aggDocs = [{ id: "q_hold", data: { total: 8, counts: { "0": 8 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).not.toHaveProperty("q_hold");
   });
 
   it("…and a first answer still adds to the crowd — the control", async () => {
@@ -1373,6 +1415,44 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
       LIVE.kindredState(),
       "twelve refused queries were reported to the Mirror as an empty city",
     ).toBe("failed");
+  });
+
+  it("says the CITY read failed too, and lets the next visit ask again", async () => {
+    // The city pass is a second fan-out of twelve, with its own failures,
+    // and it had no flag: each per-question throw is swallowed so eleven
+    // survive one, and a pass where all twelve threw looked exactly like a
+    // city nobody has answered in. The City field then said "Nobody from
+    // Oslo yet" about a crowd nothing managed to look at — the sentence
+    // the world pass's own flag exists to prevent, one pool over — and
+    // the loader stamped the city anyway, so the session could never ask
+    // again.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+      h.voterFailQids.add(qid);
+    }
+    h.getDocImpl = (path) => (path === "v2_users/uid_test"
+      ? { anchors: { city: "Oslo, NO", country: "NO" } }
+      : null);
+    const LIVE = await bootLive();
+    expect(LIVE.myCity, "no city — the loader returns at its first line").toBe("Oslo, NO");
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.length, "no city fan-out ran, so nothing could have failed")
+      .toBeGreaterThan(0);
+    expect(
+      LIVE.cityKindredState(),
+      "twelve refused city queries were reported to the Mirror as an empty city",
+    ).toBe("failed");
+    // …and the world pool is not slandered by it: the two passes fail
+    // separately, and the Circle and World lenses read the other one.
+    expect(LIVE.kindredState(), "a city failure was reported as a world failure").toBe("ready");
+    // …and the failure is not cached as an answer.
+    const asked = h.voterQueries.length;
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.length, "the failed city pass was cached and never retried")
+      .toBeGreaterThan(asked);
   });
 
   it("…and reports 'ready' the moment ONE of them lands", async () => {
@@ -1799,6 +1879,25 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "editVote", qid: "q_1" });
   });
 
+  // THE FAILED BOOT HAS TO HAVE SETTLED before either test below touches
+  // the network knob. `initLive` races boot against its budget and RETURNS
+  // while boot is still running, so restoring `getDocsImpl` hands that same
+  // in-flight boot a working network and it enables the store on its own —
+  // with no wake involved at all. In the first test that passes for the
+  // wrong reason; in the second it fails outright, because "enabled is
+  // false" is exactly what that one asserts.
+  //
+  // Two `flush()`es stood here and were a GUESS about how many turns the
+  // failure path takes. It held until a change one module over shifted the
+  // timing by a hair and the second test started failing about one run in
+  // seven — on CI, on a branch whose diff could not reach boot. The boot's
+  // own error report is the fact the guess was standing in for: `boot.catch`
+  // in initLive sets `bootError` and calls `reportError(err, {where:
+  // "boot"})`, and nothing else in these two tests reports from there.
+  const bootHasFailed = () => vi.waitFor(() => {
+    expect(h.reportError).toHaveBeenCalledWith(expect.anything(), { where: "boot" });
+  });
+
   it("registers wake handlers, and a wake on a dead session re-attaches", async () => {
     // Two shipped banners say "reconnecting…". Before this, nothing in the
     // codebase ever reconnected: a boot that failed left LIVE disabled for
@@ -1810,12 +1909,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Fail the first boot the way a flaky network would.
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
-    // initLive races boot against a 1ms budget and RETURNS on timeout while
-    // boot is still running. Let it finish failing before touching the knob
-    // below, or that same in-flight boot picks up the restored getDocs and
-    // succeeds on its own.
-    await flush();
-    await flush();
+    await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
     expect(typeof listeners.window.online).toBe("function");
@@ -1834,8 +1928,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     const LIVE = mod.default;
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
-    await flush();
-    await flush();
+    await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
     vi.stubGlobal("navigator", { onLine: false });

@@ -312,15 +312,27 @@ function LivePrivacyPanel() {
           there ARE answers; from settings the same control is a wipe
           wearing a login, so the collision is reported and the session is
           left alone. */}
+      {/* NOTHING UNTIL AUTH HAS SPOKEN. `linked` is false for the whole
+          restore, and since D453 that window is on screen — the wall
+          passes on its mirror rather than waiting, so this panel is
+          reachable inside it. Stating `linked` there told a returning,
+          linked user that their answers live on this phone only, under a
+          button whose only possible answer is `provider-already-linked`.
+          A moment of nothing can still become the truth; a wrong sentence
+          has already been acted on. */}
       <LpRow
         title="Sign-in"
-        sub={LIVE.linked
-          ? "Your answers survive a new phone."
-          : "Your answers live on this phone only — a reinstall or a new phone loses them."}
+        sub={!LIVE.authKnown
+          ? "Checking…"
+          : LIVE.linked
+            ? "Your answers survive a new phone."
+            : "Your answers live on this phone only — a reinstall or a new phone loses them."}
       >
-        {LIVE.linked
-          ? <span style={{ fontWeight: 800, fontSize: 12.5, color: "var(--ink-2)", whiteSpace: "nowrap" }}>Linked ✓</span>
-          : btn("Continue with Google", () => void linkNow())}
+        {!LIVE.authKnown
+          ? null
+          : LIVE.linked
+            ? <span style={{ fontWeight: 800, fontSize: 12.5, color: "var(--ink-2)", whiteSpace: "nowrap" }}>Linked ✓</span>
+            : btn("Continue with Google", () => void linkNow())}
       </LpRow>
       {linkMsg && (
         <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>

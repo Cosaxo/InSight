@@ -52,10 +52,12 @@ Every constant below is sourced, not assumed:
 | One world answer | 1 client write + 1 server write (`v2_agg_events`) | `onV2AnswerCreated`, functions/src/v2.ts |
 | …plus the published aggregate | +1 write **per answer**, always | no cadence since D98; it IS the fold's working document since the private mirror collapsed |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
+| One DAILY answer, since phase B (D467) | +1 rule read + **2** server reads (ledger event, the author's profile) and one UNCONTENDED write — the person's counter shard — where the world row below reads three and writes the one document everyone writes. The published document is neither read nor written on the hot path; the compactor's row writes it | `isShardedQid` and `shardIncrements`, functions/src/aggShards.ts; the vote and edit branches of v2.ts. The model keeps charging the world row's three for every world answer (`TRIGGER_READS_DAILY` in scripts/cost-arith.mjs says why: one read high on the daily's quarter) |
+| The compactor, every minute | 1 query (a read, even empty) and, for the daily when it was dirtied in the last fifteen minutes, `AGG_SHARDS` + 1 reads and 1 write, +8 tail writes or deletes past the cap — a FLAT line, not a per-user one: about 26 k reads and up to 13 k writes a day for the daily once ~100 people answer it, cents a month at any size, and the wall it replaces was at ~14,400 DAU | `compactAggShardsV2`, functions/src/aggShards.ts; `compactorReadsPerDay` / `compactorWritesPerDay` in scripts/cost-arith.mjs, every constant read from source |
 | One duel answer | 1 client write + 1 server transaction on the group document (1 read, 1 write: who played, and the round's clock on its first answer) — and, on the answer that completes the round, the reveal below runs right there | v2.ts duel branch (ROUNDS-PLAN §3.1, D426). It was one blind `pendingDays` arrayUnion with no read |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+625 reads** — five whole surfaces plus the feed's core questions, not the whole bank. This row said **+913**, the bank's total, and the gate beside it kept rewriting that to the newest bank size every promotion cycle — so the row grew more wrong the more diligently it was maintained. The daily left the boot's fetch at D383 (a shape document and seven deck rows instead) and the feed's tail pages in after first paint; `check:figures` now computes what the boot reads rather than what the bank holds | `BANK_SURFACES` + `core == true`, src/v2/data/live.ts; D383. The whole bank is `V2_QUESTIONS`, 1536 docs / 464.6 KiB of JSON — still the right number for the install and cache budgets, and no longer the right one for a boot |
+| One cold boot | **+634 reads** — five whole surfaces plus the feed's core questions, not the whole bank. This row said **+913**, the bank's total, and the gate beside it kept rewriting that to the newest bank size every promotion cycle — so the row grew more wrong the more diligently it was maintained. The daily left the boot's fetch at D383 (a shape document and seven deck rows instead) and the feed's tail pages in after first paint; `check:figures` now computes what the boot reads rather than what the bank holds | `BANK_SURFACES` + `core == true`, src/v2/data/live.ts; D383. The whole bank is `V2_QUESTIONS`, 1577 docs / 479.4 KiB of JSON — still the right number for the install and cache budgets, and no longer the right one for a boot |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | A returning device's first paint | 0 reads before the deck draws — it paints off the D312 caches and the own-profile mirror, and the ~15 warm-boot reads above reconcile it behind the screen: the count is unchanged, the wait is not | `warmFromDisk()`, src/v2/data/live.ts (D356) |
 | One answer relaunched before its ack | ≤1 read, once the SDK reports its queue drained — and none when the boot's own answers delta already returned it | `settlePending`, src/v2/data/live.ts (D357). Only a boot with an unsettled answer pays it, and the `documentId() in` read covers up to 30 of them |
@@ -105,11 +107,20 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 7.3 K | 1.4 K | 0.14 | 0.40 | **0.54** |
-| Friends-of-friends | 500 | 88.9 K | 14.4 K | 1.56 | 0.40 | **1.96** |
-| Real traction | 5,000 | 727 K | 171 K | 13 | 0.40 | **14** |
-| Scale | 50,000 | 7.1 M | 1.5 M | 125 | 2.60 | **128** |
-| Hit | 500,000 | 70.3 M | 14.6 M | 1,236 | 43 | **1,280** |
+| Launch / TestFlight | 50 | 21.5 K | 2.2 K | 0.29 | 0.50 | **0.79** |
+| Friends-of-friends | 500 | 114.8 K | 15.9 K | 1.83 | 0.50 | **2.33** |
+| Real traction | 5,000 | 753 K | 184 K | 14 | 0.50 | **14** |
+| Scale | 50,000 | 7.1 M | 1.5 M | 126 | 2.70 | **128** |
+| Hit | 500,000 | 70.3 M | 14.6 M | 1,237 | 43 | **1,280** |
+
+> **Re-printed 2026-09-11 (phase B, D467).** Two lines moved and both
+> are flat: the compactor's own reads and writes — a query a minute, a
+> read per shard and a write per minute the daily is dirty — which is
+> why the launch row's reads tripled and its bill rose twenty-five
+> cents while the Hit row moved by a dollar; and an eighth scheduler
+> job, ten cents. What the change bought is not on this table, because
+> the table never priced it: the daily question's write ceiling at
+> ~14,400 DAU (the walls section) is sixteen times further out.
 
 > **Re-printed 2026-09-10 from `node scripts/cost-model.mjs` in this
 > commit**, which is the only thing that makes a table like this worth
@@ -185,7 +196,14 @@ roughly double on the three operation lines.
 > account is deleted, one DELETE a night over the whole table for the
 > day's deleted accounts (a pass billed at $6.25 a TiB, the table under
 > a gibibyte for a long time). `npm run costs:target` carries both as
-> lines; not a line here until phase D moves the folds onto it.
+> lines; not a line here until phase D moves the folds onto it. **Since
+> A.7 (2026-09-11, D466) the night also shadows the folds** — two
+> aggregate queries over the day's partition and one id lookup per
+> twenty thousand of the ledger day's entries over three partitions'
+> id column, each query billed at BigQuery's 10 MB minimum: about a
+> gigabyte a night at 50,000 DAU, twenty cents a month, and a minute of
+> the pass caps what a larger day can spend. Gone with phase D, which
+> is what a week of it licenses.
 
 > **Re-measured 2026-09-08 (DATA-EFFICIENCY-RUNBOOK 1.4 and 1.5).** A
 > return to the foreground re-reads today's aggregate rather than the
@@ -1175,7 +1193,7 @@ still the largest single line that could be wrong without any code being
 wrong. Also console-only.
 
 **4 · A notification channel on the alert policies.** `monitoring/` holds
-ten policies and `check:monitoring` proves the chain from log line to
+eleven policies and `check:monitoring` proves the chain from log line to
 condition — but `notificationChannels` is `[]` in every file, filled in at
 POST time by the **Arm monitoring** workflow (`npm run monitoring:apply --
 --email` locally). A policy with no channel evaluates correctly and pages
@@ -1485,12 +1503,18 @@ surprise:
   reassuring enough to be worth stating rather than leaving open.** The
   rate is still not modelled and does not need to be, because the *ceiling*
   is: `setGlobalOptions` sets `maxInstances: 10` (functions/src/ops.ts) and
-  no per-function override raises it. Ten instances of the hot trigger's
-  shape (1 vCPU, 512 MiB) pegged for an entire month is 25.9 M vCPU-seconds
-  and 13.0 M GiB-seconds — **$649/month net of the free tier, and that is
-  the worst case for a runaway in any one function**: a retry storm, a
-  poison-pill redelivery loop, an accidental self-trigger, or a deliberate
-  flood. Compute cannot run away here. What it can do instead is throttle:
+  one per-function override raises it — `HOT_TRIGGER` carries **50** since
+  phase B (D467), on the two answer triggers alone, because the ceiling of
+  200 folds in flight was the system's answer throughput and it is raised
+  in the change that removed the contended document it would otherwise
+  have queued against. Ten instances of the hot trigger's shape (1 vCPU,
+  512 MiB) pegged for an entire month is 25.9 M vCPU-seconds and 13.0 M
+  GiB-seconds — **$649/month net of the free tier, the worst case for a
+  runaway in any one of the other functions**; fifty is five times that,
+  **~$3,245/month for either answer trigger**, and that is the ceiling a
+  retry storm, a poison-pill redelivery loop, an accidental self-trigger
+  or a deliberate flood can now reach on the hot path. Compute cannot run
+  away past it. What it can do instead is throttle:
   ten instances at concurrency 20 is 200 simultaneous folds, so past that
   answers queue rather than cost more, which is the correct trade for this
   app and worth knowing is the one being made.

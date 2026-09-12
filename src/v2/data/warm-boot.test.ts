@@ -1470,6 +1470,50 @@ describe("answers the server has not acknowledged (D357)", () => {
     expect(card?.options[0].count).toBe(1);
   });
 
+  it("an offline EDIT comes back knowing which option the crowd still holds it at", async () => {
+    // THE EDIT'S HALF OF D357, which the mirror did not carry. `editVote`
+    // records two things: the new option, and the option the published
+    // counts still hold this device at — the second is what `countsFor`
+    // subtracts, and without it the crowd keeps the viewer at the old
+    // option while the card adds its own +1 at the new one. The pending
+    // file stores `{v, edit: true}` and `restorePending` restored the vote
+    // and the unaggregated mark and not the origin, so an edit that
+    // survived a relaunch counted the viewer twice: the old option one
+    // high, the total one high, and every share on the card over a
+    // denominator that does not exist — which is the exact sentence
+    // editVote's own comment gives as the reason the origin exists.
+    await seedBank([row("q_1", 1), row("q_2", 2)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    const mod0 = await import("./live");
+    await mod0.initLive(30_000);
+    await vi.waitFor(() => { expect(mod0.default.attached).toBe(true); });
+    // The crowd holds this device at option 1: five there, three at 0,
+    // eight in all, the viewer among them.
+    h.aggDocs = [{ id: "q_1", data: { counts: { "0": 3, "1": 5 }, total: 8, tooSmall: false } }];
+    await flush();
+    h.holdWrites = true;
+    expect(await mod0.default.editVote("q_1", "0")).toBe(true);
+    await flush();
+    expect(pendingFile()?.e).toEqual({ q_1: { v: "0", edit: true } });
+
+    relaunch();
+    h.aggDocs = [{ id: "q_1", data: { counts: { "0": 3, "1": 5 }, total: 8, tooSmall: false } }];
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    const card = LIVE.deck().find((q) => q.id === "q_1");
+    expect(card, "the edited card is not in the deck").toBeTruthy();
+    // deck() hands the UI counts with the viewer's own vote taken out, so
+    // the option the crowd holds them at must come back one LOWER, not
+    // unchanged. Unchanged is the double count.
+    expect(card?.options[1].count, "the crowd still holds the viewer at the option they edited away from")
+      .toBe(4);
+    expect(card?.options[0].count).toBe(3);
+  });
+
   it("a re-run boot does not adopt this process's own taps into the settle", async () => {
     // A wake after a failed boot re-runs hydrate, and the pending file
     // now also holds taps made in THIS process — inflight, with a live

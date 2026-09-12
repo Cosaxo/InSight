@@ -214,7 +214,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:createGroupV2,functions:joinGroupV2,functions:requestJoinV2,functions:approveJoinV2,functions:declineJoinV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:nearbyRoomV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:logicStartV2,functions:logicSubmitV2,functions:saveTestResultV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2,functions:resolveCallsV2,functions:rankBankV2,functions:digestEngagementV2,functions:rebuildAggregateV2,functions:bookPaidQuestionV2,functions:onPaidBookingCreated,functions:sweepPaidReviewsV2,functions:createPaidCheckoutV2,functions:stripeWebhookV2,functions:closePaidCampaignsV2,functions:resultsPageV2,functions:exportAccountV2,functions:onV2ProfileUpdated,functions:backfillAnswerMapsV2,functions:backfillLogV2,functions:onBudgetAlert"
+          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:compactAggShardsV2,functions:compactAggShardsNowV2,functions:createGroupV2,functions:joinGroupV2,functions:requestJoinV2,functions:approveJoinV2,functions:declineJoinV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:nearbyRoomV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:logicStartV2,functions:logicSubmitV2,functions:saveTestResultV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2,functions:resolveCallsV2,functions:rankBankV2,functions:digestEngagementV2,functions:rebuildAggregateV2,functions:bookPaidQuestionV2,functions:onPaidBookingCreated,functions:sweepPaidReviewsV2,functions:createPaidCheckoutV2,functions:stripeWebhookV2,functions:closePaidCampaignsV2,functions:resultsPageV2,functions:exportAccountV2,functions:onV2ProfileUpdated,functions:backfillAnswerMapsV2,functions:backfillLogV2,functions:onBudgetAlert"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,
@@ -237,16 +237,38 @@ jobs:
       - name: Write the buy page's config
         env:
           ASK_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          # THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+          # is a textual substitution GitHub performs before bash sees the
+          # script, so a value pasted into the body is code. Same rule
+          # auth-config.yml records at length.
+          #
+          # AND THE COMMENT SAYING SO BELONGS HERE, at YAML-comment level,
+          # rather than in the `run:` body where it was first written. A
+          # `#` inside a block scalar is shell, not YAML: GitHub does not
+          # know it is a comment and substitutes the `${{ }}` in it anyway.
+          # Empty is not a parsable expression, so the whole FILE failed to
+          # load — a startup failure, which is worse than a failing job.
+          # No job runs, so there is no log to read, and the `on:` filters
+          # live in the file GitHub could not parse: every push to EVERY
+          # branch got a failed run named after this file's path instead of
+          # its name, and no deploy ran at all. 33 of them before anyone
+          # read past the subject line. The sentence is true of values and
+          # was fatal as prose — which is why it is now where YAML strips
+          # it before GitHub ever sees it, exactly as auth-config.yml has
+          # it.
+          # WHETHER, NOT WHAT. The page needs to know that a card can be
+          # charged; the secrets themselves never leave this job. Without
+          # this the page read the Firebase key for the Stripe one and
+          # took a question it could not sell — see paymentsOpen() in
+          # web/ask.html.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         run: |
           set -o pipefail
           if [ -z "$ASK_API_KEY" ]; then
             echo "::warning::VITE_FIREBASE_API_KEY unset — the buy page will ship with payment closed (runbook 5.14)."
             rm -f web/ask-config.json
           else
-            # THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
-            # is a textual substitution GitHub performs before bash sees
-            # the script, so a value pasted into the body is code. Same
-            # rule auth-config.yml records at length.
             node -e '
               const fs = require("fs");
               fs.writeFileSync("web/ask-config.json", JSON.stringify({
@@ -254,10 +276,44 @@ jobs:
                 project: "prvfire33",
                 region: "europe-west1",
                 dbId: "insight",
+                payments: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
               }, null, 2) + "\n");
             '
             echo "buy page config written (keys not printed)."
           fi
+
+      # THE FIVE GATES THAT GUARD WHAT THE NEXT STEP SHIPS. This workflow
+      # triggers on `web/**` and deploys hosting, and until now it ran
+      # none of them: they live in ci.yml alone, which on a push to main
+      # runs in PARALLEL with this job and gates nothing it does.
+      #
+      # The precedent is one gate over. `check:pricing` was moved onto
+      # this path with a comment recording exactly this race — "a push to
+      # main deployed the stale card while ci.yml went red beside it, in
+      # parallel, too late" — and `check:ask-pricing`, the gate on the
+      # price the PUBLIC door prints, stayed behind. The CSP one is the
+      # silent case: a stale hash ships a page whose own scripts are
+      # blocked, and nothing reports it.
+      #
+      # HERE rather than on `needs:`, deliberately. backend-checks.yml is
+      # shared with ci.yml and must stay backend-only, so that an
+      # emergency rules fix is never blocked by a client-only check
+      # (CLAUDE.md). These five read only committed files — no build, no
+      # secrets — and run in seconds. Placed after the rules and
+      # functions deploys and before hosting: a web-copy problem must not
+      # block an urgent rules deploy, and must not ship either.
+      #
+      # `check:catalog-art` is NOT here on purpose: it guards the pick
+      # tiles' images, which are app assets rather than hosting payload,
+      # and CLAUDE.md places it in ci only.
+      - name: Gate the hosting payload
+        run: |
+          set -o pipefail
+          npm run check:web-headers
+          npm run check:csp-hashes
+          npm run check:policy-claims
+          npm run check:public-copy
+          npm run check:ask-pricing
 
       - name: Deploy hosting
         id: hosting

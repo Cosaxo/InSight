@@ -6,7 +6,7 @@ cannot go stale in the way a hand-written summary does — it can only be
 out of date, which the stamp below says. It holds no reasoning of its own;
 where it and a source disagree, the source is right.
 
-Generated **2026-09-11**.
+Generated **2026-09-12**.
 
 ## The two bills
 
@@ -15,9 +15,9 @@ used to have an instrument (D-2026-09-09f).
 
 | | Figure | Basis |
 | --- | ---: | --- |
-| Running the app (modelled) | $28.66 / month | 2 measured actives, 2026-08-25 |
-| Building the app (measured) | $390 / day | measured 2026-09-03, 8 days ago |
-| Usage guard | stale | allowance $50/month |
+| Running the app (modelled) | $28.77 / month | 2 measured actives, 2026-09-11 |
+| Building the app (measured) | $390 / day | measured 2026-09-03, 9 days ago |
+| Usage guard | ok | allowance $50/month |
 | Program guard | ok | allowance $450/day |
 
 Largest single line: **InSight night worker** — $2,325.68 in the measured window.
@@ -26,10 +26,10 @@ Largest single line: **InSight night worker** — $2,325.68 in the measured wind
 
 | | Count |
 | --- | ---: |
-| Questions in the bank | 1,536 |
-| Daily deck runway | 101 days |
-| Answers counted | 112 |
-| Unpromoted | 44 |
+| Questions in the bank | 1,577 |
+| Daily deck runway | 102 days |
+| Answers counted | 140 |
+| Unpromoted | 50 |
 
 **Answers counted** is the one number to read first, and the reason this
 page leads with cost: a program is only expensive relative to what it has
@@ -39,8 +39,8 @@ produced.
 
 | List | Open | Ticked |
 | --- | ---: | ---: |
-| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 151 | 3 |
-| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 16 | 0 |
+| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 153 | 3 |
+| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 11 | 0 |
 | [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 39 |
 
 A tick is the mechanism the program runs on (`PROGRAM-PLAN.md` §2.4), so
@@ -51,10 +51,10 @@ channel — including every D334 privacy question a routine deferred into it.
 
 | | Count |
 | --- | ---: |
-| `check:*` gates | 52 |
-| Cloud Functions | 46 |
-| …with an alert over them | 3 |
-| Decision records | 472 (30 amendments, 8 dated) |
+| `check:*` gates | 53 |
+| Cloud Functions | 48 |
+| …with an alert over them | 4 |
+| Decision records | 478 (30 amendments, 8 dated) |
 
 ## Where to go next
 

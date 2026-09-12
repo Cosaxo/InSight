@@ -70,6 +70,9 @@ const LIVE = vi.hoisted(() => ({
   similarityLoading: (): boolean => false,
   testAggsState: (): "loading" | "ready" | "failed" => "ready",
   kindredState: (): "loading" | "ready" | "failed" => "ready",
+  // The CITY reading (see live.ts): the city pass has its own fan-out and
+  // its own failure, and the City arm of this field reads THIS one.
+  cityKindredState: (): "loading" | "ready" | "failed" => "ready",
   kindredLoading: (): boolean => false,
   kindredPeople: (): KindredPerson[] => [],
   myCity: "Oslo, NO",
@@ -177,6 +180,7 @@ beforeEach(() => {
   LIVE.similarityLoading = () => false;
   LIVE.testAggsState = () => "ready";
   LIVE.kindredState = () => "ready";
+  LIVE.cityKindredState = () => "ready";
   LIVE.kindredLoading = () => false;
   LIVE.kindredPeople = () => [];
   LIVE.myCity = "Oslo, NO";
@@ -734,6 +738,7 @@ describe("an empty field draws the ring anyway (D160)", () => {
     // people, so it takes the people twin of that reader.
     LIVE.kindredLoading = () => false;
     LIVE.kindredState = () => "failed";
+    LIVE.cityKindredState = () => "failed";
     render(<SimilaritySection scope="city" />);
     expect(screen.getByText(/Couldn’t read the crowd here/)).toBeTruthy();
     expect(screen.queryByText(/Nobody from Oslo yet/)).toBeNull();
@@ -745,6 +750,7 @@ describe("an empty field draws the ring anyway (D160)", () => {
     // broken — the same lie pointed the other way.
     LIVE.kindredLoading = () => false;
     LIVE.kindredState = () => "ready";
+  LIVE.cityKindredState = () => "ready";
     render(<SimilaritySection scope="city" />);
     expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
     expect(screen.queryByText(/Couldn’t read the crowd/)).toBeNull();
@@ -756,6 +762,7 @@ describe("an empty field draws the ring anyway (D160)", () => {
     // happened. Paused wins.
     LIVE.budgetPaused = true;
     LIVE.kindredState = () => "failed";
+    LIVE.cityKindredState = () => "failed";
     render(<SimilaritySection scope="city" />);
     expect(screen.getByText(/costs in check/i)).toBeTruthy();
     expect(screen.queryByText(/Couldn’t read the crowd/)).toBeNull();

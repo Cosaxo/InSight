@@ -96,6 +96,33 @@ export const CITY_SAMPLE_PAIRS_PER_NIGHT = 30_000;
  * forever: the stamp is the only thing a later night reads. */
 export const PATTERNS_SEED_PER_RUN = 25;
 
+/** How many world samples a server pass may hold in memory at once, for
+ * the two callables that walk the whole `sample-` family — the erasure's
+ * scrub and the export's read. Both want exactly ONE row per document
+ * (their own uid's) and both used to `.get()` the family entire.
+ *
+ * MEASURED rather than guessed, 2026-09-11: one sample document is
+ * 120.8 KiB of JSON at PATTERNS_SAMPLE_CAP rows with stamps, and the
+ * admin SDK retains the decoded field proto, not the JSON. At the 542
+ * fitted questions of that day the unpaged read was 63.9 MiB on the wire
+ * and 233.2 MiB retained, RSS 317.8 MiB.
+ *
+ * THE TWO CALLERS SIT AT DIFFERENT LIMITS, and the first version of this
+ * comment said 256 MiB for both, which is the hand-kept-figure error this
+ * repo keeps re-committing. `exportAccountV2` takes LIGHT_UNBOUNDED —
+ * 256 MiB — so at that corpus it was ALREADY over, a live defect rather
+ * than a future one. `deleteAccount` passes no runtime options and takes
+ * the 512 MiB global default, so it had roughly 200 MiB of headroom:
+ * real, and spent by the corpus growing, not by anything else. Its
+ * sharper limit is the 480 s deadline the same global sets.
+ *
+ * Read the options, not this paragraph: ops.ts's `setGlobalOptions` and
+ * LIGHT_UNBOUNDED are where those numbers live.
+ *
+ * 50 keeps a page near 6 MiB and costs one extra round trip per 50
+ * documents, which is nothing beside the reads the walk already bills. */
+export const WORLD_SAMPLE_PAGE = 50;
+
 export interface SampleRow {
   /** The option index picked — absent on a catalogue pick's row. */
   o?: number;
@@ -162,6 +189,39 @@ export function sampleOrder(a: [string, SampleRow], b: [string, SampleRow]): num
   return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 }
 
+/**
+ * The half of `mergeSample` that decides WHO a day contributes: one
+ * addition per person (the newest day wins; within a day the later entry,
+ * the caller's order, wins — which is the edit), then the cap in the
+ * sample's own order — newest day first, then uid. An addition dropped
+ * here is older than `cap` additions that all outrank it in the final
+ * sort, so it could never have survived that sort either.
+ *
+ * Exported for the answer log's shadow (logShadow.ts, LOG-FIRST-RUNBOOK
+ * A.7), which folds the same ledger day through this same function and
+ * asks BigQuery for the same list — so what the shadow compares against
+ * the SQL is the fold's own arithmetic, not a second copy of it.
+ */
+export function trimAdditions(adds: readonly SampleAddition[], cap: number = PATTERNS_SAMPLE_CAP): SampleAddition[] {
+  const latest = new Map<string, SampleAddition>();
+  for (const add of adds) {
+    // A vote OR a catalogue pick (D459): one of the two is what the row
+    // carries, and an addition with neither is not an answer.
+    if (!add.uid) continue;
+    const vote = Number.isInteger(add.optionIdx) && (add.optionIdx as number) >= 0;
+    const pick = typeof add.entity === "string" && add.entity !== "";
+    if (!vote && !pick) continue;
+    const cur = latest.get(add.uid);
+    // the newest day wins; within a day the later entry (the caller's
+    // order) wins, which is the edit
+    if (cur && cur.day > add.day) continue;
+    latest.set(add.uid, add);
+  }
+  return [...latest.values()]
+    .sort((x, y) => (x.day !== y.day ? (x.day < y.day ? 1 : -1) : x.uid < y.uid ? -1 : x.uid > y.uid ? 1 : 0))
+    .slice(0, cap);
+}
+
 const stampFields = (stamp: ProfileStamp): Pick<SampleRow, "n" | "s" | "l"> => ({ n: stamp.n, s: stamp.s, l: stamp.l });
 
 /**
@@ -193,23 +253,7 @@ export function mergeSample(
   stamps?: ReadonlyMap<string, ProfileStamp>,
   city?: string,
 ): SampleDoc {
-  const latest = new Map<string, SampleAddition>();
-  for (const add of adds) {
-    // A vote OR a catalogue pick (D459): one of the two is what the row
-    // carries, and an addition with neither is not an answer.
-    if (!add.uid) continue;
-    const vote = Number.isInteger(add.optionIdx) && (add.optionIdx as number) >= 0;
-    const pick = typeof add.entity === "string" && add.entity !== "";
-    if (!vote && !pick) continue;
-    const cur = latest.get(add.uid);
-    // the newest day wins; within a day the later entry (the caller's
-    // order) wins, which is the edit
-    if (cur && cur.day > add.day) continue;
-    latest.set(add.uid, add);
-  }
-  const trimmed = [...latest.values()]
-    .sort((x, y) => (x.day !== y.day ? (x.day < y.day ? 1 : -1) : x.uid < y.uid ? -1 : x.uid > y.uid ? 1 : 0))
-    .slice(0, cap);
+  const trimmed = trimAdditions(adds, cap);
   const rows: Record<string, SampleRow> = { ...(prev?.rows ?? {}) };
   for (const add of trimmed) {
     const cur = rows[add.uid];

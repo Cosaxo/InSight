@@ -157,10 +157,54 @@ const scheduleList = must(
   "roles/datastore.viewer",
 );
 const schedules = scheduleList.backupSchedules || [];
-const hasDaily = schedules.some((s) => s.dailyRecurrence);
-const hasWeekly = schedules.some((s) => s.weeklyRecurrence);
+const daily = schedules.find((s) => s.dailyRecurrence) || null;
+const weekly = schedules.find((s) => s.weeklyRecurrence) || null;
 
-await step(`daily backups, ${DAILY_RETENTION / DAYS}-day retention`, hasDaily, async () => {
+/** The seconds a schedule keeps, or NaN if it did not say. The API writes
+ *  a duration as "604800s". */
+function keeps(schedule) {
+  return Number(String(schedule?.retention ?? "").replace(/s$/, ""));
+}
+
+/** A schedule whose RECURRENCE matches but whose retention does not is the
+ *  one thing this script used to report as a success. `step` was handed
+ *  "is there a daily schedule", and printed a label naming seven days —
+ *  so a schedule keeping three hours read as "7-day retention, already in
+ *  place, skipped", which is this script's own stated failure: a believed
+ *  backup that stops anybody looking again.
+ *
+ *  Corrected in place rather than created alongside: the matching note
+ *  above is right that a second daily schedule doubles the storage bill
+ *  forever, and the retention is the only field in disagreement. Same
+ *  updateMask discipline as the PITR patch. */
+async function stepRetention(label, found, want, create) {
+  if (found && keeps(found) === want) { console.log(`  = ${label} — already in place, skipped`); return; }
+  if (found) {
+    const has = keeps(found);
+    const said = Number.isFinite(has) ? `keeps ${Math.round(has / DAYS * 10) / 10} day(s)` : "says no retention";
+    if (!APPLY) { console.log(`  ~ ${label} — exists but ${said}, would correct`); return; }
+    must(
+      "correcting the backup schedule's retention",
+      // The schedule's own server-assigned resource name, through the same
+      // seam every other call uses — never a URL built from NAME, which
+      // would be this script guessing at a key the API assigns.
+      await googleFetch(api("firestore.googleapis.com", `/v1/${found.name}?updateMask=retention`), token, {
+        method: "PATCH",
+        body: { retention: `${want}s` },
+      }),
+      "roles/datastore.owner",
+    );
+    changed++;
+    console.log(`  ✓ ${label} — corrected (${said})`);
+    return;
+  }
+  if (!APPLY) { console.log(`  + ${label} — would create`); return; }
+  await create();
+  changed++;
+  console.log(`  ✓ ${label} — created`);
+}
+
+await stepRetention(`daily backups, ${DAILY_RETENTION / DAYS}-day retention`, daily, DAILY_RETENTION, async () => {
   must(
     "creating the daily backup schedule",
     await googleFetch(fs("/backupSchedules"), token, {
@@ -171,9 +215,10 @@ await step(`daily backups, ${DAILY_RETENTION / DAYS}-day retention`, hasDaily, a
   );
 });
 
-await step(
+await stepRetention(
   `weekly backups on ${WEEKLY_DAY}, ${WEEKLY_RETENTION / (7 * DAYS)}-week retention`,
-  hasWeekly,
+  weekly,
+  WEEKLY_RETENTION,
   async () => {
     must(
       "creating the weekly backup schedule",

@@ -373,6 +373,26 @@
         "audited": false
       }
     },
+    "142": {
+      "archiveId": "dqx113",
+      "source": "farm",
+      "batch": "2026-09-12",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-12",
+        "audited": false
+      }
+    },
+    "143": {
+      "archiveId": "dqx114",
+      "source": "farm",
+      "batch": "2026-09-12",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-12",
+        "audited": false
+      }
+    },
     "000": {
       "archiveId": "dq30",
       "source": "editorial",
@@ -5435,6 +5455,87 @@
     "pk28": {
       "source": "editorial",
       "batch": "2026-08-26"
+    },
+    "pk26": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk27": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk31": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk30": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk34": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk41": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk37": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk38": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
+    },
+    "pk40": {
+      "source": "farm",
+      "batch": "2026-09-11",
+      "review": {
+        "by": "ai",
+        "at": "2026-09-11",
+        "audited": false
+      }
     }
   }
 }

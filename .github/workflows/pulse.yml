@@ -15,11 +15,21 @@
 # before this file was written. Keep it that way — if pulse ever grows an
 # import that needs node_modules, that is the bug, not this omission.
 #
-# WHAT IT COMMITS. monitoring/pulse-trail.jsonl and docs/STATE.md, and
-# nothing else. pulse.json
-# and the rendered HTML are both derivable from the tree plus today's date —
-# the trail is the only output holding something the repo does not already
-# know, namely what the numbers were on days nobody is looking at any more.
+# WHAT IT COMMITS. monitoring/pulse-trail.jsonl, monitoring/engagement.json
+# and docs/STATE.md, and nothing else. pulse.json and the rendered HTML are
+# both derivable from the tree plus today's date — these three are the only
+# outputs holding something the repo does not already know, namely what the
+# numbers were on days nobody is looking at any more. engagement.json joined
+# them on 2026-09-11 for exactly that reason and no other: it is FETCHED, so
+# it is the one output regenerating cannot recover (D465). It is not
+# content/scorecard.json, which the same fetch writes and the question farm
+# owns — the farm lane moved that file on 2026-09-11 without touching this
+# trail, so the two already travel separately and this job drops the side
+# effect rather than racing for it. docs/STATE.md is the opposite case and
+# rides along for a different reason (D-2026-09-09g): it IS derivable, and
+# it is here because the page's whole claim is that it cannot be out of date
+# by more than a day, which a second workflow would be a second thing that
+# can stop.
 # An earlier version committed pulse.json too, which meant a bot commit every
 # single day forever (runwayDays moves at midnight by construction) for a
 # file `npm run pulse` rebuilds in a second. The rendered HTML is gitignored and
@@ -85,6 +95,96 @@ jobs:
           # Deliberately no `cache: npm` — there is nothing to install, and
           # a cache key would be the only npm-shaped failure mode left.
 
+      # THE TRAIL, REFRESHED BEFORE ANYTHING READS IT.
+      #
+      # The usage guard (D332) prices the population out of
+      # monitoring/engagement.json, and that file only ever moved when a
+      # person ran the fetch by hand. Nothing scheduled it, so it stopped:
+      # on 2026-09-11 the committed trail's newest day was 2026-08-25 and
+      # the guard was averaging a 7-day window whose every day had left it.
+      # That is the one shape pulse.mjs calls out by name — "a confident
+      # pass while measuring nothing" — and the gate below had been
+      # reporting it, correctly, every morning to an inbox, naming the fix
+      # nobody was there to run. A check whose subject moves on its own
+      # belongs on a clock; so does the fetch that feeds it.
+      #
+      # NO `npm ci`, which is what lets it live here at all.
+      # question-scorecard.mjs is Node stdlib plus global fetch, like
+      # pulse.mjs, and the only input is the PUBLIC web API key — the reads
+      # are world-readable aggregates (v2_engagement_daily carries
+      # anonymous counts and no uid), which is what keeps this
+      # credential-free. If either of those ever stops being true, that is
+      # the bug, not this step's placement.
+      #
+      # NEVER FATAL, for the same reason this job installs nothing: a
+      # console whose job is to say the ground moved must not be able to
+      # fail because a network did. A failed or unarmed fetch leaves the
+      # trail exactly as it was, and the gate below then reports the
+      # staleness it was always going to report — so the signal degrades to
+      # what it is today and never inverts.
+      # ON THE CLOCK ONLY, and this condition is the whole cost argument.
+      #
+      # This job also runs on every push to main, which is ~17 times a day
+      # measured (13 · 10 · 34 · 14 · 13 · 15 over 09-06..09-11, and the
+      # cron is 5 of the last 100 runs — the pushes dominate). The fetch
+      # pages the WHOLE v2_question_aggs collection, ~1,536 documents at
+      # pageSize 300, so running it per push is ~26,000 billed reads a day
+      # (~$0.50/month) to refresh a trail whose newest row is a DAY. One
+      # read set a day is the same signal for 1/17th of the bill, and the
+      # guard's own staleness window is 7 days (MEASURE_MAX_AGE_DAYS), so
+      # nothing downstream can tell the difference.
+      #
+      # workflow_dispatch is included deliberately: that is the operator's
+      # "refresh it now", which is exactly what the gate's message asks
+      # for, and it is a hand-pulled lever rather than a loop.
+      - name: Refresh the engagement trail
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        id: refresh
+        continue-on-error: true
+        env:
+          FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+        run: |
+          set -o pipefail
+          if [ -z "$FIREBASE_API_KEY" ]; then
+            echo "::warning::VITE_FIREBASE_API_KEY unset — the engagement trail cannot move, so the usage guard will report its own staleness (docs/OPS-RUNBOOK.md)."
+            exit 0
+          fi
+          node scripts/question-scorecard.mjs --fetch
+          # The farm's artifact, written by the same fetch and not this
+          # job's to move. Dropped so the row below stays derived from the
+          # tree AS COMMITTED, rather than from numbers this run saw and
+          # did not keep.
+          git checkout -- content/scorecard.json || true
+          # Held outside the tree because the retry loop below resets it.
+          if [ -f monitoring/engagement.json ]; then
+            cp monitoring/engagement.json "$RUNNER_TEMP/engagement.json"
+          fi
+
+      # READ BACK, in this job, because a continue-on-error step whose outcome
+      # nothing reads is a silent failure — and a trail that silently did not
+      # move is precisely the bug this step exists to fix, wearing a green
+      # tick. workflow-pipefail.test.mjs holds the rule and caught this one
+      # before it shipped.
+      #
+      # It also settles the question the gate below cannot. A stale guard has
+      # two causes — the fetch did not run, or the digest stopped folding days
+      # — and pulse.mjs names both because from the tree it cannot tell them
+      # apart. From here it can: this line says which.
+      - name: Say whether the trail moved
+        run: |
+          case "${{ steps.refresh.outcome }}" in
+            failure)
+              echo "::warning::the engagement fetch FAILED — the usage guard below is pricing the trail as it was. Read its staleness as a fetch problem, not a digest one."
+              ;;
+            skipped)
+              # Not a fault: a push run deliberately does not fetch (see the
+              # condition above). Said out loud so a stale guard on a push
+              # run is not misread as a broken fetch.
+              echo "engagement refresh: skipped on a push run — the trail refreshes on the clock."
+              ;;
+          esac
+          echo "Engagement refresh: ${{ steps.refresh.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Regenerate the console
         run: node scripts/pulse.mjs
 
@@ -132,13 +232,22 @@ jobs:
           # cannot be out of date by more than a day, and a second workflow
           # would be a second thing that can stop.
           for attempt in 1 2 3 4; do
+            # RE-APPLIED INSIDE THE LOOP, because the reset below undoes it
+            # and regenerating cannot bring it back. The row is derived from
+            # the tree and the date; the trail is fetched, so it is the one
+            # thing here that a reset destroys rather than recomputes. Last
+            # writer wins and both runs fetched the same server, so this
+            # converges the same way the row does.
+            if [ -f "$RUNNER_TEMP/engagement.json" ]; then
+              cp "$RUNNER_TEMP/engagement.json" monitoring/engagement.json
+            fi
             node scripts/pulse.mjs > /dev/null
             node scripts/state.mjs --write > /dev/null
-            if git diff --quiet -- monitoring/pulse-trail.jsonl docs/STATE.md; then
-              echo "pulse: today's row and state page are already recorded."
+            if git diff --quiet -- monitoring/pulse-trail.jsonl monitoring/engagement.json docs/STATE.md; then
+              echo "pulse: today's row, engagement and state page are already recorded."
               exit 0
             fi
-            git add monitoring/pulse-trail.jsonl docs/STATE.md
+            git add monitoring/pulse-trail.jsonl monitoring/engagement.json docs/STATE.md
             git commit -m "pulse: trail row for $(date -u +%Y-%m-%d)"
             if git push; then exit 0; fi
             echo "push rejected (attempt ${attempt}) — re-syncing and recomputing"

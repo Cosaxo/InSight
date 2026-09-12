@@ -264,7 +264,17 @@ function WhosHere({ qs, shortName, scope }: {
   const genderPcts = sharePcts(genderRows.map((r) => r.n));
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>Nobody has filled in an age or gender yet.</LlEmpty>;
+    // BEFORE THE NETWORK BOOT THIS CARD HAS READ NOTHING, and it makes the
+    // broadest demographic claim in the app — about everybody, on the
+    // World stop. The cells it folds come from the published aggregates,
+    // which are empty for the whole of a cold first launch and for the
+    // whole session on a live build whose boot never attaches (D356). The
+    // two readings beside it in this same lens already say "Matching…"
+    // and "Reading who answered…"; this one asserted an empty world. Same
+    // guard the cohort hero and the Scores lens close it with.
+    return <LlEmpty>{LIVE.attached
+      ? <>Nobody has filled in an age or gender yet.</>
+      : <>Reading who is here…</>}</LlEmpty>;
   }
 
   return (
@@ -626,7 +636,15 @@ function CohortCompare({ scope, shortName }: {
 
   return (
     <LiveCompareLens
-      pop={{ basis: "cells", cellOf, minAnswers: NORM_MIN_ANSWERS, minItems: NORM_MIN_ITEMS }}
+      // `cellsState` is THIS stop's, and only this stop's: `cellOf` above
+      // reads `LIVE.aggFor`, which the constellation fills through
+      // `loadSimilarity`. The lens used to reach for this flag itself off
+      // the basis name, which gave it to Circle too — a stop that folds
+      // its own members and never calls that loader.
+      pop={{
+        basis: "cells", cellOf, minAnswers: NORM_MIN_ANSWERS, minItems: NORM_MIN_ITEMS,
+        cellsState: () => LIVE.testAggsState(),
+      }}
       whom={shortName}
       emptyThem={<>Nobody in {shortName} has answered a test card yet.</>}
     />

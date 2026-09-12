@@ -103,7 +103,28 @@ export interface ProfileCaches {
 
 export interface Voter {
   uid: string;
+  /**
+   * The option they picked — or **-1 for a catalogue answer**, which has
+   * no option column to sit in and carries `entity` instead.
+   *
+   * -1 rather than an absent field because every fold over these rows
+   * already bounds-checks this (`groupByOption`, typeSplit, logicSplit,
+   * peopleMap all test `>= 0`), so a catalogue row falls out of an
+   * options-shaped reading by arithmetic rather than by each caller
+   * remembering to ask.
+   */
   optionIdx: number;
+  /**
+   * The catalogue key they picked (D14), for a pick question only.
+   *
+   * Carried since 2026-09-11. These rows used to be DROPPED in the fetch
+   * — "a catalog board is a different surface with a different renderer"
+   * — which was true about the renderer and cost the surface every name:
+   * a catalogue question was the one kind of question in the app where
+   * "who picked what" could not be asked at all, six months after D98
+   * made answers public precisely so it could be.
+   */
+  entity?: number;
   /** The cohort this answer was given from — frozen at vote time (D8). */
   anchors: Record<string, string>;
   /** Display name, or "" when the voter has not set one. */
@@ -111,6 +132,21 @@ export interface Voter {
   /** True for the viewer's own answer, so the UI can mark it. */
   isMe: boolean;
 }
+
+/**
+ * What a row answers WITH — the option index, or the catalogue key for a
+ * pick. Every fold that compares two people's answers has to read it
+ * through this rather than off `optionIdx`, which is a permanent -1 on a
+ * catalogue row.
+ *
+ * NOT A FUNCTION HERE, deliberately. This module is imported statically by
+ * data/live.ts, which is in the first-paint graph — check:bundle's eager
+ * ceiling has no headroom at all (the constant exists to keep the 292 KB
+ * Firestore SDK out of first paint, and it is measured to the byte). An
+ * exported helper for an expression this small is eager weight for a
+ * one-line read, so the two callers spell it: live.ts's Kindred fold, and
+ * ui/LivePickBreakdown, which is behind the feed chunk.
+ */
 
 // ── pure helpers (unit-tested without Firebase) ─────────────────────
 
@@ -236,13 +272,28 @@ export async function fetchVoterPicks(
   for (const d of snap.docs) {
     const uid = uidFromAnswerPath(d.ref.path);
     if (!uid) continue;
-    const optionIdx = d.get("optionIdx");
     // A catalog answer carries `entity`, not `optionIdx`, and has no
-    // option column to sit in. Skipped rather than coerced — a catalog
-    // board is a different surface with a different renderer.
-    if (typeof optionIdx !== "number") continue;
+    // option column to sit in — so it rides as the KEY with an
+    // out-of-range index, never coerced into a column it does not have.
+    // It used to be dropped here outright, which left the catalogue the
+    // only surface in the app with no answer to "who picked what".
+    //
+    // One row shape and one push, and that is a first-paint decision
+    // rather than a style one: this module is imported statically by
+    // data/live.ts, so its bytes are paint bytes and check:bundle's eager
+    // ceiling is measured against the wall.
+    const optionIdx = d.get("optionIdx");
+    const entity = d.get("entity");
+    if (typeof optionIdx !== "number" && typeof entity !== "number") continue;
     const anchors = (d.get("anchors") || {}) as Record<string, string>;
-    rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
+    rows.push({
+      uid,
+      optionIdx: typeof optionIdx === "number" ? optionIdx : -1,
+      entity: typeof entity === "number" ? entity : undefined,
+      anchors,
+      name: "",
+      isMe: uid === myUid,
+    });
   }
   return rows;
 }

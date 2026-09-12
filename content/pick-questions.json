@@ -154,6 +154,60 @@
       "domain": "athletes",
       "cat": "fav",
       "prompt": "The greatest athlete who ever lived?"
+    },
+    {
+      "id": "pk26",
+      "domain": "films",
+      "cat": "fav",
+      "prompt": "Your favourite film?"
+    },
+    {
+      "id": "pk27",
+      "domain": "films",
+      "cat": "fav",
+      "prompt": "The film you’ve rewatched the most?"
+    },
+    {
+      "id": "pk31",
+      "domain": "films",
+      "cat": "fav",
+      "prompt": "The film that made you cry the most?"
+    },
+    {
+      "id": "pk30",
+      "domain": "athletes",
+      "cat": "fav",
+      "prompt": "The athlete you’d pay to watch in their prime?"
+    },
+    {
+      "id": "pk34",
+      "domain": "athletes",
+      "cat": "fav",
+      "prompt": "The athlete whose life you’d want?"
+    },
+    {
+      "id": "pk41",
+      "domain": "athletes",
+      "cat": "fav",
+      "prompt": "The athlete you’d want beside you, whatever the game?"
+    },
+    {
+      "id": "pk37",
+      "domain": "videogames",
+      "cat": "fav",
+      "prompt": "The greatest video game ever made?"
+    },
+    {
+      "id": "pk38",
+      "domain": "videogames",
+      "cat": "fav",
+      "prompt": "The game you’ve sunk the most hours into?"
+    },
+    {
+      "id": "pk40",
+      "domain": "videogames",
+      "cat": "fav",
+      "prompt": "The game world you’d actually live in?"
     }
   ]
 }

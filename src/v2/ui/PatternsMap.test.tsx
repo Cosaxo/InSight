@@ -319,6 +319,27 @@ describe("a selection survives the pool moving under it", () => {
     fireEvent.click(screen.getByText("qc-yes"));
     expect(LIVE.vote).toHaveBeenCalledWith("qc", "qc:0");
   });
+
+  // THE BEAD CARD, which the case above could not reach: `item()` keys its
+  // rows by the qid, so a ballot that votes on `q.key` passes it. An `opt`
+  // row is keyed `qid~opt`, and every multi-option question on this map is
+  // drawn as one of those.
+  it("votes on the question, not on the bead's row key", () => {
+    const beads = [
+      bead("mc", 0, vec(1, 0), null),
+      bead("mc", 1, vec(0.9, 0.2), null),
+      item("qz", vec(0.2, 0.9), 1, "food"),
+    ];
+    render(<PatternsMap items={beads} version={1} topic="all" />);
+    fireEvent.click(screen.getByLabelText(/Answer next/).querySelector("circle")!);
+    // the row's own label renders in the card's header too, so pick the
+    // ballot button rather than the first match
+    fireEvent.click(screen.getAllByText("mc-1").find((n) => n.tagName === "BUTTON")!);
+    expect(LIVE.vote).toHaveBeenCalledWith("mc", "mc:1");
+    const [qid] = (LIVE.vote as unknown as { mock: { calls: string[][] } }).mock.calls[0]!;
+    expect(qid, "the vote went out under a row key, which is not a question")
+      .not.toContain("~");
+  });
 });
 
 describe("a selection", () => {

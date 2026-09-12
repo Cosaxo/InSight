@@ -217,6 +217,56 @@ describe("--apply, against a project already armed", () => {
   });
 });
 
+describe("a schedule that exists but keeps the wrong window", () => {
+  /** The failure this block exists for: the daily schedule is there, so
+   *  the recurrence matches, but it keeps three hours. The old check asked
+   *  only whether a daily schedule existed and printed a label naming
+   *  seven days, so the run read as green against a backup window that
+   *  could not survive a night. */
+  const SHORT = () => {
+    const r = ARMED();
+    r[key("GET", SCHEDULES)] = {
+      status: 200,
+      body: {
+        backupSchedules: [
+          { name: "projects/prvfire33/databases/insight/backupSchedules/aaa", retention: "10800s", dailyRecurrence: {} },
+          { name: "projects/prvfire33/databases/insight/backupSchedules/bbb", retention: "8467200s", weeklyRecurrence: { day: "SUNDAY" } },
+        ],
+      },
+    };
+    return r;
+  };
+
+  beforeEach(() => { reply = SHORT(); });
+
+  it("never calls it already in place, and says what it actually keeps", async () => {
+    const { stdout } = await exec();
+    expect(stdout, "a 3-hour window was reported as 7-day retention")
+      .not.toMatch(/= daily backups.*skipped/);
+    expect(stdout).toMatch(/daily backups.*keeps 0\.1 day\(s\)/);
+    expect(writes(), "the dry run wrote something").toEqual([]);
+  });
+
+  it("corrects the schedule it found rather than creating a second one", async () => {
+    const { stdout } = await exec(["--apply"]);
+    const w = writes();
+    expect(w.length, `expected one write, got: ${JSON.stringify(w)}`).toBe(1);
+    expect(w[0].method).toBe("PATCH");
+    expect(w[0].url).toContain("backupSchedules/aaa");
+    expect(w[0].url).toContain("updateMask=retention");
+    expect(w[0].body).toEqual({ retention: "604800s" });
+    expect(w[0].auth, "the correction went out unsigned").toBeTruthy();
+    expect(stdout).toMatch(/daily backups.*corrected/);
+  });
+
+  it("leaves a schedule that already keeps the right window alone — the control", async () => {
+    reply = ARMED();
+    const { stdout } = await exec(["--apply"]);
+    expect(writes()).toEqual([]);
+    expect(stdout).toMatch(/= daily backups.*skipped/);
+  });
+});
+
 describe("a refusal is fatal and names the fix", () => {
   it("exits non-zero on 403 and names the role and the account", async () => {
     reply[key("GET", DB)] = { status: 403, body: { error: { message: "caller lacks permission" } } };
