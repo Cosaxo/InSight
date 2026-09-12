@@ -1940,47 +1940,34 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
-    // THE NETWORK STAYS BROKEN, and that is the fix rather than an
-    // oversight. This case used to restore `getDocsImpl = null` here and
-    // then assert `enabled` was still false after three flushes — which
-    // asked elapsed real time to prove a negative, against the very
-    // in-flight boot the comment above this block warns about. `bootHasFailed`
-    // narrowed that window and did not close it: the boot's own catch had
-    // run, but work it had already started had not, so on a loaded runner
-    // something downstream of it could still land on a working network and
-    // enable the store with no wake involved. It failed about once in
-    // seven on CI, on `main` and on branches whose diffs could not reach
-    // `live.ts`, and cost a re-run each time.
-    //
-    // Leaving the network broken removes the confound entirely: nothing
-    // reachable from here can enable the store, so whatever else is in
-    // flight, the assertion below is about the wake and only the wake.
+    // THE NETWORK STAYS BROKEN, and the READ COUNT is the assertion. This
+    // case used to restore the network and assert `enabled` after three
+    // flushes, which asked elapsed real time to prove a negative against
+    // the in-flight boot the block above warns about — `bootHasFailed`
+    // narrowed that and did not close it. One CI run in seven, on main
+    // and on diffs that could not reach live.ts. A broken network means
+    // nothing here can enable the store, and `wake()` returns on
+    // `onLine === false` BEFORE any read, so "issued no read" is a
+    // positive a counter settles where "still disabled" is a negative
+    // that a wake which merely failed also satisfies.
     vi.stubGlobal("navigator", { onLine: false });
     const readsBefore = h.getDocsCalls;
     listeners.window.online();
     await flush();
     await flush();
     await flush();
-    // THE ASSERTION IS THE READ COUNT, not the flag. `wake()` returns on
-    // `navigator.onLine === false` before it does any network work, so the
-    // observable fact is that it issued no read — a positive statement a
-    // counter settles, where "enabled is still false" is a negative that
-    // only gets truer the longer you wait and can be satisfied by a wake
-    // that ran and merely failed.
     expect(h.getDocsCalls, "the wake issued a read while offline").toBe(readsBefore);
     expect(LIVE.enabled).toBe(false);
   });
 
   it("…and the same wake DOES read once the navigator says it is back", async () => {
-    // The other half, and the reason the case above can stop asserting a
-    // negative: this one shows the counter moves when the guard is not
-    // holding, so a wake that silently stopped working could not pass both.
+    // Why the case above may stop asserting a negative: this shows the
+    // counter MOVES when the guard is not holding, so a wake that silently
+    // stopped working cannot pass both.
     const mod = await import("./live");
-    const LIVE = mod.default;
     h.getDocsImpl = () => { throw new Error("offline"); };
     await mod.initLive(1);
     await bootHasFailed();
-    expect(LIVE.enabled).toBe(false);
 
     vi.stubGlobal("navigator", { onLine: true });
     const readsBefore = h.getDocsCalls;
