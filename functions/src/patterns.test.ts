@@ -1449,7 +1449,7 @@ describe("the whole-world map's positions (D462)", () => {
     const day2 = "2026-09-10";
     const { store: s2, state: st2 } = memoryStore({ [day2]: night("SE") });
     for (const [id, d] of state.worldMaps) st2.worldMaps.set(id, d);
-    await runPatternsFit(s2, new Date(Date.parse(`${day2}T00:00:00Z`) + 26 * 3600 * 1000));
+    await runPatternsFit(s2, Date.parse(`${day2}T00:00:00Z`) + 26 * 3600 * 1000);
     const no = st2.worldMaps.get(worldMapId("NO"));
     expect(no, "Norway's document vanished instead of being emptied").toBeTruthy();
     expect(no!.n, "Norway still publishes people who are no longer in it").toBe(0);
