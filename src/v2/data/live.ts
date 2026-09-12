@@ -394,6 +394,19 @@ const state = {
   // documents carry no `counts`, or a mark restored at boot (D357) —
   // which then clears on its first read, as every mark did before.
   unaggregatedBase: {} as Record<string, { counts: Record<string, number> } | null>,
+  // …and the case that is NEITHER: a baseline this device could not take
+  // because it had never read the document. Phase B's rule compares a
+  // later read against what the counts held when you tapped, and since
+  // `readableDeckIds` the device deliberately does not read the aggregate
+  // of a card it has not answered — so on the commonest path in the app
+  // there was nothing in hand and `noteAggBase` recorded an EMPTY
+  // baseline, which is not "the counts were empty" but "I never looked".
+  // `aggHoldsMark` then reduced to `counts[to] > 0`, true of any option
+  // anybody had already picked, so the mark cleared on the first read and
+  // the card drew the crowd without you, one low, until the fold landed.
+  // Marked unknown here, HELD by aggHoldsMark, and resolved by
+  // `ensureAggBase` before the write goes out.
+  aggBaseUnknown: {} as Record<string, true>,
   // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
@@ -1009,13 +1022,73 @@ function clearUnaggregated(id: string): void {
   delete state.unaggregated[id];
   delete state.unaggregatedFrom[id];
   delete state.unaggregatedBase[id];
+  delete state.aggBaseUnknown[id];
 }
 
 /** Remember what the published counts said when `aid` was marked
  *  unfolded — the baseline the refresh compares against (phase B). */
 function noteAggBase(aid: string, comparable: boolean): void {
   const agg = state.aggs[aid] as { counts?: Record<string, number> } | undefined;
+  if (comparable && agg === undefined) {
+    // NOTHING TO COPY IS NOT AN EMPTY BASELINE. See `aggBaseUnknown`:
+    // spending the absence as `{}` is what made the rule vacuous.
+    delete state.unaggregatedBase[aid];
+    state.aggBaseUnknown[aid] = true;
+    return;
+  }
+  delete state.aggBaseUnknown[aid];
   state.unaggregatedBase[aid] = comparable ? { counts: { ...(agg?.counts ?? {}) } } : null;
+}
+
+/**
+ * Take the baseline this device never had, ONCE, BEFORE the answer is
+ * written — which is the whole of why it is exact: counts read before the
+ * write is issued provably predate the fold, where anything read after it
+ * might or might not hold the answer and there is no way to tell (the
+ * published document is written in the trigger's own shape, with no
+ * timestamp and no version to compare against).
+ *
+ * WHAT IT COSTS, said plainly because it is a real cost: one extra
+ * document read per answer on a card whose aggregate this device has not
+ * already got. That is once for the daily, and once per feed answer in a
+ * session that answers feed cards it has not seen the counts for. It buys
+ * back the minute of wrong numbers phase B was written to remove, on the
+ * path the app is mostly used through. Nothing is read here for a card
+ * the device already holds the counts of, and nothing at all is read
+ * before you answer — the blind vote is untouched, because this runs
+ * after the tap.
+ *
+ * NOT AWAITED BY THE WRITE, and that is the important half. Issued first,
+ * so the counts it returns were read before the answer was sent — which is
+ * all the ordering the baseline needs, since the fold happens after the
+ * write is acknowledged and, for a sharded question, up to a minute after
+ * that. Awaiting it put the ANSWER behind a read: a warm boot whose reads
+ * were parked never issued the write at all, which is the wrong thing to
+ * make conditional on a nicety. The answer goes out; the baseline catches
+ * up, and `aggBaseUnknown` holds the mark until it does.
+ *
+ * A FAILED READ FALLS BACK rather than sticking (see `aggHoldsMark`): the
+ * mark would otherwise be held forever and the card would keep adding a +1
+ * to counts that had long since folded it, which is the same defect with
+ * the sign reversed.
+ */
+async function ensureAggBase(db: Awaited<ReturnType<typeof getDb>>, aid: string): Promise<void> {
+  if (!state.aggBaseUnknown[aid]) return;
+  let base: { counts: Record<string, number> } | null = null;
+  try {
+    const snap = await getDoc(doc(db, "v2_question_aggs", aid));
+    const data = snap.exists() ? (snap.data() as { counts?: Record<string, number> }) : undefined;
+    base = { counts: { ...(data?.counts ?? {}) } };
+  } catch {
+    base = null;
+  }
+  // Re-checked AFTER the await: a refresh that ran while this was out has
+  // already given up on it (below) and settled the mark, and adopting a
+  // baseline for an answer whose mark is gone would be writing state
+  // nothing reads — or worse, state the NEXT answer on this id reads.
+  if (!state.aggBaseUnknown[aid]) return;
+  state.unaggregatedBase[aid] = base;
+  delete state.aggBaseUnknown[aid];
 }
 
 /** Whether a freshly read aggregate HOLDS the answer marked on `aid`. A
@@ -1026,6 +1099,19 @@ function noteAggBase(aid: string, comparable: boolean): void {
  *  corrects itself on the next read; the old rule, "the document
  *  exists", was wrong on every daily answer for a whole minute. */
 function aggHoldsMark(aid: string, agg: AggDoc): boolean {
+  // THE BASELINE READ HAS NOT LANDED. It is issued before the write and
+  // the first refresh is 2.5s after the ACK, so on any working network it
+  // has; arriving here means the read is slow, refused, or offline. Give
+  // up on it rather than hold the mark, and fall back to what this rule
+  // did before the baseline existed: one refresh late is a wrong number
+  // for a minute, a mark that never clears is a wrong number until the
+  // app is closed. Cleared, so the read cannot land afterwards and revive
+  // a baseline for an answer that has settled.
+  if (state.aggBaseUnknown[aid]) {
+    delete state.aggBaseUnknown[aid];
+    state.unaggregatedBase[aid] = null;
+    return true;
+  }
   const base = state.unaggregatedBase[aid];
   if (base === undefined || base === null) return true;
   const counts = ((agg as { counts?: Record<string, number> }).counts) ?? {};
@@ -8088,6 +8174,11 @@ const LIVE = {
     return (async () => {
       try {
         const db = await getDb();
+        // The baseline this device never had, ISSUED before the write
+        // and deliberately not awaited by it — see ensureAggBase. A
+        // no-op when the counts were already in hand, which is every
+        // path that is not a blind card.
+        void ensureAggBase(db, aid);
         await setDoc(doc(db, "v2_users", uid, "answers", aid), {
           qid: aid,
           baseQid,
@@ -8254,6 +8345,11 @@ const LIVE = {
     void (async () => {
       try {
         const db = await getDb();
+        // The baseline this device never had, ISSUED before the write
+        // and deliberately not awaited by it — see ensureAggBase. A
+        // no-op when the counts were already in hand, which is every
+        // path that is not a blind card.
+        void ensureAggBase(db, qid);
         const uid = state.uid;
         if (!uid) throw new Error("no session");
         const q =
@@ -8490,6 +8586,11 @@ const LIVE = {
     void (async () => {
       try {
         const db = await getDb();
+        // The baseline this device never had, ISSUED before the write
+        // and deliberately not awaited by it — see ensureAggBase. A
+        // no-op when the counts were already in hand, which is every
+        // path that is not a blind card.
+        void ensureAggBase(db, qid);
         const uid = state.uid;
         if (!uid) throw new Error("no session");
         await updateDoc(doc(db, "v2_users", uid, "answers", qid), {
@@ -8554,6 +8655,7 @@ function resetForNewUid(uid: string): void {
   state.unaggregated = {};
   state.unaggregatedFrom = {};
   state.unaggregatedBase = {};
+  state.aggBaseUnknown = {};
   state.editedAt = {};
   state.aggs = {};
   state.overflowCells = {};

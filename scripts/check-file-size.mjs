@@ -112,7 +112,20 @@ export const SIZE_BASELINE = {
   // pulse roster, which rebuilds each entry field by field, drops it in
   // silence. Nine of the ten lines are the comment saying so, which is
   // this store's usual ratio and the reason its number moves at all.
-  "src/v2/data/live.ts": { mode: "ratchet", lines: 9502 },
+  //
+  // 9,502 -> 9,575 (+73) for the blind card's baseline read. Phase B's
+  // rule compares a later aggregate read against what the counts held when
+  // you tapped, and since `readableDeckIds` the device holds nothing for a
+  // card it has not answered — an absence this file was spending as an
+  // EMPTY baseline, which collapsed the rule to "somebody has already
+  // picked this option" and drew the crowd without you for the minute
+  // before the fold. The lines are one more piece of store state (the
+  // baseline that is not yet known), one small async helper that takes it
+  // before the write goes out, and three call sites of one line each.
+  // Most of the rest is the two comments saying why the read is exact
+  // only where it is issued and what it costs — docs/COSTS.md carries the
+  // same figure as a row.
+  "src/v2/data/live.ts": { mode: "ratchet", lines: 9604 },
   // +31 from main's feed work at the 2026-09-11 merge.
   //
   // 4,784 -> 4,978 at D479 (+194 net: 222 added, 28 removed). The removed
@@ -157,7 +170,18 @@ export const SIZE_BASELINE = {
   // in a comment where the next reader of that block will meet it. Both
   // halves were mutation-checked red before this raise: deleting the
   // navigator guard, and making wake() return unconditionally.
-  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4588 },
+  //
+  // +70 for the blind-card baseline pair (2026-09-12): the case that a
+  // card the boot never read does not treat an option the crowd already
+  // holds as the fold, and its control — an aggregate that does not exist
+  // really IS an empty baseline, so the first count that appears is the
+  // fold and a rule that waited for growth past nothing would leave the
+  // reader's +1 on top of counts that already hold it. Both mutation-
+  // checked red: the empty-baseline shortcut, and the fall-back for a
+  // read that never answers — which needed a harness knob of its own,
+  // because a refused read settles itself and only a read still OUT
+  // reaches the branch that stops a mark outliving the session.
+  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4721 },
   "firestore-tests/rules.test.ts": { mode: "ratchet", lines: 5359 },
   "functions/src/pure.ts": { mode: "ratchet", lines: 2833 },
   // GENERATED and appended daily by the content lanes — hence `ceiling`.

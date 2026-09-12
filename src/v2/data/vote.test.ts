@@ -65,6 +65,8 @@ const h = vi.hoisted(() => ({
   // the reveal has to add it back in. Default null keeps every other case
   // on the "document does not exist" answer they were written against.
   getDocImpl: null as null | ((path: string) => Record<string, unknown> | null),
+  // Paths whose single-document read never settles — see the getDoc stub.
+  getDocHangs: new Set<string>(),
   // OPTIONS TOO. The third argument decides whether a write can REMOVE a
   // field, and dropping it here is why nothing could pin `saveAnchors`
   // passing `mergeFields` — a fix landed with a comment claiming the
@@ -273,6 +275,11 @@ vi.mock("firebase/firestore", () => {
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
     getDoc: (target: { path: string }) => {
+      // A READ THAT NEVER ANSWERS. Distinct from a refused one, which
+      // `getDocImpl` can already model by throwing: a promise that stays
+      // out is the case the baseline read's fall-back exists for, and the
+      // only way to reach it from here.
+      if (h.getDocHangs.has(target?.path)) return new Promise(() => {});
       const data = h.getDocImpl ? h.getDocImpl(target?.path) : null;
       return Promise.resolve(data
         ? { exists: () => true, get: (k: string) => data[k], data: () => data }
@@ -549,6 +556,7 @@ beforeEach(() => {
   h.getDocsImpl = null;
   h.getDocsCalls = 0;
   h.getDocImpl = null;
+  h.getDocHangs.clear();
   h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
@@ -1055,6 +1063,131 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     h.aggDocs = [{ id: "q_hold", data: { total: 8, counts: { "0": 8 } } }];
     await mod._aggRefreshForTest().drain({ __db: true } as never);
     expect(mod._aggRefreshForTest().marks()).not.toHaveProperty("q_hold");
+  });
+
+  it("phase B: the baseline is READ when the card was blind — an option the crowd already holds is not the fold", async () => {
+    // THE HOLE PHASE B'S RULE HAD ON THE COMMONEST PATH. The rule compares
+    // a later read against what the counts held when you tapped — and
+    // since `readableDeckIds` the device deliberately does not read the
+    // aggregate of a card it has not answered, so on today's daily there
+    // was nothing in hand. `noteAggBase` spent that absence as an EMPTY
+    // baseline, which is not "the counts were empty" but "I never
+    // looked", and the rule collapsed to `counts[to] > 0` — true of any
+    // option anybody had already picked. The mark cleared on the first
+    // read, `countsFor` subtracted this device's vote out of counts that
+    // did not hold it, and the card drew the crowd one short on your own
+    // option until the fold landed a minute later.
+    //
+    // The published document below is the ORDINARY state of a daily card:
+    // seven people, four of them on the option this device is about to
+    // pick. The case above avoids exactly that by putting all seven on
+    // the other option, which is why it passed while this was broken.
+    h.bankDocs.push(bankDoc("q_blind", ["A", "B", "C"]));
+    const PUBLISHED = { total: 7, counts: { "0": 3, "1": 4 } };
+    h.getDocImpl = (path: string) => (path === "v2_question_aggs/q_blind" ? PUBLISHED : null);
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    // Blind: the boot read nothing for this card.
+    expect(LIVE.lensAgg("q_blind"), "the boot read the aggregate of a card nobody had answered").toBeFalsy();
+    LIVE.vote("q_blind", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_blind");
+    });
+    await flush();
+    // The same document the baseline was taken from. It has four on this
+    // device's option and none of them is this device's.
+    h.aggDocs = [{ id: "q_blind", data: PUBLISHED }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(
+      mod._aggRefreshForTest().marks(),
+      "the mark cleared on counts that never held this answer — the card now shows the crowd without you",
+    ).toHaveProperty("q_blind", 1);
+    // The compactor folds it: cleared, and the subtraction becomes right.
+    // (The mark is the assertion here, as in the case above — `lensAgg`
+    // answers for the deck, and this question is a bank entry the deck
+    // does not carry.)
+    mod._aggRefreshForTest().queue("q_blind");
+    h.aggDocs = [{ id: "q_blind", data: { total: 8, counts: { "0": 3, "1": 5 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).not.toHaveProperty("q_blind");
+  });
+
+  it("…and a blind card whose aggregate does not exist still clears on the first fold", async () => {
+    // THE CONTROL for the case above. An absent document really is an
+    // empty baseline — nobody has answered — so the first count that
+    // appears IS the fold, and a rule that held the mark waiting for
+    // growth past nothing would leave the +1 on top of counts that
+    // already hold it, which is the same defect with the sign reversed.
+    h.bankDocs.push(bankDoc("q_first", ["A", "B", "C"]));
+    h.getDocImpl = () => null;
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_first", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_first");
+    });
+    await flush();
+    h.aggDocs = [{ id: "q_first", data: { total: 1, counts: { "1": 1 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(
+      mod._aggRefreshForTest().marks(),
+      "the mark outlived the fold on a card nobody else had answered",
+    ).not.toHaveProperty("q_first");
+  });
+
+  it("…and a REFUSED baseline read does not strand the mark", async () => {
+    // The safety direction. The baseline is a nicety and the answer is
+    // not, so the read is issued before the write and never awaited by it
+    // — which means it can still be out, or refused, when the refresh
+    // arrives. Falling back to the old rule costs one wrong number for a
+    // minute; holding the mark on a read that will never land costs a
+    // wrong number until the app is closed, and it is the same defect
+    // with the sign reversed.
+    h.bankDocs.push(bankDoc("q_refused", ["A", "B", "C"]));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    // Scoped to the aggregate, and set after the boot: a knob that
+    // refused every single-document read would fail the boot instead,
+    // which is a different case and not this one.
+    h.getDocImpl = (path: string) => {
+      if (path === "v2_question_aggs/q_refused") throw new Error("permission-denied");
+      return null;
+    };
+    LIVE.vote("q_refused", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_refused");
+    });
+    await flush();
+    h.aggDocs = [{ id: "q_refused", data: { total: 7, counts: { "0": 3, "1": 4 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(
+      mod._aggRefreshForTest().marks(),
+      "a baseline read that never landed left the mark standing for the session",
+    ).not.toHaveProperty("q_refused");
+  });
+
+  it("…and a baseline read still OUT when the refresh runs falls back rather than holding", async () => {
+    // The other half of the safety direction, and the one the fall-back
+    // in `aggHoldsMark` is actually for: not a refused read (above, which
+    // settles itself) but one that never answers. The mark must not
+    // outlive the session waiting for it — a wrong number for a minute is
+    // the old behaviour; a wrong number until the app closes is worse
+    // than what this fix was written to remove.
+    h.bankDocs.push(bankDoc("q_slow", ["A", "B", "C"]));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    h.getDocHangs.add("v2_question_aggs/q_slow");
+    LIVE.vote("q_slow", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_slow");
+    });
+    await flush();
+    h.aggDocs = [{ id: "q_slow", data: { total: 7, counts: { "0": 3, "1": 4 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(
+      mod._aggRefreshForTest().marks(),
+      "the mark waited on a baseline read that never answered",
+    ).not.toHaveProperty("q_slow");
   });
 
   it("…and a first answer still adds to the crowd — the control", async () => {
