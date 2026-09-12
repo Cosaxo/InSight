@@ -493,9 +493,33 @@ export function App() {
   // opening onto an overlay whose module never arrives is worse than not
   // opening, because the guards below would render a blank screen with no
   // way back to the tab.
+  // The six components the overlay chunk hands back (D-2026-09-12g). They
+  // used to be read off `window` at each render site, which was nine of
+  // check:globals rule 4's references — a third of what was left on the
+  // bridge — for a value this callback was already awaiting.
+  //
+  // STATE AND NOT React.lazy, for the reason MirrorSlot above gives:
+  // React.lazy caches a rejection, so one failed fetch would leave an
+  // overlay dead for the session. `loadOverlays` is `retryable`, so a
+  // failed group re-attempts on the next open — which is what the old
+  // `window.X &&` guard did by accident and this does on purpose.
+  const [overlays, setOverlays] = React.useState({});
+  // Destructured rather than read as `overlays.X` at each of the six sites,
+  // and that is a BYTE decision rather than a style one: a local binding
+  // minifies to one character and a property NAME cannot minify at all.
+  // MAX_EAGER_KB has no headroom — it is the one ceiling in this repo that
+  // does not get raised — so the form mattered. Measured on the shipping
+  // build, entry chunk only (no overlay chunk enters the eager graph in any
+  // of them): 555.10 KB reading `overlays.X` at each site, 555.03 with the
+  // six long names destructured, 554.9 once the handoff object took SHORT
+  // keys and this aliased them back — against a 555 ceiling.
+  const {
+    person: PersonOverlay, city: CityOverlay, profile: ProfileOverlay,
+    search: SearchOverlay, logic: LogicOverlay, relmap: RelationshipMapOverlay,
+  } = overlays;
   const openDeferred = React.useCallback(async (open) => {
     try {
-      await window.loadOverlays();
+      setOverlays(await window.loadOverlays());
     } catch (e) {
       console.error('[Doxa] overlay chunk failed to load:', e);
       return;
@@ -854,24 +878,23 @@ export function App() {
 
         {/* Overlays — one at a time, keyed by `ov` */}
         <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
-          {/* Some below read their component off window rather than as a
-              bare identifier: they ship in the after-first-paint overlay
-              chunk (loadOverlays, spec-index.js), and a bare name would be a
-              ReferenceError rather than a blank if the chunk ever failed.
-              The openers await the chunk, so in practice these are never
-              false while their state is set — see openDeferred above.
+          {/* All six come off `overlays`, the namespace loadOverlays returns
+              (D-2026-09-12g). Two shapes stood here before: `window.X &&
+              <window.X/>` for three of them, and a bare identifier for the
+              other three — the bare form chosen at D223 because it cost one
+              shared-global reference where the guarded form cost two, which
+              is a real answer to the meter and not to the coupling. Both are
+              now one `overlays.X`, and the guard is the same one the guarded
+              form had: null until the chunk lands.
 
-              `profile` and `search` joined that chunk at D223 and KEPT the
-              bare identifier, deliberately: the `window.X &&` form costs two
-              shared-global references where a bare name costs one, and
-              check:globals rule 4 only moves down. What makes them safe is
-              the same thing that makes the guard redundant — every path that
-              sets `ov` now goes through openDeferred, including the two
-              header buttons, so the module is in before the state that
-              mounts it. */}
-          {person && window.PersonOverlay && <window.PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
-          {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
-          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
+              The guard stays even though it is redundant — every path that
+              sets `ov` goes through openDeferred, so the modules are in
+              before the state that mounts them. It costs a `?.` and it is
+              what makes a failed chunk a blank overlay rather than a crashed
+              shell. */}
+          {person && PersonOverlay && <PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
+          {city && CityOverlay && <CityOverlay city={city} onClose={() => setCity(null)} />}
+          {ov === 'profile' && ProfileOverlay && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
           {/* null fallback like the tabs' lazies: the room's own first frame
               is its header, and a spinner in front of that is one loading
               state too many. A failed chunk lands in this ErrorBoundary. */}
@@ -908,17 +931,15 @@ export function App() {
               screen from first paint, so it is one tap from a cold start.
               This is the third site in this family; the daily's demo sheets
               and the Mirror's preview tag already ask both halves. */}
-          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn && !LIVE.demoInProd} onPerson={(p) => { setOv(null); setPerson(p); }} />}
-          {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
-          {/* The one overlay here NOT read off window, though its module is
-              deferred like the rest (D200). Reachable only from the embedded
-              map's own expand button — which exists only once the chunk that
-              defines this component has loaded — so `ov` cannot be 'relmap'
-              with the name unbound. If a second opener ever appears it must
-              go through openDeferred like the others, and this line becomes
-              `window.RelationshipMapOverlay && …`; until then the
-              ErrorBoundary above is the backstop rather than the plan. */}
-          {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
+          {ov === 'search' && SearchOverlay && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn && !LIVE.demoInProd} onPerson={(p) => { setOv(null); setPerson(p); }} />}
+          {ov === 'logic' && LogicOverlay && <LogicOverlay onClose={() => setOv(null)} />}
+          {/* relmap is reachable only from the embedded map's own expand
+              button, which exists only once this chunk has loaded — so the
+              guard was argued to be unnecessary here and the comment that
+              stood in its place planned the line it would need "if a second
+              opener ever appears". It has the guard now for free: one shape
+              for all six is worth more than the one character. */}
+          {ov === 'relmap' && RelationshipMapOverlay && <RelationshipMapOverlay onClose={() => setOv(null)} />}
         </ErrorBoundary>
       </div>
 

@@ -23,7 +23,15 @@ import { RMLenses } from './relmap-lenses.jsx';
 // what takes ~102 KB of map off the eager graph. The window mirror below
 // keeps ONLY the overlay, because a publication nothing reads is a
 // check:globals rule 5 failure and the map now has an importer instead.
+//
+// D-2026-09-12g: the overlay left the bridge too, and the comment that
+// stood at its publication ("importing it there would drag this chunk back
+// into the entry graph") was right about a STATIC import and is not what
+// replaced it. app-shell holds the namespace `loadOverlays()` returns, so
+// the only import of this file is still the dynamic one in spec-index.js
+// and the chunk stays exactly where D200 put it.
 let RelationshipMapExport;
+let RelationshipMapOverlayExport;
 (function () {
   const { DEFAULT_GROUPS, AGE_BANDS, ageBand, ageColor, statusMeta, yearsWord,
     politicalColor, personalityColor, politicalLabel, personalityLabel,
@@ -900,11 +908,9 @@ let RelationshipMapExport;
   }
 
   RelationshipMapExport = RelationshipMap;
-  // The overlay stays on the bridge: app-shell.jsx mounts it by bare name
-  // and importing it there would drag this chunk back into the entry graph,
-  // which is the whole thing D200 just undid.
-  Object.assign(window, { RelationshipMapOverlay });
+  RelationshipMapOverlayExport = RelationshipMapOverlay;
 })();
 
 export const RelationshipMap = RelationshipMapExport;
+export const RelationshipMapOverlay = RelationshipMapOverlayExport;
 

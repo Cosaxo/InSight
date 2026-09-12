@@ -556,7 +556,7 @@ export const loadOverlays = retryable(async () => {
   // Then relmap.jsx, because the rest of this list is spec-index's own
   // order with the eager modules removed and relmap.jsx sat above every
   // other member of it.
-  await import('./spec/relmap.jsx');
+  const relmap = await import('./spec/relmap.jsx');
   // The subtopic stock, installed for THIS group too — search-overlay.jsx
   // below reads SUBTOPICS.offers(), which is "only the stocked leaves" and
   // reads the pool to decide. Idempotent and guarded, so whichever loader
@@ -572,16 +572,50 @@ export const loadOverlays = retryable(async () => {
   await import('./spec/duo-daily.jsx');
   // …then the two the header opens, in the order they held in the eager
   // list above (D223). ~12 KB of the entry chunk that only a tap reaches.
-  await import('./spec/search-overlay.jsx');
+  const search = await import('./spec/search-overlay.jsx');
   // Before its reader, which is the whole contract: profile-overlay looks
   // up window.GeneralPanel at render time, and these sequential awaits are
   // what order the two.
   await import('./spec/profile-general.jsx');
-  await import('./spec/profile-overlay.jsx');
+  const profile = await import('./spec/profile-overlay.jsx');
   await import('./spec/person-mindmap.jsx');
-  await import('./spec/person-overlay.jsx');
-  await import('./spec/city-overlay.jsx');
-  await import('./spec/logic-test.jsx');
+  const person = await import('./spec/person-overlay.jsx');
+  const city = await import('./spec/city-overlay.jsx');
+  const logic = await import('./spec/logic-test.jsx');
+  // THE SIX COMPONENTS THE SHELL MOUNTS, handed back rather than published
+  // (D-2026-09-12g). app-shell held six `window.X` reads — nine of
+  // check:globals rule 4's references, a third of what was left on the
+  // bridge — and every one of them was this function's result read out of
+  // global scope instead of returned from it.
+  //
+  // A RETURN AND NOT SIX React.lazy CALLS, for two reasons that are both
+  // written down elsewhere in this tree. React.lazy caches a rejection, so
+  // one failed fetch would make an overlay dead for the session — the
+  // reason mirror-tab.jsx's MapSlot and app-shell's MirrorSlot are slots
+  // and not lazies (D355). And these six are not independent chunks: the
+  // awaits above are an ORDER (the Mirror family first, profile-general
+  // before profile-overlay, the subtopic stock before search-overlay), and
+  // six lazies would each fetch on their own and race it.
+  //
+  // `retryable` still memoises, so a caller that arrives later gets the
+  // same promise and the same six; a failed group re-attempts on the next
+  // open, exactly as the old `window.X &&` guard did.
+  // SHORT KEYS, and that is a byte decision rather than a style one. The
+  // shell destructures this into locals, and a local minifies to one
+  // character where a property NAME cannot minify at all — six
+  // `…Overlay` keys cost ~95 unminifiable characters of the entry chunk
+  // against MAX_EAGER_KB, which is the one ceiling in this repo that does
+  // not get raised. Named and not positional: an array would minify best
+  // and a reorder here would silently swap two overlays, which is not a
+  // trade worth 40 bytes.
+  return {
+    search: search.SearchOverlay,
+    profile: profile.ProfileOverlay,
+    person: person.PersonOverlay,
+    city: city.CityOverlay,
+    logic: logic.LogicOverlay,
+    relmap: relmap.RelationshipMapOverlay,
+  };
 });
 
 // …and published on globalThis, because app-shell's openers have to await

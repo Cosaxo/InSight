@@ -5,7 +5,7 @@
 // building a cell, committing it, the clock, both round trips, and the
 // result screen's five lenses.
 //
-// Rendered DIRECTLY (window.LogicOverlay after importing the module), not
+// Rendered DIRECTLY (the module's own export since D-2026-09-12g), not
 // through the full App: there is no ErrorBoundary here, so a crash in any
 // lens fails the case instead of tripping a boundary this file would then
 // have to assert around.
@@ -35,16 +35,17 @@ vi.mock("../data/logic-verify", () => ({
 vi.mock("../spec/haptics.js", () => ({ HAPTIC: { tick: vi.fn(), tap: vi.fn(), reveal: vi.fn(), off: () => true } }));
 import { startVerified, submitVerified, nextVerified } from "../data/logic-verify";
 import { HAPTIC } from "../spec/haptics.js";
-import "../spec/logic-test.jsx";
+import { LogicOverlay } from "../spec/logic-test.jsx";
 
 const COMMIT_DELAY = 520; // logic-test.jsx's reveal delay, pinned by the timing case
 const ITEM_CAP = 90000;
 const N = 25;
 const EMPTY = cellOf([]);
 
-let LogicOverlay;
 beforeAll(() => {
-  LogicOverlay = window.LogicOverlay;
+  // Still asserted: the component is assigned to the `export let` from
+  // inside the module's IIFE, so an import that resolved before that
+  // assignment would be `undefined` rather than a missing-export error.
   expect(typeof LogicOverlay).toBe("function");
 });
 

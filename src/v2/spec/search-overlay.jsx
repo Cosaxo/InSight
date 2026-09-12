@@ -180,7 +180,7 @@ function SrchTopicRow({ item, query, onToggle }) {
   );
 }
 
-function SearchOverlay({ onClose, onPerson, samplePeople }) {
+export function SearchOverlay({ onClose, onPerson, samplePeople }) {
   const dlg = useDialog(onClose, 'Search');
   const [q, setQ] = useSrchState('');
   const [openQ, setOpenQ] = useSrchState(null);
@@ -411,7 +411,3 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
     </div>
   );
 }
-
-Object.assign(window, { SearchOverlay });
-
-;globalThis.SearchOverlay = typeof SearchOverlay === 'undefined' ? globalThis.SearchOverlay : SearchOverlay;

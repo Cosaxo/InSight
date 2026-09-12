@@ -12,7 +12,7 @@ import { GL } from './glyph-icons.js';
 // CityOverlay — opens when you tap a city in the World tab atlas
 const { useState: useStateCO } = React;
 
-function CityOverlay({ city, onClose }) {
+export function CityOverlay({ city, onClose }) {
   const dlg = useDialog(onClose, city && city.name ? `${city.name} profile` : 'City profile');
   const D = IS_DATA;
   const cats = D.cityScoreCats;
@@ -157,7 +157,3 @@ function CityOverlay({ city, onClose }) {
     </div>
   );
 }
-
-Object.assign(window, { CityOverlay });
-
-;globalThis.CityOverlay = typeof CityOverlay === 'undefined' ? globalThis.CityOverlay : CityOverlay;

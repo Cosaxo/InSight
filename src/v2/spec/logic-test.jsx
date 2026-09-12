@@ -30,9 +30,11 @@ import { HAPTIC } from './haptics.js';
 // it as a fifth ring in "Your tests".
 // ─────────────────────────────────────────────────────────────
 // The saved-result reader profile-general imports (D354's sweep);
-// assigned inside the IIFE below. LogicOverlay stays published: app-shell
-// mounts it by name after awaiting loadOverlays().
+// assigned inside the IIFE below — and since D-2026-09-12g so is the
+// overlay, the same way: app-shell holds what `loadOverlays()` returns
+// rather than reading `window.LogicOverlay`.
 export let LOGIC;
+export let LogicOverlay;
 (function () {
   const { useState, useRef, useEffect } = React;
 
@@ -379,7 +381,7 @@ export let LOGIC;
     return r.bank === 'omib' ? CALIBRATED_ON : 'players';
   };
 
-  function LogicOverlay({ onClose }) {
+  function LogicOverlayLocal({ onClose }) {
     const dlg = useDialog(onClose, 'Logic test');
     const [result, setResult] = useState(loadResult);
     // What the screen shows when no attempt is running: the worked example
@@ -774,6 +776,8 @@ export let LOGIC;
     );
   }
 
-  window.LogicOverlay = LogicOverlay;
+  // The IIFE hands its local out to the module-scope `export let` above —
+  // the shape LOGIC beside it uses, and relmap.jsx's *Export slots.
+  LogicOverlay = LogicOverlayLocal;
   LOGIC = { load: loadResult, color: LOGIC_COL, elements: ELEMENTS, families: FAMILIES };
 })();

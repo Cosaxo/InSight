@@ -22,6 +22,9 @@ import { CompareCarousel } from './compare-breakdown.jsx';
 // Replaces the basic PersonOverlay — registration is spec-index.js's
 // `loadOverlays` group
 
+// The component is declared inside the IIFE, so the export is a capture
+// slot assigned at its foot — relmap.jsx's `*Export` idiom (D-2026-09-12g).
+let PersonOverlayExport;
 (function () {
 
 // deterministic 0..1 from any string — their drifted test values must be stable
@@ -631,9 +634,10 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   );
 }
 
-// The one PersonOverlay — registered globally for the app shell.
-window.PersonOverlay = PersonOverlay;
+// The one PersonOverlay — handed to the app shell through the namespace
+// `loadOverlays()` returns, no longer through `window`.
+PersonOverlayExport = PersonOverlay;
 
 })();
 
-;globalThis.PersonOverlay = typeof PersonOverlay === 'undefined' ? globalThis.PersonOverlay : PersonOverlay;
+export const PersonOverlay = PersonOverlayExport;

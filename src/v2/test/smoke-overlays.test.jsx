@@ -183,17 +183,37 @@ describe("the overlays with no button — opened through the nav registry", () =
   });
 
   describe("a failed overlay chunk degrades rather than crashing", () => {
-    const GUARDED = [
-      ["LogicOverlay", "openLogicTest", []],
-      ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
-      ["CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],
+    // Openable from here, with the arguments each door needs. Three of the
+    // six are reachable through the nav registry or a header button; the
+    // other three (profile, search, relmap) have their own cases above and
+    // the same guard, so the coverage claim below checks all six shapes and
+    // this table drives the three that can be opened without a button.
+    // [key on the handoff object, component name, nav opener, args]. The key
+    // and the name differ because the handoff uses short keys — a property
+    // name cannot minify and the entry chunk has no headroom (spec-index.js
+    // says why) — so the shell aliases them back at the destructure.
+    const OPENABLE = [
+      ["logic", "LogicOverlay", "openLogicTest", []],
+      ["person", "PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
+      ["city", "CityOverlay", "openCity", () => [(IS_DATA.cities || [])[0]?.name]],
+    ];
+    const ALL_SIX = [
+      "CityOverlay", "LogicOverlay", "PersonOverlay",
+      "ProfileOverlay", "RelationshipMapOverlay", "SearchOverlay",
     ];
 
-    // The table is the coverage claim, so it is checked against the thing
-    // it claims to cover rather than against a number in a comment. A new
-    // `&& <window.X` render guard in app-shell reddens this until it has a
-    // row here; removing one reddens it until the row goes.
-    it("covers every `window.X &&` render guard app-shell actually has", () => {
+    // The table is the coverage claim, so it is checked against the thing it
+    // claims to cover rather than against a number in a comment. A new
+    // guarded overlay in app-shell reddens this until it has a row; removing
+    // one reddens it until the row goes.
+    //
+    // It used to match `&& <window.X` and found THREE, because the other
+    // three overlays were mounted by bare identifier with no guard at all —
+    // so half the family was uncovered and the claim in this test's own name
+    // was only ever true of the half that had a guard. Since D-2026-09-12g
+    // all six come off the namespace `loadOverlays()` returns and all six
+    // carry the same guard, so this now covers the family.
+    it("covers every overlay render guard app-shell actually has", () => {
       // `cwd()` off an explicit `node:process` import rather than
       // `import.meta.url`, which vitest's jsdom transform does not hand
       // back as a file: URL. vote.test.ts reads live.ts the same way, but
@@ -203,25 +223,69 @@ describe("the overlays with no button — opened through the nav registry", () =
       // global does not exist and the import is the fix. Adding an eslint
       // exception would be the wrong direction: the rule is right.
       const shell = readFileSync(resolve(cwd(), "src/v2/spec/app-shell.jsx"), "utf8");
-      const guards = [...shell.matchAll(/&&\s*<window\.(\w+)/g)].map((m) => m[1]);
+      // `X && <X` — the name guarded and the tag it guards must be the same
+      // binding, so this cannot be satisfied by an unrelated `Foo &&` nearby.
+      const guards = [...shell.matchAll(/(\w+Overlay) && <\1\b/g)].map((m) => m[1]);
       expect(guards.length, "no render guards found — the pattern stopped matching").toBeGreaterThan(0);
-      expect([...guards].sort()).toEqual(GUARDED.map(([g]) => g).sort());
+      expect([...new Set(guards)].sort()).toEqual(ALL_SIX);
     });
 
-    for (const [global, opener, argsFor] of GUARDED) {
-      it(`${opener} with ${global} missing renders nothing and does not trip the boundary`, async () => {
-        const saved = window[global];
-        expect(saved, `${global} was never registered — the deferred load is broken`).toBeTruthy();
-        delete window[global];
+    for (const [key, name, opener, argsFor] of OPENABLE) {
+      it(`${opener} renders nothing and does not trip the boundary when ${name} is missing`, async () => {
+        // A PARTIAL CHUNK, which is what the guard is actually for: the
+        // group resolved but this one component is not on it. Stubbing the
+        // loader rather than deleting a global is the only way to express
+        // that now, and it is the more honest shape — deleting
+        // `window.CityOverlay` never simulated a load failure, because the
+        // load had already succeeded.
+        const real = window.loadOverlays;
+        const full = await real();
+        expect(full[key], `${name} is not on the chunk — the deferred load is broken`).toBeTruthy();
+        const partial = { ...full };
+        delete partial[key];
+        window.loadOverlays = () => Promise.resolve(partial);
         try {
           const expectNoBoundary = mountApp();
           await openVia(opener, ...(typeof argsFor === "function" ? argsFor() : argsFor));
-          expectNoBoundary(`${opener} with ${global} missing`);
+          expectNoBoundary(`${opener} with ${name} missing`);
         } finally {
-          window[global] = saved;
+          window.loadOverlays = real;
         }
       });
     }
+
+    it("a rejected chunk renders nothing, and the NEXT open still works", async () => {
+      // The property this shape exists for, and the reason it is state and
+      // not React.lazy: React.lazy caches a rejection, so one failed fetch
+      // would leave the overlay dead for the rest of the session (the same
+      // reasoning MirrorSlot and MapSlot are built on). `loadOverlays` is
+      // retryable, so the second open re-attempts and lands.
+      //
+      // Asserted as "renders nothing" rather than "opens nothing": the
+      // render guard makes that true whatever openDeferred does with the
+      // rejection, so a test claiming the early `return` would pass without
+      // it — measured. What the `return` buys is not setting `ov` at all,
+      // which is defence and not the observable contract; the retry is the
+      // contract, and it is what a switch to React.lazy would break.
+      const real = window.loadOverlays;
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      let expectNoBoundary;
+      try {
+        window.loadOverlays = () => Promise.reject(new Error("chunk 404"));
+        expectNoBoundary = mountApp();
+        await openVia("openLogicTest");
+        expect(document.body.textContent, "a rejected chunk still drew the overlay")
+          .not.toMatch(/Logic/i);
+        expect(spy).toHaveBeenCalled();
+      } finally {
+        spy.mockRestore();
+        window.loadOverlays = real;
+      }
+      // …and now the retry, on the same mounted shell.
+      await openVia("openLogicTest");
+      expectOpened(/Logic/i, "the open after a rejected chunk");
+      expectNoBoundary("a rejected chunk then a successful open");
+    });
   });
 });
 

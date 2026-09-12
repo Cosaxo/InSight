@@ -500,24 +500,10 @@ for (const name of [...defined].sort()) {
 // deadline here and inventing one would be the kind of figure this repo
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
-  "src/v2/spec/app-shell.jsx": 12,
-  // 5 since the duo body came off the bridge: `daily-split.jsx` read
-  // `window.DuoBody` at render time and now React.lazies the module, the
-  // way it already lazied the group body beside it. The publication stays
-  // for `duels-rounds.test.jsx`, so this is a reader converted rather than
-  // a name retired.
+  "src/v2/spec/app-shell.jsx": 3,
   "src/v2/spec/daily-split.jsx": 5,
   "src/v2/spec/mirror-field-pops.jsx": 1,
-  // 3, and it was 4 for the length of one commit: the bare pass found
-  // `LIVE` read without the binding at :76 — D354's sweep gave every
-  // other spec module the import and missed this one — and the import
-  // took it straight back off.
   "src/v2/spec/search-overlay.jsx": 3,
-  // `city-overlay.jsx` is not here because it is at ZERO: the bare pass
-  // found three `GL(r.glyph)` reads, and `glyph-icons.js` came off the
-  // bridge in the same commit. It was the only reader in the tree, so the
-  // publication went with it rather than staying for consumers that have
-  // not moved — there are none.
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/world-feed.jsx": 1,

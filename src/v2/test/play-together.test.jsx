@@ -21,10 +21,14 @@ import { DUELS } from '../spec/duels-data.js';
 import { IS_ARCHETYPES } from '../spec/archetype-data.js';
 import * as duelCue from '../data/duelCue';
 import NAV, { registerNav } from '../data/nav';
-import '../spec/person-overlay.jsx';
+import { PersonOverlay } from '../spec/person-overlay.jsx';
 
-const overlay = () => window.PersonOverlay;
-const openFor = (p) => render(<window.PersonOverlay p={p} me={IS_DATA.me} onClose={() => {}} />);
+// The module's own export since D-2026-09-12g. Still called through a
+// thunk: the component is assigned to the `export let` from inside the
+// module's IIFE, so this asserts the assignment happened, not merely
+// that the name resolves.
+const overlay = () => PersonOverlay;
+const openFor = (p) => render(<PersonOverlay p={p} me={IS_DATA.me} onClose={() => {}} />);
 
 let offNav;
 let goNav;

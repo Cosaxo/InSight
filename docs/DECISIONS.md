@@ -54361,3 +54361,82 @@ matched nothing, failed nothing, and simply was not a record: no index row,
 no anchor, and no way to notice except to miss it later. A top-level heading
 that uses the record separator ` · ` is now held to the id shape. Preamble
 prose headings carry no ` · ` and are still skipped.
+
+## D-2026-09-12g · The six overlays come off the bridge, and not by React.lazy
+
+**Decided:** 2026-09-12 · **Status:** binding
+
+`loadOverlays()` returns the six components the shell mounts; `app-shell.jsx`
+holds them in state and destructures them. The `window.PersonOverlay` family
+is gone. Rule 4's coupling: **27 → 18 across 7 files**, app-shell 12 → 3 —
+a third of what was left on the bridge, in one move. Six publications
+removed with it (38 → 32 globals defined).
+
+**What the nine references were.** app-shell already awaited
+`loadOverlays()` before setting the state that mounts an overlay. So every
+one of those reads was *this function's own result, read out of global scope
+instead of returned from it*. Three sites read `window.X && <window.X/>`;
+three others were mounted by bare identifier with no guard at all, a shape
+D223 chose deliberately because the guarded form "costs two shared-global
+references where a bare name costs one" — a correct answer to the meter and
+not to the coupling.
+
+**Why NOT React.lazy**, which is what the audit that produced this proposed,
+and the reason is written down twice already in this tree:
+
+- **React.lazy caches a rejection.** One failed fetch would leave an overlay
+  dead for the rest of the session. That is exactly why `MirrorSlot`
+  (app-shell) and `MapSlot` (mirror-tab) are slots and not lazies — D355 —
+  and the overlays sit inside the same `ErrorBoundary`.
+- **The six are not independent chunks.** The awaits inside `loadOverlays`
+  are an ORDER: the Mirror family first (three overlays read Mirror globals
+  at render), `profile-general` before `profile-overlay` (which looks up
+  `window.GeneralPanel` at render time — "these sequential awaits are what
+  order the two"), the subtopic stock before `search-overlay`. Six lazies
+  would each fetch independently and race it.
+
+`retryable` already memoises, so a later caller gets the same promise and a
+failed group re-attempts on the next open — which is what the old
+`window.X &&` guard did by accident and this does on purpose.
+
+**No chunk moved.** `relmap.jsx` carried a comment saying the overlay had to
+stay on the bridge because "importing it there would drag this chunk back
+into the entry graph, which is the whole thing D200 just undid". That is
+true of a STATIC import and is not what replaced it: the namespaces come
+from the dynamic imports already inside `loadOverlays`. Verified per chunk —
+the only eager file that changed at all is the entry chunk, and no overlay
+chunk appears in the eager set.
+
+**The entry chunk grew, and the form was the fix.** +227 bytes of app-shell
+put the eager graph at 555.10 KB against a 555 ceiling that this repo does
+not raise. Two byte decisions brought it back, both recorded at their sites
+because they read as style and are not:
+
+| form | eager |
+| --- | --- |
+| `overlays.X` at each of six sites | 555.10 KB |
+| six long names destructured to locals | 555.03 KB |
+| short keys on the handoff, aliased at the destructure | **554.9 KB** |
+
+A local binding minifies to one character; a property NAME cannot minify at
+all. Named short keys and not a positional array: an array would minify best
+and a reorder in either file would silently swap two overlays — which the
+mutation check below turns red, but is still not a trade worth 40 bytes.
+
+**The degradation test got better rather than being kept working.** It
+matched `&& <window.X` and found THREE guards, because the other three
+overlays had none — so half the family was uncovered and the coverage claim
+in its own name was only ever true of the guarded half. All six carry the
+same guard now and the table checks all six. Two cases it could not express
+before: a chunk that RESOLVES but is missing one component (stub the loader,
+not delete a global — deleting a global never simulated a load failure,
+because the load had already succeeded), and a chunk that REJECTS, where the
+assertion is that the *next* open still works. That last one is the property
+this shape exists for, and it is what a switch to React.lazy would break.
+
+Mutation-checked four ways, all caught: drop one render guard; simulate a
+cached rejection with a `deadRef`; swap two keys in the handoff. A fifth
+mutation — removing `openDeferred`'s early `return` — is NOT caught, and the
+test says so rather than claiming it: the render guard makes "nothing
+renders" true whatever the catch does, so the `return` is defence and the
+retry is the contract.

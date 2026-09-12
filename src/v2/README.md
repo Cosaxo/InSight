@@ -659,15 +659,21 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **27 across 7
-files**, down from 799 when the ratchet landed.
+prints the current total on every run. The count today is **18 across 7 files**, down from 799 when the ratchet landed.
 
 That number was 28 before the scanner learned the BARE shape, went to 32
 when it did, and came back to 28 because the four it found were taken off
-in the same night — then to the 27 above, because the duo body's reader
+in the same night — then to 27, because the duo body's reader
 was converted the same night in the other shift (`daily-split.jsx`
 `React.lazy`s the module instead of reading `window.DuoBody` at render
-time). The middle figure is the one worth remembering: for as
+time) — and then to the 18 above in one move, when the six overlays the
+shell mounts stopped being published at all (D-2026-09-12g). That last
+one is the shape to copy: `loadOverlays()` was already being awaited by
+the only consumer, so the nine references were a return value being read
+out of global scope instead of returned from it. Not `React.lazy`, which
+caches a rejection and would leave an overlay dead for the session, and
+not six independent chunks, because the awaits inside that loader are an
+order. The middle figure is the one worth remembering: for as
 long as the ratchet ran, four cross-module references sat outside it. `window.X`,
 the cast form, a JSX tag and `h(Foo, …)` were the four it could see; a
 bare identifier is none of them, so a plain `MapStats.dist(a, k)` in a
