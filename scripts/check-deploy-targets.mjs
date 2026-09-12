@@ -80,7 +80,7 @@ const workflow = readFileSync(resolve(root, WORKFLOW), "utf8");
 // Everything below asks whether the deploy list is right. This asks the
 // prior question, which nothing asked until it had already cost a night:
 // whether this workflow parses. The scanner is shared with
-// check:workflows, which runs the same refusals over all 25 workflow files
+// check:workflows, which runs the same refusals over every workflow file
 // in ci — see workflow-expressions.mjs for what they are and why prose
 // about an expression IS an expression.
 //

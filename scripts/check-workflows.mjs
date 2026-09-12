@@ -5,7 +5,7 @@
 //
 // WHY A SECOND GATE RATHER THAN WIDENING THE FIRST. check:deploy-targets
 // asks the same question of firebase-deploy.yml, and it runs on the deploy
-// path. Widening THAT to all 25 files would put a prose mistake in
+// path. Widening THAT to all of them would put a prose mistake in
 // ios-release.yml between an emergency rules fix and production, which is
 // the trade CLAUDE.md names at length and refuses. firebase-deploy.yml is
 // the one file exempt from the objection — a copy that cannot load has
@@ -40,8 +40,11 @@ try {
 }
 
 // A scanner that reads nothing and reports success is the D179/D197 shape:
-// green because it looked at an empty list. This repo has 25 workflows and
-// will not plausibly have none.
+// green because it looked at an empty list. This repo has twenty-odd
+// workflows and will not plausibly have none. A COUNT IS NOT WRITTEN HERE
+// on purpose: three sentences across this file, check-deploy-targets.mjs
+// and ci.yml each said 25 on the day a 26th was added by the same commit
+// as one of them, and the gate prints the real figure on every run.
 if (!names.length) {
   console.error("check-workflows: no workflow files found — the tree moved, or this glob is wrong.");
   process.exit(1);

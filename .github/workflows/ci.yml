@@ -41,7 +41,7 @@ jobs:
       # does not parse, and the file never loads — no job, no log, a run
       # named after the file's path, on every branch, and no deploy at all
       # (D465). check:deploy-targets asks the same of firebase-deploy.yml on
-      # the deploy path; the other 24 are checked here and only here, so a
+      # the deploy path; every other one is checked here and only here, so a
       # prose mistake in ios-release.yml can never stand between an
       # emergency rules fix and production.
       - run: npm run check:workflows
