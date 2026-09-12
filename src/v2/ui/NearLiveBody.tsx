@@ -88,7 +88,7 @@ const NB_LINE = "1px solid var(--rule)";
 // Same vocabulary as locate.ts's LocateFail, plus "unavailable" for a beat
 // that got its fix and then failed at the write or the callable.
 const STALL: Record<string, string> = {
-  denied: "Location is off for InSight, so the count stopped.",
+  denied: "Location is off for Doxa, so the count stopped.",
   unavailable: "Couldn’t reach the count.",
   timeout: "The fix took too long — indoors it often does.",
   unsupported: "This device can’t share a location.",

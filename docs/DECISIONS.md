@@ -52969,3 +52969,471 @@ three other watched files main grew (`world-feed.jsx` +31,
 `vote.test.ts` +191, `rules.test.ts` +151). A raise is allowed; a silent
 one is not.
 
+
+## D-2026-09-12a · The answer log's setup becomes a reading, and the grant names the account the trigger runs as
+
+**Decided:** 2026-09-12 · **Status:** binding
+
+**The ask.** The owner, 2026-09-12: *"Lets setup bigquerry lay a plan and
+a step by step do as much of the setup you can."* Phase A of D447 — every
+answer a row in BigQuery — was built on 2026-09-09 and left two clicks on
+`OWNER-LIST.md`. The first thing this session established is that **both
+clicks had been made, on 2026-09-10, by the owner, and nothing in the
+tree recorded it**: the two rows still stood as open, the runbook still
+said *"Click:"*, and the only way to learn otherwise was to read the
+workflow runs.
+
+**Measured, off the run logs rather than the prose.** *Apply BigQuery*
+ran twice on 2026-09-10 — run 1 at 12:34Z dry (*"would create"*), run 2
+at 12:38Z with `apply` (`dataset insight: created in europe-west1`,
+`table answers: created`). *Backfill answer log* ran three times — run 1
+dry with `before=2026-09-09` (42 answers scanned, 32 rows before the
+cutoff), run 2 dry with `before=2026-09-10` (32), run 3 with `apply` and
+`before=2026-09-10` (**32 appended** over one call). The deploy carrying
+`functions/src/log.ts` is #460, merged 2026-09-09 at 19:57Z; the two dry
+runs agree at 32, so no answer was dated 2026-09-09 and the cutoff loaded
+exactly the rows the trigger never saw, none twice. *Observe production*,
+dispatched the same afternoon with `functions`: 57 functions deployed,
+every one `GEN_2`; `onBudgetAlert` — and with it every function in the
+deploy, since `ops.ts` sets no `serviceAccount` — runs as
+`437999864865-compute@developer.gserviceaccount.com`; two datasets in
+`europe-west1`, `insight` and BigQuery's own anonymous results dataset.
+
+**The defect the measurement exposed.** `scripts/apply-bigquery.mjs`
+printed its two grant commands for `prvfire33@appspot.gserviceaccount.com`
+— the App Engine default, which is what a GEN-1 function runs as. Every
+function in this tree is gen-2 (`firebase-functions/v2`), and gen-2 runs
+as the Compute Engine default unless a deploy says otherwise. So the
+click the owner made against those commands, if made, granted an account
+nothing runs as, and whether the trigger's append has worked since
+2026-09-10 depended on whether the Compute account still holds Editor —
+a fact no line in the repository could read. The row's own escape hatch,
+*"the first answer after the deploy tells — `log_append_failed` in the
+function's log"*, points at a log nobody reads on a schedule. This is
+D296's shape one layer over: a setting nobody could see, and a
+confident sentence standing in for the reading.
+
+**What is built.**
+
+1. `scripts/bigquery-grants.mjs`, pure and tested: which project roles
+   write rows and which run a query job, which dataset access entries
+   write rows (and that none of them gives `bigquery.jobs.create`, a
+   project permission), a verdict that is `null` wherever an input was
+   refused — a refused policy is not a missing role — and the two
+   commands for an account that was READ, never a default.
+2. `scripts/observe.mjs` reads two more objects, the dataset and the
+   table (`numRows`, the streaming buffer's own estimate,
+   `lastModifiedTime`, partition, clustering; a 404 on either is *not
+   created* and not *enable the API*, which `probe()` now lets a
+   resource path say), joins the policy the hard-stop probe already
+   fetches with the account `onV2AnswerCreated` runs as, and prints
+   **The answer log** as three lines — table, trigger, append/query —
+   with the commands only for a role a reading SAID is missing. The
+   policy and the access list stay out of the `observe-json` artifact:
+   they name every principal on the project, and the artifact carries
+   only the roles one service account holds.
+3. `scripts/apply-bigquery.mjs` looks the account up on the deployed
+   trigger and reads the same verdict in every mode; before the first
+   deploy it says so instead of guessing a default.
+4. `apply-bigquery.test.mjs` refuses a typed `--member=` in the script;
+   `observe.test.mjs` pins each state (not created, rows and buffer, the
+   wrong region, a grant to the gen-1 default read as no grant, Editor
+   as both, a dataset WRITER as rows only, a refused policy as
+   unreadable, the trigger not deployed); `bigquery-grants.test.mjs` the
+   arithmetic.
+
+**What stays the owner's.** The tick on both rows (the clicks happened;
+ticking is the owner's, D352). The two roles IF the reading prints ✗ —
+for the Compute account, with the commands the reading prints — and
+nothing if it prints ✓. Cloud Billing export to BigQuery (runbook 5.12),
+a console toggle the observer already detects by its table names. A.9
+and the 500-a-day sentence, unchanged.
+
+**Measured the same hour, on the branch's own run** (*Observe
+production* #26, 2026-09-12 16:13Z, all ten readings available):
+`insight.answers` holds **137 rows**, last written 02:29Z that morning —
+the reconcile's hour; `onV2AnswerCreated` runs as the Compute account;
+**✓ append and ✓ query, both through `roles/editor`**, the broad role the
+default account still holds. So the append has been working since the
+table was created, the grant the script asked for was never needed on
+this project, and the click the row asked for was a click at the wrong
+account that happened not to matter. What the reading buys is the day it
+would: a fresh project, or the day the least-privilege runbook trims
+Editor off the default account, is a ✗ line with the right command
+beside it rather than a silent `log_append_failed`.
+
+## D-2026-09-12b · The door nobody could reach: shape A's acquisition half, built — and the €320 premise it was argued from
+
+**2026-09-12.** **Status:** binding, BUILT. The owner, reading the
+app: *"i noticed there is no way to get from the app to the page where
+you can buy questions?"* — and, on being told that was D368 working as
+designed: *"but how will they find the website then?"*
+
+**The absence from the app is right and stays.** D368 took the purchase
+funnel out of the binary and two `smoke-live.test.jsx` cases were
+inverted to pin it; a link from the app to `web/ask.html` is precisely
+what store anti-steering rules police, and re-adding one would fail
+those tests on purpose. Nothing here touches the app. The second
+question is the one that had no answer.
+
+### What was measured, before anything was built
+
+Every route to the door in the tree on 2026-09-11:
+
+| route | exists | reaches `/ask` |
+| --- | --- | --- |
+| store listing → `prvfire33.web.app` (privacy URL both stores require; Apple also a support URL) | yes | **no** — `home.html` linked privacy and terms and nothing else |
+| app → `/privacy.html`, `/terms.html` (`LivePrivacyPanel`, `LiveSignInGate`) | yes | **by accident** — `terms.html` carried the only link in the tree |
+| `/q/{qid}` sponsored results pages (D379) | yes | **no** |
+| `/join/**` invite pages | yes | no |
+| a sales page, or an email list | **no** | — |
+
+So a buyer found the door by typing its address or by reading the terms
+of service. `STORE-CUT-PLAN.md` phase 4 — *"`web/home.html` … becomes
+where the door is found"* — was written and never built, and between
+D368 (2026-09-05) and this record that was the whole of the funnel.
+
+**Nothing could have caught it.** `check:web-headers` reads header keys,
+`check:csp-hashes` reads script digests, `ask-page.test.mjs` drives the
+door itself and cannot ask whether anybody can reach it. A page can be
+perfect and unreachable with every gate green — which is the same shape
+as D369's CSP hash, one level up: the page was right and the way in was
+not a thing anything looked at.
+
+### What was built
+
+1. **`/q/{qid}` carries the door, and so does its 404.** The one public
+   surface a prospective buyer reads *before* they have a reason to look
+   for the door: the buyer shares it themselves, and the reader is
+   looking at exactly the thing they would be buying. `/ask` relative,
+   not the absolute host — correct today and after a domain change.
+2. **`web/home.html` carries it, first in the list**, above the legal
+   links, with one clause saying what it is: the page is also the App
+   Store support URL, so *"Ask a question"* alone reads as a support
+   form. No price, deliberately — the card moves and nothing would
+   regenerate a figure typed there.
+3. **`privacy.html` and `terms.html` lead somewhere.** They are the two
+   pages the app links out to and they dead-ended: no link back to the
+   root, from either. Those links are required and are not purchase
+   calls to action, which makes them the one route out of the binary
+   store rules leave alone — worth nothing while it arrived nowhere.
+   The wordmark in each footer is now a link to `/`. `terms.html`'s
+   existing ask link was normalised to the canonical `/ask`.
+4. **The domain swap is one edit per side, which it was not.**
+   `siteOrigin.ts` called itself *"the single edit"* for replacing the
+   `.web.app` default; `functions/src/paid.ts` spelled the host out
+   twice, on Stripe's `success_url` and `cancel_url`. A custom domain
+   would have moved every link in the app and still walked a paying
+   buyer back to the old host. A Cloud Function cannot import from
+   `src/`, so the honest shape is two constants naming each other —
+   `ops.ts`'s `SITE_ORIGIN` beside the client's — and `PAID_RETURN`
+   builds both URLs from it.
+
+`scripts/web-doors.test.mjs` is the gate for the first three: it tests
+the ROUTES rather than the pages, and it deliberately asserts nothing
+about the binary, where `smoke-live` pins the opposite. Its price
+assertion strips comments, so the reasoning may name a figure the body
+may not. `paid-landing.test.mjs` — which broke on this change, reading
+the literal URLs that moved, exactly the class of failure CLAUDE.md's
+fifth-runner note describes — now reads both forms and **refuses** a
+hardcoded landing host outright. All four gates were mutation-tested by
+breaking the thing each protects.
+
+### The premise underneath D368 went stale, and it is worth saying so
+
+D368's discoverability argument is one sentence, in the record and in
+`STORE-CUT-PLAN.md` §5:
+
+> *"In practice nobody was going to spend €320 from a profile tab —
+> which is both why the discoverability loss is small and exactly why a
+> reviewer would read the app as a general-audience app selling
+> in-app."*
+
+`content/pricing.json` today: `base` €0.02, budgets €5 · €10 · €25 ·
+€50, menu city €10 · country €25 · everyone €50. **D373 and D376 cut
+the price 6–60× after D368 reasoned about it**, and §1's cut table is
+still arithmetic on €320 (€96 / €48 / ≈€5; at €50 it is €15 / €7.50 /
+≈€1). At €320 the buyer is a city or an advertiser arriving from a sales
+page. At €10 it is a user who just thought of a question — and that
+person is in the app, which is the one place the door is not. The
+D179/D183 failure mode: the app moved, the argument did not.
+
+**The structural half of D368 is untouched and still decides it.** IAP
+has no programmatic partial-refund primitive, so billing on answers
+(D164) cannot exist inside it. Shape A stays right. What is stale is
+only *"the discoverability loss is small"*, and the four routes above
+are the answer to it that costs nothing anywhere.
+
+### What is NOT decided here
+
+Three, all on `OWNER-LIST.md` rather than taken by a routine:
+
+1. **Does an in-app path come back at €10?** The owner's, and the reason
+   it is theirs is that the number D368 was decided on has changed. The
+   honest options are shape B (Android only — Play has never enforced
+   its billing for ad spend) or a non-CTA mention; both need a ruling
+   before anything touches the binary.
+2. **The domain itself.** A routine cannot invent one. The swap is now
+   genuinely two one-line edits, which is the part that could be built.
+3. **Whether `/q/` results pages should be indexable.** They carry
+   `noindex`, listed at D379 §3 as a bound on the scraping surface, so
+   the door on them reaches people who are *sent* a link and nobody who
+   searches. Lifting it widens what D379 deliberately narrowed and makes
+   a buyer's name searchable — a D334 ask, not a routine's call.
+
+
+## D-2026-09-12c · The door comes back on Android and the account panel links the site: the owner's four answers on D-2026-09-12b's open row
+
+**2026-09-12.** **Status:** binding, BUILT. The owner, on being told
+the four web routes made the door reachable but not findable — *"so
+pepole cant go from the app to the website then it is useless?"* — and
+then, on Apple's anti-steering rule: *"we cant even have a 'call to
+action' that does not mention anything about a sale there has to be a
+way around that?"*
+
+**The rule, stated so the way around is visible.** Apple judges where a
+button GOES, not what it says. A control labelled "Ask a question" that
+opens a page with a price and a pay tap is a purchase link whatever the
+label — that is Meta's "Boost Post" shape and Meta lost it. So the way
+around is not wording; it is making the thing in the app genuinely not a
+purchase, or putting the door on the platform whose store does not
+police it. Four shapes were put to the owner with what each costs, and
+the owner ruled on each:
+
+| shape | the owner | why |
+| --- | --- | --- |
+| free "Suggest a question" in the app, the paid door for deliberate buyers | **no** — *"that like giving away youtube premium for free thats suposd to be the income source"* | asking is the product, not a funnel to it |
+| a "Website" link beside Privacy and Terms in the account panel | **yes** — *"tell me more"*, then *"go build both"* | a website link is a website link; the root now carries the door (D-2026-09-12b) |
+| the header "+" back, on Android only, opening the WEB door | **yes** — *"agree"* | Play does not police ad-type spend the way Apple does |
+| email or opted-in push to signed-in users, which Apple explicitly allows | **no** — *"acouts should be anonymous"* | D3, and a reach of nearly nobody |
+
+The three suggestion callables therefore stay callerless and the
+OWNER-LIST row on retiring them stands; the free path is not coming
+back as a product.
+
+### What was built
+
+**`src/v2/data/askDoor.ts` — the rule, one platform in.**
+`askDoorOffered()` is `platform === "android"`, read off the
+`window.Capacitor` global the runtime injects (engagement.ts's reason:
+import-free for node tests, and a mount test sets the platform with one
+assignment). iOS, web, no bridge, a throwing bridge — all off. The
+build is one bundle for both stores, so the iOS build cannot leave the
+door out at build time; it leaves it out at render time, and the test
+below is what makes that a fact rather than a hope. `openAskDoor()` is
+`window.open(ASK_URL, "_blank", "noopener,noreferrer")` — the same hop
+the pre-D368 pay tap made to Stripe.
+
+**The header "+", Android only** (`app-shell.jsx`, where D368's comment
+said the door used to be). Same class and glyph weight as Search — a
+peer, not a promotion. It opens the web page that already carries the
+menu, the audience, the quote and the pay tap (D369–D378, D455): no
+composer, no billing code, no product change in the binary.
+`STORE-CUT-PLAN.md` §3 priced shape B as *"two code paths forever"*;
+this is shape B at one boolean, because the web door IS the second
+path and it exists anyway.
+
+**"Website" beside Privacy policy and Terms** (`LivePrivacyPanel.tsx`).
+Opens the root — the address both stores already hold as the privacy
+and support URL, whose first row since D-2026-09-12b is the door. Labelled what
+it is and going where it says. Deliberately not "Ask a question": that
+name is the Android header's, and the iOS build must carry nothing of
+the kind.
+
+### What pins it, and what was proved by breaking it
+
+- `askDoor.test.ts` — the rule on every platform value and on a bridge
+  that throws or lacks `getPlatform`; the URL; the open call's three
+  arguments.
+- `ask-door-platform.test.jsx` — the whole App through the smoke
+  harness three times: as **Android**, exactly one door, in the header,
+  `.icon-btn`, a click calls `window.open(ASK_URL, "_blank")` and opens
+  nothing inside the app; as **iOS**, zero controls named ask-a-question
+  while Search is still there (so the absence is the door's, not the
+  header's); with **no platform**, zero. Mutation-tested: letting iOS
+  through the rule fails the iOS case; taking the button out of the
+  header fails the Android case.
+- `LivePrivacyPanel.test.tsx` — the three links, their hrefs, `_blank`
+  and `noopener`, and no link or button named ask on the panel.
+- `smoke-live.test.jsx`'s two inverted cases (D368) are **narrowed, not
+  reversed**: jsdom has no Capacitor, so they mount as the web build and
+  still hold — and now they prove the door does not leak onto a
+  platform nobody set, while the iOS assertion a reviewer's phone makes
+  is this file's. Their comments say so.
+- `CLAUDE.md`'s suite count moved eleven → twelve and `check:figures`
+  caught it before the commit, which is the gate doing what D39 built
+  it for.
+
+### Two chunks, for 484 bytes
+
+The door as one eager module failed `check:bundle` on the merge — by
+**135 bytes**. Measured, not estimated: `origin/main`'s shipping build
+sat 484 bytes under the eager-graph ceiling (567,836 of 568,320) and
+the door was 619, so the sum was 568,455. The gate's own text says
+defer before raise, and this repo moves that ceiling down with a win
+rather than up with a feature (`check-bundle.mjs` §"the ceiling comes
+down WITH the win"). So `data/askDoor.ts` keeps only the platform rule
+— the shell has to ask it before first paint — and the button's body,
+glyph, address and click are `ui/AskDoorButton.tsx`, a `React.lazy`
+chunk (530 bytes) fetched on a yes: iOS never requests it. Split that
+way with a same-size hidden Suspense fallback it was **still 38 over**,
+so the fallback is null and the address is the lazy module's: the slot
+cost 75 eager bytes and the exported address 40, and on native Capacitor
+serves the chunk from the app's own bundle, so the import resolves
+within a tick and there is no gap to hold a slot for. Final measure,
+same build flags: 568,122 eager bytes, **198 under** the ceiling, the
+door's share 286. `ask-door-platform.test.jsx` waits for the chunk the
+way the harness waits for every other lazy chunk (`awaitNode`).
+
+### What is exposed, and to whom
+
+Nothing new. The button and the link open pages every stranger on the
+web can already open; the app learns nothing from either (the webhook
+is the truth, Asked by you reads it). No data is collected, so the
+store forms move by nothing — but `PLAY-RELEASE.md` §3.4's question is
+LIVE again rather than moot, and only for Play: the thing bought is
+served inside the app, which makes Google's "consumed outside the app"
+exemption a read in the Play Console policy flow before first
+submission, not an engineer's conclusion. `STORE-CUT-PLAN.md` §3 called
+shape B *"Play risk retained"*; this record keeps that phrase rather than
+the softer one the owner was first given (*"Google doesn't police
+this"*), which is the plan's claim and not a policy read. It goes to
+`OWNER-LIST.md`, and `askDoorOffered` is one boolean from off if the
+read says so.
+
+On Apple's side the residual is the one every app with a website link
+carries: review is a person, and a reviewer who taps Website → Ask a
+question → sees a price could call the settings link a disguised
+checkout. Unlikely — the label is honest and the destination is the
+root Apple already has on file — and not zero.
+
+### What this reshapes, and what it does not
+
+- D368's amendment removed *"all five"* entry points; one returns, on
+  one platform, opening the web rather than a composer. D368 itself is
+  untouched: buying stays on the web, the funnel stays out of the iOS
+  binary, and the reason (IAP has no partial-refund primitive) stands.
+- D-2026-09-12b's three open calls stand as written: the domain, the `/q/`
+  `noindex`, and — now answered — the in-app path.
+- The Play policy read joins them.
+
+## D472 · The app is Doxa: the name changes, and nothing under it does
+
+**2026-09-12.** **Status:** binding. The owner's call, in the naming
+session of this date and in these words: *"lets go with Doxa, do the
+rename"*. This record is the arithmetic that preceded it, what the
+rename touched, what it deliberately left alone, and the three things
+only the owner can finish.
+
+### Why the name moved
+
+InSight was not unoriginal so much as unfindable. Insight Timer, at
+twenty-five million downloads, is the first result for "Insight" in
+both stores; "Insight: Group Party Games" is a social question game in
+this app's own category; NASA's InSight lander owns the capitalised
+spelling on the web; and plain "InSight" was already reserved on the
+App Store on 2026-08-05, which is the only reason the listing read
+"InSight: Daily Perspective" (`design/store/listing.json`'s note). The
+word is also descriptive — every analytics product promises insight —
+and so close to unregistrable in software classes as makes no
+difference.
+
+**Doxa** is the Greek for opinion, Plato's word for belief as against
+knowledge, and the root of Aristotle's *endoxa* — the opinions held by
+everyone, by most people, or by the wise — which is what this app
+collects and what the Mirror draws a person against. Two beats, four
+letters, one ascender. The owner's objection to the string *dox* inside
+it was met by the treatment rather than the spelling: the 2026-09-12
+upload (`design/standalone-2026-09-12/`) sets the word in DM Serif
+Display with the x in the tab accent, so on screen it reads Do·x·a and
+the string never assembles; spoken, the syllable is the one in
+*paradox*. What the name shares its spelling with — Doxa dive watches
+(class 14), a medical-English course, a Ugandan media app, church apps,
+a procurement platform, the Russian student magazine — is nothing in
+this category.
+
+Considered and not taken, so the next naming pass need not repeat it:
+**Endoxa** (the fuller word, three beats — the owner's ceiling was two),
+**Doksa** (the transliteration, free, and the k's ascender breaks the
+low silhouette that made Doxa sit quietly), **Enoxa** (a blood thinner's
+brand name in three countries), **Endox** (a defence-AI startup, and it
+ends on the string), **Ygg** and **Yggdrasil** (a Web3 guild's token and
+everything else), **Consilience** and its forms, and some forty short
+plain words each already held by a social, dating or voting app.
+
+### What changed, in this commit
+
+- **The display name.** `capacitor.config.ts` `appName`, the iOS
+  `CFBundleDisplayName`, Android's `app_name` and `title_activity_main`,
+  `index.html`'s title, and the boot mark.
+- **The wordmark.** The header lockup is `Do<em>x</em>a` in DM Serif
+  Display 400 at 25 px, tracked −0.01em, the x taking the tab accent as
+  `Sight` did (`app-shell.jsx`, `.wm-serif` in `styles.css`); the
+  sign-in gate's stacked lockup is the same at 36 px; `web/join.html`'s
+  twin is in Georgia, because the hosting CSP is `default-src 'none'`
+  with no `font-src`. The face ships as a **four-glyph subset** — D, a,
+  o, x; 1.2 KB from Google Fonts' `text=` endpoint, OFL — because
+  `check:bundle` holds fonts to 96 KB, the tree carried 86 KB, and the
+  upload's own latin subset is 24.7 KB. The word is the only place the
+  face is used; any other use falls back to Spectral and is the
+  font-ceiling conversation `styles.css` has always required. The boot
+  mark keeps the system stack and its reasons (no swap mid-boot) — the
+  one deviation from the upload.
+- **The copy.** The sign-in sentence ("Answers on Doxa are public, yours
+  included"), the walkthrough's title and the account panel row ("How
+  Doxa works"), the location-denied line, the linked-account refusal,
+  the budget-mode line, the demo demographics titles, and the pinned
+  tests for each. The console prefix is `[Doxa]`, and the mount harness
+  asserts the new one.
+- **The web.** `web/privacy.html` first (D183's rule), then terms, ask,
+  delete-account, home, join and the two paid pages; the paid results
+  pages `functions/src/share.ts` renders; the Stripe line item "Doxa
+  paid question" and the reviewer guidelines; the push-notification
+  title fallbacks in `v2social.ts`; the question report's wordmark; and
+  the auth mail sender name in `scripts/auth-config.mjs`, with its tests.
+- **The store listing.** The bare "Doxa" was pushed first and Apple
+  refused it — 409, *"The app name you entered is already being used"*,
+  another account's first-come reservation, released only to a
+  trademark claim. So `apple.name` and `play.title` are "Doxa: What
+  Everyone Thinks": the product's own sentence, and the half the
+  subtitle ("Answer blind, then compare") does not already say. The
+  on-device name under the icon is the bare Doxa either way.
+- **The record.** `CLAUDE.md`, `README.md`, `SECURITY.md`,
+  `STORE-FORMS.md`'s 1.2 table, `design/README.md`, the vision
+  lineage, and this entry.
+
+### What did not change, on purpose
+
+- `com.cosaxo.insight` — the bundle id, `applicationId` and namespace —
+  the `insight://` deep-link scheme, and every `insight.*` storage key.
+  Changing the first is a new app in both stores; changing the second
+  breaks every invite link already sent; changing the third orphans
+  every device's caches and reopens the patterns gate (D265).
+- The Firebase project, and the GCP budget named "InSight" with its
+  "InSight oncall" channel: existing cloud resources, and `budget.yml`
+  already records what a second budget of the same name costs.
+- The GitHub repository `Cosaxo/InSight`, and the scripts that name it.
+- The generated catalogue headers and the generators that write them:
+  the drift gates compare the committed files to generator output, so
+  a header change is a regeneration, not a rename.
+- Internal tooling (the console, the pulse, the cost comparison, the
+  routine names in `ROUTINES.md`), CI artifact names, the header
+  comments that cite each spec module's provenance, and every earlier
+  decision record — history keeps the name it was written under.
+
+### The owner's three steps
+
+1. **App Store Connect:** reserve "Doxa" (the push will fail with a 409
+   naming the attribute if it is taken; then the suffix).
+2. **`node scripts/auth-config.mjs`** against the project, so the
+   verification and reset mails send as Doxa rather than InSight.
+3. **Trademark and domains:** classes 9 and 42 at Patentstyret and
+   TMview, and `doxa.no` / `doxa.app`, neither reachable from the
+   session that made this change.
+
+### Gates
+
+The full client and functions suites, every `check:*` this change can
+reach, and the docs index regenerated — the run is in the commit's
+message. The rules and e2e suites need Java and were not touched by a
+rename that changes no rule.

@@ -376,15 +376,20 @@ And the file's own D322 note records that Play's rows gain a
 
 ### 3.4 · The payments-policy read — flag it, do not assume Apple settled it
 
-Since [D313](DECISIONS.md) and D315 a user can buy a paid question or an
-ad from inside the app: `suggestions.jsx` calls `SG.payFor(id)` →
-`requestCheckout` → `createPaidCheckoutV2`, and opens the returned Stripe
-URL with `window.open(url, '_blank')`, which leaves the app for the
-system browser. `NEXT-FUNCTIONALITY.md` §6's rule — commerce stays on the
-web side — is what put it there.
+*(This paragraph said "a user can buy a paid question or an ad from
+inside the app: `suggestions.jsx` calls `SG.payFor(id)`…" from D313
+until 2026-09-12, four days after D368 deleted that file — the
+D179/D183 shape.)* Since [D368](DECISIONS.md) nothing is bought from
+inside the app; the funnel is `web/ask.html`. Since
+[D-2026-09-12c](DECISIONS.md) the **Android** build carries a header button that
+opens that page in the system browser (`src/v2/data/askDoor.ts` —
+`window.open(url, '_blank')`, the same hop the old pay tap made to
+Stripe), and the iOS build draws no such control, which
+`ask-door-platform.test.jsx` proves on the mounted App. So the question
+this section asks is live again, and only for Play.
 
-Apple has already passed builds carrying this. **That does not settle
-Play.** Google's Payments policy is worded differently, and the thing
+Apple has already passed builds carrying the old in-app pay tap. **That
+does not settle Play.** Google's Payments policy is worded differently, and the thing
 being bought — a sponsored question, an ad slot — is *served inside the
 app*, which is the fact that makes the "consumed outside the app"
 exemption a question rather than an answer. The 2025 injunction relaxed

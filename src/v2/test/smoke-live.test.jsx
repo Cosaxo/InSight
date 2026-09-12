@@ -66,7 +66,7 @@ import { IS_DATA } from "../spec/sample-data.js";
 // a constant compared with itself, which stays green for any fixture and
 // leaves the real assertion to fail with the wrong diagnosis.
 const FIXTURE_DAILY_COUNTS = DAILY_COUNTS;
-const BOUNDARY_LOG = "[InSight] boundary caught:";
+const BOUNDARY_LOG = "[Doxa] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
 let App;
@@ -477,9 +477,16 @@ describe("spec layer mounts in live mode", () => {
     // so the app must carry NO ask-a-question call to action. This asserted
     // the door was present until the decision; it now pins its absence,
     // which is the property App Review reads the app for.
+    //
+    // NARROWED at D-2026-09-12c. One door came back, on Android only: a header "+"
+    // that opens the WEB ask page (data/askDoor.ts asks the platform).
+    // jsdom has no Capacitor, so this mounts as the web build, where the
+    // door is off — this case still holds, and still proves the door does
+    // not leak onto a platform nobody set. The iOS assertion, which is the
+    // one a reviewer's phone makes, is ask-door-platform.test.jsx's.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),
-      "an ask-a-question door is still in the binary (D368 removed all five)",
+      "an ask-a-question door is drawn with no platform set (D368; D-2026-09-12c allows it on Android only)",
     ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
@@ -1735,7 +1742,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // paid door, and the button wears the door's own name. The header's
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
-    // INVERTED at D368, same reason as the profile case above.
+    // INVERTED at D368, same reason as the profile case above — and the
+    // sheet's own door does NOT return at D-2026-09-12c: the one door that did is
+    // the header's, Android's, and this mounts with no platform.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),
       "the sheet still offers a purchase door",

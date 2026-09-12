@@ -30,7 +30,7 @@ const onDone = vi.fn();
 beforeEach(() => { onDone.mockClear(); });
 afterEach(cleanup);
 
-const dialog = () => screen.getByRole("dialog", { name: /How InSight works/i });
+const dialog = () => screen.getByRole("dialog", { name: /How Doxa works/i });
 const title = () => screen.getByRole("heading", { level: 2 }).textContent || "";
 const next = () => fireEvent.click(screen.getByRole("button", { name: /^Next$/ }));
 const text = () => dialog().textContent || "";

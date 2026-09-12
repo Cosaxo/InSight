@@ -531,7 +531,7 @@ default.
 
 1.2 demands four things of any app with user-generated content:
 
-| 1.2 requires | InSight |
+| 1.2 requires | Doxa |
 | --- | --- |
 | Filter objectionable content | Moderation substrate deployed and **enforcing** since D83 — `MOD_ADVISORY = false`, a remove verdict really hides, per-run cap bounds a bad run (D22 → D83) |
 | Report mechanism | **Live since D78 part 1** — `flagTake` writes to `v2_flags` from the takes panel, at both scopes since D83: members flag circle takes, any signed-in user flags world takes |

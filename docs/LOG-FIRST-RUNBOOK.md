@@ -27,7 +27,7 @@ window; loosen a rule; touch the three denies; skip a test.
 
 ---
 
-## Phase A — the log · **M, one pull request** · **BUILT 2026-09-09, two clicks after it**
+## Phase A — the log · **M, one pull request** · **BUILT 2026-09-09, clicked 2026-09-10, read whole 2026-09-12**
 
 The ledger's mirror in BigQuery: every row the nightly folds will one day
 compute from, appended as the count commits, reconciled every morning,
@@ -42,14 +42,22 @@ until phase D.
       are). `scripts/apply-bigquery.mjs` creates dataset `insight` in
       `europe-west1` — the named database's region, so the privacy page's
       "Google Cloud infrastructure" stays the EU's — and the `answers`
-      table partitioned by `day` and clustered by `qid, uid`; dry by
-      default, idempotent, from `apply-bigquery.yml` behind the production
-      environment. `apply-bigquery.test.mjs` holds the body to the schema
-      file and to `log.ts`'s own names. **Click (`OWNER-LIST.md`):
-      dispatch it dry, then with apply; grant the runtime service account
-      BigQuery Data Editor and Job User** — the script prints both
-      commands, and a project whose default account still holds Editor
-      has them already.
+      table partitioned by `day` and clustered by `uid, qid` (person
+      first, the erasure's own filter; the script's comment has the
+      arithmetic); dry by default, idempotent, from `apply-bigquery.yml`
+      behind the production environment. `apply-bigquery.test.mjs` holds
+      the body to the schema file and to `log.ts`'s own names.
+      **Clicked 2026-09-10** — run 1 dry, run 2 with `apply`: dataset
+      and table created in `europe-west1`, read off the run logs
+      (D-2026-09-12a). **The grant is the open half, and it changed
+      hands:** until D-2026-09-12a the script printed its two commands
+      for the gen-1 default account, while every function here is gen-2
+      and runs as the Compute Engine default. The account is now READ off
+      the deployed trigger, and *Observe production* prints whether it may
+      append and query, with the commands for it where a role is missing
+      (`OWNER-LIST.md`). **Read 2026-09-12:** 137 rows in the table, the
+      Compute account holds `roles/editor`, ✓ append and ✓ query —
+      nothing to grant, and the log had been filling since the click.
 - [x] **A.2 The trigger appends. DONE 2026-09-09** —
       `functions/src/log.ts`: `logRow` built at every ledger site of
       `onV2AnswerCreated` and `onV2AnswerUpdated` (the vote, the edit, the
@@ -79,8 +87,11 @@ until phase D.
       range re-run appends the same ids; resumable from the cursor its
       summary prints. `scripts/backfill-log.mjs` loops it,
       `backfill-log.yml` dispatches it in `backfill-answer-maps.yml`'s
-      shape. **Click: dispatch with `before` = the deploy's UTC day, dry,
-      then apply.**
+      shape. **Clicked 2026-09-10** — `before=2026-09-10`, 32 rows over
+      one call, after two dry runs (`before=2026-09-09` and `=2026-09-10`)
+      that agreed at 32, so no answer was dated the deploy's day and the
+      cutoff loaded exactly the rows the trigger never saw, none twice
+      (D-2026-09-12a).
 - [x] **A.5 Erasure. DONE 2026-09-09, re-shaped the same evening** —
       `deleteAccount` phase 1a″: the `DELETE … WHERE uid` at once while
       the table is under a gibibyte (`LOG_ERASE_NOW_MAX_BYTES`, off the
@@ -378,10 +389,13 @@ the three trigger reads per answer are gone from `npm run costs`.
 
 ## Waiting on the owner, not on this file
 
-- **The two clicks of phase A** — the dataset and the roles
-  (`apply-bigquery.yml`, then the two `gcloud` bindings), and the backfill
-  (`backfill-log.yml` with `before` = the deploy's day). On
-  `OWNER-LIST.md` § Clicks.
+- **Phase A's clicks were made 2026-09-10** — the dataset and table, and
+  the backfill (D-2026-09-12a read them off the run logs). **The roles
+  needed no click; they needed a reading:** the script had printed them
+  for the gen-1 default while the trigger runs as the Compute Engine
+  default, and *Observe production*'s answer-log block read both ✓
+  through `roles/editor` on 2026-09-12. What is left on `OWNER-LIST.md`
+  § Clicks is the two ticks.
 - **When phase B starts** — the condition above, the owner's to move
   (`OWNER-LIST.md` § Decisions).
 - **A.9's sentence** — whether an erased account's rows may outlive the
