@@ -186,7 +186,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 13 PR row(s) and 2 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-12).
+- [ ] 12 PR row(s) and 2 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-12).
 <!-- console:end -->
 
 ## Store and legal
@@ -207,7 +207,7 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.1b A FOURTH collection group stamps `expireAt` — `v2_paid_bookings`
       (D456)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
-- [ ] **5.5b Apply the ten monitoring alerts — nine are armed (5.5); the
+- [ ] **5.5b Apply the eleven monitoring alerts — nine are armed (5.5); the
       TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
       committed and not applied** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **5.7 Add a second operator uid** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
