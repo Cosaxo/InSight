@@ -54128,3 +54128,83 @@ pace with nulls).
 **Records moved.** `docs/OMIB-PLAN.md` §5; `docs/data-inventory.md` row
 18. The privacy page needed no word: it never named a cadence for the
 test, and `check:policy-claims` agrees.
+
+## D-2026-09-12d · CI stops running every job on every push — and the pre-push command the trap paragraph never had
+
+**2026-09-12.** **Status:** binding, BUILT — with one half deferred to
+the owner. The owner: *"i think its time to make the github repo
+private"*, then *"sugget what we could do to test so it works better"*.
+
+**What going private costs, measured.** Actions minutes are free on a
+public repo and metered on a private one (2,000/month on Free, 3,000 on
+Pro). `ci.yml` ran **9 jobs, ~17 billed minutes** per run — 12.5 minutes
+of actual work, and 27% pure rounding, because GitHub rounds every job up
+to the minute and five of the nine finish under 45 seconds. Run rate off
+the Actions API rather than guessed: CI run #1072 on 2026-09-06, #1371 on
+2026-09-12 — **299 runs in 6 days, ~50/day**, so ~25,500 min/month from
+this one workflow. Private, that is the monthly allowance in ~2.5 days
+and roughly $180–200/month at $0.008/min Linux.
+
+**What was actually wasteful, measured over the last 94 commits on
+main.** Five touched `android/`, `ios/`, `capacitor.config.*` or a
+dependency manifest — so the Android APK was compiled 89 times to prove
+untouched Gradle config still compiles. Sixteen touched nothing but
+`docs/`, `design/` and markdown, each running the full 17 minutes to
+check about ten seconds of documents. And the `audit` job was
+`continue-on-error: true`, so it could not fail anything, while
+`security-audit.yml` already runs the same two commands weekly, blocking.
+
+**Built.** A `changes` job classifies the diff (one billed minute that
+buys back four): the native pair runs only on the native set, and a
+documentation-only diff runs `lint` alone — which still carries every
+gate such a diff can break. `audit` is deleted. **17 → ~12.6 billed
+minutes**, 26% off: 17% of runs cost 3 minutes, the rest 14.6.
+
+**It narrows only on evidence**, because being wrong ships a break: a
+push to `main` runs everything, an empty or failed diff runs everything,
+and the native set includes `.github/workflows/` so a change to `ci.yml`
+cannot narrow its own gates. `backend` is skipped for a docs-only diff
+alone and otherwise untouched — CLAUDE.md's invariant is that what guards
+a PR is what guards production, and a diff with no backend in it does not
+weaken it.
+
+**A bug found by reading the diff, not by a test.** The classifier first
+used `printf ... | grep -q`. With `pipefail` set, grep exiting on its
+first match SIGPIPEs the printf, and the pipeline then reports printf's
+141 rather than grep's 0 — so a MATCH reads as no-match and the run
+NARROWS. Measured both ways: 828 KB of file list with the match on line
+one returns `native=false` under the pipe and `true` under a here-string.
+It fails in the unsafe direction and only on diffs long enough to outlast
+the pipe buffer, which are the diffs most likely to need the job it would
+have skipped. The first probe put the match on the LAST line and was
+inconclusive — grep must read to the end for that, so nothing SIGPIPEs.
+
+**`npm run check:all`, which is the part that is not about money.**
+CLAUDE.md §2 has recorded three times that the fifth runner hides:
+`test:scripts` is wired into CI's lint job, so `npm run lint` locally is
+eslint alone, and D179, D197 and D275's branch each shipped a broken gate
+script through that gap. The paragraph ends "Run it before you push" and
+there was no command for it — the session that last hit this ran the lint
+job by hand. Now one command runs all 42 gates and reports **every**
+failure instead of stopping at the first, which is the round trip that
+drives the run count: a push that breaks three gates reported one.
+
+Its list is DERIVED from `ci.yml`'s lint job (`scripts/lint-steps.mjs`),
+so CI stays the authority and the two cannot drift — and because that is
+exactly the shape that fails silently, `FLOOR` refuses a short parse
+rather than reporting 42/42 over thirty gates, in `check-workflows.mjs`'s
+shape. Its own test found the guard against multi-line `run:` blocks was
+blind to `- run: |`, the commoner of the two spellings; both are pinned.
+`manual` in ORIENTATION's gate table, correctly — CI still runs these as
+separate steps, where per-step logs beat a summary.
+
+**Deferred to the owner, with the arithmetic.** The trims do not solve
+the bill: ~12.6 min × ~50 runs/day is still ~18,900 min/month, about
+$135. What solves it is a self-hosted runner, where minutes are unmetered
+— a PC, 8 cores and 16–32 GB, roughly $20–40/month against ~$200. The
+security objection to self-hosted runners is untrusted fork PRs, which
+going private removes, so private and self-hosted argue for each other.
+Two things it cannot take: the three macOS workflows need real macOS, and
+one machine runs the 9 jobs serially (~12 min) unless several runner
+processes share it, which is why 8 cores rather than 4. **On
+`docs/OWNER-LIST.md` — the machine is the owner's call, not a routine's.**

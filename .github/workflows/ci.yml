@@ -13,9 +13,99 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # WHICH JOBS THIS DIFF ACTUALLY NEEDS — one billed minute that buys back
+  # four. Every job below used to run on every push: 9 jobs, 17 billed
+  # minutes (GitHub rounds each job up to the minute, and five of them
+  # finish in under 45 seconds). That was free while this repo was public
+  # and is not free if it ever goes private.
+  #
+  # Measured over the last 94 commits on main rather than guessed: 5 touched
+  # `android/`, `ios/`, `capacitor.config.*` or the dependency manifests,
+  # and 15 touched nothing but `docs/`, `design/` and markdown. So the
+  # Android APK was compiled 89 times to prove that untouched Gradle config
+  # still compiles, and one commit in six ran the full suite to check about
+  # ten seconds of documents.
+  #
+  # IT NARROWS ONLY ON EVIDENCE. A push to `main` is the integration point
+  # and runs everything; an empty or unreadable diff runs everything; the
+  # native set includes `.github/workflows/` so a change to this file cannot
+  # narrow its own gates. Being wrong here ships a break, so every unknown
+  # widens rather than narrows.
+  #
+  # `lint` deliberately has no `needs:` — it carries every static gate,
+  # including the ones a documentation change CAN break (`check:docs`,
+  # `check:figures`, `check:policy-claims`, `check:store-forms`,
+  # `check:public-copy`), so it always runs and starts without waiting.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.classify.outputs.native }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      # fetch-depth 2 is all this needs and deliberately all it takes: on a
+      # pull_request the checked-out commit is the MERGE commit, so HEAD^1
+      # is the base and `HEAD^1..HEAD` is exactly the PR's own diff — no
+      # base-branch fetch, no API call, no token.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - id: classify
+        name: Classify the diff
+        # No ${{ }} in this body on purpose: D465's failure class is an
+        # expression substituted inside a `run:` block, and the default
+        # environment already carries everything this needs.
+        run: |
+          set -euo pipefail
+          wide() {
+            echo "native=true" >> "$GITHUB_OUTPUT"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            echo "every job runs: $1"
+          }
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            wide "$GITHUB_EVENT_NAME on $GITHUB_REF_NAME is the integration point"
+            exit 0
+          fi
+          files="$(git diff --name-only HEAD^1 HEAD || true)"
+          if [ -z "$files" ]; then
+            wide "the diff read empty, which is never a reason to skip a gate"
+            exit 0
+          fi
+          # HERE-STRINGS, NOT PIPES, and the reason is a bug this had. With
+          # `printf ... | grep -q`, grep exits on its FIRST match and
+          # SIGPIPEs the printf; under the `pipefail` set above, the
+          # pipeline then reports printf's 141 rather than grep's 0, so a
+          # MATCH reads as no-match and the run narrows. It fails in the
+          # unsafe direction, and only once the file list is long enough to
+          # outlast the pipe buffer — so it would have shipped green and
+          # skipped the Android build on the diffs most likely to need it.
+          # A here-string is not a pipe: no early close, no pipefail.
+          native=false
+          if grep -qE '^(android/|ios/|capacitor\.config\.|package\.json$|package-lock\.json$|\.github/workflows/)' <<< "$files"; then
+            native=true
+          fi
+          docs_only=false
+          if ! grep -qvE '^(docs/|design/)|\.md$' <<< "$files"; then
+            docs_only=true
+          fi
+          echo "native=$native" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "native=$native docs_only=$docs_only"
+          # One sed, no pipe: `| head` would SIGPIPE this the same way, and
+          # here that is the step's LAST command, so it would fail the job
+          # and skip every gate downstream.
+          sed -n '1,60{s/^/  /;p}' <<< "$files"
+
   # Backend correctness — the same jobs firebase-deploy.yml gates on, so
   # what passes here is exactly what guards production.
+  #
+  # Skipped only for a documentation-only diff, which cannot reach
+  # `functions/`, `firestore.rules` or `storage.rules` — and such a push
+  # never deploys either, because firebase-deploy.yml triggers on exactly
+  # those paths. The invariant CLAUDE.md states is that what guards a PR is
+  # what guards production; a diff with no backend in it does not weaken it.
   backend:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     uses: ./.github/workflows/backend-checks.yml
 
   lint:
@@ -346,6 +436,8 @@ jobs:
       - run: npm run check:devicebind
 
   typecheck-build:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -414,6 +506,8 @@ jobs:
       - run: npm run check:bundle
 
   unit-tests:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -424,31 +518,14 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
 
-  # Advisory only, and deliberately so: `npm audit` is a live registry
-  # call in an otherwise deterministic pipeline, and an advisory published
-  # overnight must never be able to block an emergency rules deploy. The
-  # weekly security-audit workflow is the one that fails loudly.
-  audit:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - name: Audit app dependencies (runtime only)
-        run: npm audit --omit=dev --audit-level=high
-      - name: Audit backend dependencies
-        run: npm audit --prefix functions --omit=dev --audit-level=high
-
   # Capacitor copies the web build and rewrites native config on sync. If
   # that output drifts from what is committed, the native shells are built
   # from something nobody reviewed. Warning-only for now: a Capacitor CLI
   # patch bump rewrites these files and would otherwise red main on an
   # unrelated PR. Promote to --exit-code once it has been quiet a while.
   native-sync-drift:
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -474,6 +551,8 @@ jobs:
   # NOTE: a green build does NOT validate the Firebase config; both
   # google-services.json and GoogleService-Info.plist are untracked.
   android-build:
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -262,9 +262,15 @@ CI ([`.github/workflows/`](./.github/workflows/)):
   and `firebase-deploy.yml`, so what guards a PR is exactly what guards
   production.
 - `ci.yml` adds the client-only gates (lint, globals, versions, typecheck +
-  bundle budget, unit tests), an advisory `npm audit`, a Capacitor
-  sync-drift warning and an Android `assembleDebug`. None of these sit on
-  the deploy path — they must not be able to block an emergency rules fix.
+  bundle budget, unit tests), a Capacitor sync-drift warning and an Android
+  `assembleDebug`. None of these sit on the deploy path — they must not be
+  able to block an emergency rules fix. A `changes` job classifies the diff
+  first: the native pair runs only when `android/`, `ios/`,
+  `capacitor.config.*`, a dependency manifest or a workflow changes, and a
+  documentation-only diff runs `lint` alone — which still carries every gate
+  such a diff can break. The advisory `npm audit` that used to run here is
+  gone: it was `continue-on-error`, so it could not fail anything, and
+  `security-audit.yml` already runs the same two commands weekly, blocking.
 - `security-audit.yml` runs the audit weekly, blocking, and files an issue.
 - Push to `main` touching `functions/**`, `firestore.rules` or
   `storage.rules` auto-deploys once `backend-checks` is green

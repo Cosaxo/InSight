@@ -376,7 +376,9 @@ passes" is how these get through), **D197** (one bank parser in three copies; th
 with a `try/catch` reported an invented wire size instead of failing),
 **D275**'s branch (a read tripwire counting `tx.get(` after the code moved
 to `tx.getAll(`, so it counted zero and called it a regression). Run it
-before you push. Both the count in that heading and the number of rows in
+before you push — `npm run check:all` is that command, and runs every
+gate this job carries, `test:scripts` included, reporting all the
+failures instead of the first. Both the count in that heading and the number of rows in
 the table are `check:figures`'s now, off package.json — D279 has what it
 does and does not decide is a runner.
 

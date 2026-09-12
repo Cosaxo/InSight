@@ -21,7 +21,9 @@ the rows from going missing or pointing at something that moved — read
    (`docs/DECISIONS-INDEX.md` to find them).
 
 Then, before writing: `npm run check:globals && npm run test:unit`. A
-green tree is the starting state, and §5 is what holds it.
+green tree is the starting state, and §5 is what holds it. Before
+pushing: `npm run check:all`, which runs every gate CI's lint job runs
+and names all the failures, not the first.
 
 ## 2 · The app in one paragraph
 
@@ -240,6 +242,7 @@ everything else: the static gates, and where each one runs.
 
 | Gate | Where | What it guards |
 | --- | --- | --- |
+| `check:all` | manual | Every gate `ci.yml`'s lint job runs, in one command, reporting ALL of them rather than stopping at the first — the round trip it removes is the one where CI names one failure out of three. The list is read out of `ci.yml` at run time (`scripts/lint-steps.mjs`) so the two cannot drift, under a floor that refuses a short parse rather than passing over it. `manual` because CI still runs these as separate steps, where per-step logs are worth more than a summary; this is the pre-push command, and the answer to the trap CLAUDE.md §2 records three times — `npm run lint` locally is eslint alone |
 | `check:appcheck` | deploy | Every callable demands App Check attestation or is named with the reason it cannot (D36). Omitting it is silent: the function builds, deploys, passes every test, and serves any caller on the internet |
 | `check:fn-runtime` | deploy | Function memory and timeout, that `setGlobalOptions` lives in `functions/src/ops.ts` where the hoisted re-export cannot miss it, that every trigger watches the database `firebase.json` deploys to (D165), and that the client calls the region the functions are served from — naming it once, never as a literal at a call site (D200, D201) |
 | `check:fn-types` | ci | The server half's TEST files, typechecked at last. `functions/tsconfig.json` excludes them (they must not ship to Cloud Functions) and the root `tsc -b` never reaches that directory, so a fake that stops matching the interface it stands in for is invisible to every gate — and only wrong where something reads the part it dropped, which is why the suite stays green. CI only, not deploy: a test file is never deployed, so this cannot say whether a rules fix is safe to ship |
