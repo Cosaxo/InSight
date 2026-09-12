@@ -629,10 +629,21 @@ function PersonOverlay({ p: rawP, onClose, me }) {
                   })}
                 </div>
                 <div style={{ marginTop: 11, paddingTop: 9, borderTop: '0.5px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 14, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
-                  {/* the person's hue and a faded hue (2026-09-12), the
-                      carousel's own legend one card over — not ink and hue */}
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, themColor)}you</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, `color-mix(in oklch, ${themColor}, transparent 52%)`)}{who}</span>
+                  {/* THE SAME TWO COLOURS THE ROWS ABOVE DRAW, in the same
+                      order — ink for the reader, the person's hue for the
+                      person. This briefly read `themColor` for *you* and a
+                      52%-faded hue for *them* (2026-09-12), which inverted
+                      the one thing a legend is for: the solid swatch it
+                      called "you" is the exact colour every row uses for
+                      the OTHER person, and the faded one appeared in no row
+                      at all, so a reader who consulted it read their own
+                      interests as the other person's and back. Moving the
+                      rows to hue-and-faded-hue instead is the other way to
+                      make these agree, and it is a change to the visual
+                      language rather than a correction — that one is a
+                      design request, not a night fix. */}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, 'var(--ink)')}you</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, themColor)}{who}</span>
                 </div>
               </div>
             ),
