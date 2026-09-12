@@ -711,16 +711,29 @@ per ledger entry to BigQuery — dataset `insight`, table `answers`, in
 the truth the night will compute from at phase D. Three things to know
 operationally:
 
-- **Creating it is a click, once:** the *Apply BigQuery* workflow
-  (`apply-bigquery.yml`, dry by default, `scripts/apply-bigquery.mjs`),
-  then the two IAM bindings its summary prints — the functions' runtime
-  service account needs `roles/bigquery.dataEditor` (rows) and
-  `roles/bigquery.jobUser` (the erasure DELETE). A project whose default
-  service account still holds Editor has both. Until the table exists,
-  every append logs `log_append_failed` and the count is untouched; the
-  nightly reconcile appends the day once the table is there — for the
-  days the ledger still holds (90).
-- **Reading it:** `log_append_failed` (an error per failed append, with
+- **Creating it is a click, once — made 2026-09-10:** the *Apply BigQuery*
+  workflow (`apply-bigquery.yml`, dry by default,
+  `scripts/apply-bigquery.mjs`), then the two IAM bindings — the account
+  the trigger RUNS AS needs `roles/bigquery.dataEditor` (rows, and the
+  table's metadata for the erasure ceiling) and `roles/bigquery.jobUser`
+  (the reconcile's SELECT, the shadow's queries, the erasure DELETE).
+  **That account is read, never typed (D-2026-09-12a):** every function
+  here is gen-2 and runs as the Compute Engine default
+  (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`), not the App
+  Engine default the script named until 2026-09-12 — the apply script and
+  *Observe production* both look it up on `onV2AnswerCreated`
+  (`scripts/bigquery-grants.mjs` is the arithmetic they share) and print
+  the two commands for it only where a role is actually missing. A
+  default account that still holds Editor has both. Until the table
+  exists, or while the account lacks a role, every append logs
+  `log_append_failed` and the count is untouched; the nightly reconcile
+  appends the day once both are there — for the days the ledger still
+  holds (90).
+- **Reading it:** *Observe production* prints **The answer log** every
+  morning — the table's rows, streaming buffer and last write, the
+  account the trigger runs as, ✓/✗ for append and query — which is the
+  line to read before believing a night's `missing: 0`. Then the
+  function's own log: `log_append_failed` (an error per failed append, with
   its count), `log_reconcile` (the nightly heartbeat inside
   `digestEngagementV2`: `entries`, `missing`, `appended`, `erasures`,
   `erased`, `passes` — a warning when `missing` is not zero, because a

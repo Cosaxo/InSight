@@ -51,10 +51,16 @@ beforeAll(async () => {
       // proves nothing. entries:list vs the metrics list; the BigQuery
       // datasets list vs a dataset's tables; the Firestore database vs its
       // backup schedules.
+      // Two more since D-2026-09-12a, on the BigQuery host: ONE table
+      // (`/tables/answers`, keyed before the list's `/tables?…`) and ONE
+      // dataset (`/datasets/insight`, no segment after it, where the list
+      // is `/datasets?…`) — the answer-log reading's own two objects.
       const key = req.url.includes("entries:list") ? "logging:entries"
-        : req.url.includes("/tables") ? "bigquery:tables"
-          : req.url.includes("/backupSchedules") ? "firestore:schedules"
-            : host;
+        : req.url.includes("/tables/") ? "bigquery:table"
+          : req.url.includes("/tables") ? "bigquery:tables"
+            : /\/datasets\/[^/?]+$/.test(req.url) ? "bigquery:dataset"
+              : req.url.includes("/backupSchedules") ? "firestore:schedules"
+                : host;
       const r = reply[key] || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
@@ -74,6 +80,9 @@ beforeEach(() => {
     "cloudresourcemanager.googleapis.com": { status: 200, body: { bindings: [] } },
     "bigquery.googleapis.com": { status: 200, body: { datasets: [] } },
     "bigquery:tables": { status: 200, body: { tables: [] } },
+    // The tree's own state before the Apply BigQuery click: neither exists.
+    "bigquery:dataset": { status: 404, body: { error: { message: "Not found: Dataset prvfire33:insight" } } },
+    "bigquery:table": { status: 404, body: { error: { message: "Not found: Table prvfire33:insight.answers" } } },
     "firestore.googleapis.com": { status: 200, body: { name: "projects/prvfire33/databases/insight", pointInTimeRecoveryEnablement: "POINT_IN_TIME_RECOVERY_DISABLED" } },
     "firestore:schedules": { status: 200, body: {} },
     "logging:entries": {
@@ -108,11 +117,11 @@ describe("a refusal is a result, not a crash", () => {
   it("reports EVERY refusal in one run, not just the first", async () => {
     for (const h of Object.keys(reply)) reply[h] = { status: 403, body: { error: { message: "denied" } } };
     const j = await asJson();
-    // Eight probes now: the original four, D454's bigquery, D455's two
-    // backup readings, and D471's hard-stop grant. The count is the
-    // assertion — a run that quietly stopped making one would otherwise
-    // still look green here.
-    expect(j.blocked).toHaveLength(8);
+    // Ten probes now: the original four, D454's bigquery, D455's two
+    // backup readings, D471's hard-stop grant, and D-2026-09-12a's two
+    // answer-log objects. The count is the assertion — a run that quietly
+    // stopped making one would otherwise still look green here.
+    expect(j.blocked).toHaveLength(10);
     expect(j.reachable).toEqual([]);
   });
 
@@ -624,5 +633,130 @@ describe("the hard-stop reading (D471)", () => {
     expect(j.readings.hardStop.deployed).toBeNull();
     expect(j.readings.hardStop.armed).toBeNull();
     expect(await observe()).toContain("hardStop       unreadable");
+  });
+});
+
+// The answer log's setup as a reading (D447 phase A; D-2026-09-12a). The two
+// OWNER-LIST clicks — create the table, grant the trigger's account two
+// roles — were made on 2026-09-10 against commands naming the GEN-1 default
+// account, while the functions are gen-2 and run as the Compute Engine one;
+// nothing in the repo could see either fact. Now three lines can.
+describe("the answer-log reading (D-2026-09-12a)", () => {
+  const SA_EMAIL = "437999864865-compute@developer.gserviceaccount.com";
+  const GEN1 = "prvfire33@appspot.gserviceaccount.com";
+  const triggerDeployed = () => ({
+    status: 200,
+    body: {
+      functions: [{
+        name: "projects/prvfire33/locations/europe-west1/functions/onV2AnswerCreated",
+        serviceConfig: { serviceAccountEmail: SA_EMAIL },
+      }],
+    },
+  });
+  const created = () => {
+    reply["bigquery:dataset"] = { status: 200, body: { location: "europe-west1", access: [{ role: "OWNER", userByEmail: "deploy@prvfire33.iam.gserviceaccount.com" }] } };
+    reply["bigquery:table"] = {
+      status: 200,
+      body: {
+        numRows: "32", numBytes: "4096", lastModifiedTime: "1789044301000",
+        streamingBuffer: { estimatedRows: "3" },
+        timePartitioning: { type: "DAY", field: "day" }, clustering: { fields: ["uid", "qid"] },
+      },
+    };
+  };
+  const bind = (role, ...members) => ({ role, members });
+
+  it("says NOT CREATED, with the workflow to run, while the table 404s — and not 'enable the API'", async () => {
+    const out = await observe();
+    expect(out).toContain("insight.answers is NOT created");
+    expect(out).toContain("Apply BigQuery");
+    expect(out).not.toContain("enable the API");
+    const j = await asJson();
+    expect(j.readings.logTable).toMatchObject({ status: "ok", exists: false });
+    expect(j.readings.logDataset).toMatchObject({ status: "ok", exists: false });
+    expect(j.reachable).toContain("logTable");
+  });
+
+  it("reads the rows, the streaming buffer, the last write and the region off the table itself", async () => {
+    created();
+    const out = await observe();
+    expect(out).toContain("✓ table          insight.answers (europe-west1) — 32 row(s) + 3 in the streaming buffer, last written 2026-09-10T12:45:01.000Z");
+    const j = await asJson();
+    expect(j.readings.logTable).toMatchObject({ exists: true, rows: 32, bufferedRows: 3, partitionedBy: "day", clusteredBy: ["uid", "qid"] });
+    // The access list stays out of the artifact: it names every reader.
+    expect(JSON.stringify(j)).not.toContain("deploy@prvfire33");
+  });
+
+  it("flags a dataset outside the named database's region (D165)", async () => {
+    created();
+    reply["bigquery:dataset"] = { status: 200, body: { location: "US", access: [] } };
+    expect(await observe()).toContain("the dataset is in US, not europe-west1");
+  });
+
+  it("names the account the trigger RUNS AS, and a grant to the gen-1 default is not a grant", async () => {
+    created();
+    reply["cloudfunctions.googleapis.com"] = triggerDeployed();
+    // Exactly what the apply script printed for three days: both roles, to
+    // the App Engine default. The function runs as the Compute one.
+    reply["cloudresourcemanager.googleapis.com"] = {
+      status: 200,
+      body: { bindings: [bind("roles/bigquery.dataEditor", `serviceAccount:${GEN1}`), bind("roles/bigquery.jobUser", `serviceAccount:${GEN1}`)] },
+    };
+    const out = await observe();
+    expect(out).toContain(`✓ trigger        onV2AnswerCreated runs as ${SA_EMAIL}`);
+    expect(out).toContain("✗ append");
+    expect(out).toContain("✗ query");
+    expect(out).toContain(`gcloud projects add-iam-policy-binding prvfire33 --member=serviceAccount:${SA_EMAIL} --role=roles/bigquery.dataEditor`);
+    expect(out).toContain(`gcloud projects add-iam-policy-binding prvfire33 --member=serviceAccount:${SA_EMAIL} --role=roles/bigquery.jobUser`);
+    expect(out).not.toContain(`serviceAccount:${GEN1}`);
+    const j = await asJson();
+    expect(j.answerLog).toMatchObject({ deployed: true, account: SA_EMAIL, canAppend: false, canQuery: false });
+    expect(j.answerLog.grants).toHaveLength(2);
+    // The policy itself never reaches the artifact — only this account's roles.
+    expect(JSON.stringify(j)).not.toContain(GEN1);
+  });
+
+  it("reads Editor as both ✓ with nothing to run, and a dataset WRITER as rows only", async () => {
+    created();
+    reply["cloudfunctions.googleapis.com"] = triggerDeployed();
+    reply["cloudresourcemanager.googleapis.com"] = {
+      status: 200,
+      body: { bindings: [bind("roles/editor", "user:owner@example.com", `serviceAccount:${SA_EMAIL}`)] },
+    };
+    let out = await observe();
+    expect(out).toContain("✓ append         may write rows — roles/editor");
+    expect(out).toContain("✓ query          may run the reconcile's SELECT and the erasure's DELETE — roles/editor");
+    expect(out).toContain("Every answer is a row within a minute");
+    expect(out).not.toContain("gcloud projects add-iam-policy-binding");
+    expect((await asJson()).answerLog.grants).toEqual([]);
+
+    // A console grant on the dataset alone: rows yes, jobs no.
+    reply["cloudresourcemanager.googleapis.com"] = { status: 200, body: { bindings: [] } };
+    reply["bigquery:dataset"] = { status: 200, body: { location: "europe-west1", access: [{ role: "WRITER", userByEmail: SA_EMAIL }] } };
+    out = await observe();
+    expect(out).toContain("✓ append         may write rows — WRITER (on the dataset)");
+    expect(out).toContain("✗ query");
+    expect(out).toContain("--role=roles/bigquery.jobUser");
+  });
+
+  it("answers UNREADABLE, not ✗, off a refused policy — and prints nothing to run", async () => {
+    created();
+    reply["cloudfunctions.googleapis.com"] = triggerDeployed();
+    reply["cloudresourcemanager.googleapis.com"] = { status: 403, body: { error: { message: "denied" } } };
+    const out = await observe();
+    expect(out).toContain("append         unreadable");
+    expect(out).toContain("query          unreadable");
+    expect(out).not.toContain("gcloud projects add-iam-policy-binding prvfire33 --member=serviceAccount");
+    const j = await asJson();
+    expect(j.answerLog.canAppend).toBeNull();
+    expect(j.answerLog.canQuery).toBeNull();
+    expect(j.answerLog.grants).toEqual([]);
+  });
+
+  it("says the trigger is not deployed rather than judging an account nothing runs as", async () => {
+    created();
+    const out = await observe();
+    expect(out).toContain("onV2AnswerCreated is not deployed");
+    expect((await asJson()).answerLog).toMatchObject({ deployed: false, account: null, canAppend: null });
   });
 });

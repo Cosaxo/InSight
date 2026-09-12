@@ -29,3 +29,23 @@ describe("apply-bigquery", () => {
     for (const n of names) expect(["at", "from", "select", "where", "day"].includes(n) && n !== "day", `${n} is a reserved word`).toBe(false);
   });
 });
+
+// The grant's ACCOUNT is read off the deployed trigger, never typed
+// (D-2026-09-12a): the script named the gen-1 default for three days and
+// the owner ran the click against it, while the functions are gen-2 and
+// run as the Compute Engine default. A default typed here again would print
+// the wrong grant again, and print it confidently.
+describe("apply-bigquery — the grant's account", () => {
+  it("names no default service account anywhere in the script", () => {
+    const src = readFileSync("scripts/apply-bigquery.mjs", "utf8");
+    // No `--member=` of its own: the commands come from bigquery-grants.mjs,
+    // for the account the script read. (The fallback text NAMES the gen-2
+    // default so an operator knows which family to look in; it grants it
+    // to nobody.)
+    expect(src).not.toMatch(/--member=/);
+    expect(src).toMatch(/grantCommands\(PROJECT, account\)/);
+    expect(src).not.toMatch(/serviceAccount:\$\{PROJECT\}@appspot/);
+    // …and reads the trigger by the name the functions export.
+    expect(readFileSync("functions/src/v2.ts", "utf8")).toMatch(/export const onV2AnswerCreated\b/);
+  });
+});
