@@ -130,7 +130,13 @@ export const SIZE_BASELINE = {
   // paying any of it down: the honest note is that the pulse card and the
   // sitting store both went OUTSIDE this file (ui/PulseCard.tsx,
   // data/feedSitting.ts), and 59 lines is what could not.
-  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4978 },
+  //
+  // +1 more when `check:purge` caught the sitting store not hearing the
+  // purge: the fix moved OUT of this file (the store hears it itself now,
+  // because this component is unmounted whenever a purge fires), and what
+  // is left here is the note saying so — one line longer than the code it
+  // replaced. Which is the paragraph above, measuring itself.
+  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4979 },
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2377 },
   // The suites are watched too, and for the same reason rather than out of
   // tidiness: vote.test.ts is the file that pins the whole window.LIVE

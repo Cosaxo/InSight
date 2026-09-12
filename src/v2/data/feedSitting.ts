@@ -175,6 +175,42 @@ export function subscribe(f: () => void): () => void {
   return () => { subs.delete(f); };
 }
 
+/**
+ * The purge (D51), and this listener is a fix rather than a formality.
+ *
+ * `purgeLocalTrace` removes every `insight.*` key by prefix, so the
+ * COUNTER's key goes — and nothing else here does. `sunk` would still
+ * hold the previous account's answered-ness, so the next account's feed
+ * would open sorted by a stranger's history and park their cards behind
+ * the Answered expander; `counter` would survive and the next write
+ * would re-create the key the purge had just deleted. That is exactly
+ * the resurrection D50/D51 exist to stop, and the shape lens-defs
+ * shipped.
+ *
+ * WORLD-FEED'S OWN HANDLER CANNOT COVER THIS, which is the part worth
+ * reading. It calls `leave`/`enter` on a purge and does clear these maps
+ * — but it is registered in `componentDidMount` and torn down in
+ * `componentWillUnmount`, and the account panel that fires the purge is
+ * on the MIRROR tab. The shell keys `.tab-swap` by tab, so the feed is
+ * unmounted at the moment a purge realistically happens, and its
+ * listener is already gone. Module scope is the only place that hears it
+ * every time.
+ *
+ * NO WRITE. Resetting the counter to 0 without persisting it is what the
+ * gate's message asks for and is also right on its own terms: 0 is the
+ * identity rotation, so the next account opens on the bank's own order,
+ * exactly as a fresh install does.
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("insight:local-purge", () => {
+    counter = 0;
+    lastLeft = null;
+    sunk.clear();
+    held = null;
+    notify();
+  });
+}
+
 /** Test seam. The module's whole point is state that outlives a mount, so
  * a suite that could not reset it would carry one case's sitting into the
  * next — and every case here is about a boundary. */

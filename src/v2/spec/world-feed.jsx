@@ -573,13 +573,14 @@ class WorldFeed extends React.Component {
       // The unanswered-first stickiness cache goes with the maps: it holds
       // the OLD account's answered-ness, and a new account inheriting it
       // would open on a feed sorted by someone else's history.
-      // Through the sitting store now, because that is where the maps
-      // live — clearing a field on this instance would leave the real
-      // ones in module scope, holding the previous account's answered-ness
-      // and "later" list for the rest of the launch. `enter(0)` cannot do
-      // it (a purge is not an absence), so the sitting is ended outright.
-      SITTING.leave(0);
-      SITTING.enter();
+      // The sitting's maps are NOT cleared from here any more. They live
+      // in module scope and `data/feedSitting.ts` hears the purge itself,
+      // which is the only version that works: this handler is registered
+      // on mount and removed on unmount, and the account panel that fires
+      // a purge is on the MIRROR tab — so at the moment it fires, this
+      // component is unmounted and this listener does not exist. Caught by
+      // `check:purge`, which asks a store that persists an `insight.*` key
+      // to hear the event itself for exactly this reason.
       this.setState({ votes: {}, passed: {}, deferred: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
     };
     window.addEventListener('insight:local-purge', this._onPurge);
