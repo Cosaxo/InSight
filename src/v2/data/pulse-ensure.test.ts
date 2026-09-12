@@ -384,3 +384,64 @@ describe("scope() — the day series joins your unfolded answer, today only", ()
     expect(last("world").n).toBe(PULSE.default.todayN("pulse-pace", "world"));
   });
 });
+
+describe("the roster past Firestore's `in` cap (D481)", () => {
+  // WHY THIS EXISTS. `fetchAggs` issued ONE `where(documentId(), "in",
+  // ids)` for however many ids it was handed, and that was correct for
+  // both callers by accident: `ensureTrend` asks for a fixed 21 and
+  // `ensureToday` asked for one id per pulse, of which there were five.
+  //
+  // At THIRTY-ONE pulses the query is rejected outright — the crowd read
+  // fails, `todayState()` goes to "failed", and every pulse card in the
+  // feed says so, for every user, until the roster shrinks. A cliff, not
+  // a slope, and the pulse lane adding one a week from five would have
+  // reached it in about six months.
+  //
+  // The mock cannot reject an over-long `in` the way Firestore does, so
+  // what these cases assert is the shape that keeps it from ever being
+  // sent: no single query carries more than thirty ids, and the answers
+  // still arrive whole across the chunks.
+  const roster = (n: number) => Array.from({ length: n }, (_, i) => ({
+    id: `pulse-${i}`, prompt: `Pulse ${i}?`, options: FIVE,
+  }));
+
+  it("never asks for more than thirty ids in one query", async () => {
+    h.bank = roster(31);
+    await PULSE.ensureToday();
+    expect(h.queries.length, "thirty-one ids went out as one query").toBe(2);
+    for (const q of h.queries) expect(q.length).toBeLessThanOrEqual(30);
+    expect(h.queries.flat().length, "an id was dropped between the chunks").toBe(31);
+  });
+
+  it("still reads every pulse's crowd across the chunks", async () => {
+    // The half a length check cannot see: chunking that loses the second
+    // page would satisfy every assertion above.
+    h.bank = roster(31);
+    h.aggs[`pulse-0_${today()}`] = { counts: { "0": 4 }, total: 4 };
+    h.aggs[`pulse-30_${today()}`] = { counts: { "4": 7 }, total: 7 };
+    await PULSE.ensureToday();
+
+    expect(PULSE.default.todayState()).toBe("ready");
+    expect(PULSE.default.todayN("pulse-0", "world"), "the first chunk's crowd").toBe(4);
+    expect(PULSE.default.todayN("pulse-30", "world"), "the second chunk's crowd").toBe(7);
+  });
+
+  it("leaves the roster that fits in one query as one query", async () => {
+    // The cap is a ceiling, not a page size: a roster of thirty must not
+    // suddenly cost two reads per feed open because the loop exists.
+    h.bank = roster(30);
+    await PULSE.ensureToday();
+    expect(h.queries.length).toBe(1);
+    expect(h.queries[0].length).toBe(30);
+  });
+
+  it("keeps the trend read at one query, whatever the roster", async () => {
+    // `ensureTrend` asks for the 21-day window of ONE pulse, so it was
+    // never near the cap and must not have been pushed over it either.
+    h.bank = roster(31);
+    h.queries = [];
+    await PULSE.ensureTrend("pulse-0");
+    expect(h.queries.length).toBe(1);
+    expect(h.queries[0].length).toBe(PULSE.DAYS);
+  });
+});

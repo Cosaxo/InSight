@@ -522,13 +522,50 @@ export function ensureTrend(pid: string): Promise<void> {
 
 /** An absent doc means nobody answered that day — stored as null so the
  * reading can say so rather than refetching. */
+/**
+ * Firestore's cap on an `in` clause. Thirty, and it is the database's
+ * number rather than a tuning knob — every other id-batched read in this
+ * tree slices by the same constant (`live.ts`, `circle.ts`, `voters.ts`).
+ */
+const IN_CAP = 30;
+
+/**
+ * CHUNKED, and it was not until the pulse lane went looking for a roster
+ * ceiling (D481).
+ *
+ * This issued ONE `where(documentId(), "in", ids)` for however many ids
+ * it was handed. That is correct for both of today's callers by accident
+ * rather than by design: `ensureTrend` asks for a fixed `DAYS` (21) and
+ * can never exceed the cap, and `ensureToday` asks for one id per pulse
+ * in the roster — five. At **thirty-one** pulses the query is rejected
+ * outright, `ensureToday` sets `todayFailed`, and every pulse card in
+ * the feed draws "couldn't read the crowd" for every user, permanently,
+ * until the roster shrinks again.
+ *
+ * That is a cliff rather than a slope, and a lane adding one pulse a
+ * week from five would have walked off it in about six months — long
+ * after whoever added the lane had stopped watching. Chunking is what
+ * lets the roster ceiling be a question about COST (a query per thirty
+ * per feed open, priced in QUESTION-FARM.md § The pulse lane) instead of
+ * a question about a limit nobody would have met until it broke.
+ *
+ * Sequential rather than parallel on purpose: past the cap this is a
+ * background read on a surface that already draws without it, and the
+ * chunks are few. `Promise.all` would spend burst quota to save
+ * milliseconds nobody is waiting on.
+ */
 async function fetchAggs(ids: string[]): Promise<Map<string, DayAgg>> {
   const db = await getDb();
   const { collection, documentId, getDocs, query, where } = await getFirestoreApi();
-  const snap = await getDocs(
-    query(collection(db, "v2_question_aggs"), where(documentId(), "in", ids)),
-  );
-  return new Map(snap.docs.map((d) => [d.id, d.data() as DayAgg]));
+  const out = new Map<string, DayAgg>();
+  for (let i = 0; i < ids.length; i += IN_CAP) {
+    const snap = await getDocs(query(
+      collection(db, "v2_question_aggs"),
+      where(documentId(), "in", ids.slice(i, i + IN_CAP)),
+    ));
+    for (const d of snap.docs) out.set(d.id, d.data() as DayAgg);
+  }
+  return out;
 }
 
 /** Back-compat: the card's old single entry point. Today only. */

@@ -1512,6 +1512,94 @@ a served question. Rules, each load-bearing:
   none is open), never generated activity, never a flag flipped, never
   a shipped question's options edited.
 
+## The pulse lane (D481 — one a week, propose-only, and a ceiling)
+
+Pulses live in `content/pulse-questions.json`. A pulse is a short question
+answered once a day on a five-step scale and drawn as a LINE — your own
+21 days against your city, your country and the world. Five shipped
+(D139, roster at D203); since D479 every one of them asks every day and
+they ride the feed like any other question, with a PIN (at most three)
+for the ones you are tracking.
+
+**This lane is not like the others, and the difference decides its
+shape.** Every other lane writes something consumable: a daily question is
+answered once and gone, a feed question can retire, a duel question is one
+round of many. **A pulse is permanent.** Its option set freezes the day it
+ships (D52), its histories accrue against it forever, and `active: false`
+is a whole-series kill — retiring a pulse takes every line anyone ever
+drew with it off the screen. So the regulator every other lane needs
+("how much runway is left") is the wrong question: nothing drains. The
+question is how big the library should be.
+
+Rules for a pulse run:
+
+- **Start with `npm run pulse:budget -- --open <pulses on the open lane
+  PR>`.** It grants **one** (`RUN_CAP`) while the roster is under
+  **30** (`ROSTER_CEILING`), and **zero** otherwise. The constants live in
+  `scripts/pulse-budget.mjs` with the reasoning and
+  `pulse-budget.test.mjs` pins the properties.
+
+- **The ceiling is measured, not chosen.** `PULSE.ensureToday()` reads one
+  aggregate id per pulse on every feed open, through
+  `where(documentId(), "in", ids)` — and Firestore caps an `in` at thirty.
+  Thirty pulses is the largest library that costs ONE query per open.
+  Raising it is legal and costs one extra query per feed open per thirty
+  pulses; it is an owner call, on `docs/OWNER-LIST.md` with that
+  arithmetic, never a lane's.
+
+  *(Until D481 this was a cliff rather than a price: `fetchAggs` issued one
+  un-chunked query, so at thirty-one pulses the read failed outright and
+  every pulse card in the feed lost its crowd for every user. This lane
+  would have reached it in about six months. It chunks now — which is the
+  point worth taking from it: the way through a limit is built first, and
+  only then is the limit a number to argue from.)*
+
+- **Past the ceiling the lane proposes a SWAP, never a pile.** One pulse
+  paused, one added, argued in the PR body: which standing question has
+  stopped earning its place, and why the new one earns it more. That is a
+  judgement, so it is written for a human and merged by one.
+
+- **Every new pulse carries four things `check:quality` refuses it
+  without.** Pre-flight the exact JSON — `npm run check:quality -- --batch
+  pulse.json` — so the thing checked is the thing shipped:
+
+  1. **An id of lowercase and hyphens, no underscore.** A pulse answer is
+     written at `{qid}_{YYYY-MM-DD}` and `firestore.rules` parses the day
+     back off it, so an underscore in the id splits it in the wrong place.
+     The bank file has said this since D139 and nothing enforced it — true
+     of five hand-written ids, and exactly the convention a weekly lane
+     breaks without noticing.
+  2. **Exactly five distinct, ordered steps.** The trends chart's y-axis
+     IS the 1..5 scale, and two rungs with one label draw two heights for
+     one answer.
+  3. **`since`** — `YYYY-MM-DD`, the day it starts asking. A pulse written
+     mid-history has days in the 21-day window on which it did not exist,
+     and `asksOn` (`src/v2/data/pulse.ts`) is what keeps the reading from
+     calling them misses. Without it the pulse reports its own pre-history
+     as a broken streak (D479).
+  4. **`territory`** — one the store forms are already answered for. D166
+     §3 approved a WELLBEING roster and `docs/STORE-FORMS.md` answers
+     Apple's Health row YES because of it. "How much did you spend today?"
+     is financial data on a form a human signed. The list
+     (`PULSE_TERRITORY`) fails closed: widening it is a human's edit with
+     a store-forms conversation behind it, never a run's.
+
+- **Argue the one thing no gate can ask: would a LINE through this be
+  worth reading in a month?** That is the whole test of a pulse, and it is
+  not a quality bar — it is a KIND bar. "Did you enjoy the film?" is a
+  fine question and a terrible pulse: the line means nothing because the
+  film changes. A pulse asks about something that varies with YOU, day to
+  day, on an axis that reads the same way every time. A question that
+  fails this is a feed question, and the feed lane writes those.
+
+- **This lane is PROPOSE-ONLY — it does not self-merge.** Every D212 lane
+  merges its own green PR, and the argument is that the gates are the
+  review. That argument does not reach here: those lanes write things that
+  can be retired quietly, and the bar above is one no script can ask. The
+  cost of a wrong pulse is forever, which is higher than D212's argument
+  ever had to clear. `OPEN_MAX` is 1 for the same reason — a PR waiting is
+  a human who has not merged it, and the answer to that is to wait.
+
 ## When no category fits (every question gets one; the tree grows)
 
 Two rules, and they pull in opposite directions on purpose.
@@ -1865,62 +1953,34 @@ approval. (A note may also arrive already pointing at a **Proposed**
 record, as the duel lane does — the same rule seen from the other side:
 Proposed binds nothing until the owner adopts it.)
 
-### A pulse lane, very slow (owner note, 2026-08-22 — not adopted)
+### A pulse lane, very slow — **ADOPTED at D481**, see § The pulse lane
 
-The owner wants pulses to gain a **creation lane at a very low rate —
-about one per week**. That re-scopes the census entry above ("the set
-is small and editorial"), so adopting it is a decision record that
-amends D213's census, and these are the starting constraints:
+The owner asked for this on 2026-08-22 and it sat here as a note for three
+weeks, then again on 2026-09-12 (*"new ones should be made but at a lower
+pace than other questions"*). It is a lane now: § The pulse lane above
+carries the contract, `scripts/pulse-budget.mjs` the regulator.
 
-- **Creation compounds; nothing else in the farm does.** A daily
-  question is consumed and a feed question can retire, but a pulse is a
-  *standing* card: its option set freezes when it ships (D52), its
-  histories accrue, and `active: false` is a whole-series kill, not a
-  rotation. One per week is a ~57-pulse roster within a year, against
-  five today — so the honest unit for this lane is a **roster ceiling**
-  it fills toward, with "one per week" as the fill rate; past the
-  ceiling the lane proposes a swap (pause one, add one), never a pile.
-- ~~**The default cadence must ship before the lane does.**~~
-  **CLOSED 2026-09-12, and not by defaulting anything to `off`.** The
-  constraint was real: `defaultCad` fell back to `daily` for an id it
-  did not know, so a new bank pulse arrived as a new daily card ON THE
-  DAILY TAB — a stack above the feed — and at one a week that buried
-  the tab within a month. The answer written here was to make a new
-  pulse default `off`, a library you opt into.
-  The owner ruled the other way, on both halves at once: *"they should
-  all be on everyday and new ones should be made but at a lower pace
-  than other questions ... daily pulses should show up in the feed like
-  any other question"*. A pulse is a member of the FEED now, so a new
-  one costs a place in a stream rather than a permanent slot above it,
-  and the crowding this bullet was about cannot happen. The cadence is
-  gone entirely; the per-person control that replaced it is the PIN
-  (at most three, `data/pulse.ts`), which moves a pulse to the head of
-  the feed and gates nothing.
-  **What the lane still owes, and it is the same rule wearing the other
-  instance:** a pulse WRITTEN mid-history has days in the 21-day window
-  on which it did not exist, and the reading must not report them as
-  misses. `asksOn` is that gate and `QuestionDoc.since`
-  (`YYYY-MM-DD`) is its input — both shipped with this change, unused,
-  because none of the five shipped pulses has a window start. **The
-  lane's first run must write `since`**, and `pulse.test.ts` already
-  pins what happens when it does.
-- **The velocity bound moves.** `functions/src/velocity.ts` budgets
-  `pulseCount × scanWindowDays`; roster growth walks that term up. One
-  line and its test per the D139 design, but it is named here so the
-  lane's PR moves it rather than tripping it.
-- **Store forms bound the subject matter.** D166 §3 approved the
-  current wellbeing roster and `STORE-FORMS.md` answers Health
-  accordingly; a scheduled run authoring *new* health-adjacent pulses
-  is a run editing the app's store declarations by implication. The
-  lane writes inside the declared territory only, and anything that
-  would move a store form is proposed to a human, never merged.
-- **Gates before content**, the house order: `check:quality` grows
-  pulse rules (exactly five ordered steps, underscore-free ids, the
-  repeat-worthiness question — "would a line through this be worth
-  reading in a month?"), and given permanence plus sensitivity the lane
-  starts **propose-only** (human merge), unlike the D212 lanes — the
-  cost of a wrong pulse is forever, which is the bar D212's self-merge
-  argument never had to clear.
+Of the five constraints this note opened with, one was answered by
+building the way through rather than by accepting it, and that is the one
+worth carrying forward:
+
+- **The roster ceiling** is 30, and it is measured rather than chosen —
+  the largest library that costs one Firestore read per feed open. Past it
+  the lane proposes a swap, never a pile, exactly as the note asked.
+- **The default cadence** was closed at D479 from the other direction: the
+  cadence is gone entirely and pulses ride the feed, so the crowding this
+  bullet feared cannot happen. What survived is `since`, which the lane
+  now must write and `check:quality` now demands.
+- **The velocity bound** needed no line moved. `PULSE_BANK_SIZE`
+  (`functions/src/velocity.ts`) is DERIVED from the bank and
+  `velocity.test.ts` asserts the relationship rather than a literal, so it
+  walks up on its own. The note said "one line and its test"; the right
+  answer was zero, found by reading the file instead of trusting the note.
+- **The store forms** are now a gate rather than an instruction:
+  `PULSE_TERRITORY` in `scripts/question-quality.mjs` fails closed on any
+  subject D166 §3's wellbeing answer does not already cover.
+- **Gates before content** is what this whole record is, and the lane is
+  propose-only on top of them.
 
 ### Audience-tagged questions ("what kind of people get what kind of content")
 
@@ -2097,6 +2157,15 @@ re-paced, or retired.
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D350) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 since 2026-09-08, for the bank burst; `0 10 * * 3` — weekly, Wednesday 10:00 (D213) — before it and again once the pools are at target (the paragraph below the table) | § The duel lane |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D351) | § The now lane |
+| InSight pulse lane | `trig_01FL5JjeS8y3re3Eq5MdoEKy` | `0 12 * * 1` — **weekly**, Monday 12:00 (D481; first fire 2026-09-14) | § The pulse lane — **propose-only, never self-merges** |
+
+**The pulse lane is the seventh row and the first that does not
+self-merge** (D481, 2026-09-12). It is weekly where the other six are
+daily, and 12:00 continues the hourly stagger off 07:00 — the reason
+that stagger exists is that all seven share one bound session and a lane
+finding the tree dirty is supposed to stash, not race. Its canonical
+prompt is the last block in this section. Like the six, it stores no MCP
+connectors: the GitHub tools a run needs come from the bound session.
 
 **All six live prompts match their canonical blocks below as of
 2026-09-08** (five as of 2026-09-02; the learn lane's was swapped
@@ -2152,19 +2221,22 @@ every pool at `POOL_TARGET`, re-pace back to `0 10 * * 3` and record
 it the same way** — this table's row, and `ROUTINES.md` §2's dated
 line, which carries the burst's citation and the caveat on it.
 
-All six fire into the maintainer's dev session
+All seven fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
-reason in the paragraph above, and all five carry no stored MCP
+reason in the paragraph above, and all of them carry no stored MCP
 connectors — the GitHub tools a run needs to merge its PR and log on
 issue #31 come from the bound session. The ids are recorded because
 `update_trigger`/`delete_trigger` need them and they otherwise live only
 in a tool response.
 
-The lanes are staggered hourly off 07:00 so no two runs are writing to
-the same checkout at once — they share one bound session, and a lane
+The lanes are staggered hourly off 07:00 (seven of them since D481, the
+last weekly rather than daily) so no two runs are writing to the same
+checkout at once — they share one bound session, and a lane
 that finds the tree dirty is supposed to stash or use a worktree, not
 race. Six lanes with no per-item reviewer is the load this inventory
-now represents (D212, D351); each lane's regulator still bounds its own open
+now represents (D212, D351) — the seventh, the pulse lane, HAS a
+per-item reviewer by construction and is the exception D481 argues for
+rather than a gap; each lane's regulator still bounds its own open
 batch (a PR sitting open means a gate refused it, and every lane stops
 rather than stacking on top of one), so the arithmetic that keeps the
 pipeline sane is per-lane, exactly as before — only the queue it guards
@@ -2595,6 +2667,58 @@ PR left open with a failure, no-op, or aborted — comment it on issue
 no-op reason with the searches, or the verbatim errors. Work on the
 lane's branch and return to the session's previous branch afterwards;
 if the tree is dirty, stash or use a separate git worktree.
+```
+
+The pulse lane's canonical prompt (D481; the same rule as every block
+above — update BOTH this and § The pulse lane in any future change).
+Its one structural difference from the six is in the third paragraph and
+in step 6, and it is the whole reason the lane exists in this shape:
+
+```
+You are running InSight's PULSE lane — the WEEKLY scheduled job (D481). It
+fires into this ongoing session because fresh Routine-spawned sessions get
+read-only git access and no GitHub API tools (issue #31); this session has
+both. Read docs/QUESTION-FARM.md § The pulse lane on origin/main and follow
+it exactly — it is the complete instruction manual, it changes, and it
+outranks this prompt's summary; re-read it every run.
+
+THIS LANE IS PROPOSE-ONLY. Unlike the daily, feed, learn, duel and now
+lanes, you NEVER merge your own PR, whatever else you read. A pulse is
+permanent — its option set freezes the day it ships (D52), its histories
+accrue against it forever, and retiring one takes every line anyone drew
+with it off the screen. A human merges, or it does not ship.
+
+The job in one sentence: add at most ONE pulse question to
+content/pulse-questions.json, argued in a PR a human will read.
+
+1. Budget first: `npm run pulse:budget -- --open <pulses on the lane's open
+   PR>`. If it grants 0, STOP and log why — a waiting PR means a human has
+   not merged it and the correct response is to wait, not to stack.
+2. If the roster is at the ceiling (30) the budget says so and asks for a
+   SWAP proposal instead of a question: name the pulse that has stopped
+   earning its place, argue why, propose pausing it for the one you would
+   add. Never a pile. Still propose-only.
+3. Write the question. Every pulse carries: an id of lowercase and hyphens
+   with NO underscore (the rules parse the day off `{qid}_{YYYY-MM-DD}`),
+   exactly five distinct ordered steps, `since` (YYYY-MM-DD, the day it
+   starts asking), and `territory` from the approved list.
+4. Pre-flight the exact JSON before you append it:
+   `npm run check:quality -- --batch pulse.json`. Paste the packet into
+   the PR body.
+5. The argument no gate can make, and the PR body must: would a LINE
+   through this be worth reading in a month? A pulse asks about something
+   that varies with YOU, day to day, on an axis that reads the same way
+   every time. "Did you enjoy the film?" is a fine question and a terrible
+   pulse — the film changes. A question that fails this is a feed
+   question; leave it for the feed lane.
+6. Open the PR on `claude/pulse-question-<date>`, run the gates, and STOP.
+   Log the run on issue #31. Do not merge, do not label anything to make
+   something else merge it.
+
+If the territory gate refuses your subject, that is the store forms
+talking (D166 §3 — docs/STORE-FORMS.md answers Apple's Health row YES for
+the wellbeing roster). Do not widen the list: say so in the run log and
+leave it for a human.
 ```
 
 Delivery mechanics, measured rather than assumed (run log #31,

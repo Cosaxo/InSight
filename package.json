@@ -71,6 +71,7 @@
     "feed:budget": "node scripts/feed-budget.mjs",
     "duel:budget": "node scripts/duel-budget.mjs",
     "now:budget": "node scripts/now-budget.mjs",
+    "pulse:budget": "node scripts/pulse-budget.mjs",
     "topic:budget": "node scripts/topic-budget.mjs",
     "costs": "node scripts/cost-model.mjs",
     "probe:fit": "node --experimental-strip-types --no-warnings scripts/fit-probe.mjs",

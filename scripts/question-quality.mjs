@@ -446,6 +446,43 @@ const GENRE_OPTION = new Set([
 const PERSON_CLASS = /^(a|an|some|someone|the)\s+(famous\s+)?(scientist|musician|artist|athlete|author|writer|actor|singer|leader|politician|celebrity|comedian|director|chef|philosopher|inventor|explorer|player)\b|^someone famous\b/i;
 
 /** The options that name a class where this app could name the thing. */
+/**
+ * The subject territory a new pulse may sit in (D166 §3, gated at D481).
+ *
+ * NOT A TOPIC LIST. It is the shape of the app's STORE DECLARATIONS
+ * written down: `docs/STORE-FORMS.md` answers Apple's Health row YES and
+ * `design/store/app-privacy.json` declares it collected and linked,
+ * because `sleep` and `energy` are self-reported wellbeing. Every entry
+ * here is inside that one answer.
+ *
+ * A pulse outside it is not merely off-topic — it is a different data
+ * category on a form a human signed. "How much did you spend today?" is
+ * financial; "Where were you?" is location. Either would need the form
+ * moved before the question shipped, and a scheduled run may not move a
+ * form (CLAUDE.md: the store forms are one of the four things outside a
+ * session's reach).
+ *
+ * So this list fails CLOSED and widening it is a human's edit with a
+ * store-forms conversation behind it. It is deliberately short: five
+ * pulses ship and every one of them lands in it.
+ */
+export const PULSE_TERRITORY = new Set([
+  // The shipped five, by what each actually asks.
+  "pace",       // how fast the day moved — pulse-pace
+  "energy",     // how much you had — pulse-energy
+  "sleep",      // how you slept — pulse-sleep
+  "focus",      // how clear your head was — pulse-focus
+  "connection", // how connected you felt — pulse-social
+  // Room inside the same declaration, so the lane has somewhere to go
+  // without a form moving. Each is self-reported wellbeing of the same
+  // kind and nothing more specific: a mood, a state, a felt quantity.
+  "mood",
+  "calm",
+  "motivation",
+  "appetite",
+  "soreness",
+]);
+
 export function classOptions(q, surface) {
   if (surface === "learn" || surface === "pulse") return [];
   const topic = String(q.cat || q.topic || "");
@@ -1205,6 +1242,65 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // hold the prompt/option bounds and the place tripwire.
     if (q.type !== "pulse") err("type-shape", `pulse questions carry type "pulse", not ${JSON.stringify(q.type)}`);
     if ((q.options || []).length !== 5) err("type-shape", "a pulse question carries exactly five steps");
+
+    // ── the rules the lane needs, added with it (D481) ──
+    //
+    // THE ID CARRIES THE DAY SEPARATOR. A pulse answer is written at
+    // `{qid}_{YYYY-MM-DD}` and `firestore.rules` parses the day back off
+    // that id — so an underscore anywhere in the id splits it in the
+    // wrong place and the write is refused, or worse, accepted against a
+    // day that is not today. `content/pulse-questions.json`'s own
+    // comment has said "ids stay underscore-free" since D139 and nothing
+    // enforced it: true of five hand-written ids, and exactly the kind
+    // of convention a lane writing one a week breaks without noticing.
+    if (typeof q.id === "string" && q.id.includes("_")) {
+      err("pulse-id", `pulse id ${JSON.stringify(q.id)} carries "_", which is the day separator the rules parse an answer id on — use "-"`);
+    }
+    if (typeof q.id === "string" && !/^[a-z0-9-]+$/.test(q.id)) {
+      err("pulse-id", `pulse id ${JSON.stringify(q.id)} is not lowercase-and-hyphens`);
+    }
+
+    // FIVE DISTINCT STEPS. A scale with a repeated rung cannot be read:
+    // the chart plots 1..5 and two rungs with one label draw two heights
+    // for one answer. Cheap to check and impossible to see in review at
+    // a glance, which is the pair that earns a rule.
+    const rungs = (q.options || []).map((o) => String(o).toLowerCase().trim());
+    const dupe = rungs.find((o, i) => o && rungs.indexOf(o) !== i);
+    if (dupe) err("pulse-steps", `two steps read ${JSON.stringify(dupe)} — the scale plots five distinct rungs`);
+
+    // THE WINDOW START (D479). A pulse WRITTEN rather than shipped has
+    // days in the 21-day window on which it did not exist, and `asksOn`
+    // (data/pulse.ts) is the gate that keeps the reading from calling
+    // them misses. `since` is its only input, so a lane-written pulse
+    // without one reports its own pre-history as a broken streak.
+    //
+    // Checked on the BATCH rather than on the corpus: everything in a
+    // batch is new by definition, while the five shipped pulses predate
+    // any window that can be drawn and correctly carry nothing. That
+    // split is why `mode.fresh` exists here rather than a date compare.
+    if (mode.fresh) {
+      if (!q.since) {
+        err("pulse-since", "a new pulse carries `since` (YYYY-MM-DD, the day it starts asking) — without it the reading counts the days before it existed as misses (D479)");
+      } else if (!/^\d{4}-\d{2}-\d{2}$/.test(String(q.since))) {
+        err("pulse-since", `since ${JSON.stringify(q.since)} is not YYYY-MM-DD`);
+      }
+
+      // THE STORE FORM IS THE BOUND, and this is the one rule here that
+      // is about subject matter. D166 §3 approved a WELLBEING roster and
+      // `docs/STORE-FORMS.md` answers Apple's Health row YES because of
+      // it; a run authoring a pulse outside that territory is a run
+      // editing the app's store declarations by implication, which is
+      // the one thing CLAUDE.md puts outside a session's reach.
+      //
+      // Fails CLOSED: an undeclared territory, or one not on this list,
+      // stops the run. Widening the list is a human's edit with a
+      // store-forms conversation behind it, never a lane's.
+      if (!q.territory) {
+        err("pulse-territory", `a new pulse declares \`territory\` — one of ${[...PULSE_TERRITORY].join(", ")} (D166 §3; the store forms are the bound)`);
+      } else if (!PULSE_TERRITORY.has(String(q.territory))) {
+        err("pulse-territory", `territory ${JSON.stringify(q.territory)} is outside the roster D166 §3 approved — this moves docs/STORE-FORMS.md, so it is a human's call and not a run's`);
+      }
+    }
   }
 
   if (surface === "learn") {
@@ -1689,6 +1785,22 @@ if (invokedDirectly) {
     if (raw.surface === "learn" || (raw.f && raw.a && raw.q)) {
       return { ...learnView(raw), type: raw.type || "know" };
     }
+    // A pulse says what it is: `type: "pulse"` is carried in the bank
+    // file itself and no other surface uses it, so it is the tell `f` is
+    // for learn. Requiring `--surface pulse` on a batch of entries that
+    // already declare themselves would be one more step to forget, and
+    // the step a lane forgets is the one that silently checks a pulse
+    // against the daily rules.
+    if (raw.surface === "pulse" || raw.type === "pulse") {
+      return {
+        surface: "pulse", type: "pulse",
+        id: raw.id, prompt: raw.prompt, options: raw.options,
+        // The two the lane owes and the corpus does not (D479/D481):
+        // dropping either here would make the rule that asks for it fire
+        // on every candidate that did declare it.
+        since: raw.since, territory: raw.territory,
+      };
+    }
     return {
       surface: raw.surface || "daily",
       prompt: raw.prompt,
@@ -1737,7 +1849,11 @@ if (invokedDirectly) {
     // authored branch share `p` — texture the live form must NOT carry, so
     // the packet was telling a run to write the one thing the content gate
     // would then reject it for.
-    const { errs, warn } = checkQuestion(q, q.surface, corpus, { texture: q.type !== "path" });
+    // `fresh`: this question does not exist yet. Both pre-flight paths —
+    // `--candidate` and `--batch` — are about something being written,
+    // which is what lets a rule ask for a field the shipped corpus
+    // correctly does not carry (the pulse's `since`, D479).
+    const { errs, warn } = checkQuestion(q, q.surface, corpus, { texture: q.type !== "path", fresh: true });
     const head = `${i != null ? `[${i}] ` : ""}${JSON.stringify(q.prompt ?? "")} (${q.surface}/${q.type})`;
     if (!errs.length && !warn.length) console.log(`  ✓ ${head}`);
     else {

@@ -10,6 +10,7 @@ import {
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
   windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit, BG_MIN, BG_MAX,
   learnView, OPTION_MAX, PATH_CHOICE_MAX, LEARN_WHY_WORDS_MAX, classOptions,
+  PULSE_TERRITORY,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -1063,5 +1064,79 @@ describe("the concreteness warning", () => {
     const warned = active.filter((q) => classOptions(q, "feed").length);
     expect(warned.length).toBeGreaterThan(0);
     expect(warned.length / active.length).toBeLessThan(0.03);
+  });
+});
+
+describe("the pulse lane's rules (D481)", () => {
+  // The lane writes one pulse a week into a bank whose entries are
+  // PERMANENT — D52 freezes a shipped option set and `active: false` is a
+  // whole-series kill, not a rotation. So the gate runs ahead of the
+  // content, which is the house order, and these are the rules a run
+  // cannot talk its way past.
+  const pulse = (over = {}) => ({
+    id: "pulse-mood", type: "pulse", prompt: "How was your mood today?",
+    options: ["Low", "Flat", "OK", "Good", "Bright"],
+    since: "2026-09-13", territory: "mood", ...over,
+  });
+  const fresh = (q) => checkQuestion(q, "pulse", corpus, { fresh: true }).errs;
+  const fires = (q, rule) => expect(fresh(q).some((e) => e.rule === rule), `${rule} did not fire`).toBe(true);
+
+  it("passes a well-formed new pulse", () => {
+    expect(fresh(pulse())).toEqual([]);
+  });
+
+  it("refuses an underscore in the id — it is the day separator", () => {
+    // `firestore.rules` parses the day back off `{qid}_{YYYY-MM-DD}`, so
+    // an id with its own underscore splits in the wrong place. The bank
+    // file has said "ids stay underscore-free" since D139 and nothing
+    // enforced it: true of five hand-written ids, and exactly the kind of
+    // convention a weekly lane breaks without noticing.
+    fires(pulse({ id: "pulse_mood" }), "pulse-id");
+    fires(pulse({ id: "Pulse-Mood" }), "pulse-id");
+  });
+
+  it("refuses two steps that read the same", () => {
+    // The chart plots 1..5; two rungs with one label draw two heights for
+    // one answer, which is invisible in review and unreadable on screen.
+    fires(pulse({ options: ["Low", "Flat", "OK", "Good", "good"] }), "pulse-steps");
+  });
+
+  it("still asks for exactly five steps", () => {
+    fires(pulse({ options: ["Low", "OK", "Good"] }), "type-shape");
+  });
+
+  it("asks a NEW pulse for its window start, and the shipped five for nothing", () => {
+    // D479's gate: a pulse written mid-history has days in the 21-day
+    // window on which it did not exist, and the reading must not call
+    // them misses. The five shipped pulses predate any window that can be
+    // drawn, so they correctly carry no `since` — which is why the rule
+    // is on the candidate rather than on the corpus, and why this case
+    // checks both halves.
+    fires(pulse({ since: undefined }), "pulse-since");
+    fires(pulse({ since: "13/09/2026" }), "pulse-since");
+    for (const q of corpus.pulse) {
+      expect(checkQuestion(q, "pulse", corpus).errs, `${q.id} in the shipped bank`).toEqual([]);
+    }
+  });
+
+  it("refuses a subject the store forms have not been answered for", () => {
+    // THE RULE THAT IS ABOUT SUBJECT MATTER, and the only one. D166 §3
+    // approved a WELLBEING roster; STORE-FORMS.md answers Apple's Health
+    // row YES because of it. "How much did you spend?" is financial data
+    // on a form a human signed, and moving a store form is outside a
+    // run's reach whatever the question's quality.
+    fires(pulse({ territory: "money" }), "pulse-territory");
+    fires(pulse({ territory: undefined }), "pulse-territory");
+  });
+
+  it("keeps every shipped pulse inside the declared territory", () => {
+    // The list is only worth anything if the roster it was derived from
+    // actually sits in it — otherwise it is a rule written around the
+    // content rather than over it.
+    for (const t of ["pace", "energy", "sleep", "focus", "connection"]) {
+      expect(PULSE_TERRITORY.has(t), `${t} is what a shipped pulse asks`).toBe(true);
+    }
+    expect(PULSE_TERRITORY.has("money")).toBe(false);
+    expect(PULSE_TERRITORY.has("location")).toBe(false);
   });
 });

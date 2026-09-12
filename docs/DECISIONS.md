@@ -54698,3 +54698,142 @@ running.** The click on `OWNER-LIST.md` § Clicks is still unmade.
 test pinning that it does not. Build 36 is in App Store Connect and
 reaches TestFlight after processing; putting it in front of Apple is a
 separate, deliberate act.
+
+
+## D481 · The pulse lane is adopted — one a week, propose-only, to a ceiling that had to be built before it could be argued
+
+**2026-09-12.** **Status:** binding. Adopts the 2026-08-22 owner note
+`QUESTION-FARM.md` carried as "not adopted" for three weeks, re-asked at
+D479. Amends D213's census ("the set is small and editorial") and is the
+first content lane that does not self-merge, which amends D212's
+argument rather than its records.
+
+> *"new ones should be made but at a lower pace than other questions"*
+
+### 1 · What the lane is
+
+One pulse a week, into `content/pulse-questions.json`, on a Routine
+(`trig_01FL5JjeS8y3re3Eq5MdoEKy`, Mondays 12:00 UTC, the seventh row of
+the farm's inventory and the hourly stagger's next hour). The regulator
+is `scripts/pulse-budget.mjs`; the contract is `QUESTION-FARM.md` § The
+pulse lane; the gates are `check:quality`'s pulse surface.
+
+**This lane is unlike the other six, and the difference sets its shape.**
+Every other lane writes something consumable — a daily question is
+answered once and gone, a feed question can retire, a duel question is
+one round of many. A pulse is PERMANENT: its option set freezes the day
+it ships (D52), its histories accrue against it forever, and
+`active: false` is a whole-series kill that takes every line anyone ever
+drew with it off the screen. So "how much runway is left", which every
+other regulator computes, is the wrong question here. Nothing drains.
+The question is how big the library should be.
+
+### 2 · The ceiling had to be BUILT before it could be argued
+
+`PULSE.ensureToday()` reads one aggregate id per pulse on every feed
+open, through `where(documentId(), "in", ids)`. Firestore caps an `in` at
+thirty. Every other id-batched read in this tree slices by that constant
+— `live.ts`, `circle.ts`, `voters.ts` all do — and `pulse.ts`'s
+`fetchAggs` was the one that did not.
+
+That was correct for both of its callers by accident rather than by
+design: `ensureTrend` asks for a fixed 21 and can never exceed the cap,
+and `ensureToday` asked for one id per pulse, of which there were five.
+**At thirty-one pulses the query is rejected outright**, `todayFailed`
+goes true, and every pulse card in the feed tells every user it could not
+reach the crowd — permanently, until the roster shrinks. A cliff, not a
+slope. **This lane, at one a week from five, would have walked off it in
+about six months**, long after whoever added the lane had stopped
+watching.
+
+So the first thing this record does is chunk the fetch. That is not
+tidying ahead of the lane; it is what makes the ceiling a question about
+COST instead of a question about a limit nobody would have met until it
+broke — and D352 is explicit that a limit is a design problem to be
+solved around, never a reason to shrink the thing. With the cliff gone:
+
+| roster | queries per feed open |
+| --- | --- |
+| ≤ 30 | 1 |
+| 31–60 | 2 |
+| 61–90 | 3 |
+
+`ROSTER_CEILING` is **30**: the largest library that costs what the
+roster costs today. That is a measurement about this app, not a taste —
+and because it still bounds something the owner asked to grow, raising
+it is on `docs/OWNER-LIST.md` with the arithmetic rather than settled
+here. At one a week it is twenty-five weeks away, so nothing waits on
+the answer.
+
+Past the ceiling the lane does not stop having a job — it stops ADDING.
+What it writes then is a SWAP proposal: one pulse paused, one added,
+argued in the PR body. Never a pile, which is what the note asked for.
+
+### 3 · Propose-only, and why D212's argument does not reach
+
+The daily, feed, learn, duel and now lanes self-merge on green (D212,
+amended 2026-09-09), and the argument is that the gates ARE the review.
+It does not reach here, for a reason that is about the content rather
+than about trust: those lanes write things that can be retired quietly,
+and the bar a pulse has to clear is **"would a line through this be
+worth reading in a month?"** — which no script can ask.
+
+That bar is a KIND test, not a quality one, and it is the part of this
+record most likely to be misread. *"Did you enjoy the film?"* is a fine
+question and a terrible pulse: the line means nothing because the film
+changes. A pulse asks about something that varies with YOU, day to day,
+on an axis that reads the same way every time. A question that fails it
+is a feed question, and the feed lane writes those.
+
+`OPEN_MAX` is 1 for the same reason, and it means something different
+here than on every other lane: elsewhere an open PR means a gate refused
+a batch and the fix is the work. Here it means a human has not merged it
+yet, and the correct response is to wait.
+
+### 4 · What the gates grew, and one thing the note got wrong
+
+`check:quality`'s pulse surface had two rules (type, five steps). It has
+five more, each of them a convention that was written down and enforced
+by nobody — survivable for five hand-written ids, and exactly what a
+weekly lane breaks without noticing:
+
+- **No underscore in the id.** A pulse answer is written at
+  `{qid}_{YYYY-MM-DD}` and `firestore.rules` parses the day back off it,
+  so an underscore in the id splits it in the wrong place.
+  `content/pulse-questions.json` has said this since D139.
+- **Five DISTINCT steps.** Two rungs with one label draw two heights for
+  one answer on a chart whose y-axis is the scale.
+- **`since` on anything new** (D479's gate, now with a writer).
+- **`territory`, from a closed list that fails closed.** The one rule
+  here about subject matter, and it is really about a signature: D166 §3
+  approved a WELLBEING roster and `docs/STORE-FORMS.md` answers Apple's
+  Health row YES because of it. *"How much did you spend today?"* is
+  financial data on a form a human signed, and a scheduled run may not
+  move a store form — one of the four things CLAUDE.md puts outside a
+  session's reach. Widening `PULSE_TERRITORY` is a human's edit.
+
+**And one of the note's five constraints was simply wrong.** It said the
+velocity bound "needs one line and its test" because roster growth walks
+`pulseCount × scanWindowDays` up. It does not: `PULSE_BANK_SIZE`
+(`functions/src/velocity.ts`) is DERIVED from the bank and
+`velocity.test.ts` asserts the relationship rather than a literal, so the
+ceiling moves on its own. The right answer was zero lines, and it was
+found by reading the file rather than trusting the note — which is worth
+recording because the note was written by someone who had just read the
+same file.
+
+### 5 · What is not built
+
+**No swap automation.** Past the ceiling the lane writes an argument, not
+a change: which standing question has stopped earning its place is a
+judgement about people's histories, and the lane has no signal for it
+(the scorecard does not credit pulses per-question). If the ceiling is
+reached and swaps become routine, that signal is the thing to build
+first, and it is a measurement question rather than a scheduling one.
+
+**No `territory` on the bank document.** It is declared and checked at
+pre-flight and does not ship with the question. The argument for writing
+it into the bank is that the corpus could then be held to it forever; the
+argument against is that it is schema for a guard a human merge already
+provides, on a lane that merges by hand by construction. Recorded so the
+second reader knows it was weighed rather than missed.

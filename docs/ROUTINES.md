@@ -86,6 +86,19 @@ enabled, no other schedule moved — and the duel lane re-paced in that
 same sitting, to daily for the bank burst (its row, and the 2026-09-08
 re-pace below).
 
+**2026-09-12 19:46 UTC — TWELVE now, ten enabled.** The pulse lane was
+created for D481 (`trig_01FL5JjeS8y3re3Eq5MdoEKy`, `0 12 * * 1`, first
+fire 2026-09-14), verified in the creating session before this line was
+written, per rule 3 and CLAUDE.md's "in the same PR". **Created twice:**
+the first (`trig_01NsFZGXqdFTFi8JACy81gNL`, 19:46 UTC) cited D480, which
+#519 took while this branch was open, and `update_trigger` still refuses
+a prompt edit into a session that is not the caller's own — the D148
+limit, re-measured here. So the D148/D212 mechanism again: the
+replacement created and verified FIRST, the original deleted, then this
+line. The cost D148 names — id, creation date, fire history — was zero
+this time: the original had not fired. The two disabled are unchanged. It is the seventh content lane and
+the first of them that **never merges** — see its row.
+
 The two disabled are `InSight DB scalability` and `Nightly algorithm
 improvement`, both paused by the owner 2026-09-03 14:25/14:30 UTC with no
 `ended_reason` — the L1/L2 usage levers `USAGE-REDUCTION.md` §6 records and
@@ -108,6 +121,7 @@ row, per this file's own instruction.
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 | same dev session | `claude/feed-questions-<date>` — `content/feed-questions.json`, continuum twins in `src/v2/spec/world-feed-data.js` | self-merge (D212) |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 **for the bank burst, since 2026-09-08** (`0 10 * * 3`, Wed 10:00, before it and again after — the 2026-09-08 re-pace below has the exit condition) | same dev session | `claude/duel-questions-<date>` — `content/duel-questions.json` | self-merge (D212) |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 | same dev session | `claude/now-questions-<date>` — `content/feed-questions.json` under `cat: "now"` | self-merge (D212) |
+| InSight pulse lane | `trig_01FL5JjeS8y3re3Eq5MdoEKy` | `0 12 * * 1` — **weekly**, Monday 12:00 (created 2026-09-12 for D481; first fire 2026-09-14) | same dev session | `claude/pulse-question-<date>` — `content/pulse-questions.json` | **never merges — propose-only, a human merges.** The first content lane that does not self-merge: a pulse is permanent (D52 freezes its options, `active: false` kills the whole series), and the bar it has to clear — "would a line through this be worth reading in a month?" — is one no gate can ask. D212's self-merge argument is that the gates are the review, and it does not reach a question that cannot be retired quietly |
 | InSight roll call (Claude 1) | `trig_01JQiMDMk2m4SfPjCKgbCF2o` | `35 15 * * *` — daily 15:35 (17:35 Oslo) | fresh session, model `claude-sonnet-5` | nothing — read-only; one comment per day on the **Ops run log** issue | never merges; never pushes; never labels |
 | InSight list worker (Claude 1) | `trig_01JRBox3KomrnVEfeMZnrHmC` | `0 16 * * *` — daily 16:00 (18:00 Oslo) | fresh session, model `claude-fable-5-1` | `claude/worklist-<slug>` — `docs/WORKLIST.md` and whatever the item it takes names | never merges; never labels |
 | InSight night shift B | `trig_01GNe14hPrZcYzXkFHjPH2bW` | `0 20,22,0,2,4 * * *` — **five** flows again: four at 95 min, the 04:00 closing at 110 (cut to three 2026-09-03 as the L1 lever, back to five 2026-09-05, `updated_at` 21:17:55Z — see the 2026-09-06 observations) | worker session `session_01M9cvEjdQmWYjgrWvaoXiK9` | `nightb-YYYYMMDD` — anywhere a verified defect is; `nightb-YYYYMMDD-screens` as the device-pass request ref once the 2026-09-06 brief is pasted (D404) | never merges; never pushes `main` or `night-*` |
