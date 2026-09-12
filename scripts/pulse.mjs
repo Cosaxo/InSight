@@ -32,7 +32,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { collect, MEASURE_MAX_AGE_DAYS } from "./pulse-collect.mjs";
+import { collect, MEASURE_MAX_AGE_DAYS, PROGRAM_MAX_AGE_DAYS } from "./pulse-collect.mjs";
 import { REGIONAL as PROD_REGIONAL } from "./cost-arith.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -87,6 +87,14 @@ function trailRow(p) {
     // before the digest existed.
     dau: p.engagement?.present ? p.engagement.latest?.actives ?? null : null,
     retD7: p.engagement?.present ? p.engagement.returned?.d7?.rate ?? null : null,
+    // What it costs to BUILD the app, trended beside what it costs to run
+    // it and beside how many answers exist (D-2026-09-09f). Those three on
+    // one row is the whole point: `answersCounted` and `netBurnUsd` were
+    // already here, and the number that dwarfs both was in a document
+    // nothing read back. Null when the rate card carries no figure — a
+    // gap, never a zero.
+    programUsdPerDay: p.program?.usdPerDay ?? null,
+    programMeasuredOn: p.program?.measuredOn ?? null,
   };
 }
 
@@ -183,6 +191,43 @@ function check(pulse) {
     );
   }
 
+  // The PROGRAM guard (D-2026-09-09f): what it costs to BUILD the app,
+  // beside the guard above, which watches what it costs to run it. The two
+  // are about 410x apart — ~$390/day measured against a ~$28/month
+  // Firebase bill — and until this row existed every instrument in the
+  // tree was pointed at the smaller one. Same trip rule as the guard:
+  // "over" and "stale" page, unarmed and unmeasured are questions the OK
+  // line carries.
+  const pg = pulse.program ?? { state: "unarmed" };
+  if (pg.state === "over") {
+    problems.push(
+      `the program is outrunning its allowance: $${pg.usdPerDay}/day measured\n`
+      + `    ${pg.measuredOn} against the $${pg.allowanceUsdPerDay}/day in monitoring/rates.json.\n`
+      + (pg.largestSession
+        ? `    Largest line: ${pg.largestSession.label} — $${pg.largestSession.usdInWindow} in the window.\n`
+        : "")
+      + "    Three levers, cheapest first:\n"
+      + "      1. a context budget on the largest session — cache-read tokens are the\n"
+      + "         term that dominates, and re-reading less history is not less work;\n"
+      + "      2. re-pace a lane (docs/ROUTINES.md is the register — check for two lanes\n"
+      + "         on one hour before assuming the cadence is the cost);\n"
+      + "      3. raise the allowance deliberately, in the same commit that says why.\n"
+      + "    Nobody has decided what this program SHOULD cost; that is on OWNER-LIST.",
+    );
+  }
+
+  if (pg.state === "stale") {
+    problems.push(
+      `the program figure is ${pg.ageDays} days old (measured ${pg.measuredOn}, stale past\n`
+      + `    ${PROGRAM_MAX_AGE_DAYS}). It reads $${pg.usdPerDay}/day against the $${pg.allowanceUsdPerDay}/day allowance,\n`
+      + "    and that pass means nothing: this checkout cannot call list_sessions, so the\n"
+      + "    number moves only when a person refreshes it.\n"
+      + "    Fix: sum `usage.cost_usd` over the window from list_sessions, divide by its\n"
+      + "    days, and move `program.usdPerDay` and `program.measuredOn` in\n"
+      + "    monitoring/rates.json.",
+    );
+  }
+
   if (problems.length) {
     console.error("\npulse --check: conditions that need an operator, not a commit:\n");
     for (const p of problems) console.error(`  ${p}\n`);
@@ -196,7 +241,13 @@ function check(pulse) {
   console.log(
     `pulse --check OK — deck runway ${deck.runwayDays} days, `
     + `scorecard ${scorecard.present ? scorecard.staleness : "absent (pre-launch)"}, `
-    + `${guardLine}.`,
+    + `${guardLine}, `
+    + (pg.state === "ok"
+      ? `program $${pg.usdPerDay}/day measured ${pg.measuredOn} (allowance $${pg.allowanceUsdPerDay}/day)`
+      : pg.state === "unmeasured"
+        ? "program unmeasured (no usdPerDay in monitoring/rates.json)"
+        : "program unarmed (no allowanceUsdPerDay in monitoring/rates.json)")
+    + ".",
   );
   return 0;
 }

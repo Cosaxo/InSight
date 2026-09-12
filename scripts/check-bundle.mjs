@@ -966,6 +966,43 @@ const MAX_TOTAL_JS_KB = 2440;
 // are deferred, one file over, is the next change to this graph — its
 // own change, not a rider on a feature.
 //
+// AND THAT 552 → 553 WAS TWO RAISES, NOT ONE. The entry above is D464's,
+// for the Map's dots; the entry below is this branch's, for 369 bytes of
+// blind-vote filter and first slice. Both were written the same night,
+// both landed on 553, and neither branch could see the other. It is the
+// first instance of what the notes further down name four more times and
+// then stop calling a coincidence: a ceiling pinned at the measurement
+// makes every merge a renegotiation, and every branch arrives believing
+// its own raise was the raise.
+//
+// 552 → 553 (2026-09-11): 1 KB, and the smallest raise in this file's
+// history by an order of magnitude, because the overrun is 369 BYTES. It is
+// recorded rather than absorbed for the reason every entry above exists —
+// a ceiling nobody signs for stops being a ceiling.
+//
+// WHAT BOUGHT THE BYTES, measured by building `origin/main` in a worktree
+// on the same commit and diffing the chunks rather than reasoning about it:
+// the whole 369 is in `live-*.js` (96,152 → 96,521) and none of it is a new
+// chunk. It is D-2026-09-09a's blind-vote filter and the `scopeIds` seam it
+// needed, D-2026-09-09b's `patternsSkill` read, and D-2026-09-09h's
+// `makeLsSet` factory — the first slice out of live.ts, which rolldown
+// inlines back into this same chunk, so the split cost bytes here and
+// bought testability there. main measured 551.997 against 552 on that same
+// build: THREE BYTES of headroom, which is why 369 bytes tripped a gate
+// that no single change of this size should be able to trip.
+//
+// AND THE RATE WARNING ABOVE IS NOW THE ANSWER, not a caveat. Three bytes
+// of headroom means the next commit of any kind trips this, and the
+// deferral this file has named twice is still sitting there: ~38 KB behind
+// app-shell.jsx's unconditional `<PassiveMeter />` (passive-meter,
+// result-card, type-marks, result-rose, explain-sheet), traced to its
+// anchor in the entry above. That is not done here because that entry is
+// right about what it is — "a design call about the header, not a
+// refactor", the header's lens ring popping in after the paint instead of
+// arriving with it. So it goes to the owner with its arithmetic
+// (docs/OWNER-LIST.md) rather than being taken on the way past, which is
+// what D352 asks of a limit that would block something.
+//
 // AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D468), landing
 // the same evening from another branch and measured on the merge: the
 // catalogue's who-picked-what sheet costs 112 bytes here — 95 in
@@ -1071,6 +1108,13 @@ const MAX_TOTAL_JS_KB = 2440;
 // methods that use them, in the boot store, is not a rider on a merge of
 // 63 commits either. It would return this constant to 546 and end the
 // every-byte alarm this block has now called out twice.
+//
+// MEASURED ON THE COMPOSED TREE (2026-09-12 11:06, the review branch's own
+// merge of main's 41): **554.527 KB**, so the 555 above holds and there is
+// no fifth raise here. 484 bytes of margin. Recorded because this block's
+// whole complaint is that a ceiling pinned at the measurement makes every
+// merge a renegotiation — the one useful thing a later merge can add is
+// the number it actually measured, rather than another argument.
 const MAX_EAGER_KB = 555;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all

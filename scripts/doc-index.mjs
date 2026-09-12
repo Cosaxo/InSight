@@ -83,7 +83,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "
 import { gatePlacement } from "./gate-placement.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { numberingProblems, unclaimedNumbers } from "./decision-numbering.mjs";
+import { numberingProblems, orderOf, unclaimedNumbers } from "./decision-numbering.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
@@ -117,21 +117,44 @@ const slug = (heading) =>
     .replace(/\s/g, "-");
 
 /**
- * Parse the record headings. Two shapes exist:
- *   `## D98 · title`
- *   `## D7 amendment (2026-08-03) · title`   (also `adoption`)
- * The second is a follow-on attached to an earlier record rather than a new
- * decision, so it is indexed as a sub-row and does not claim a number of its
- * own. Both are matched explicitly: a heading this regex misses would drop
- * silently out of the index, so an unrecognised `## D…` heading is an error
- * rather than a skip.
+ * Parse the record headings. Three shapes exist:
+ *   `## D98 · title`                          the numbered records, D1-D449
+ *   `## D-2026-09-09a · title`                a DATED record (see below)
+ *   `## D7 amendment (2026-08-03) · title`    (also `adoption`)
+ * The last is a follow-on attached to an earlier record rather than a new
+ * decision, so it is indexed as a sub-row and does not claim an id of its
+ * own. All three are matched explicitly: a heading this regex misses would
+ * drop silently out of the index, so an unrecognised `## D…` heading is an
+ * error rather than a skip.
+ *
+ * WHY THE DATED SHAPE EXISTS. `D` plus the next integer is a GLOBAL LOCK,
+ * and this repository runs several scheduled lanes against one `main`. Two
+ * lanes that open a branch on the same morning both read the same
+ * highest record and both claim the number after it, and whichever merges
+ * second has to renumber its record and
+ * every reference to it — measured 2026-09-09 at **90 of 1,503 commits**
+ * matching `--grep=renumber`, one commit in seventeen, spent entirely on
+ * an identifier that carries no meaning. Nothing about a decision needs its
+ * number to be dense, consecutive, or allocated: the number is a name.
+ *
+ * A dated id is `D-YYYY-MM-DDx`, the letter distinguishing records made on
+ * one day. Two lanes can now only collide by picking the same letter on the
+ * same date, which is a one-line rename of one record instead of a cascade
+ * — and `duplicateIds` below turns even that into a failure rather than a
+ * silently doubled anchor.
+ *
+ * The numbered records are NOT renumbered. D1-D449 are cited by number in
+ * ~2,300 places across the tree and in every commit message that ever
+ * referenced one; rewriting them to buy consistency would be the largest
+ * possible instance of the exact churn this change exists to stop.
  */
+
 function parseDecisions(src) {
   const lines = src.split("\n");
   const records = [];
   lines.forEach((line, i) => {
     if (!line.startsWith("## D")) return;
-    const m = /^## (D\d+[a-z]?)(?: (amendment|adoption) \(([^)]+)\))? · (.+)$/.exec(line);
+    const m = /^## (D\d+[a-z]?|D-\d{4}-\d{2}-\d{2}[a-z]?)(?: (amendment|adoption) \(([^)]+)\))? · (.+)$/.exec(line);
     if (!m) {
       fail(`${DECISIONS}:${i + 1} — heading not in a shape the index can parse: ${line}`);
       return;
@@ -139,7 +162,7 @@ function parseDecisions(src) {
     const [, id, kind, date, title] = m;
     records.push({
       id,
-      num: Number(id.replace(/^D/, "").replace(/[a-z]$/, "")),
+      num: orderOf(id),
       kind: kind ?? "record",
       date: date ?? null,
       title,
@@ -154,6 +177,27 @@ function parseDecisions(src) {
   // who trusts the sort in the wrong place. An amendment sorts under its
   // parent record (`record` before `amendment`/`adoption`, then by line), so
   // D7's amendment reads as attached to D7 rather than as a stray D7.
+  // TWO RECORDS MAY NOT SHARE AN ID. Under the numbered scheme a collision
+  // was self-announcing — the second lane to merge hit a conflict in the
+  // same paragraph — and under dated ids it is not: two lanes appending
+  // `D-2026-09-09a` in different sections merge cleanly and produce one
+  // anchor pointing at two records, so every link to it lands on whichever
+  // the renderer met first. The whole trade of dated ids is a cascade
+  // exchanged for a one-line rename, and this is the line that makes the
+  // rename compulsory rather than optional.
+  const seen = new Map();
+  for (const r of records) {
+    if (r.kind !== "record") continue;
+    if (seen.has(r.id)) {
+      fail(
+        `${DECISIONS}:${r.line} — duplicate decision id ${r.id}, already used at line ${seen.get(r.id)}.\n` +
+        "    Two lanes picked the same id on the same day. Rename ONE of them (the\n" +
+        "    next free letter) and its references; nothing after it has to move.",
+      );
+    }
+    seen.set(r.id, r.line);
+  }
+
   const rank = { record: 0 };
   records.sort(
     (a, b) => a.num - b.num || (rank[a.kind] ?? 1) - (rank[b.kind] ?? 1) || a.line - b.line,
@@ -188,9 +232,12 @@ function citations(records, lines) {
   byLine.forEach((rec, n) => {
     const end = heads[n + 1] ?? lines.length;
     const body = lines.slice(rec.line - 1, end).join("\n");
-    // `(?<![\w])` so D9 does not match inside D98, `3D` or `_D9`.
-    for (const m of body.matchAll(/(?<![\w])D(\d{1,3})\b/g)) {
-      const target = Number(m[1]);
+    // `(?<![\w])` so D9 does not match inside D98, `3D` or `_D9`. The
+    // dated alternative is FIRST in the alternation and matched with the
+    // same guard: `D-2026-09-09a` must not also be read as a citation of
+    // some `D2026`, which a number-only pass over the same text would do.
+    for (const m of body.matchAll(/(?<![\w])(D-\d{4}-\d{2}-\d{2}[a-z]?|D\d{1,3})\b/g)) {
+      const target = orderOf(m[1]);
       if (target >= rec.num) continue; // self and forward references are not citations
       if (!later.has(target)) later.set(target, new Set());
       later.get(target).add(rec.num);
@@ -221,12 +268,19 @@ function renderIndex(records, later) {
   out.push("");
   out.push("| # | Decision | Cited later by | Line |");
   out.push("| --- | --- | --- | --- |");
+  // The citation column names the CITER, and a citer may be dated — whose
+  // sort key is a nine-digit number, not its name. Rendering `num` here
+  // printed `D1202609090`. One lookup from order back to id fixes it, and
+  // it has to be built from `records` rather than reconstructed from the
+  // number, because the key is deliberately lossy about the letter.
+  const idOfOrder = new Map(records.filter((r) => r.kind === "record").map((r) => [r.num, r.id]));
+  const nameOf = (order) => idOfOrder.get(order) ?? `D${order}`;
   for (const rec of records) {
     const cites = later.get(rec.num);
     let cell = "—";
     if (rec.kind === "record" && cites?.size) {
       const newest = Math.max(...cites);
-      cell = cites.size > 1 ? `D${newest} (+${cites.size - 1})` : `D${newest}`;
+      cell = cites.size > 1 ? `${nameOf(newest)} (+${cites.size - 1})` : nameOf(newest);
     }
     const label =
       rec.kind === "record"
@@ -293,9 +347,15 @@ if (write) {
 for (const problem of numberingProblems(records)) fail(problem);
 const unclaimed = unclaimedNumbers(records, citedFrom);
 if (unclaimed.length) {
+  // A citer may be a DATED record, whose `num` is a sort key and not a
+  // name — printing it raw produced "cited by D2027090905" the first time
+  // one existed (D-2026-09-09e). The hole itself is always a plain number,
+  // because there is no such thing as an unclaimed date.
+  const idOf = new Map(records.filter((r) => r.kind === "record").map((r) => [r.num, r.id]));
+  const citerName = (n) => idOf.get(n) ?? `D${n}`;
   const shown = unclaimed.map(({ num, citers }) => (
     citers.length
-      ? `D${num} (cited by ${citers.map((n) => `D${n}`).join(", ")})`
+      ? `D${num} (cited by ${citers.map(citerName).join(", ")})`
       : `D${num}`
   ));
   const it = unclaimed.length === 1 ? "it" : "them";
