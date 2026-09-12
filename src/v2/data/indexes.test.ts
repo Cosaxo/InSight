@@ -227,6 +227,35 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(override("answers", "editedAt")).toBeUndefined();
   });
 
+  it("aggShards compactor: v2_agg_shards.dirtyAt and .qid stay unexempted", () => {
+    // `compactAggShardsV2` runs every minute and is the ONLY thing that
+    // publishes a daily aggregate since D467. It always reaches them
+    // through `dirtyQids`, which is
+    //   where("dirtyAt", ">=", …).orderBy("dirtyAt").limit(cap + 1)
+    // and then reads `qid` off each row. Both ride the automatic
+    // single-field index, so what this asserts is the ABSENCE of an
+    // exemption — the same shape as the answers cursors above.
+    //
+    // The pressure to exempt them is real and already half-applied: the
+    // same day this lane shipped, five `v2_agg_shards` fields were given
+    // `"indexes": []` — `by`, `counts`, `edits`, `total`, `s` — because
+    // they are large maps nobody queries. `dirtyAt` and `qid` sit in that
+    // same collection group and look like more of the same. Add either
+    // and the query returns nothing, every daily question stops
+    // publishing, and it happens in PRODUCTION ONLY: the emulator does
+    // not enforce index configuration (this file's header), so every
+    // suite including the e2e stays green.
+    expect(override("v2_agg_shards", "dirtyAt")).toBeUndefined();
+    expect(override("v2_agg_shards", "qid")).toBeUndefined();
+    // The vacuity guard: the five that ARE exempted have to still be
+    // exempted, or this case is asserting the absence of a thing nobody
+    // was ever going to add.
+    for (const f of ["by", "counts", "edits", "total", "s"]) {
+      expect(override("v2_agg_shards", f), `${f} is no longer exempted — check this case still means anything`)
+        .toBeDefined();
+    }
+  });
+
   it("engagement.ts rollupPage: engagement.folded keeps its collection-group index", () => {
     // The nightly digest's only query: collectionGroup("engagement")
     // where folded == false, limit. A collection-group query needs its
