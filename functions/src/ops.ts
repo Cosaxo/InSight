@@ -134,6 +134,24 @@ export const ENFORCE_APP_CHECK =
  */
 export const FUNCTIONS_REGION = "europe-west1";
 
+/**
+ * The hosting origin, for the server side.
+ *
+ * TWO CONSTANTS, ONE FACT. `src/v2/data/siteOrigin.ts` says a real
+ * domain replacing the .web.app default is "the single edit", and the
+ * day this was written that was false: `paid.ts` hardcoded the origin
+ * twice, on Stripe's success and cancel URLs. The functions tree cannot
+ * import from `src/` (separate package, separate tsconfig, separate
+ * deploy), so the honest shape is one constant per side, each naming the
+ * other — not one constant and one promise.
+ *
+ * Anything that can use a RELATIVE link should: the results page at /q/
+ * links `/ask` and needs no origin at all. This is for the places that
+ * genuinely cannot — a URL handed to Stripe, which resolves it in a
+ * browser we are not rendering.
+ */
+export const SITE_ORIGIN = "https://prvfire33.web.app";
+
 setGlobalOptions({
   region: FUNCTIONS_REGION,
   memory: "512MiB",

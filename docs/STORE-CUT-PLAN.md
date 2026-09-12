@@ -1,9 +1,25 @@
 # Where the paid door lives — keeping the store cut
 
-**Status: ADOPTED 2026-09-05 (D368) — shape A.** The owner chose it on
+**Status: ADOPTED 2026-09-05 (D368) — shape A, and BUILT: phase 2 at
+D368's amendment, phase 3 at D369, phase 4 at
+[D466](DECISIONS.md#d466--the-door-nobody-could-reach-shape-as-acquisition-half-built--and-the-320-premise-it-was-argued-from)
+(2026-09-12).** The owner chose it on
 the three-shape table below; what was plan is now the build order. The
 two questions §8 puts to the owner are still open and stay on
 `OWNER-LIST.md`.
+
+**§5's discoverability sentence is STALE, and D466 is the correction.**
+It argues off €320; `content/pricing.json` has said €5–€50 since D373
+and D376, so §1's cut table is arithmetic on a price the card no longer
+carries. The structural argument — IAP has no partial-refund primitive,
+so D164's billing cannot live inside it — is price-independent and still
+decides the shape. What the cut changes is WHO the buyer is, and
+therefore how much the missing funnel cost: see D466.
+
+**Phase 4 was written here and not built**, so from D368 to 2026-09-12
+the only address that reached `web/ask.html` was one sentence inside the
+terms of service. `scripts/web-doors.test.mjs` is the gate that would
+have seen it — it tests the routes to the door rather than the door.
 Adoption is a record in [`DECISIONS.md`](DECISIONS.md), per
 [`MONETIZATION.md`](MONETIZATION.md)'s own rule. Opened by the owner
 2026-08-31: *"How should we avoid having to pay the cut to Apple and
@@ -168,9 +184,16 @@ pages Stripe already returns to.
 - The rate card prints off `content/pricing.json`, which the page needs
   fetched or inlined at deploy.
 
-**Phase 4 — acquisition.** `web/home.html` currently says it is
-*"Deliberately NOT the app"*; it becomes where the door is found. The
-store listing must not point at it.
+**Phase 4 — acquisition. BUILT at D466 (2026-09-12), and it was four
+routes rather than one.** `web/home.html` said it was *"Deliberately NOT
+the app"*; it is where the door is found now. With it: the `/q/`
+sponsored results pages and their 404 (the one public surface a buyer
+reads before looking for the door), and a way back to the root from
+`privacy.html` and `terms.html` — the two pages the app links out to,
+both of which dead-ended, which is what made the app's one store-legal
+route to the web arrive nowhere. The store listing still must not point
+at the door itself; it points at the root, as the privacy and support
+URL both stores require.
 
 **Phase 5 — docs and gates.** §6 below, then `check:docs`,
 `check:policy-claims`, `check:public-copy`, `test:scripts`.

@@ -51567,3 +51567,123 @@ Two are real and neither is this:
   rather than as the leak D464 closed.
 
 The remaining CI failures are on other lanes' PR branches and are theirs.
+
+
+## D466 · The door nobody could reach: shape A's acquisition half, built — and the €320 premise it was argued from
+
+**2026-09-12.** **Status:** binding, BUILT. The owner, reading the
+app: *"i noticed there is no way to get from the app to the page where
+you can buy questions?"* — and, on being told that was D368 working as
+designed: *"but how will they find the website then?"*
+
+**The absence from the app is right and stays.** D368 took the purchase
+funnel out of the binary and two `smoke-live.test.jsx` cases were
+inverted to pin it; a link from the app to `web/ask.html` is precisely
+what store anti-steering rules police, and re-adding one would fail
+those tests on purpose. Nothing here touches the app. The second
+question is the one that had no answer.
+
+### What was measured, before anything was built
+
+Every route to the door in the tree on 2026-09-11:
+
+| route | exists | reaches `/ask` |
+| --- | --- | --- |
+| store listing → `prvfire33.web.app` (privacy URL both stores require; Apple also a support URL) | yes | **no** — `home.html` linked privacy and terms and nothing else |
+| app → `/privacy.html`, `/terms.html` (`LivePrivacyPanel`, `LiveSignInGate`) | yes | **by accident** — `terms.html` carried the only link in the tree |
+| `/q/{qid}` sponsored results pages (D379) | yes | **no** |
+| `/join/**` invite pages | yes | no |
+| a sales page, or an email list | **no** | — |
+
+So a buyer found the door by typing its address or by reading the terms
+of service. `STORE-CUT-PLAN.md` phase 4 — *"`web/home.html` … becomes
+where the door is found"* — was written and never built, and between
+D368 (2026-09-05) and this record that was the whole of the funnel.
+
+**Nothing could have caught it.** `check:web-headers` reads header keys,
+`check:csp-hashes` reads script digests, `ask-page.test.mjs` drives the
+door itself and cannot ask whether anybody can reach it. A page can be
+perfect and unreachable with every gate green — which is the same shape
+as D369's CSP hash, one level up: the page was right and the way in was
+not a thing anything looked at.
+
+### What was built
+
+1. **`/q/{qid}` carries the door, and so does its 404.** The one public
+   surface a prospective buyer reads *before* they have a reason to look
+   for the door: the buyer shares it themselves, and the reader is
+   looking at exactly the thing they would be buying. `/ask` relative,
+   not the absolute host — correct today and after a domain change.
+2. **`web/home.html` carries it, first in the list**, above the legal
+   links, with one clause saying what it is: the page is also the App
+   Store support URL, so *"Ask a question"* alone reads as a support
+   form. No price, deliberately — the card moves and nothing would
+   regenerate a figure typed there.
+3. **`privacy.html` and `terms.html` lead somewhere.** They are the two
+   pages the app links out to and they dead-ended: no link back to the
+   root, from either. Those links are required and are not purchase
+   calls to action, which makes them the one route out of the binary
+   store rules leave alone — worth nothing while it arrived nowhere.
+   The wordmark in each footer is now a link to `/`. `terms.html`'s
+   existing ask link was normalised to the canonical `/ask`.
+4. **The domain swap is one edit per side, which it was not.**
+   `siteOrigin.ts` called itself *"the single edit"* for replacing the
+   `.web.app` default; `functions/src/paid.ts` spelled the host out
+   twice, on Stripe's `success_url` and `cancel_url`. A custom domain
+   would have moved every link in the app and still walked a paying
+   buyer back to the old host. A Cloud Function cannot import from
+   `src/`, so the honest shape is two constants naming each other —
+   `ops.ts`'s `SITE_ORIGIN` beside the client's — and `PAID_RETURN`
+   builds both URLs from it.
+
+`scripts/web-doors.test.mjs` is the gate for the first three: it tests
+the ROUTES rather than the pages, and it deliberately asserts nothing
+about the binary, where `smoke-live` pins the opposite. Its price
+assertion strips comments, so the reasoning may name a figure the body
+may not. `paid-landing.test.mjs` — which broke on this change, reading
+the literal URLs that moved, exactly the class of failure CLAUDE.md's
+fifth-runner note describes — now reads both forms and **refuses** a
+hardcoded landing host outright. All four gates were mutation-tested by
+breaking the thing each protects.
+
+### The premise underneath D368 went stale, and it is worth saying so
+
+D368's discoverability argument is one sentence, in the record and in
+`STORE-CUT-PLAN.md` §5:
+
+> *"In practice nobody was going to spend €320 from a profile tab —
+> which is both why the discoverability loss is small and exactly why a
+> reviewer would read the app as a general-audience app selling
+> in-app."*
+
+`content/pricing.json` today: `base` €0.02, budgets €5 · €10 · €25 ·
+€50, menu city €10 · country €25 · everyone €50. **D373 and D376 cut
+the price 6–60× after D368 reasoned about it**, and §1's cut table is
+still arithmetic on €320 (€96 / €48 / ≈€5; at €50 it is €15 / €7.50 /
+≈€1). At €320 the buyer is a city or an advertiser arriving from a sales
+page. At €10 it is a user who just thought of a question — and that
+person is in the app, which is the one place the door is not. The
+D179/D183 failure mode: the app moved, the argument did not.
+
+**The structural half of D368 is untouched and still decides it.** IAP
+has no programmatic partial-refund primitive, so billing on answers
+(D164) cannot exist inside it. Shape A stays right. What is stale is
+only *"the discoverability loss is small"*, and the four routes above
+are the answer to it that costs nothing anywhere.
+
+### What is NOT decided here
+
+Three, all on `OWNER-LIST.md` rather than taken by a routine:
+
+1. **Does an in-app path come back at €10?** The owner's, and the reason
+   it is theirs is that the number D368 was decided on has changed. The
+   honest options are shape B (Android only — Play has never enforced
+   its billing for ad spend) or a non-CTA mention; both need a ruling
+   before anything touches the binary.
+2. **The domain itself.** A routine cannot invent one. The swap is now
+   genuinely two one-line edits, which is the part that could be built.
+3. **Whether `/q/` results pages should be indexable.** They carry
+   `noindex`, listed at D379 §3 as a bound on the scraping surface, so
+   the door on them reaches people who are *sent* a link and nobody who
+   searches. Lifting it widens what D379 deliberately narrowed and makes
+   a buyer's name searchable — a D334 ask, not a routine's call.

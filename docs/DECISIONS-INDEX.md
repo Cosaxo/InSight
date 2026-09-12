@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 495 lines instead of
-51,570. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 496 lines instead of
+51,690. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -183,7 +183,7 @@ detect it.
 | **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D462 (+27) | 15970 |
 | **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D367 (+5) | 16108 |
 | **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D384 (+13) | 16161 |
-| **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D372 (+6) | 16217 |
+| **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D466 (+7) | 16217 |
 | **D165** | [The database moves to one EU region, and the old answers are let go](DECISIONS.md#d165--the-database-moves-to-one-eu-region-and-the-old-answers-are-let-go) | D454 (+8) | 16295 |
 | **D166** | [The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved](DECISIONS.md#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved) | D362 (+14) | 16385 |
 | **D167** | [Every v28 surface ships with its backend, or it does not ship](DECISIONS.md#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship) | D391 (+9) | 16495 |
@@ -198,11 +198,11 @@ detect it.
 | **D176** | [Near becomes a room, and the phone says what it is](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is) | D177 | 17384 |
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17514 |
 | **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D421 (+8) | 17662 |
-| **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D465 (+10) | 17795 |
+| **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D466 (+11) | 17795 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17883 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18113 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18218 |
-| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D463 (+22) | 18316 |
+| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D466 (+23) | 18316 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18475 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18626 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18800 |
@@ -358,7 +358,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D465 (+2) | 33547 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33712 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33741 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D463 (+37) | 33897 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D466 (+38) | 33897 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 34012 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34181 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D455 (+5) | 34312 |
@@ -396,21 +396,21 @@ detect it.
 | **D365** | [The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped](DECISIONS.md#d365--the-2026-09-05-night-review-two-shifts-merged-as-one-tree--50-commits-kept-one-defect-the-composition-created-and-the-kilobyte-that-finally-tripped) | D387 (+2) | 37994 |
 | **D366** | [Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line](DECISIONS.md#d366--nothing-the-theory-lanes-wrote-is-axiom-theory-and-the-ladder-is-why--the-potential-half-the-salvage-and-the-gate-that-holds-the-line) | — | 38197 |
 | **D367** | [Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key](DECISIONS.md#d367--four-launch-documents-said-things-that-had-stopped-being-true-and-the-one-step-that-needs-no-apple-account-demanded-an-apple-key) | D454 (+1) | 38308 |
-| **D368** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d368--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | D455 (+6) | 38675 |
+| **D368** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d368--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | D466 (+7) | 38675 |
 |  | ↳ *amendment 2026-09-05* — [The legacy free-suggestion rows go with the overlay](DECISIONS.md#d368-amendment-2026-09-05--the-legacy-free-suggestion-rows-go-with-the-overlay) | — | 38763 |
 |  | ↳ *amendment 2026-09-05* — [The account is required at the pay tap, and the requirement is an identity rather than Google](DECISIONS.md#d368-amendment-2026-09-05--the-account-is-required-at-the-pay-tap-and-the-requirement-is-an-identity-rather-than-google) | — | 38785 |
 |  | ↳ *amendment 2026-09-05* — [The door is out of the binary, and it had five entry points rather than one](DECISIONS.md#d368-amendment-2026-09-05--the-door-is-out-of-the-binary-and-it-had-five-entry-points-rather-than-one) | — | 38831 |
-| **D369** | [The web ask door is built: an adapter, a page, and the two things that stood between it and a buyer](DECISIONS.md#d369--the-web-ask-door-is-built-an-adapter-a-page-and-the-two-things-that-stood-between-it-and-a-buyer) | D381 (+4) | 38898 |
+| **D369** | [The web ask door is built: an adapter, a page, and the two things that stood between it and a buyer](DECISIONS.md#d369--the-web-ask-door-is-built-an-adapter-a-page-and-the-two-things-that-stood-between-it-and-a-buyer) | D466 (+5) | 38898 |
 | **D370** | [Near is a switch again: off or on, and the timed option retires](DECISIONS.md#d370--near-is-a-switch-again-off-or-on-and-the-timed-option-retires) | D408 (+2) | 39031 |
 | **D371** | [The rate card folds itself: the demand index moves on every sale and every night, and the door prints the published card](DECISIONS.md#d371--the-rate-card-folds-itself-the-demand-index-moves-on-every-sale-and-every-night-and-the-door-prints-the-published-card) | D390 (+2) | 39104 |
 | **D372** | [The buyer sets the budget, the base is the quiet price, and a served week is a basis — per-answer billing stays](DECISIONS.md#d372--the-buyer-sets-the-budget-the-base-is-the-quiet-price-and-a-served-week-is-a-basis--per-answer-billing-stays) | D408 (+2) | 39271 |
-| **D373** | [The index is crowding, with no ceiling, and the quiet price is €0.02](DECISIONS.md#d373--the-index-is-crowding-with-no-ceiling-and-the-quiet-price-is-002) | D377 (+2) | 39379 |
+| **D373** | [The index is crowding, with no ceiling, and the quiet price is €0.02](DECISIONS.md#d373--the-index-is-crowding-with-no-ceiling-and-the-quiet-price-is-002) | D466 (+3) | 39379 |
 | **D374** | [Ads run from the day after payment and share the rotation, and the ad window follows the cut](DECISIONS.md#d374--ads-run-from-the-day-after-payment-and-share-the-rotation-and-the-ad-window-follows-the-cut) | D375 | 39481 |
 | **D375** | [Ads leave the door: the sponsored question is the one paid product](DECISIONS.md#d375--ads-leave-the-door-the-sponsored-question-is-the-one-paid-product) | D392 (+3) | 39564 |
-| **D376** | [The menu: the door prints a price per reach, and a row opens the composer at it](DECISIONS.md#d376--the-menu-the-door-prints-a-price-per-reach-and-a-row-opens-the-composer-at-it) | — | 39649 |
+| **D376** | [The menu: the door prints a price per reach, and a row opens the composer at it](DECISIONS.md#d376--the-menu-the-door-prints-a-price-per-reach-and-a-row-opens-the-composer-at-it) | D466 | 39649 |
 | **D377** | [Paid cards get their own places in the feed, and the price counts crowding beyond them](DECISIONS.md#d377--paid-cards-get-their-own-places-in-the-feed-and-the-price-counts-crowding-beyond-them) | D390 | 39718 |
 | **D378** | [A sponsored question may carry one reviewed link, shown after the answer and counted by nobody](DECISIONS.md#d378--a-sponsored-question-may-carry-one-reviewed-link-shown-after-the-answer-and-counted-by-nobody) | D412 (+1) | 39805 |
-| **D379** | [The shareable results page: a sponsored question's numbers as one public web page](DECISIONS.md#d379--the-shareable-results-page-a-sponsored-questions-numbers-as-one-public-web-page) | D380 | 39889 |
+| **D379** | [The shareable results page: a sponsored question's numbers as one public web page](DECISIONS.md#d379--the-shareable-results-page-a-sponsored-questions-numbers-as-one-public-web-page) | D466 (+1) | 39889 |
 | **D380** | [The 2026-09-06 night review: two shifts merged as one tree — 68 commits kept, two defects the composition created, and a fix whose tests a third PR deleted](DECISIONS.md#d380--the-2026-09-06-night-review-two-shifts-merged-as-one-tree--68-commits-kept-two-defects-the-composition-created-and-a-fix-whose-tests-a-third-pr-deleted) | D430 (+3) | 39967 |
 | **D381** | [Build 29 was delivered and unrecorded, the pre-flight opened on a spent number again, and the gate built to stop that has never been switched on](DECISIONS.md#d381--build-29-was-delivered-and-unrecorded-the-pre-flight-opened-on-a-spent-number-again-and-the-gate-built-to-stop-that-has-never-been-switched-on) | D398 (+2) | 40212 |
 |  | ↳ *amendment 2026-09-06* — [Build 30 is delivered, and the whole release happened in one sitting](DECISIONS.md#d381-amendment-2026-09-06--build-30-is-delivered-and-the-whole-release-happened-in-one-sitting) | — | 40362 |
@@ -509,3 +509,4 @@ detect it.
 | **D463** | [The whole-world People map is built: a rounded position per account, one document per country](DECISIONS.md#d463--the-whole-world-people-map-is-built-a-rounded-position-per-account-one-document-per-country) | — | 51098 |
 | **D464** | [A dot is a row: every kind of answer on the Map ring](DECISIONS.md#d464--a-dot-is-a-row-every-kind-of-answer-on-the-map-ring) | D465 | 51177 |
 | **D465** | [The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads](DECISIONS.md#d465--the-workflow-github-could-not-read-a-sentence-about---inside-a-run-body-and-the-gate-that-now-asks-whether-the-file-loads) | — | 51321 |
+| **D466** | [The door nobody could reach: shape A's acquisition half, built — and the €320 premise it was argued from](DECISIONS.md#d466--the-door-nobody-could-reach-shape-as-acquisition-half-built--and-the-320-premise-it-was-argued-from) | — | 51572 |
