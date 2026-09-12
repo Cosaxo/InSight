@@ -40,28 +40,27 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-12T20:15:05Z -->
+<!-- console:generated 2026-09-12T20:47:11Z -->
 
 ## Open
 
-- [ ] **#520** · a session · *what:* The owner asked for this on 2026-08-22. · *how:* It sat in `QUESTION-FARM.md` as a note headed **"not adopted"** for three weeks, was re-asked on 2026-09-12, and D479 closed its blocking bullet. · CI green (10) · 6 behind main · conflicts · opened 2026-09-12 · stage **new**
-- [ ] **#510** · a session · *what:* One hand row in `docs/OWNER-LIST.md` § Store and legal, above the console's fold block so the daily fold keeps it. · *how:* The owner asked whether InSight should be an ENK or an AS, and reaffirmed D345's ENK on 2026-09-12 on the grounds that it can be upgraded to an AS later. · CI green (9) · 82 behind main · conflicts · opened 2026-09-12 · stage **new**
-- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 178 behind main · conflicts · opened 2026-09-11 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 483 behind main · conflicts · opened 2026-09-01 · stage **new**
-- [ ] **nightb-20260913** (no PR yet) · Claude 1's night shift B · 1 commit · last 20:15 UTC 2026-09-12
+- [ ] **#510** · a session · *what:* One hand row in `docs/OWNER-LIST.md` § Store and legal, above the console's fold block so the daily fold keeps it. · *how:* The owner asked whether InSight should be an ENK or an AS, and reaffirmed D345's ENK on 2026-09-12 on the grounds that it can be upgraded to an AS later. · CI green (9) · 87 behind main · conflicts · opened 2026-09-12 · stage **new**
+- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 183 behind main · conflicts · opened 2026-09-11 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 488 behind main · conflicts · opened 2026-09-01 · stage **new**
+- [ ] **nightb-20260913** (no PR yet) · Claude 1's night shift B · 8 commits · last 20:46 UTC 2026-09-12
 
 **Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260912 (D470) · nightb-20260912 (D470) · night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · and 14 more.
 
 **Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
 
-- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 78 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 162 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 162 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 162 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 162 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 163 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 163 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 163 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 83 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 167 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 167 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 167 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 167 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 168 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 168 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 168 behind main · opened 2026-09-11 · stage **new**
 
 ## In the shift
 
@@ -77,6 +76,7 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#520** · The pulse lane, adopted — one a week, propose-only, to a ceiling that had to be built first (D480) · merged 2026-09-12
 - **#519** · Build 36 is delivered to TestFlight, and appBuild is 37 — with the three deliveries that went unrecorded before it (D480) · merged 2026-09-12
 - **#518** · Nothing leads the feed but a pin the reader set (D479) · merged 2026-09-12
 - **#517** · The 2026-09-12 design, built: the friends handshake on D101, the Map's wayfinding, the brand module behind Doxa, and the smaller things (D-2026-09-12d) · merged 2026-09-12
@@ -131,4 +131,3 @@ merge shift like any other PR.
 - **#210** · Build(deps-dev): bump eslint-plugin-react-refresh from 0.5.2 to 0.5.4 · merged 2026-09-09
 - **#211** · Bump @capacitor/android from 8.3.3 to 8.5.0 · merged 2026-09-09
 - **#212** · Bump @capacitor/status-bar from 8.0.2 to 8.0.3 · merged 2026-09-09
-- **#388** · MAP_OPEN_GROUP off the bridge: the Learn card's "See it" takes the typed Map cue, 32 → 30 · merged 2026-09-09
