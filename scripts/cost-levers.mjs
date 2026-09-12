@@ -329,13 +329,18 @@ for (const P of PATHS) {
 console.log("\n\n4 · Did it fix the SLOPE? ($/DAU/mo, and the 500 -> 500 k multiple)");
 console.log("path                          " + SIZES.map((s) => int(s.dau).padStart(11)).join("") + "    500->500k");
 console.log("-".repeat(30 + 11 * SIZES.length + 13));
+const mult = (v) => (Number.isFinite(v) ? `${Math.round(v * 10) / 10}x` : "—");
 {
   const row = (label, opts) => {
     const pd = SIZES.map((s) => evaluate(s.dau, s.mature, opts) / s.dau);
     const lo = pd[SIZES.findIndex((s) => s.dau === 500)];
     const hi = pd[SIZES.length - 1];
+    // ONE DECIMAL, because whole numbers erased this column. Every path
+    // in the current model lands between 0.7 and 0.8, and rounding each of
+    // them to "1x" printed a table whose last column said the same thing
+    // about every row — including the rows that differ from each other.
     return label.padEnd(30) + pd.map((v) => unit(v).padStart(11)).join("") +
-      (Math.round(hi / lo) + "x").padStart(13);
+      (mult(hi / lo)).padStart(13);
   };
   console.log(row("as built", {}));
   for (const P of PATHS) console.log(row(P.name, P.opts));
@@ -346,23 +351,57 @@ console.log("-".repeat(30 + 11 * SIZES.length + 13));
 // a stale figure would be least likely to be noticed and most likely to be
 // quoted.
 {
-  const A = PATHS[0];
+  // BY NAME, NOT BY POSITION. This paragraph is about path A and every
+  // figure in it came from PATHS[0], which is "R · Region only" — a flat
+  // price multiplier, so the slope it printed was 1x -> 1x, a sentence
+  // claiming the slope got worse while showing it unchanged. The note two
+  // lines up is right that a figure here would be quoted and not checked;
+  // it guarded against typing the numbers and not against reading them off
+  // the wrong row. A rename now throws rather than re-pointing the prose at
+  // whatever happens to be first — cost-levers.test.mjs runs this script to
+  // completion, so the throw is the gate.
+  const A = PATHS.find((p) => /^A\b/.test(p.name));
+  if (!A) throw new Error("cost-levers: no path A — the slope paragraph names one; rename the path back or rewrite the paragraph.");
   const small = SIZES.find((s) => s.dau === 500);
   const big = SIZES[SIZES.length - 1];
   const slope = (opts) =>
     (evaluate(big.dau, big.mature, opts) / big.dau) / (evaluate(small.dau, small.mature, opts) / small.dau);
-  console.log("\n  This is the column that matters, and path A's entry LOOKS LIKE A BUG.");
-  console.log("  It is not. Path A cuts every absolute figure — " +
+  // THE DIRECTION IS READ OFF THE NUMBERS, not written in. This paragraph
+  // asserted that path A makes the slope worse, and went on printing that
+  // sentence after the model stopped agreeing with it — beside a figure
+  // that said the slope had not moved. A claim about arithmetic that the
+  // arithmetic can settle belongs to the arithmetic. Rounded to what the
+  // table SHOWS, so the sentence can never disagree with the column the
+  // reader is looking at.
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const before = r1(slope({}));
+  const after = r1(slope(A.opts));
+  console.log("\n  This is the column that matters, and path A is what it is for.");
+  console.log("  Path A cuts every absolute figure — " +
     cut(evaluate(small.dau, small.mature), evaluate(small.dau, small.mature, A.opts)).slice(1) +
     " at " + int(small.dau) + " DAU, " +
     cut(evaluate(big.dau, big.mature), evaluate(big.dau, big.mature, A.opts)).slice(1) + " at " +
     int(big.dau) + " —");
-  console.log("  and makes the SLOPE worse (" + Math.round(slope({})) + "x -> " +
-    Math.round(slope(A.opts)) + "x), because the social trims shrink the flat");
-  console.log("  baseline far harder than the batching shrinks the quadratic term. Divide");
-  console.log("  the small end by more than the big end and the ratio between them rises.");
-  console.log("  Path A buys time; it does not fix the shape. Only the paths that stop");
-  console.log("  streaming flatten the curve.");
+  if (after > before) {
+    console.log("  and makes the SLOPE worse (" + mult(before) + " -> " + mult(after) +
+      "), because the trims shrink the flat");
+    console.log("  baseline harder than the batching shrinks the quadratic term. Divide");
+    console.log("  the small end by more than the big end and the ratio between them rises.");
+    console.log("  Path A buys time; it does not fix the shape.");
+  } else if (after < before) {
+    console.log("  and flattens the curve with it (" + mult(before) + " -> " + mult(after) + ").");
+  } else {
+    console.log("  and leaves the SLOPE where it was (" + mult(before) + " -> " + mult(after) +
+      "). It buys time; it moves the");
+    console.log("  height of the curve and not its shape.");
+  }
+  // Which path is flattest is a row of the table above, so it is read from
+  // the table rather than remembered: the sentence here used to name a
+  // family ("the paths that stop streaming"), which was true of a model
+  // that has since changed twice.
+  const curves = PATHS.map((P) => ({ name: P.name, m: r1(slope(P.opts)) }));
+  const flattest = curves.reduce((a, b) => (b.m < a.m ? b : a), { name: "as built", m: r1(slope({})) });
+  console.log("  The flattest curve on offer is " + flattest.name + " at " + mult(flattest.m) + ".");
 }
 
 // ── 5. what none of this touches ────────────────────────────────

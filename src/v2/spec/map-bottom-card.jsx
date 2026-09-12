@@ -113,11 +113,22 @@ function MTVerdict({ pct, who, self, isMode, n }) {
 // is gone rather than wrong. Say what is missing and why, the way the feed's
 // below-floor branch does (world-feed.jsx renderStats) — the answer itself is
 // real and stays on the map, which is the part worth stating.
-function MTNoCohort({ who }) {
+function MTNoCohort({ who, anchorId }) {
+  // TWO ABSENCES, and one sentence covered both. `age`, `edu` and `job`
+  // map to a breakdown dim, so their null means the cell has not landed —
+  // more answers really do fix it. The four TEST anchors (big five,
+  // politics, values, social style) map to no dim at all: nothing
+  // aggregates a test result per cohort, so no number of people on this
+  // question will ever produce the reading, and telling the reader to wait
+  // for them was a promise the app cannot keep. `map-group-stats.js` says
+  // exactly this in its own header ("has no source rather than a withheld
+  // one"); the copy said the opposite.
+  const pending = MapStats.measurable(anchorId);
   return (
     <div className="mmt-nocohort">
-      Your answer is on the map. How {who} answered isn’t measured yet —
-      it needs more people on this question first.
+      Your answer is on the map. {pending
+        ? <>How {who} answered isn’t measured yet — it needs more people on this question first.</>
+        : <>How {who} answered isn’t something this app counts — test results aren’t grouped that way.</>}
     </div>
   );
 }
@@ -131,7 +142,7 @@ function MTGroupBars({ node, anchor }) {
   const MS = MapStats;
   const d = MS.dist(node.qid, anchor.id, n, node.aidx);
   const who = MS.groupLabel(anchor.id);
-  if (!d) return <MTNoCohort who={who}></MTNoCohort>;
+  if (!d) return <MTNoCohort who={who} anchorId={anchor.id}></MTNoCohort>;
   const max = Math.max(...d);
   const self = mtAnchorSelf(anchor);
   // ASK for the mode rather than re-deriving it from the percentages.
@@ -451,7 +462,7 @@ export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
           "Your answer is on the map" — true for an unmeasured cohort, and
           false here. What an empty map should SAY instead is a copy
           decision; the anchor chips and your own value above still draw. */}
-      {!rows.length ? null : noCohort ? <MTNoCohort who={who}></MTNoCohort> : (
+      {!rows.length ? null : noCohort ? <MTNoCohort who={who} anchorId={anchor.id}></MTNoCohort> : (
       <React.Fragment>
       <div className="mmt-matchhead">
         <span className="mmt-matchpct">{pct}%</span>

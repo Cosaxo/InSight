@@ -53,8 +53,9 @@
 
 [`docs/COSTS.md`](COSTS.md) says what this costs.
 [`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot
-(cheap in absolute terms, badly shaped: cost per user rises 87× between 500
-and 500,000 DAU). This says what to do about it.
+(cheap in absolute terms; the 87× rise in cost per user between 500 and
+500,000 DAU that both pages were organised around is gone, and today's
+multiple is 0.7× — it falls). This says what to do about it.
 
 Written 2026-08-13 against `f07cbf8`. Reproduce with
 `npm run costs:levers`. Every dollar comes from `scripts/cost-arith.mjs`
@@ -86,25 +87,50 @@ Each lever was checked against its *consumers*, not just against the model:
 
 That splits the plan cleanly, and the split is the useful part:
 
-| Path | 500 | 5 k | 50 k | 500 k | slope | what it costs the product |
-| --- | ---: | ---: | ---: | ---: | ---: | --- |
-| As built | $2.23 | $59 | $2,335 | $194,332 | 87× | — |
-| **Z · Zero product change** | $0.53 | $27 | $1,407 | $125,982 | 236× | **nothing** |
-| **Z + poll** | $0.45 | $14 | $163 | **$1,664** | **4×** | others' votes stop landing live |
-| B · Go polled | $0.10 | $12 | $148 | $1,524 | 15× | + thinner Kindred, Circle, who-voted |
-| C · B + single region | $0.05 | $6.20 | $77 | $810 | 16× | same as B |
+**Re-printed from the model 2026-09-12, and every figure moved.** The lever
+table further down was re-printed on the 11th, the day `npm run
+costs:levers` was revived — and the PATH tables, which the same script
+prints from the same model, were left carrying the pre-D129 baseline. One
+document, two tables, a day apart, and only one of them true. The old
+figures are what this page was written on: as built $194,332 at 500 k DAU
+against $2,365 today, because polling shipped (D129), the sample read
+shipped (D397) and the runbook's three read paths shipped after it.
 
-**Z + poll removes 99.1% of the bill and one product property.** It also
-produces the flattest curve of any path here — a 4× slope, better than the
-paths that trim the caps, because it removes the quadratic term without
-shrinking the flat baseline underneath it.
+| Path | 500 | 5 k | 50 k | 500 k | 500→500 k | what it costs the product |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| As built | $3.21 | $25 | $238 | $2,365 | 0.7× | — |
+| **R · Region only** | $1.96 | $14 | $128 | $1,280 | 0.7× | **nothing** |
+| **R + client trim** | $1.95 | $14 | $126 | $1,266 | 0.6× | nothing a user can see |
+| A · Keep it live | $2.88 | $22 | $205 | $2,037 | 0.7× | thinner Kindred, who-voted |
+| B · Go polled | $2.88 | $22 | $205 | $2,037 | 0.7× | identical to A — see below |
+| C · B + single region | $1.79 | $12 | $111 | $1,108 | 0.6× | same as B, single region |
+
+**The region lever is now the whole plan: −46% at 500 k, and it costs the
+product nothing.** Everything else on offer is a rounding error beside it.
+
+**A and B are the same path now.** What separated them was polling, and
+polling shipped at D129 — so "go polled" is the baseline, not a lever, and
+the two rows differ only in a publish batch that divides a term nothing
+computes any more (the † note below says why it stays listed).
+
+**The slope question has stopped being a question.** The last column is the
+multiple between $/DAU/month at 500 and at 500 k, and it is now BELOW ONE
+on every path including the app as built: cost per user FALLS as the app
+grows. The quadratic term this page was organised around is gone, removed
+by the changes the banners at the top record. Sections below that reason
+about a steepening curve are answering a question the model no longer
+poses; they are kept because the failure mode they describe is real and
+will return the moment anything re-attaches a listener to an aggregate.
 
 Everything that genuinely thins a Mirror surface — Kindred, Circle,
-who-voted — is the difference between **$1,664 and $810 at 500 k DAU**, and
-nothing at all below 5 k. That is the entire product-degrading portion of
-this plan: about $850/month at a size the app may never reach.
+who-voted — is the difference between **$1,280 and $1,108 at 500 k DAU**:
+the region lever alone against the region lever plus every trim. About
+$170/month at a size the app may never reach, and nothing worth naming
+below 5 k.
 
-**So: don't trim the caps.** They are not where the money is.
+**So: don't trim the caps.** They are not where the money is — and since
+the sample read shipped (D397) they are not where the GROWTH is either,
+which is the half of this sentence that used to do the work.
 
 ## The short answer
 
@@ -117,15 +143,18 @@ correct, and D7 already says so.
 But the question "how do we get this manageable" has a precise answer worth
 knowing in advance, because it is **not** the obvious one:
 
-| Path | 5 k DAU | 50 k DAU | 500 k DAU | slope (500 → 500 k) |
+| Path | 5 k DAU | 50 k DAU | 500 k DAU | 500 → 500 k |
 | --- | ---: | ---: | ---: | ---: |
-| **As built** | $59 | $2,335 | $194,332 | 87× |
-| **A · Keep it live** | $16 | $531 | $39,546 | **239×** |
-| **B · Go polled** | $12 | $148 | **$1,524** | **15×** |
-| **C · B + single region** | $6 | $77 | **$810** | 16× |
+| **As built** | $25 | $238 | $2,365 | 0.7× |
+| **R · Region only** | $14 | $128 | **$1,280** | 0.7× |
+| **A · Keep it live** | $22 | $205 | $2,037 | 0.7× |
+| **B · Go polled** | $22 | $205 | $2,037 | 0.7× |
+| **C · B + single region** | $12 | $111 | **$1,108** | 0.6× |
 
-**Path B cuts the 500 k bill by 99.2%, from $194,332 to $1,524.** One
-change does nearly all of it.
+**The single-region database cuts the 500 k bill by 46%, and nothing else
+here cuts more than 14%.** One change does nearly all of it — and it is
+the one change with no product cost at all. (Re-printed 2026-09-12 with
+the table above; what these rows said before is in that note.)
 
 ## Why there is no single answer
 
@@ -245,26 +274,34 @@ slow timer shows the same room, a few seconds later.
 ## The trap: cutting the bill without fixing the shape
 
 Path A is every lever **except** polling — the social trims plus ×5
-batching. It looks excellent: −93% at 500 DAU, −80% at 500 k. And it makes
-the problem **worse**:
+batching. **Re-printed 2026-09-12 with the tables above**, and this section
+is the one the re-print changed most: it was written against a model whose
+cost per user rose 87× between 500 and 500 k DAU, and that term is gone.
 
-| Path | $/DAU/mo at 500 | at 500 k | slope |
+| Path | $/DAU/mo at 500 | at 500 k | 500 → 500 k |
 | --- | ---: | ---: | ---: |
-| As built | $0.00445 | $0.3887 | 87× |
-| **A · Keep it live** | $0.00033 | $0.07909 | **239×** |
-| B · Go polled | $0.00021 | $0.00305 | **15×** |
-| C · B + single region | $0.00010 | $0.00162 | 16× |
+| As built | $0.00642 | $0.00473 | 0.7× |
+| **A · Keep it live** | $0.00577 | $0.00407 | 0.7× |
+| B · Go polled | $0.00577 | $0.00407 | 0.7× |
+| **R · Region only** | $0.00392 | $0.00256 | 0.7× |
+| C · B + single region | $0.00358 | $0.00222 | 0.6× |
 
-That 239× looks like a bug and is not. Path A divides the small end by 13
-and the big end by 5, so the ratio between them necessarily rises. Every
-absolute number improves and the curve gets steeper.
+Every multiple is below one: cost per user now FALLS as the app grows, on
+every path and on the app as built. Path A no longer steepens anything —
+it moves the height of the curve by 10–14% and leaves its shape alone,
+which the printer now says in its own words rather than asserting a
+direction (`scripts/cost-levers.mjs` §4, which read the wrong path's
+figures for this paragraph until 2026-09-12).
 
-**This is the failure mode to watch for.** The cheap levers are genuinely
-worth doing and they buy time, but a plan made of only cheap levers will
-report large percentage savings while leaving the app's cost quadratic in
-its own success. Path A at 500 k DAU is still $39,546/month and still an
-F-to-D. Only the paths that stop streaming flatten the curve — B takes the
-slope from 87× to 15×, which is an ordinary app's shape.
+**The failure mode is still the one to watch for, and it is no longer
+today's.** A plan made of only cheap levers reports large percentage
+savings while leaving the app's cost quadratic in its own success — that
+was exactly true of this page's own first answer, and it stopped being
+true when the quadratic term was removed rather than when the levers got
+better. It returns the day anything re-attaches a listener to an
+aggregate, which is the same day the ×5 publish batch stops being worth
+−0.0%. Until then the money is in the region lever, and the region lever
+costs the product nothing.
 
 ## What no lever here touches
 

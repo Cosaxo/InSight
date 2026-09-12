@@ -690,6 +690,45 @@ describe("question-bank cache", () => {
       expect(ids).toEqual(computeDeckIds(all, dayIndex(new Date())));
     });
 
+    it("does not republish the deck with a hole in it after two rollovers", async () => {
+      // The boot fetches EIGHT positions — seven days plus tomorrow — so
+      // one midnight crossed with the app open is covered, which is what
+      // the comment at the publish site means by "tomorrow's card is in
+      // hand, the day after is not". TWO crossings without a refetch (an
+      // app left open on a tablet) leave today's position unheld.
+      //
+      // What happened then: the map-and-filter drops the missing position
+      // and every card after it SHIFTS DOWN ONE, so yesterday's question
+      // is published at back=0 — presented as today's card, answered as
+      // today's card. The guard meant to prevent exactly this (`keep the
+      // standing deck rather than publishing a short one`) fires only
+      // when EVERY position is missing, which cannot happen here. And
+      // because `deckDay` is stamped anyway, the shifted deck is frozen
+      // for the rest of the day: the refetch that lands the missing row
+      // does not recompute it.
+      h.bankDocs = dailies(40);
+      h.rankOrders.daily = { n: 40, maxSeq: 39 };
+      const LIVE = await bootLive();
+      const before = LIVE.deck().map((d: { id: string }) => d.id);
+      expect(before).toHaveLength(DECK_DAYS);
+
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date(Date.now() + 2 * 86_400_000));
+        const after = LIVE.deck().map((d: { id: string }) => d.id);
+        expect(
+          after,
+          "the deck was republished one card short, with every position shifted",
+        ).toHaveLength(DECK_DAYS);
+        expect(
+          after[0],
+          "yesterday's question is being served as today's card",
+        ).toBe(before[0]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("REFUSES the fast path when the seq space is not dense, and takes the surface", async () => {
       // n and maxSeq disagree — a console-edited doc dropped by the
       // client's own playability filter, say. Positions are not seqs any

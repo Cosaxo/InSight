@@ -874,10 +874,15 @@ describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
     const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
     expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
     await LIVE.social.voteDuel("g1", 1, 0);
-    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // `pickUid` is null on a classic round: the options are the question's
+    // own and cannot move, so the index is the whole of the answer. It
+    // carries a uid only on a PICK round, where the options are the roster
+    // and an index goes stale the moment somebody leaves (D224, and the
+    // card that reads it).
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0, pickUid: null });
     // A vote with no call reads as a pick alone, not as a missing vote.
     await LIVE.social.voteDuel("g1", 0);
-    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null, pickUid: null });
     expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
   });
 
@@ -1373,6 +1378,44 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
       LIVE.kindredState(),
       "twelve refused queries were reported to the Mirror as an empty city",
     ).toBe("failed");
+  });
+
+  it("says the CITY read failed too, and lets the next visit ask again", async () => {
+    // The city pass is a second fan-out of twelve, with its own failures,
+    // and it had no flag: each per-question throw is swallowed so eleven
+    // survive one, and a pass where all twelve threw looked exactly like a
+    // city nobody has answered in. The City field then said "Nobody from
+    // Oslo yet" about a crowd nothing managed to look at — the sentence
+    // the world pass's own flag exists to prevent, one pool over — and
+    // the loader stamped the city anyway, so the session could never ask
+    // again.
+    for (const qid of ["q_1", "q_2", "q_3"]) {
+      h.answerDocs.push({
+        id: qid,
+        data: { qid, surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+      });
+      h.voterFailQids.add(qid);
+    }
+    h.getDocImpl = (path) => (path === "v2_users/uid_test"
+      ? { anchors: { city: "Oslo, NO", country: "NO" } }
+      : null);
+    const LIVE = await bootLive();
+    expect(LIVE.myCity, "no city — the loader returns at its first line").toBe("Oslo, NO");
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.length, "no city fan-out ran, so nothing could have failed")
+      .toBeGreaterThan(0);
+    expect(
+      LIVE.cityKindredState(),
+      "twelve refused city queries were reported to the Mirror as an empty city",
+    ).toBe("failed");
+    // …and the world pool is not slandered by it: the two passes fail
+    // separately, and the Circle and World lenses read the other one.
+    expect(LIVE.kindredState(), "a city failure was reported as a world failure").toBe("ready");
+    // …and the failure is not cached as an answer.
+    const asked = h.voterQueries.length;
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.length, "the failed city pass was cached and never retried")
+      .toBeGreaterThan(asked);
   });
 
   it("…and reports 'ready' the moment ONE of them lands", async () => {

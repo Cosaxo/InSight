@@ -33,7 +33,7 @@ import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
 import { rateLimitLedgers } from "./exportAccount";
-import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
+import { ledgerRemoval, playedRemovals, revealDueRounds, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -195,6 +195,11 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
+      // The world map's published positions (D462, phase 1a‴): one row per
+      // population this account was placed in. Counted apart from the
+      // samples because it is a separate phase with a separate export
+      // twin — see the note at the scrub.
+      worldMapPositions: 0,
       // The answer log's rows (log.ts, D447 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
       // buffer refused it or the table is past the immediate ceiling
@@ -398,7 +403,20 @@ export const deleteAccount = onCall(
       for (let i = 0; i < ids.length; i += 300) {
         await scrub(await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id))));
       }
-      // 1a″. THE WORLD MAP'S POSITIONS (D462) — `people-{country}` and
+      counts.patternSamples = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] voter sample scrub failed:", err);
+      failed.push("patternSamples");
+    }
+    // ITS OWN PHASE, ITS OWN LABEL. This scrub sat inside the samples'
+    // try/catch and reported under `patternSamples`, which is why the
+    // export could omit it in silence: `TWIN` holds a phase to an export
+    // section by LABEL, and a second document family folded under an
+    // existing label is a family the contract cannot see. It arrived with
+    // an erasure arm and no export twin, and every gate stayed green —
+    // exactly the blind spot exportAccount.test.ts names one case down.
+    try {
+      // 1a‴. THE WORLD MAP'S POSITIONS (D462) — `people-{country}` and
       //      `people-world`, the same `rows` shape keyed by uid, so the
       //      same field delete reaches them. The privacy page promises
       //      this account's position is removed AT ONCE, not merely that
@@ -412,15 +430,16 @@ export const deleteAccount = onCall(
       //      would walk past it. The range is bounded by the country
       //      catalogue plus one ('.' follows '-'), which is ~245
       //      documents at the very most and one query.
+      const before = scrubbed;
       const world = await db.collection("v2_patterns")
         .where(FieldPath.documentId(), ">=", "people-")
         .where(FieldPath.documentId(), "<", "people.")
         .get();
       await scrub(world.docs);
-      counts.patternSamples = scrubbed;
+      counts.worldMapPositions = scrubbed - before;
     } catch (err) {
-      logger.error("[deleteAccount] voter sample scrub failed:", err);
-      failed.push("patternSamples");
+      logger.error("[deleteAccount] world map position scrub failed:", err);
+      failed.push("worldMapPositions");
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
@@ -720,6 +739,19 @@ export const deleteAccount = onCall(
           if ((err as { code?: number | string }).code !== 5
             && (err as { code?: string }).code !== "not-found") throw err;
           continue;
+        }
+        // A ROSTER CHANGE CAN COMPLETE A ROUND — the same sentence
+        // leaveGroupV2 carries, and the same reason: `roundComplete` is
+        // `played >= members`, so the room this account was holding up is
+        // complete the moment the membership shrinks, and nothing else
+        // looks until the 48-hour deadline. Swallowed for a stronger
+        // reason here than there: a throw would push "v2Groups" onto
+        // `failed`, which refuses the auth delete — an erasure must never
+        // fail because somebody else's room could not be revealed.
+        try {
+          await revealDueRounds(g.ref);
+        } catch (err) {
+          logger.error(`[deleteAccount] reveal check after leaving ${g.id} failed:`, err);
         }
         // The user's vote and display name inside every published reveal of
         // a group they are STILL in. Phase 1c-bis below sweeps reveals by

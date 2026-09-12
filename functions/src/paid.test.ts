@@ -14,6 +14,7 @@ import {
   AUDIENCE_DIMS_MAX,
   LIKERT,
   checkoutLineItem,
+  quoteForCheckout,
   expirePriorSession,
   dayPlus,
   PAID_OPTIONS_MAX,
@@ -949,6 +950,57 @@ describe("reviewBooking only ever moves a booking OUT of review", () => {
 // refusal. So the whole block ran under nothing — swapping the cap for the
 // per-answer rate, or the cents multiplier from 100 to 10, left the
 // functions suite and every e2e leg green.
+describe("quoteForCheckout — the booking the Routine approved has no quote", () => {
+  // Since D456 production is EXPECTED to run with no reviewer key, so
+  // `reviewBooking` holds and the approval is a Claude Code Routine
+  // writing status and review straight to Firestore. It writes no quote.
+  // Checkout read `quote` off the document and dereferenced it, so every
+  // press came back `internal` and an approved booking stayed unpayable
+  // until its TTL ate it — the money path dead on the deployment D456
+  // made normal.
+  const snapOf = (fields: Record<string, unknown>) => {
+    const writes: Record<string, unknown>[] = [];
+    return {
+      writes,
+      snap: {
+        get: (k: string) => fields[k],
+        ref: { update: async (u: Record<string, unknown>) => { writes.push(u); } },
+      },
+    };
+  };
+  // liveCard reads v2_meta/pricing and falls back to the committed card
+  // when it is absent — which is what this returns.
+  const noLiveCard = {
+    collection: () => ({ doc: () => ({ get: async () => ({ exists: false, data: () => ({}) }) }) }),
+  } as unknown as Parameters<typeof quoteForCheckout>[0];
+
+  it("prices it off its own scope and budget, and LOCKS it", async () => {
+    const f = snapOf({ scope: "city", budgetEur: 100 });
+    const q = await quoteForCheckout(noLiveCard, f.snap);
+    expect(q, "checkout could not price a Routine-approved booking").toEqual(priceQuote("city", PRICING_CARD, 100));
+    // Written back, so a retry, a second session and the closer's refund
+    // all read the figure the first press charged.
+    expect(f.writes, "the quote was not locked on the way through").toHaveLength(1);
+    expect(f.writes[0]).toEqual({ quote: q });
+  });
+
+  it("…and leaves a quote that IS there alone — the control", async () => {
+    // The lock at approval is the contract when the function reviewed it.
+    // Re-pricing here would move the buyer's figure under them whenever
+    // the card moved between approval and payment.
+    const locked = { ratePerAnswer: 0.01, capEur: 33, cap: 3300, windowDays: 29 };
+    const f = snapOf({ scope: "city", budgetEur: 100, quote: locked });
+    expect(await quoteForCheckout(noLiveCard, f.snap)).toBe(locked);
+    expect(f.writes, "a locked quote was rewritten").toHaveLength(0);
+  });
+
+  it("refuses a booking it cannot price rather than guessing a scope", async () => {
+    const f = snapOf({ budgetEur: 100 });
+    await expect(quoteForCheckout(noLiveCard, f.snap)).rejects.toThrow(/cannot be priced/);
+    expect(f.writes).toHaveLength(0);
+  });
+});
+
 describe("checkoutLineItem — the amount and what the charge says it is for", () => {
   // ONE PRODUCT. This block was written on the 2026-09-06 night shift with
   // an ad half, while D375 was taking the ad off the paid path on main;

@@ -450,6 +450,15 @@ const state = {
   // delta fetches. A round whose call this device no longer holds shows
   // the pick alone — nothing invented.
   duelCalls: {} as Record<string, number>,
+  // WHO an index meant, for this device's own pick answers (D224). The
+  // options of a `pick` round are the roster in order, so the index alone
+  // goes stale the moment somebody leaves — every later member shifts down
+  // one and a sealed answer redraws as a person the voter never named. The
+  // answer document has snapshotted the uid since D224; this is that
+  // snapshot kept where the card can read it, filled on the write and on
+  // the boot's answers read, beside `duelCalls`, which rides the same
+  // document for the same reason.
+  duelPicks: {} as Record<string, string>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -522,6 +531,14 @@ const state = {
   // kindredPeople() unions the two; nothing else reads this.
   cityVoters: {} as Record<string, Voter[]>,
   cityVotersAt: "",
+  // The city pass's own failure flag, and it needs one for the same
+  // reason the world pass does: each per-question failure is swallowed so
+  // eleven survive one, and a pass where ALL twelve threw is
+  // indistinguishable downstream from a city nobody has answered in. The
+  // City field then said "Nobody from {city} yet" about a crowd nothing
+  // managed to look at — the exact sentence the world pass's flag exists
+  // to prevent, one pool over.
+  cityKindredFailed: false,
   // The nightly voter SAMPLES (D397): the same rows the live lists hold,
   // published by the fit one document per question, read by every fold
   // that only counts — Kindred's world pass, the People lens, the pair
@@ -930,11 +947,31 @@ function restorePending(uid: string): void {
     // count, once. An id inflight because an earlier run restored it is
     // in the set already and stays.
     if (aid in state.inflight && !restoredPending.has(aid)) continue;
+    // WHICH OPTION THE CROWD STILL HOLDS THIS DEVICE AT, read before the
+    // line below overwrites it. An edit records two facts and this mirror
+    // carried one: `editVote` sets `unaggregatedFrom` so `countsFor` can
+    // take the vote out of the option the published counts still have it
+    // in, and a restore that skipped it left the crowd holding the viewer
+    // at the old option while the card added its own +1 at the new one —
+    // the old option one high, the total one high, every share over a
+    // denominator that does not exist, which is the failure editVote's
+    // own comment names. `warmFromDisk` has just put the ACKED value in
+    // `state.votes`, so it is here to be read, for one more line.
+    //
+    // The `wasFolded` condition editVote applies is satisfied by the same
+    // test one boot later: a mark in `state.unaggregated` would mean the
+    // trigger has not folded the create, and at this point in the boot
+    // nothing has put one there but this loop.
+    const held = state.votes[aid];
     state.votes[aid] = p.v;
     state.inflight[aid] = true;
     if (!isDuelAid(aid)) {
       const n = Number(p.v);
+      const folded = !(aid in state.unaggregated);
       state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+      if (p.edit && folded && held !== undefined && held !== p.v) {
+        state.unaggregatedFrom[aid] = held;
+      }
     }
     restoredPending.add(aid);
   }
@@ -1723,13 +1760,29 @@ function computeDeck(): void {
   // failure with no symptom.
   if (dailyBankN != null && dailyBankN > 0) {
     const bySeq = new Map(state.questions.map((q) => [q.seq, q.id]));
-    const ids = computeDeckSeqs(dailyBankN, today)
+    const want = computeDeckSeqs(dailyBankN, today);
+    const ids = want
       .map((seq) => bySeq.get(seq))
       .filter((id): id is string => !!id);
     // A miss means the rollover outran the fetch (tomorrow's card is in
     // hand, the day after is not). Keep the standing deck rather than
-    // publishing a short one; the wake handler's refetch fills it.
-    if (!ids.length) return;
+    // publishing a short one, and leave `deckDay` where it is — which is
+    // what `resubscribeForToday` reads to know the day is still unserved
+    // and to spend one boot on the missing row. Refusing without that heal
+    // would trade a shifted deck for a frozen one.
+    //
+    // ANY MISS, not only a total one. This read `if (!ids.length)`, which
+    // can fire only when EVERY position is absent — and the case it was
+    // written for is exactly one: the boot fetches DECK_DAYS + 1
+    // positions, so a second midnight crossed without a refetch leaves
+    // today's unheld and the others in hand. The filter then drops it and
+    // every card SHIFTS DOWN ONE, publishing yesterday's question at
+    // back=0 — served as today's card and answered as today's card, with
+    // the poll (`deckIds[0] is back=0 by construction`) reading the wrong
+    // aggregate to match. And `deckDay` was stamped anyway, so the
+    // shifted deck was frozen for the rest of the day: the refetch that
+    // lands the missing row could not recompute it.
+    if (ids.length !== want.length) return;
     state.deckDay = today;
     state.deckIds = ids;
     return;
@@ -2811,6 +2864,8 @@ async function hydrate(): Promise<void> {
         if (d.id.startsWith("g_")) {
           const gi = d.get("guessIdx");
           if (typeof gi === "number") state.duelCalls[d.id] = gi;
+          const pu = d.get("pickUid");
+          if (typeof pu === "string" && pu) state.duelPicks[d.id] = pu;
         }
         // NOT the server's word when the SDK's persistent cache has laid
         // this device's own unacknowledged mutation over the document
@@ -4059,12 +4114,20 @@ const SOCIAL = {
    * for a round I have not sealed; `guessIdx` null for a pick whose call
    * is not remembered — the card then names the pick alone.
    */
-  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null } | null {
+  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null; pickUid: string | null } | null {
     const aid = `g_${gid}_${roundKey(round)}`;
     const v = state.votes[aid];
     if (v == null) return null;
     const gi = state.duelCalls[aid];
-    return { optionIdx: Number(v), guessIdx: typeof gi === "number" ? gi : null };
+    return {
+      optionIdx: Number(v),
+      guessIdx: typeof gi === "number" ? gi : null,
+      // WHO, not where. Null for an answer written before D224 snapshotted
+      // it and for every non-pick round; the caller falls back to the
+      // index there, which is right when the roster cannot have shifted
+      // under it and is all there is when it can.
+      pickUid: state.duelPicks[aid] ?? null,
+    };
   },
   revealFor(gid: string) {
     return state.reveals[gid] || null;
@@ -4465,7 +4528,12 @@ const SOCIAL = {
         // and any later fold reads the uid, never the index.
         if (q.kind === "pick") {
           const pickUid = ((g.memberUids || []) as string[])[optionIdx];
-          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+          if (typeof pickUid === "string" && pickUid) {
+            payload.pickUid = pickUid;
+            // …and kept here too: the card that says "you named X" before
+            // the reveal reads this, not the index (see `duelPicks`).
+            state.duelPicks[aid] = pickUid;
+          }
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         delete state.inflight[aid];
@@ -4478,6 +4546,7 @@ const SOCIAL = {
         // this path's own and is not something rollbackPending knows about.
         rollbackPending(aid);
         delete state.duelCalls[aid];
+        delete state.duelPicks[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
         throw err;
@@ -4544,7 +4613,12 @@ const SOCIAL = {
         };
         if (q.kind === "pick") {
           const pickUid = ((g.memberUids || []) as string[])[optionIdx];
-          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+          if (typeof pickUid === "string" && pickUid) {
+            payload.pickUid = pickUid;
+            // …and kept here too: the card that says "you named X" before
+            // the reveal reads this, not the index (see `duelPicks`).
+            state.duelPicks[aid] = pickUid;
+          }
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         delete state.inflight[aid];
@@ -6001,7 +6075,15 @@ const LIVE = {
         }
       }
       state.cityVoters = next;
-      state.cityVotersAt = city;
+      // EVERY question threw, or some did. A pass that landed nothing is a
+      // failure and must not be cached as an answer: stamping the city
+      // here made the guard at the top refuse every retry for the rest of
+      // the session, so a transient rate-limit on twelve sequential
+      // collection-group queries became a permanent empty stop. Zero asked
+      // is not a failure — that is a device with no votes yet, and it has
+      // no crowd to fail to read (the world pass draws the same line).
+      state.cityKindredFailed = qids.length > 0 && Object.keys(next).length === 0;
+      if (!state.cityKindredFailed) state.cityVotersAt = city;
       saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadCityKindred" });
@@ -6286,6 +6368,15 @@ const LIVE = {
   kindredState(): "loading" | "ready" | "failed" {
     if (state.kindredLoading || state.cityKindredLoading) return "loading";
     return state.kindredFailed ? "failed" : "ready";
+  },
+  /** The same reading for a CITY-scoped surface, which has a second pass
+   *  behind it. Kept apart from `kindredState()` rather than folded into
+   *  it: the Circle and World lenses read that one, and a city fan-out
+   *  that failed says nothing about the world pool — reporting it there
+   *  would trade one false sentence for another. */
+  cityKindredState(): "loading" | "ready" | "failed" {
+    if (state.kindredLoading || state.cityKindredLoading) return "loading";
+    return state.kindredFailed || state.cityKindredFailed ? "failed" : "ready";
   },
 
   // ── Similarity: you against people and places, by scores (D112) ──
@@ -7530,6 +7621,28 @@ const LIVE = {
   get linked() {
     return state.linked;
   },
+  // Has the auth observer spoken yet? FALSE for the whole restore, and
+  // since D453 that window is on screen: the wall used to cover it —
+  // every install is walled since D414 — and now it passes on the mirror
+  // rather than waiting, so the app is up while `linked` is still the
+  // flag's cold default.
+  //
+  // Every other identity surface composes from `linked` alone, which in
+  // that window is a claim about an account nobody has asked about yet.
+  // A returning, linked user opening the account panel there read "Your
+  // answers live on this phone only — a reinstall or a new phone loses
+  // them", under a "Continue with Google" button whose only possible
+  // answer is `provider-already-linked`; the profile overlay called the
+  // same session "anonymous session — sign in to keep it", which is the
+  // sentence the D344 amendment was written to remove.
+  //
+  // So the surfaces ask this first and say nothing about the account
+  // until it answers. A reader who is told nothing for a moment can
+  // still be told the truth afterwards; a reader told the wrong thing
+  // has already acted on it.
+  get authKnown() {
+    return state.authKnown;
+  },
   // The wall is passed when the session is linked AND nothing is waiting on
   // an inbox. Two flags rather than one so the gate can say WHICH it is:
   // "sign in" and "confirm your address" are different screens, and a
@@ -8333,6 +8446,7 @@ function resetForNewUid(uid: string): void {
   state.revealHistLoaded = {};
   state.revealHistFailed = {};
   state.duelCalls = {};
+  state.duelPicks = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never
@@ -8381,6 +8495,7 @@ function resetForNewUid(uid: string): void {
   state.kindredLoading = false;
   state.kindredAt = 0;
   state.kindredFailed = false;
+  state.cityKindredFailed = false;
   state.cityVoters = {};
   state.cityVotersAt = "";
   state.cityKindredLoading = false;
@@ -8414,6 +8529,9 @@ function resetForNewUid(uid: string): void {
   state.profile = { displayName: "", handle: "", testResults: {}, anchors: {}, consent: {} };
   state.deckIds = [];
   state.deckDay = -1;
+  // With the deck, or the new account inherits the old one's spent heal
+  // and a stuck deck on its first day would wait for tomorrow.
+  deckHealedFor = -1;
   state.ready = false;
   state.attached = false;
   state.warm = false;
@@ -8559,6 +8677,10 @@ function purgeLocalTrace(): void {
 // startAggPoll refreshes today's aggregate (and any the deck lacks) and
 // re-arms the timer on the new day's question, so a rollover needs no
 // separate teardown — the whole deck is a boot's read, not a foreground's.
+/** The day a stuck deck has already bought a boot for — see the heal in
+ *  `resubscribeForToday`. Cleared with the deck in `resetForNewUid`. */
+let deckHealedFor = -1;
+
 async function resubscribeForToday(): Promise<void> {
   // `attached` rather than `ready` (D356): before the attach the boot
   // itself is still the thing that will start the poll and the reveal
@@ -8568,6 +8690,31 @@ async function resubscribeForToday(): Promise<void> {
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
       notify();
+      // AND IF IT COULD NOT, GO AND FETCH. `computeDeck` refuses to
+      // publish a deck with a hole in it, which leaves `deckDay` on the
+      // day before — and nothing else in an attached session ever asks for
+      // a daily position: `resolveDailyBank` runs inside `hydrate()`
+      // alone, and `wake()` reaches the boot only while the session is NOT
+      // attached. So an app left open across two midnights (a tablet, a
+      // kiosk, a tab) would serve the old day's card, already answered,
+      // for the life of the process, with the poll following the frozen
+      // ids. One boot heals it — `refreshLive` is re-entrant and shares
+      // its in-flight promise — and ONCE PER DAY, because a bank that
+      // genuinely holds no row for today (the farm has not appended) must
+      // not buy a full hydrate on every wake.
+      const today = dayIndex();
+      if (state.deckDay !== today && deckHealedFor !== today) {
+        deckHealedFor = today;
+        void refreshLive().catch((err) => {
+          // Cleared on failure, so a boot that lost the network is retried
+          // by the next wake rather than the next midnight — the mark is
+          // there to stop a bank with genuinely no row for today from
+          // buying a hydrate every time the app comes forward, not to
+          // spend the day's one attempt on a dropped connection.
+          deckHealedFor = -1;
+          reportError(err, { where: "refreshLive.deckHeal" });
+        });
+      }
     }
     await startAggPoll("today");
     const db = await getDb();

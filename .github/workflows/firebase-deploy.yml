@@ -237,6 +237,13 @@ jobs:
       - name: Write the buy page's config
         env:
           ASK_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          # WHETHER, NOT WHAT. The page needs to know that a card can be
+          # charged; the secrets themselves never leave this job. Without
+          # this the page read the Firebase key for the Stripe one and
+          # took a question it could not sell — see paymentsOpen() in
+          # web/ask.html.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
         run: |
           set -o pipefail
           if [ -z "$ASK_API_KEY" ]; then
@@ -254,6 +261,7 @@ jobs:
                 project: "prvfire33",
                 region: "europe-west1",
                 dbId: "insight",
+                payments: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
               }, null, 2) + "\n");
             '
             echo "buy page config written (keys not printed)."

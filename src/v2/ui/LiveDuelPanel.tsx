@@ -1771,7 +1771,36 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
 
   // ── the blocks ──
   const myOpen = mine && openQ ? S.myDuelCall(g.id, R.open) : null;
-  const mineLabel = openQ && myOpen && openQ.options[myOpen.optionIdx] != null ? openQ.options[myOpen.optionIdx] : "—";
+  // WHO YOU NAMED, not which seat it was. A `pick` round's options are the
+  // roster in order, so an index alone is remapped the moment a member
+  // leaves — every later member shifts down one and the answer you sealed
+  // redraws as somebody you never named, for as long as the round stays
+  // open. The answer has carried the uid since D224 and the store hands it
+  // over now; the index is the fallback for a non-pick round, where the
+  // options are the question's own and cannot move, and for an answer
+  // written before the snapshot existed. A member who has LEFT resolves to
+  // no name, and "—" is the honest end of that: the person is gone.
+  // …AND THE BALLOT'S OWN LABEL FOR THEM, not the raw name map. `duelQFor`
+  // labels a pick round's options `names[u] || "Member " + (i + 1)`,
+  // because a member can have no display name at all — the server writes
+  // an empty string when it cannot find one. Reading the map directly gave
+  // "" for such a member, which `??` does not catch (the wait block
+  // rendered an empty label) and which is falsy (the sealed line dropped
+  // its clause), or `undefined` for a member the map has no row for, which
+  // fell to the dash meaning "they are gone" while the ballot beside it
+  // said "Member 2". Off the ROSTER is the only real gone.
+  const pickLabel = (uid: string | null | undefined): string | undefined => {
+    if (!uid) return undefined;
+    const uids = (g.memberUids || []) as string[];
+    const i = uids.indexOf(uid);
+    if (i < 0) return undefined;
+    return ((g.memberNames || {}) as Record<string, string>)[uid] || `Member ${i + 1}`;
+  };
+  const myPickName = pickLabel(myOpen?.pickUid);
+  const mineLabel = myPickName
+    ?? (openQ && myOpen && myOpen.pickUid == null && openQ.options[myOpen.optionIdx] != null
+      ? openQ.options[myOpen.optionIdx]
+      : "—");
 
   // State 2 · their turn: what you sealed, and who it waits on. Nothing of
   // anyone else's before the reveal — a 1v1 draws the partner's answer as
@@ -1836,7 +1865,12 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
           const parts: string[] = [];
           const rt = duo ? null : tagOf(rq);
           if (rt) parts.push(rt.label);
-          if (rq && call && rq.options[call.optionIdx] != null) parts.push(`you: ${rq.options[call.optionIdx]}`);
+          // Same rule as `mineLabel` above: the uid the answer snapshotted wins,
+    // and a pick whose member has left is named by nobody rather than by
+    // whoever inherited the index.
+    const callName = pickLabel(call?.pickUid);
+    if (callName) parts.push(`you: ${callName}`);
+    else if (rq && call && call.pickUid == null && rq.options[call.optionIdx] != null) parts.push(`you: ${rq.options[call.optionIdx]}`);
           if (rq && call && call.guessIdx != null && themOpts(rq)[call.guessIdx] != null) parts.push(`called ${themOpts(rq)[call.guessIdx]}`);
           const dl = !duo && n === R.open ? left : null;
           return (
