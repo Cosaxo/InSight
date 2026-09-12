@@ -330,9 +330,32 @@ export const LENSES = (function () {
   // a lens question answered in the World feed
   function record(q) {
     if (!q || !q.lens || !BY[q.lens] || q.qi == null) return null;
-    if (st.seen[q.id] != null) return null;
-    st.seen[q.id] = q.lens;
     const val = typeof q.value === 'number' ? q.value : 2;
+    // SEEN IS NOT ANSWERED, and conflating them cost the edit path.
+    //
+    // `seen` exists so one question contributes to one lens once — it is
+    // about WHICH lens a card belongs to, not about what was picked. But
+    // this function is also the only thing carrying the VALUE, and since
+    // D86 a feed answer is editable: world-feed's setVote calls record on
+    // every vote, the edit included, with the new value. Returning early
+    // here swallowed exactly that call.
+    //
+    // Measured before the fix — moral lens, question 5: a standing score
+    // of 20, a first vote moving it to 47, then an opposite-end edit
+    // through the feed leaving it at 47, where answering the same
+    // question in the sit-down deck gives 13. So after a "Change" the
+    // server aggregate, the card's own standing pick and the profile's
+    // Lenses card disagreed by 34 points, for good.
+    if (st.seen[q.id] != null) {
+      // Under a DIFFERENT lens is not an edit — it is the same question
+      // reached a second way, and the first lens keeps it.
+      if (st.seen[q.id] !== q.lens) return null;
+      if (st.ans[q.lens] && st.ans[q.lens][q.qi] === val) return null;
+      st.ans[q.lens] = { ...(st.ans[q.lens] || {}), [q.qi]: val };
+      save(); notify();
+      return q.lens;
+    }
+    st.seen[q.id] = q.lens;
     st.ans[q.lens] = { ...(st.ans[q.lens] || {}), [q.qi]: val };
     save(); notify();
     return q.lens;

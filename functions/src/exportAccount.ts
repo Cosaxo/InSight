@@ -62,7 +62,7 @@ import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import { isStamped, playedIn } from "./pure";
-import { citySampleId } from "./patternsSamples";
+import { citySampleId, WORLD_SAMPLE_PAGE } from "./patternsSamples";
 import { fanoutBudgetId } from "./profileFanout";
 import { logWriter, type LogRow } from "./log";
 
@@ -345,15 +345,29 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
   //      to keep this callable away from. `sample-` ≤ id < `sample.` is
   //      the world family exactly ('.' follows '-' in ASCII).
   {
-    const world = await db.collection("v2_patterns")
+    //      AND PAGED (WORLD_SAMPLE_PAGE), which the id range alone did not
+    //      make it: the range keeps this callable away from the ~10,900
+    //      city documents, but the world family itself was still read
+    //      entire — 233 MiB retained at the 2026-09-11 corpus, in the 256
+    //      MiB this function runs on, and growing with the corpus. What
+    //      is kept is one row per document, so a page can go as soon as
+    //      it has been read.
+    let world = db.collection("v2_patterns")
       .where(FieldPath.documentId(), ">=", "sample-")
       .where(FieldPath.documentId(), "<", "sample.")
-      .get();
+      .orderBy(FieldPath.documentId())
+      .limit(WORLD_SAMPLE_PAGE);
     const rows: { [k: string]: Plain } = {};
-    for (const snap of world.docs) {
-      if (!snap.exists) continue;
-      const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
-      if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
+    for (;;) {
+      const page = await world.get();
+      if (page.empty) break;
+      for (const snap of page.docs) {
+        if (!snap.exists) continue;
+        const all = (snap.get("rows") as Record<string, unknown> | undefined) ?? {};
+        if (uid in all) rows[snap.id.slice("sample-".length)] = toPlain(all[uid]);
+      }
+      if (page.size < WORLD_SAMPLE_PAGE) break;
+      world = world.startAfter(page.docs[page.size - 1]);
     }
     out.voterSamples = m.add(rows);
   }

@@ -72,6 +72,7 @@ const W = window as unknown as {
     liveOn(): boolean;
     reset(): void;
     answer(id: string, i: number, val: number): void;
+    record(q: { id: string; lens: string; qi: number; value?: number }): string | null;
     done(id: string): number;
     subscribe(fn: () => void): () => void;
   };
@@ -253,5 +254,64 @@ describe("the local purge drops the in-memory store (D50)", () => {
     } finally {
       unsub();
     }
+  });
+});
+
+// ── an EDIT in the feed reaches the on-device lens (D86) ────────────────
+//
+// `record` is the only call carrying the value, and it used to return
+// early on `seen`. `seen` is about WHICH lens a card belongs to; it was
+// being read as "already answered", so the second vote on a card — the
+// edit D86 made legal — moved the server's aggregate and the card's own
+// standing pick and left the instrument on this device holding the first
+// choice, permanently.
+describe("a lens answer edited in the feed", () => {
+  const anyLens = () => W.IS_LENSES[0];
+  // Read back off the STORE'S OWN persistence rather than through a
+  // getter: `get(id)` hands back the lens definition, and `score` folds a
+  // prior over the answers, so neither can tell "the edit landed" from
+  // "the edit was rounded away". This is the map record writes.
+  const stored = (lens: string): Record<string, number> => {
+    const raw = localStorage.getItem(LS_KEY);
+    const st = raw ? JSON.parse(raw) as { ans?: Record<string, Record<string, number>> } : {};
+    return (st.ans || {})[lens] || {};
+  };
+
+  it("moves the stored value rather than being swallowed by `seen`", () => {
+    W.LENSES.reset();
+    const l = anyLens();
+    const card = { id: `lensq:${l.id}:0`, lens: l.id, qi: 0 };
+    expect(W.LENSES.record({ ...card, value: 4 })).toBe(l.id);
+    expect(stored(l.id)[0]).toBe(4);
+    // The edit: same card, other end of the scale.
+    expect(
+      W.LENSES.record({ ...card, value: 0 }),
+      "the edit was swallowed — record returned null for a real change",
+    ).toBe(l.id);
+    expect(
+      stored(l.id)[0],
+      "the on-device lens kept the FIRST pick after an edit (D86)",
+    ).toBe(0);
+  });
+
+  it("re-picking the standing answer changes nothing and says so", () => {
+    W.LENSES.reset();
+    const l = anyLens();
+    const card = { id: `lensq:${l.id}:1`, lens: l.id, qi: 1 };
+    W.LENSES.record({ ...card, value: 3 });
+    expect(W.LENSES.record({ ...card, value: 3 })).toBeNull();
+    expect(stored(l.id)[1]).toBe(3);
+  });
+
+  it("the same question reached under another lens still belongs to the first", () => {
+    // `seen` earns its keep here: this is not an edit, it is one question
+    // arriving a second way, and the lens that took it keeps it.
+    W.LENSES.reset();
+    const [a, b] = W.IS_LENSES;
+    const id = `lensq:shared:0`;
+    expect(W.LENSES.record({ id, lens: a.id, qi: 0, value: 4 })).toBe(a.id);
+    expect(W.LENSES.record({ id, lens: b.id, qi: 0, value: 0 })).toBeNull();
+    expect(stored(a.id)[0]).toBe(4);
+    expect(stored(b.id)[0]).toBeUndefined();
   });
 });

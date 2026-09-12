@@ -149,6 +149,19 @@ await adb.doc("v2_patterns/sample-daily-000").set({
   },
   n: 2,
 });
+// A SECOND world sample, so the scrub's walk crosses more than one
+// document. The arm reads the `sample-` family by id range and PAGES it
+// (patternsSamples.WORLD_SAMPLE_PAGE) — with one document the loop
+// cannot tell a correct `startAfter` from a missing one, and the walk
+// that ships holds hundreds. This one carries only the erased account,
+// so a scrub that stops after the first document leaves a row here.
+await adb.doc("v2_patterns/sample-daily-001").set({
+  qid: "daily-001",
+  rows: {
+    [uid]: { o: 2, a: { city: "Oslo, NO" }, d: DAY, n: "Olaf", s: null, l: null },
+  },
+  n: 1,
+});
 // …and the per-city sample (DATA-EFFICIENCY-RUNBOOK 2.5), which the arm
 // reaches through the account's own answers rather than by listing the
 // collection. Its id is the server's `citySampleId` — pinned here as the
@@ -845,6 +858,14 @@ if (sampleAfter.get("rows")?.[OTHER]?.o !== 0)
 if (sampleAfter.get("n") !== 1)
   fail("the sample's basis did not follow the scrub: n is " + sampleAfter.get("n"));
 ok("the voter sample no longer names the erased account, and the other voter's row is intact");
+const secondAfter = await adb.doc("v2_patterns/sample-daily-001").get();
+if (!secondAfter.exists)
+  fail("the second world sample was deleted outright rather than scrubbed");
+if (secondAfter.get("rows")?.[uid] !== undefined)
+  fail("the scrub stopped at the first world sample — a row survived in the second (the paged walk)");
+if (secondAfter.get("n") !== 0)
+  fail("the second sample's basis did not follow the scrub: n is " + secondAfter.get("n"));
+ok("the scrub crossed both world samples, which is what the paged walk has to do");
 const citySampleAfter = await adb.doc(CITY_SAMPLE).get();
 if (!citySampleAfter.exists)
   fail("the per-city voter sample was deleted outright — it is everyone else's list");

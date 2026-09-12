@@ -1633,9 +1633,24 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
     }
     setBusy(false);
   };
+  // A FAILED TAP HAS TO SAY SO. This set `histAsked` and voided the read,
+  // and `loadRevealHistory` ANSWERS `"failed"` rather than throwing
+  // (live.ts) — so a refused read took the only affordance off the screen
+  // and reported nothing: the older rounds never arrived and the "⋯ older
+  // rounds" button was gone, with no way to ask again short of leaving the
+  // room. `LiveGroupsMirrorBody` reads the same answer correctly through
+  // `revealHistState`; this is that reading, at the tap.
+  //
+  // `busy` is not a failure — it means the history is in hand or already
+  // on its way, which is what the button was for.
+  const [histErr, setHistErr] = React.useState(false);
   const loadOlder = () => {
-    setHistAsked(true);
-    void S.loadRevealHistory(g.id);
+    setHistAsked(true); setHistErr(false);
+    void S.loadRevealHistory(g.id).then((r) => {
+      if (r !== "failed") return;
+      setHistAsked(false);   // the button comes back
+      setHistErr(true);
+    });
   };
 
   // Rounds WAITING for you: inside the lead, sealed by somebody else and
@@ -1731,6 +1746,11 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
       {!histAsked && past.length > 0 && (
         <button onClick={loadOlder} aria-label="Load older rounds"
           style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", color: "var(--ink-3)", fontSize: 12, fontWeight: 800, lineHeight: 1, WebkitAppearance: "none" }}>⋯ older rounds</button>
+      )}
+      {histErr && (
+        <div style={{ color: "var(--ink-3)", fontSize: 12, fontWeight: 600, lineHeight: 1.4 }}>
+          Couldn&rsquo;t read the older rounds. Tap to try again.
+        </div>
       )}
     </div>
   ) : null;

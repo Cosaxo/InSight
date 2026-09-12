@@ -1052,6 +1052,29 @@ const kbOf = (dir, re) => {
 const cssKb = kbOf(ASSETS, /\.css$/);
 const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
 
+// ZERO FONTS IS NOT A PASS. `kbOf` answers 0 on any read failure — its
+// catch was written for "a demo build may not emit either", and that is
+// true of CSS and false of fonts: `public/fonts` is committed, so every
+// build copies the faces into dist/ and a total of zero can only mean
+// this budget measured nothing. Measured 2026-09-12: with dist/fonts
+// moved aside the gate printed "0 KB fonts (max 96)" and exited 0, which
+// is a budget reporting success about a directory it could not find.
+//
+// The two sibling budgets in this file already refuse exactly this — the
+// render-blocking CSS one exits 1 when index.html links no stylesheet
+// ("the emit shape changed and this budget is measuring nothing"), and
+// the eager one exits 1 on a name with no file rather than counting it as
+// 0. This is that guard, for the third.
+if (fontKb === 0) {
+  console.error(
+    "check-bundle: dist/ contains no font files at all.\n"
+    + "public/fonts is committed, so every build copies them — a zero here\n"
+    + "means this budget is measuring nothing rather than that the bundle\n"
+    + "carries no faces. Check that the build ran and that dist/ is whole.",
+  );
+  process.exit(1);
+}
+
 // ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
 //
 // Markers, not a filename: the group is `prod-*.js` today, which is a

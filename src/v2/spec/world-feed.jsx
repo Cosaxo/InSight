@@ -3575,7 +3575,15 @@ class WorldFeed extends React.Component {
     // The imported binding, not the window surface — same reason
     // renderKnowInsight gives below, and check:globals rule 4 refuses new
     // coupling either way.
-    const live = LIVE.enabled;
+    //
+    // AND `demoInProd` WITH IT, because `enabled` alone answers the wrong
+    // question. It is false for two different reasons — a demo build, and
+    // a LIVE build whose boot has not attached yet — so on every cold
+    // start with a weak signal this took the demo arm and drew the rows
+    // the paragraph above refuses, at a real person. `renderEngage` in
+    // this same file already guards the pair correctly; this is that
+    // guard, here. Either half means "not the demo".
+    const live = LIVE.enabled || LIVE.demoInProd;
     const dim = live ? 'friends' : (WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends');
     const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
     const rate = LEARN_RATE(card);
@@ -3667,7 +3675,13 @@ class WorldFeed extends React.Component {
     // aggregate exists to rank. The imported LIVE, not the window surface:
     // a test driving this branch stubs the module the way
     // LiveCohortBody.test does, not through the window stand-in.
-    if (LIVE.enabled) return null;
+    // `demoInProd` with it: `enabled` is false both for a demo build and
+    // for a live build that has not attached, and only the first of those
+    // should see the demo arm. Without it, every cold start on a weak
+    // signal headlined an invented per-cohort rate at a real user for the
+    // length of the boot — the case this refusal exists for, reached the
+    // one way it was not checked.
+    if (LIVE.enabled || LIVE.demoInProd) return null;
     const card = LEARN.card(q.learn);
     if (!card) return null;
     const p = card.p;

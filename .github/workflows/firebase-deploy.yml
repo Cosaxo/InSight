@@ -267,6 +267,39 @@ jobs:
             echo "buy page config written (keys not printed)."
           fi
 
+      # THE FIVE GATES THAT GUARD WHAT THE NEXT STEP SHIPS. This workflow
+      # triggers on `web/**` and deploys hosting, and until now it ran
+      # none of them: they live in ci.yml alone, which on a push to main
+      # runs in PARALLEL with this job and gates nothing it does.
+      #
+      # The precedent is one gate over. `check:pricing` was moved onto
+      # this path with a comment recording exactly this race — "a push to
+      # main deployed the stale card while ci.yml went red beside it, in
+      # parallel, too late" — and `check:ask-pricing`, the gate on the
+      # price the PUBLIC door prints, stayed behind. The CSP one is the
+      # silent case: a stale hash ships a page whose own scripts are
+      # blocked, and nothing reports it.
+      #
+      # HERE rather than on `needs:`, deliberately. backend-checks.yml is
+      # shared with ci.yml and must stay backend-only, so that an
+      # emergency rules fix is never blocked by a client-only check
+      # (CLAUDE.md). These five read only committed files — no build, no
+      # secrets — and run in seconds. Placed after the rules and
+      # functions deploys and before hosting: a web-copy problem must not
+      # block an urgent rules deploy, and must not ship either.
+      #
+      # `check:catalog-art` is NOT here on purpose: it guards the pick
+      # tiles' images, which are app assets rather than hosting payload,
+      # and CLAUDE.md places it in ci only.
+      - name: Gate the hosting payload
+        run: |
+          set -o pipefail
+          npm run check:web-headers
+          npm run check:csp-hashes
+          npm run check:policy-claims
+          npm run check:public-copy
+          npm run check:ask-pricing
+
       - name: Deploy hosting
         id: hosting
         continue-on-error: true
