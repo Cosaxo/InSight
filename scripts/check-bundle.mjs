@@ -966,7 +966,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // are deferred, one file over, is the next change to this graph — its
 // own change, not a rider on a feature.
 //
-// AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D465), landing
+// AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D466), landing
 // the same evening from another branch and measured on the merge: the
 // catalogue's who-picked-what sheet costs 112 bytes here — 95 in
 // data/voters.ts, where the voter query stopped DROPPING catalogue
