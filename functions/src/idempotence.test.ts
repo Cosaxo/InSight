@@ -764,6 +764,40 @@ describe("the sharded lane: a daily answer never touches the published document"
       "the claimed country took a cell on the shard").toBeUndefined();
   });
 
+  it("and it lands honestly even when the create has NOT corrected the row yet", async () => {
+    // The case above seeds the answer row as the create's correction
+    // leaves it, so a re-read finds the honest set. This one is the state
+    // that re-read cannot help with, and it is reachable on this lane and
+    // only this lane.
+    //
+    // The unsharded lane proves its create has folded: `retargetCounts`
+    // refuses an edit whose create has not, `retry: true` redelivers, and
+    // the create writes its D410 correction in the SAME transaction as
+    // the count that proof reads. This lane deliberately has no such
+    // refusal — increments commute, which is why it can skip it — so
+    // Eventarc is free to deliver the edit first, and then the row still
+    // carries what the client wrote.
+    //
+    // So the row is seeded with the CLAIM here, not the correction: this
+    // is the document as the client left it, before any trigger touched
+    // it. The edit must still land in the author's real band, which it
+    // can only do by computing the correction itself.
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_users/u1/answers/${DAILY}`, { anchors: { ageBand: "55-64", country: "JP" } });
+    await deliverDailyEdit("evt-s6", 0, 1, { ageBand: "55-64", country: "JP" });
+    const by = store.get(SHARD)!.by as Doc;
+    expect(inc(((by.ageBand as Doc)["25-34"] as Doc)?.["1"], 1),
+      "the edit followed the uncorrected row into a band that is not the author's").toBe(true);
+    expect((by.ageBand as Doc)["55-64"],
+      "the claimed band took a cell on the shard").toBeUndefined();
+    expect((by.country as Doc).JP,
+      "the claimed country took a cell on the shard").toBeUndefined();
+    // …and the ledger with it, since the nightly passes read that.
+    const entry = store.get("v2_agg_events/evt-s6") as Doc;
+    expect(entry.anchors, "the ledger carried the claim onward")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
   it("the hot path is untouched for a question the daily bank does not name — the control", async () => {
     await deliver("evt-s4", vote);
     expect(store.get(AGG)?.total).toBe(1);

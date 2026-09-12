@@ -1420,6 +1420,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
     const answerRef = db.collection("v2_users").doc(event.params.uid).collection("answers").doc(qid);
+    // The author's profile — read by the SHARDED lane only, and the block
+    // there says why the unsharded one does not need it.
+    const profRef = db.collection("v2_users").doc(event.params.uid);
     let logged: LogRow | null = null;
     const sharded = isShardedQid(qid);
     await runAggTransaction(db, qid, async (tx) => {
@@ -1432,17 +1435,41 @@ export const onV2AnswerUpdated = onDocumentUpdated(
         // increments commute, so an edit folded first leaves a negative
         // cell the create's +1 cancels, whichever lands first.
         //
-        // THE ANCHORS ARE RE-READ HERE TOO, for the reason the unsharded
-        // lane below states at length: an event payload carries the cohort
-        // the author CLAIMED, and the create trigger's D410 correction is
-        // what makes it honest. This lane was written on the unsharded
-        // lane's older shape, where that payload read was the defect — so
-        // it is the same hole, on the daily lane, which is the one that
-        // shards. The answer joins the ledger read; the round trip is
-        // unchanged.
-        const [seen, live] = await tx.getAll(eventRef, answerRef);
+        // THE ANCHORS ARE CORRECTED HERE, not re-read and trusted — and
+        // that difference is this lane's alone.
+        //
+        // Re-reading the answer document is what the unsharded lane does,
+        // and there it is sound: `retargetCounts` below refuses an edit
+        // whose create has not folded, `retry: true` redelivers it, and
+        // the create's D410 correction is written in the SAME transaction
+        // as the count it proved. So by the time that lane reads the
+        // document, the honest set is on it.
+        //
+        // This lane has no such proof and deliberately never will —
+        // increments commute, which is the whole reason it can skip the
+        // refusal, and adding one back to buy ordering would cost the
+        // property the shard design exists for. But Eventarc orders
+        // nothing between a document's create and update deliveries (the
+        // unsharded lane's own comment says so), so an edit CAN fold
+        // first, and then the document still carries the claim: the
+        // create has not corrected it yet. Re-reading returns the lie.
+        //
+        // What that published: the create later folds +1 into the honest
+        // bucket while this edit has already moved -1/+1 through the
+        // CLAIMED one, `sumShards` prunes the negative, and the daily
+        // question — the one everyone answers, and the only kind that
+        // shards — ends up stating a cohort the profile does not carry.
+        //
+        // So the correction is computed here instead, from the author's
+        // profile, exactly as the create computes it. That is
+        // order-independent by construction: it does not matter which
+        // delivery lands first, because both arrive at the same answer.
+        // One more document in a getAll that already runs — no extra
+        // round trip, and the unsharded lane deliberately does not pay it.
+        const [seen, live, prof] = await tx.getAll(eventRef, answerRef, profRef);
         if (seen.exists) return;
-        const anchors = live.exists ? live.get("anchors") : after.get("anchors");
+        const claimedNow = live.exists ? live.get("anchors") : after.get("anchors");
+        const anchors = honestAnchors(claimedNow, prof.exists ? prof.get("anchors") : {});
         tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, anchors));
         logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors });
         tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: toIdx }), { merge: true });
