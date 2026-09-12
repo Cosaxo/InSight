@@ -252,7 +252,11 @@ export default function LiveFriendsOverlay({ onClose, back, onPerson }: {
             ))}
           </Group>
         )}
-        <Group label="Friends" n={L.friends.length}>
+        {/* THE COUNT ONLY WHEN IT IS ONE. `friends` is empty both for a
+            person with none and for a read that has not answered, so the
+            bare number said "Friends 0" over the failure banner. Group
+            draws the label alone when `n` is undefined. */}
+        <Group label="Friends" n={view && !view.followersKnown ? undefined : L.friends.length}>
           {L.friends.length
             ? L.friends.map((r) => (
               <FriendRow key={r.id} r={r} onOpen={open(r)} right={

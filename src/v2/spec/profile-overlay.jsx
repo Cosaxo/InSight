@@ -277,6 +277,13 @@ function ProfileOverlay({ onClose, me }) {
   const fv = fLive ? friendsView() : null;
   const fN = fv ? fv.friends.length : FRIENDS.count();
   const fReq = fv ? fv.requests.length : FRIENDS.requests().length;
+  // …and NO number at all until the followers read has answered. Live,
+  // `friends` is empty both when you have none and when the read has not
+  // come back (or failed) — see friendsView — so a door labelled "0
+  // friends" in the second case is the app stating something it has not
+  // looked at. The demo store always knows.
+  const fKnown = fv ? fv.followersKnown : true;
+  const fLabel = fKnown ? fN + ' friends' : 'Friends';
 
   const dlg = useDialog(onClose, 'Your profile');
   return (
@@ -296,7 +303,7 @@ function ProfileOverlay({ onClose, me }) {
             waiting on you. Both builds draw it — the demo plays its
             seeded store, live folds D101's rows. */}
         <button className="avatar-btn" onClick={() => NAV.openOverlay('friends')}
-          aria-label={fN + ' friends' + (fReq > 0 ? ', ' + fReq + ' pending' : '')} title={fN + ' friends'}
+          aria-label={fLabel + (fReq > 0 ? ', ' + fReq + ' pending' : '')} title={fLabel}
           style={{ position: 'relative', flexShrink: 0 }}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="9.5" cy="8.5" r="3.4" />

@@ -153,11 +153,21 @@ describe("live — data/friends.ts over D101's rows", () => {
 
   it("draws the four lists off the rows, names people, and offers no page for a live row", async () => {
     render(<LiveFriendsOverlay onClose={() => {}} onPerson={vi.fn()} />);
-    // What is in hand draws at once — the follow set is cached, so the two
-    // I follow are on screen as Invited before the followers read answers
-    // and sorts Bo into Friends. No "reading" line over rows.
-    expect(screen.queryByRole("status")).toBeNull();
+    // THE READING LINE FIRST, then the rows — and that order is the point.
+    // This used to assert the opposite: the follow set is cached, so the
+    // two I follow were on screen as "Invited · waiting for them to
+    // accept" before the followers read had answered. That is a claim
+    // about THEM, made out of a list that only says something about me,
+    // and Bo — who follows me back — was one of the people it was wrong
+    // about. Which of my follows are friends is not decidable until the
+    // followers read lands (friendsView), so until it does the overlay
+    // says it is reading, which it already had a line for.
+    expect(screen.getByRole("status").textContent).toMatch(/Reading your friends/);
+    expect(screen.queryByText(/waiting for them to accept/),
+      "somebody was called un-accepted before anything had been read").toBeNull();
     await screen.findByText("Cy Moen");
+    // …and once the rows are there the line is gone.
+    expect(screen.queryByRole("status")).toBeNull();
     expect(section("Requests")).toBeTruthy();
     expect(section("Invited")).toBeTruthy();
     expect(screen.getByText("Ada Byron")).toBeTruthy();
@@ -198,6 +208,22 @@ describe("live — data/friends.ts over D101's rows", () => {
     render(<LiveFriendsOverlay onClose={() => {}} />);
     await screen.findByText(/Couldn’t read who follows you/);
     expect(screen.queryByText(/No friends yet/)).toBeNull();
+    // …AND NAMES NOBODY UNDER A CLAIM IT CANNOT MAKE. Without the
+    // followers list, which of the people you follow follow you back is
+    // not decidable — so the fold used to call all of them "Invited",
+    // which this screen renders as "waiting for them to accept" beside a
+    // Cancel pill that unfollows for real. Bo follows me back in this
+    // fixture: naming Bo here is the app telling me my friend is not one,
+    // under the very banner saying it could not look.
+    expect(screen.queryByText("Invited", { selector: ".search-group" }),
+      "every person I follow was listed as invited under the failure banner").toBeNull();
+    expect(screen.queryByText(/waiting for them to accept/)).toBeNull();
+    expect(screen.queryByText("Bo Lind"), "a mutual friend was named as someone who has not accepted").toBeNull();
+    expect(screen.queryByText("Ada Byron")).toBeNull();
+    // …and states no count either: "Friends 0" over that banner is the
+    // same claim with the names taken out.
+    const head = Array.from(document.querySelectorAll(".search-group")).find((e) => (e.textContent || "").startsWith("Friends"));
+    expect((head && head.textContent) || "Friends", "the count was stated for a list nothing had read").toBe("Friends");
     GRAPH.fail = false;
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await screen.findByText("Bo Lind");
