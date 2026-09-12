@@ -9,6 +9,26 @@ is a draft awaiting the owner's adoption. It binds nothing until the owner
 flips the status — adoption is an explicit act, not a side effect of the
 text existing in this file.
 
+### Naming a new record
+
+**A new record takes a DATED id — `D-YYYY-MM-DDx`** — the letter
+distinguishing records made on the same day (`D-2026-09-12a`, `…b`, `…c`).
+Not the next integer. D-2026-09-09e is the decision and has the reasoning:
+`D` plus the next number is a global lock, several scheduled lanes branch
+against one `main`, and two that branch on the same morning both claim it —
+90 of 1,503 commits, one in seventeen, were spent renumbering a name that
+carries no meaning. Under dated ids a collision is one lane renaming one
+heading, with no cascade through its citations.
+
+**D1–D478 are history and are never renumbered.** They are cited by number
+in thousands of places across the tree and in every commit message that
+ever named one. 478 is the last number the sequence issues; `check:docs`
+fails on a record above it (`newlyNumberedRecords` in
+`scripts/decision-numbering.mjs`), because for three days after the scheme
+was adopted 48 of 59 new records took a number anyway — the integer is what
+478 records of precedent teach by example, so the gate is what makes the
+decision bind.
+
 ---
 
 ## D1 · Comments and "who voted" are circle-scoped only
@@ -54129,9 +54149,11 @@ pace with nulls).
 18. The privacy page needed no word: it never named a cadence for the
 test, and `check:policy-claims` agrees.
 
-## D479 · One command runs the gates, and it reads its own list out of CI
+## D-2026-09-12d · One command runs the gates, and it reads its own list out of CI
 
-**Decision (2026-09-12, from an architecture audit the owner asked for).**
+**Decided:** 2026-09-12 · **Status:** binding
+
+**Decision (from an architecture audit the owner asked for).**
 `npm run verify` runs what CI runs, locally. It carries no list of gates:
 `scripts/verify-plan.mjs` extracts the `run:` steps from `ci.yml` and
 `backend-checks.yml` and `scripts/verify.mjs` executes them in that order,
@@ -54186,9 +54208,11 @@ the shape of red that teaches people to ignore a gate.
 both native toolchains; this runs what a laptop can. It is a pre-push
 sweep, and the contract for a mergeable head (D299, D385) is unchanged.
 
-## D480 · Every Cloud Function was loading the Realtime Database client, and the boot graph now has a meter
+## D-2026-09-12e · Every Cloud Function was loading the Realtime Database client, and the boot graph now has a meter
 
-**Decision (2026-09-12, same audit).** The server's cold-start require
+**Decided:** 2026-09-12 · **Status:** binding
+
+**Decision (same audit).** The server's cold-start require
 graph is gated by `check:fn-boot`, and the 27 modules that took `logger`
 from the root `firebase-functions` barrel now take it from
 `firebase-functions/logger`.
@@ -54259,3 +54283,81 @@ package. The cause is also held source-side in
 `google-auth-library`'s 99 ms and `jose`'s 49 ms, both inside
 `firebase-admin`'s own graph and not this tree's to move. The ratchet is
 what makes that a recorded position rather than an unexamined one.
+
+## D-2026-09-12f · The dated-id scheme gets a gate, because for three days it was a preference
+
+**Decided:** 2026-09-12 · **Status:** binding
+
+`check:docs` now fails on a decision record that allocates a new NUMBER.
+`newlyNumberedRecords` (`scripts/decision-numbering.mjs`) is the rule,
+`LEGACY_MAX = 478` is the frozen boundary, and the two-character fix is in
+the failure message.
+
+**What this is not.** It is not a new scheme. D-2026-09-09e already made
+`D-YYYY-MM-DDx` the way a record is named, with the arithmetic: 90 of 1,503
+commits — one in seventeen — were spent renumbering an identifier that
+carries no meaning, because `D` plus the next integer is a global lock and
+several scheduled lanes branch against one `main`. That record called itself
+and the four above it "the first users of the scheme, which is also the
+end-to-end proof of it."
+
+**What happened next is the finding.** Counted 2026-09-12, three days later:
+of 59 records decided on or after 2026-09-09, **11 took a dated id and 48
+took a number** — D472 through D478 among them, written the same day as this
+record.
+
+**Why, and it is not carelessness.** Nothing in the tree made the adopted
+scheme the path of least resistance:
+
+- `docs/DECISIONS.md` opens with 478 numbered records. Precedent at that
+  volume teaches by example, and the example said "take the next integer".
+- CLAUDE.md's house rule said only *"record it in `docs/DECISIONS.md` with
+  the arithmetic"* — nothing about the id.
+- `scripts/decision-numbering.mjs`, the file a careful author actually opens
+  before touching a decision number, had a long header about managing
+  NUMBER collisions and did not mention that new records should not have
+  numbers at all.
+- Nothing failed. D-2026-09-09e's own new rule was duplicate-id detection,
+  which by construction only fires on a *dated* collision.
+
+So the decision was binding and unenforced, which is the same thing as a
+preference. **The session that wrote this rule is its own last data point:**
+it recorded two numbered decisions an hour earlier, while auditing this
+exact file, and found D-2026-09-09e only afterwards. Both are renamed to
+dated ids here — they are this record and the two above it, and the numbers
+479 and 480 were never merged under those names. (Written without the `D`
+prefix on purpose: `doc-index.mjs`'s citation matcher would otherwise read
+them as pointers to records that do not exist, and print a permanent note
+guessing that a branch is holding them or that a record was lost.)
+
+**The three places it is now said**, chosen because they are what a lane
+reads before writing a record: the file's own `### Naming a new record`
+section, CLAUDE.md's house-style bullet, and `docs/ORIENTATION.md`'s row —
+plus the gate, which is what makes the other three more than advice.
+
+**Frozen, not a ratchet.** `LEGACY_MAX` is a historical boundary, not a
+budget an improvement should move: everything up to D478 was named before
+the scheme changed. Numbers at or below it stay available, so restoring a
+genuinely lost record at its own number is still allowed. Raising it is a
+one-line diff somebody has to justify against D-2026-09-09e, which is
+exactly the friction wanted.
+
+**What is NOT done, and why the file stays one file.** The audit that
+produced this had proposed splitting `docs/DECISIONS.md` into one file per
+record, on the theory that the shared append point was the cost. Measured
+first: **569 anchored references** (`DECISIONS.md#dNNN-…`) across the docs
+tree, 43 of them internal, plus four real parsers (`doc-index.mjs`,
+`decision-numbering.mjs`, `console.mjs`, `state.mjs`) — and the file is not
+even in number order, so a split could not be proved lossless without
+either a shared manifest (the same global lock under another name) or
+reordering 54,000 lines. D-2026-09-09e had already removed the actual cost
+by changing the NAME rather than the container. The split would have been
+511 new files and 569 rewritten links to buy what a 20-line rule buys.
+
+**One adjacent hole closed.** `parseDecisions` skipped any `## ` heading not
+starting with `## D`, so a heading that mis-typed its id — `## 2026-09-13a ·
+…` with the D dropped, or `## D-2026-9-3a · …` with the month unpadded —
+matched nothing, failed nothing, and simply was not a record: no index row,
+no anchor, and no way to notice except to miss it later. A top-level heading
+that uses the record separator ` · ` is now held to the id shape. Preamble
+prose headings carry no ` · ` and are still skipped.

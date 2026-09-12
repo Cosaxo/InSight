@@ -83,7 +83,7 @@ import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "
 import { gatePlacement } from "./gate-placement.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { numberingProblems, orderOf, unclaimedNumbers } from "./decision-numbering.mjs";
+import { newlyNumberedRecords, numberingProblems, orderOf, unclaimedNumbers } from "./decision-numbering.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
@@ -153,7 +153,16 @@ function parseDecisions(src) {
   const lines = src.split("\n");
   const records = [];
   lines.forEach((line, i) => {
-    if (!line.startsWith("## D")) return;
+    // A top-level heading that uses the record separator ` · ` is CLAIMING to
+    // be a record, whether or not it starts with a parseable id — so it is
+    // held to the shape below. Without this second condition the guard was
+    // `startsWith("## D")` alone, and a heading that merely mis-typed its id
+    // (`## 2026-09-13a · …`, the D dropped; `## D-2026-9-3a · …`, a month
+    // unpadded) matched nothing, failed nothing, and simply was not a record:
+    // no index row, no anchor, and no way to notice but to miss it later.
+    // Prose headings in the preamble carry no ` · ` and are still skipped.
+    const claimsToBeRecord = line.startsWith("## D") || (line.startsWith("## ") && line.includes(" · "));
+    if (!claimsToBeRecord) return;
     const m = /^## (D\d+[a-z]?|D-\d{4}-\d{2}-\d{2}[a-z]?)(?: (amendment|adoption) \(([^)]+)\))? · (.+)$/.exec(line);
     if (!m) {
       fail(`${DECISIONS}:${i + 1} — heading not in a shape the index can parse: ${line}`);
@@ -345,6 +354,14 @@ if (write) {
 // module's header has the arithmetic, and why the citation half went the
 // same way one run after being written as a failure.
 for (const problem of numberingProblems(records)) fail(problem);
+// A NEW record must take a dated id (D-2026-09-09e). A failure rather
+// than a note, unlike the hole above, and for the opposite reason: a
+// hole is a fact about other open branches that this head cannot know,
+// while an id is entirely the author's choice at the moment of writing.
+// That module's header has the count — 48 of 59 records took a number
+// anyway in the three days after the scheme was adopted, two of them
+// written by the session that added this line.
+for (const problem of newlyNumberedRecords(records)) fail(problem);
 const unclaimed = unclaimedNumbers(records, citedFrom);
 if (unclaimed.length) {
   // A citer may be a DATED record, whose `num` is a sort key and not a

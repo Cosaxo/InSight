@@ -9,7 +9,14 @@
 // working.
 
 import { describe, it, expect } from "vitest";
-import { DATED_BASE, numberingProblems, orderOf, unclaimedNumbers } from "./decision-numbering.mjs";
+import { readFileSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  DATED_BASE, LEGACY_MAX, newlyNumberedRecords, numberingProblems, orderOf, unclaimedNumbers,
+} from "./decision-numbering.mjs";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const rec = (num, line, kind = "record") => ({ num, line, kind });
 const cited = (pairs) => new Map(pairs.map(([t, from]) => [t, new Set(from)]));
@@ -232,5 +239,75 @@ describe("orderOf", () => {
   it("still reads the historical suffixed numbers", () => {
     // D7a and friends exist; the suffix is not part of the number.
     expect(orderOf("D7a")).toBe(7);
+  });
+});
+
+describe("a NEW record must take a dated id (D-2026-09-09e)", () => {
+  const rec = (id, num, line) => ({ id, num, line, kind: "record" });
+
+  it("refuses a number above the frozen boundary", () => {
+    const out = newlyNumberedRecords([rec("D479", 479, 100)]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toContain("D479 allocates a new decision NUMBER");
+    expect(out[0]).toContain("D-YYYY-MM-DDx");
+  });
+
+  it("leaves the whole historical run alone", () => {
+    // D1-D478 are cited by number in thousands of places; renumbering them
+    // to buy consistency would be the largest possible instance of the churn
+    // the scheme exists to stop (D-2026-09-09e's own words).
+    const legacy = [1, 7, 299, 408, LEGACY_MAX].map((n) => rec(`D${n}`, n, n));
+    expect(newlyNumberedRecords(legacy)).toEqual([]);
+  });
+
+  it("is silent on dated records, which are the point", () => {
+    expect(newlyNumberedRecords([
+      { id: "D-2026-09-09a", num: orderOf("D-2026-09-09a"), line: 1, kind: "record" },
+      { id: "D-2026-09-12e", num: orderOf("D-2026-09-12e"), line: 2, kind: "record" },
+    ])).toEqual([]);
+  });
+
+  it("exempts an amendment, which carries its parent's number", () => {
+    // `## D385 amendment (2026-09-09)` must keep 385 or it stops naming
+    // D385. Exempt by `kind`, the same way numberingProblems exempts them —
+    // and a future amendment to a DATED record has a key above DATED_BASE,
+    // so it is out of range twice over.
+    expect(newlyNumberedRecords([
+      { id: "D479", num: 479, line: 5, kind: "amendment" },
+      { id: "D385", num: 385, line: 6, kind: "amendment" },
+    ])).toEqual([]);
+  });
+
+  it("keeps holes at or below the boundary fillable", () => {
+    // The rule bounds new ALLOCATION, not reuse: a genuine lost record can
+    // still be restored at its own number.
+    expect(newlyNumberedRecords([rec("D390", 390, 9)])).toEqual([]);
+  });
+
+  it("reports every offender, not just the first", () => {
+    const out = newlyNumberedRecords([rec("D479", 479, 1), rec("D480", 480, 2)]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("holds the live tree: no record above the boundary", () => {
+    // The live case, and the one with a long life. Counted 2026-09-12: 48 of
+    // the 59 records decided on or after 2026-09-09 had taken a number
+    // anyway, three days after the scheme was adopted. This is the line that
+    // notices the 49th.
+    const src = readFileSync(join(repoRoot, "docs/DECISIONS.md"), "utf8");
+    const offenders = src.split("\n")
+      .map((l, i) => [l, i + 1])
+      .map(([l, n]) => [/^## D(\d+)\s*·/.exec(l), n])
+      .filter(([m]) => m && Number(m[1]) > LEGACY_MAX)
+      .map(([m, n]) => `line ${n}: D${m[1]}`);
+    expect(offenders, "use a dated id — D-2026-09-09e").toEqual([]);
+  });
+
+  it("the boundary is the tree's actual high-water mark", () => {
+    // If LEGACY_MAX drifted below a real record, every citation of that
+    // record would start failing the gate; above it, the rule goes slack.
+    const src = readFileSync(join(repoRoot, "docs/DECISIONS.md"), "utf8");
+    const nums = [...src.matchAll(/^## D(\d+)\s*·/gm)].map((m) => Number(m[1]));
+    expect(Math.max(...nums)).toBe(LEGACY_MAX);
   });
 });

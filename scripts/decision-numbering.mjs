@@ -131,6 +131,67 @@ export function numberingProblems(records) {
  *  not to the numbered sequence D1-D449 (D-2026-09-09e). */
 export const DATED_BASE = 1_000_000;
 
+/** The last number the sequence ever issues. Above this a record takes a
+ *  dated id — see `newlyNumberedRecords`.
+ *
+ *  FROZEN, not a ratchet, and the difference is the point: this is a
+ *  historical boundary ("everything up to here was named before the scheme
+ *  changed"), not a budget that improvement should move. Raising it is a
+ *  one-line diff somebody has to justify against D-2026-09-09e, which is
+ *  exactly the friction wanted. Numbers at or below it stay available, so
+ *  filling a genuine hole is still allowed. */
+export const LEGACY_MAX = 478;
+
+/**
+ * Records that allocated a NEW number instead of a dated id.
+ *
+ * WHY THIS RULE EXISTS, and it is not hypothetical — it is this rule's own
+ * origin story. D-2026-09-09e made `D-YYYY-MM-DDx` the scheme on
+ * 2026-09-09, for a measured cost: 90 of 1,503 commits, one in seventeen,
+ * were spent renumbering an identifier that carries no meaning. It called
+ * itself and the four records above it "the first users of the scheme,
+ * which is also the end-to-end proof of it".
+ *
+ * Then the practice did not follow the decision. Counted 2026-09-12, three
+ * days later: of 59 records decided on or after 2026-09-09, **11 took a
+ * dated id and 48 took a number** — D472 through D478 among them, written
+ * the same day this rule was. Two of those 48 were written by the session
+ * that added this function, an hour before finding D-2026-09-09e existed.
+ *
+ * That is not carelessness, it is the default. `D` plus the next integer is
+ * what the file's own 478-record run teaches by example, CLAUDE.md's house
+ * rule said only "record it in docs/DECISIONS.md", and this module's
+ * header — the file you would actually read before touching a decision
+ * number — was entirely about managing NUMBER collisions. Nothing in the
+ * tree made the adopted scheme the easy path, so nobody took it, and a
+ * binding decision quietly stopped binding.
+ *
+ * A gate is the difference between a decision and a preference. It fails
+ * loudly with the two-character fix in the message, which is the cheapest
+ * moment to learn this.
+ *
+ * @param {{num:number, kind:string, line:number, id:string}[]} records
+ * @returns {string[]} problems, empty when every new record is dated.
+ */
+export function newlyNumberedRecords(records) {
+  // Amendments are exempt by construction, the same way numberingProblems
+  // exempts them: `## D385 amendment (2026-09-09)` carries its PARENT's
+  // number and claims nothing. An amendment to a legacy record must keep
+  // that record's number or it stops naming it.
+  return (records || [])
+    .filter((r) => r && r.kind === "record")
+    .filter((r) => r.num > LEGACY_MAX && r.num < DATED_BASE)
+    .map((r) => (
+      `docs/DECISIONS.md:${r.line} — ${r.id} allocates a new decision NUMBER.\n`
+      + `    D-2026-09-09e made dated ids the scheme: use D-YYYY-MM-DDx, the\n`
+      + `    letter distinguishing records made on one day. Two lanes can then\n`
+      + `    collide only by picking the same letter on the same date, which is a\n`
+      + `    one-line rename instead of a cascade through every citation.\n`
+      + `    D1-D${LEGACY_MAX} are history and are never renumbered; ${LEGACY_MAX} is the last\n`
+      + `    number the sequence issues.`
+    ));
+}
+
 /** A sort key that keeps D1-D449 in their own numeric run and files every
  *  dated record after them, chronologically, then by letter.
  *

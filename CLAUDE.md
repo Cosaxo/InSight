@@ -566,7 +566,15 @@ an emergency rules fix.
   found by running a probe instead of reasoning about it — XML that would
   not parse, an ESM export shape, a module evaluation order.
 - When you defer something, record it in `docs/DECISIONS.md` with the
-  arithmetic. A known limit is survivable; a surprise is not.
+  arithmetic. **A new record is named `D-YYYY-MM-DDx`, not the next
+  number** (D-2026-09-09e): the integer is a global lock and several
+  lanes branch against one `main`, so two that branch on one morning
+  both claim it — one commit in seventeen used to be renumbering.
+  D1–D478 stay as they are and 478 is the last number issued;
+  `check:docs` fails on a record above it, because the three days
+  after the scheme was adopted saw 48 of 59 new records take a number
+  anyway. A file with 478 numbered records teaches the number by
+  example, which is why this needs a gate and a sentence here. A known limit is survivable; a surprise is not.
 - **A deferral on privacy grounds is the one you may not take alone.**
   Record the arithmetic as above, then ask the owner rather than writing
   it down as settled — D334, and the privacy section has what to bring.

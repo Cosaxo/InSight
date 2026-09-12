@@ -113,7 +113,7 @@ own regex found sixteen.
 
 | Document | What it answers | Status |
 | --- | --- | --- |
-| [`DECISIONS.md`](DECISIONS.md) | Every binding decision, with the arithmetic that produced it. Binding until an explicitly recorded reversal | tree |
+| [`DECISIONS.md`](DECISIONS.md) | Every binding decision, with the arithmetic that produced it. Binding until an explicitly recorded reversal. A NEW record is named `D-YYYY-MM-DDx` and not the next integer (D-2026-09-09e); D1–D478 are history and 478 is the last number the sequence issues, which `check:docs` enforces. Its own § Naming a new record has the why | tree |
 | [`DECISIONS-INDEX.md`](DECISIONS-INDEX.md) | Generated index of the above — one line per record instead of the whole file | tree |
 | [`STATE.md`](STATE.md) | Generated — where the project is on one page: the two bills side by side, answers counted, what waits on a person, what is watching. Every figure read from the tree at generation time (`npm run build:state`) | tree |
 | [`MIRROR.md`](MIRROR.md) | The read path: which Mirror stop draws what, from where, and which parts are still prototype furniture | tree |
