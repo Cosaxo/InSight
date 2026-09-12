@@ -626,7 +626,15 @@ function CohortCompare({ scope, shortName }: {
 
   return (
     <LiveCompareLens
-      pop={{ basis: "cells", cellOf, minAnswers: NORM_MIN_ANSWERS, minItems: NORM_MIN_ITEMS }}
+      // `cellsState` is THIS stop's, and only this stop's: `cellOf` above
+      // reads `LIVE.aggFor`, which the constellation fills through
+      // `loadSimilarity`. The lens used to reach for this flag itself off
+      // the basis name, which gave it to Circle too — a stop that folds
+      // its own members and never calls that loader.
+      pop={{
+        basis: "cells", cellOf, minAnswers: NORM_MIN_ANSWERS, minItems: NORM_MIN_ITEMS,
+        cellsState: () => LIVE.testAggsState(),
+      }}
       whom={shortName}
       emptyThem={<>Nobody in {shortName} has answered a test card yet.</>}
     />

@@ -59,7 +59,12 @@ const LIVE = vi.hoisted(() => {
     // for both — empty by default, because every case below is about one
     // day and a seeded history would put dots under all of them.
     revealHistory: () => [] as Array<Record<string, unknown>>,
-    loadRevealHistory: async (gid: string) => { void gid; },
+    // ANSWERS, not throws: `RevealHistoryRead` is "ok" | "failed" | "busy"
+    // (live.ts), and the panel reads that word. The stub declared
+    // `Promise<void>`, which is why a case could not hand it a "failed"
+    // without tsc refusing the assignment — and why nothing here had ever
+    // tried, which is how the voided read stayed unnoticed.
+    loadRevealHistory: async (gid: string): Promise<"ok" | "failed" | "busy"> => { void gid; return "ok"; },
     // The create-or-join pair. Both take the display name as an OPTIONAL
     // third argument since D190 — the screen sends one only when it had to
     // ask, and the callable reads the profile otherwise.
@@ -1272,7 +1277,7 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     // REVEAL_HIST_CAP doc reads per circle per session, on the app's FIRST
     // screen. Anyone with three circles would pay for forty documents to
     // look at today's question.
-    const load = vi.fn(async (gid: string) => { void gid; });
+    const load = vi.fn(async (gid: string) => { void gid; return "ok" as const; });
     LIVE.social.loadRevealHistory = load;
     LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
     render(<LiveDuelPanel mode="duo" />);
@@ -1280,12 +1285,47 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
   });
 
   it("fetches them on the tap that asks for them", async () => {
-    const load = vi.fn(async (gid: string) => { void gid; });
+    const load = vi.fn(async (gid: string) => { void gid; return "ok" as const; });
     LIVE.social.loadRevealHistory = load;
     LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
     render(<LiveDuelPanel mode="duo" />);
     fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
     await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+  });
+
+  it("says a failed tap failed, and lets you ask again", async () => {
+    // `loadRevealHistory` ANSWERS "failed" rather than throwing, so a
+    // `void`ed call read as success: the tap set `histAsked`, the button
+    // disappeared, the rounds never arrived and nothing on screen said
+    // why. There was no way to ask again without leaving the room.
+    // LiveGroupsMirrorBody reads the same answer correctly; this is that
+    // reading, at the tap.
+    const load = vi.fn(async (gid: string) => { void gid; return "failed" as const; });
+    LIVE.social.loadRevealHistory = load;
+    LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
+    await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+    await waitFor(() => expect(screen.getByText(/Couldn.t read the older rounds/i)).toBeTruthy());
+    // …and the affordance is back, or "try again" is a sentence with no
+    // control under it.
+    expect(
+      screen.getByRole("button", { name: /Load older rounds/i }),
+      "the button stayed gone after a failed read — nothing left to tap",
+    ).toBeTruthy();
+  });
+
+  it("a busy answer is not a failure — the history is in hand or on its way", async () => {
+    // The other two answers `loadRevealHistory` gives. "busy" means the
+    // read is already done or already running, which is exactly what the
+    // button asked for, so it must not draw a failure.
+    const load = vi.fn(async (gid: string) => { void gid; return "busy" as const; });
+    LIVE.social.loadRevealHistory = load;
+    LIVE.social.revealFor = () => ({ qid: "duo-000", votes: { u_me: { optionIdx: 0 } }, names: { u_me: "Me" } });
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /Load older rounds/i }));
+    await waitFor(() => expect(load).toHaveBeenCalledWith("g1"));
+    expect(screen.queryByText(/Couldn.t read the older rounds/i)).toBeNull();
   });
 
   // Dates RELATIVE TO NOW, not literals. The labels are a claim about how

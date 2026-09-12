@@ -88,6 +88,29 @@ export type ComparePop =
     cellOf: (qid: string) => readonly number[] | null;
     minAnswers: number;
     minItems: number;
+    /**
+     * Whether THIS population's cells have arrived — asked at render, so
+     * a stop that is still fetching says so and a stop that failed says
+     * that instead of "nobody has answered".
+     *
+     * OPTIONAL, AND THE DEFAULT IS "ready", because the signal belongs to
+     * the population and not to the basis. It was read off the basis
+     * until now — `pop.basis === "cells" ? LIVE.testAggsState() : "ready"`
+     * — and `testAggsState` is a flag about `loadSimilarity()`, whose only
+     * call site is the constellation at the head of the City/Country/World
+     * stops. Circle is the SECOND stop and shares the basis but not the
+     * source: its cells are folded from `LIVE.circle()`, which it loads
+     * itself and whose loading and failure it draws before this lens can
+     * mount at all.
+     *
+     * So on Circle the borrowed flag was answering about a fetch this
+     * stop never starts: at its "loading" default — a reader who has not
+     * first opened a cohort stop — Compare said "Reading…" and kept
+     * saying it, and if that unrelated sweep had thrown it claimed a read
+     * had failed that was never attempted. A population that does its own
+     * loading upstream passes nothing and is ready by construction.
+     */
+    cellsState?: () => "loading" | "ready" | "failed";
   }
   | {
     basis: "people";
@@ -249,10 +272,12 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
   // It could persist, too: `loadSimilarity` sets `testAggsLoaded` inside
   // its try, so a throw left it false for the life of the mount.
   //
-  // `testAggsState()` keeps the three apart — and "failed" says so rather
-  // than saying "Reading…" forever, which is the trap this file's own
-  // effect comment above describes.
-  const cellsState = pop.basis === "cells" ? LIVE.testAggsState() : "ready";
+  // The population's own signal keeps the three apart — and "failed" says
+  // so rather than saying "Reading…" forever, which is the trap this
+  // file's own effect comment above describes. Absent means ready: see
+  // `cellsState` on ComparePop for why this is asked of the population
+  // rather than of the basis.
+  const cellsState = pop.basis === "cells" ? (pop.cellsState?.() ?? "ready") : "ready";
 
   if (!read.cards.length) {
     // FOUR emptinesses now, kept apart. Collapsing them would tell someone

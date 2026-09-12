@@ -51,6 +51,95 @@ async function switchTo(label) {
   ).toBe("true");
 }
 
+// ── an invite link lands on the screen that can act on it ──────────────
+//
+// A tapped invite stashes its code and nudges the daily tab. The daily
+// then chose a mode for a tapped reveal, for a circle notification and
+// for an in-app invitation — and not for this, the one case where the
+// room is not one this account is already in. So an invitee who got as
+// far as the daily tab stood on World with the code sitting unread in
+// session storage, and the panel that consumes it lives in Circle.
+//
+// ASSERTED ON THE BODY AND ON THE RULER, because the two disagreed. The
+// daily's mode lives in this component's state (which the body reads) and
+// in the shell's `dailyMode` (which both rulers read), and the four
+// consumers set state directly without telling the shell. The body moved
+// and the ruler did not.
+describe("a tapped invite link opens the screen that consumes it", () => {
+  it("lands on Circle with no tap, and leaves the code for the panel", async () => {
+    sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
+    const expectNoBoundary = mountApp();
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+    // The body: the demo's seeded groups, which only Circle draws.
+    expect(
+      screen.getAllByText("The Crew").length,
+      "the daily stayed on World with an invite code waiting — the join form is in Circle",
+    ).toBeGreaterThan(0);
+    // …and the ruler agrees with it.
+    expect(
+      within(dockRuler()).getByRole("tab", { name: "Circle" }).getAttribute("aria-selected"),
+      "the body moved to Circle and the ruler still says World — the two copies of the mode disagree",
+    ).toBe("true");
+    // PEEKED, not taken: the panel's own read is read-and-clear, so a
+    // daily that consumed it would navigate to a screen with nothing on
+    // it — the invite swallowed one step later than before.
+    expect(
+      sessionStorage.getItem("insight.pendingJoin"),
+      "the daily consumed the code on its way past",
+    ).toBe("ABCD2345");
+    expectNoBoundary("daily · circle via invite");
+    sessionStorage.removeItem("insight.pendingJoin");
+  });
+
+  it("lands ONCE — a reader who walks back to World is left there", async () => {
+    // THE BUG THIS CAUGHT IN ITS OWN REVIEW. `consumePending` runs on
+    // mount AND on every live-store change, and the peek deliberately does
+    // not clear — the panel it lands on is what consumes the code. Without
+    // a one-shot the two together drag the reader back: measured here, a
+    // user who walked from Circle to World was returned to Circle by the
+    // next tick, and in a demo build nothing ever reads the code, so that
+    // was forever.
+    // A DIFFERENT code from the case above, and that is part of the
+    // assertion: the one-shot is keyed by the code, not by "have we ever
+    // landed", so a second invite still takes the reader to the join
+    // form. Re-using the first code here would pass by not landing at
+    // all, which is the opposite of what this is about.
+    sessionStorage.setItem("insight.pendingJoin", "WXYZ7654");
+    const expectNoBoundary = mountApp();
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+    expect(
+      within(dockRuler()).getByRole("tab", { name: "Circle" }).getAttribute("aria-selected"),
+      "a second, different invite did not land — the one-shot is keyed too broadly",
+    ).toBe("true");
+
+    await switchTo("World");
+    await act(async () => {
+      window.dispatchEvent(new Event("insight-live-update"));
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    expect(
+      within(dockRuler()).getByRole("tab", { name: "World" }).getAttribute("aria-selected"),
+      "the unread invite dragged the reader back to Circle after they had left it",
+    ).toBe("true");
+    expectNoBoundary("daily · world after an invite landing");
+    sessionStorage.removeItem("insight.pendingJoin");
+  });
+
+  it("leaves the daily on World when no code is waiting", async () => {
+    // The control. Without it the case above passes on a daily that
+    // always opens on Circle.
+    sessionStorage.removeItem("insight.pendingJoin");
+    const expectNoBoundary = mountApp();
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+    expect(
+      within(dockRuler()).getByRole("tab", { name: "World" }).getAttribute("aria-selected"),
+      "the daily opened on Circle with nothing asking it to",
+    ).toBe("true");
+    expect(screen.queryAllByText("The Crew").length, "Circle's rail drew on the World stop").toBe(0);
+    expectNoBoundary("daily · world");
+  });
+});
+
 describe("the daily's Circle and 1v1 modes, in demo", () => {
   it("Circle draws the group rail and a revealed group verdict", async () => {
     const expectNoBoundary = mountApp();

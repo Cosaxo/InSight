@@ -116,6 +116,7 @@ import {
   type PatternsUserState,
 } from "./patternsFit";
 import {
+  CITY_SAMPLE_PAIRS_PER_NIGHT,
   PATTERNS_SAMPLE_CAP,
   PATTERNS_SEED_PER_RUN,
   citySampleAdditions,
@@ -406,6 +407,11 @@ export async function runPatternsFit(
   nowMs: number,
   eligible: ReadonlySet<string> = PATTERNS_QIDS,
   items: readonly ItemSpec[] = PATTERNS_ITEMS,
+  /** The per-RUN city-pair budget. Injectable for the same reason
+   * `eligible` and `items` are: the real bound is 30,000 pairs, and a
+   * test that had to build 30,001 of them would spend a minute of CI
+   * proving arithmetic. */
+  cityPairsPerRun: number = CITY_SAMPLE_PAIRS_PER_NIGHT,
 ): Promise<PatternsRunSummary> {
   const yesterday = utcDay(nowMs, -1);
   const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
@@ -466,6 +472,19 @@ export async function runPatternsFit(
   // to PATTERNS_CATCHUP_DAYS days in one invocation, and the bound exists
   // to cap what one invocation reads.
   let seedsLeft = PATTERNS_SEED_PER_RUN;
+  // AND THE CITY-PAIR BUDGET IS PER RUN TOO, for the identical reason —
+  // which it was not, three lines of reasoning above notwithstanding.
+  // `citySampleAdditions` takes CITY_SAMPLE_PAIRS_PER_NIGHT as a DEFAULT
+  // argument, and the call site is inside the day loop, so every owed day
+  // started the budget again.
+  //
+  // Measured: two owed days produced 60,000 city-sample reads and writes
+  // in one invocation, exactly 2× the constant. At PATTERNS_CATCHUP_DAYS
+  // that is ~210,000 each way — 7-14 minutes against a 480 s deadline,
+  // and the run that would hit it is the one that must not die, because
+  // nothing advances `lastDay` until the end. A pass that times out here
+  // re-owes the same days tomorrow and spends the same 7x again.
+  let cityPairsLeft = cityPairsPerRun;
   let seeded = 0;
   const today = utcDay(nowMs, 0);
   const touched = new Set<string>();
@@ -726,7 +745,8 @@ export async function runPatternsFit(
       // the corpus, this one by the product of two catalogues, and
       // holding every merged city document until the end is the memory
       // shape the pass is already short of.
-      const pairs = citySampleAdditions(adds);
+      const pairs = citySampleAdditions(adds, cityPairsLeft);
+      cityPairsLeft -= pairs.length;
       for (let i = 0; i < pairs.length; i += 300) {
         const chunk = pairs.slice(i, i + 300);
         const ids = chunk.map((p) => citySampleId(p.qid, p.city));

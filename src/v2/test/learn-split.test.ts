@@ -411,7 +411,16 @@ describe("the knows-best row is demo furniture (D89)", () => {
     expect(start, "renderKnowInsight moved — repoint this pin").toBeGreaterThan(-1);
     const beforeRanking = src.slice(start, src.indexOf("WF_CUTS", start));
     // The imported LIVE binding (D39 meter), not the window surface.
-    expect(beforeRanking).toMatch(/if \(LIVE\.enabled\) return null;/);
+    //
+    // AND `demoInProd` WITH IT. This pin read `if (LIVE.enabled)` and was
+    // green while the guard was wrong: `enabled` is false for a demo
+    // build AND for a live build whose boot has not attached (D356), so
+    // the refusal stepped aside on every cold start with a weak signal and
+    // the invented headline was drawn at a real person. A pin on the text
+    // cannot see which question the text asks — feed-know-demoinprod.test.jsx
+    // drives the method in all three states instead, and is what would
+    // catch this being narrowed again.
+    expect(beforeRanking).toMatch(/if \(LIVE\.enabled \|\| LIVE\.demoInProd\) return null;/);
   });
 });
 
@@ -521,7 +530,11 @@ describe("the who-knows-this cuts are demo furniture too (D133)", () => {
 
   it("forces the friends cut and hides the chips in live mode", () => {
     expect(start, "renderKnowStats moved — repoint this pin").toBeGreaterThan(-1);
-    expect(block).toMatch(/const live = LIVE\.enabled;/);
+    // `demoInProd` too, for the reason the D89 pin above now spells out:
+    // `enabled` alone is "is the store attached", not "is this the demo",
+    // and the three reads below it — the cut chips, the dim, the closing
+    // branch — all want the second question.
+    expect(block).toMatch(/const live = LIVE\.enabled \|\| LIVE\.demoInProd;/);
     // The dim is decided before anything ranks, so no live path can reach
     // WF_GRP at all — the rows are computed from `dim`.
     expect(block).toMatch(/const dim = live \? 'friends' :/);

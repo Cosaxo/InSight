@@ -1223,6 +1223,42 @@ describe("the voter samples the sweep publishes", () => {
     expect(again.citySamples).toBe(0);
   });
 
+  it("spends ONE city-pair budget across a catch-up, not one per owed day", async () => {
+    // The twin of the seed budget's rule, and it was not being kept.
+    // `citySampleAdditions` takes the night's budget as a DEFAULT
+    // argument and the call site sits inside the day loop, so each owed
+    // day started the 30,000 again — measured at exactly 2x on two days,
+    // which at PATTERNS_CATCHUP_DAYS is ~210,000 reads and as many writes
+    // inside one invocation with a 480 s deadline. The run that hits it
+    // is the one that must not die: nothing advances `lastDay` until the
+    // end, so a timeout here re-owes the same days tomorrow.
+    //
+    // Budget injected rather than built: proving this against the real
+    // 30,000 would mean 30,001 fixture pairs and a minute of CI to
+    // demonstrate arithmetic. Three is the same statement.
+    const day = (qid: string, city: string, uid: string) =>
+      ({ uid, qid, optionIdx: 0, anchors: { city } });
+    const { store, state } = memoryStore({
+      [twoBack]: [
+        day(CORE_A, "Oslo, NO", "u1"), day(CORE_A, "Bergen, NO", "u2"),
+        day(CORE_A, "Tromsø, NO", "u3"),
+      ],
+      [yesterday]: [
+        day(CORE_B, "Malmö, SE", "u4"), day(CORE_B, "Lund, SE", "u5"),
+        day(CORE_B, "Kiruna, SE", "u6"),
+      ],
+    });
+    const r = await runPatternsFit(store, NOW, undefined, undefined, 4);
+    // Three pairs on the first owed day, ONE left for the second. Per-day
+    // budgets would have written all six.
+    expect(r.citySamples, "each owed day spent its own city-pair budget").toBe(4);
+    expect(state.citySamples.size).toBe(4);
+    // …and the next run starts from a fresh budget, so nothing is lost —
+    // the pairs the bound deferred are met when their day comes round.
+    const fresh = await runPatternsFit(store, NOW, undefined, undefined, 4);
+    expect(fresh.citySamples, "a re-run of the same morning owes nothing").toBe(0);
+  });
+
   it("caps a sample at the newest two hundred", async () => {
     const rows: PatternsLedgerEntry[] = [];
     for (let i = 0; i < PATTERNS_SAMPLE_CAP + 25; i++) rows.push({ uid: `u${String(i).padStart(3, "0")}`, qid: CORE_A, optionIdx: i % 2 });

@@ -300,7 +300,13 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
         note: `${measured.pct} in 100 of the ${measured.people} people this session has scores for sit as far from average as you`,
       };
     }
-    if (LIVE.enabled) return null;
+    // `demoInProd` with `enabled`, because `enabled` alone answers "is the
+    // store attached", not "is this the demo" (D356). A live build whose
+    // boot has not landed has `enabled` false, and fell through to the
+    // guess below — an INVENTED rarity, printed on a real person's own
+    // result as a fact about them. The measured arm above cannot cover
+    // that window: it needs the session scores that have not arrived.
+    if (LIVE.enabled || LIVE.demoInProd) return null;
     const guess = IS_profileRarity(testKey, R.dims);
     return guess ? { ...guess, note: `${guess.label.toLowerCase()} sit as far from average as you` } : null;
   })();
@@ -328,7 +334,11 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   // empty list needs no branch downstream — SigEmblem already maps over it,
   // and an empty list maps to nothing.
   const sameType = (() => {
-    if (!arch || LIVE.enabled) return [];
+    // `demoInProd` too, and this is the sharper of the two: on a live
+    // build mid-boot this returned up to four of the demo's invented
+    // people as the reader's own same-type contacts, which is D1's "no
+    // seeded fake users, ever" drawn on a real account.
+    if (!arch || LIVE.enabled || LIVE.demoInProd) return [];
     const map = IS_FRIEND_TYPES[testKey] || {};
     const ppl = IS_DATA.people || [];
     return ppl.filter(p => map[p.id] === arch.list[you].name);

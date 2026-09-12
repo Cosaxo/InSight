@@ -52,3 +52,52 @@ export const LIVE_MARKERS = ["v2_meta", "v2_questions", "v2_attention"];
 export function missingLiveMarkers(js) {
   return LIVE_MARKERS.filter((m) => !js.includes(m));
 }
+
+// ── AND: WAS THIS BUNDLE BUILT AGAINST THE EMULATOR? ────────────────────
+//
+// The same question as above, pointed the other way, and it was asked of
+// the wrong thing in the same file for the same reason. check-web-firebase
+// refuses `VITE_USE_EMULATOR=true` by reading `process.env` — the
+// environment of the process running the CHECK, not of the one that ran the
+// BUILD — while its own header says that is not enough, and §2 already does
+// it properly for the four Firebase values and for VITE_V2_LIVE.
+//
+// The gap is not theoretical and does not need a mistake to reach. Vite
+// reads `.env`; `process.env` does not. `docs/LOCAL-TESTING.md` prescribes
+// `cp .env.emulator .env`, so a developer following the documented local
+// flow has a tree where every BUILD is an emulator build and every CHECK
+// sees nothing set. Measured 2026-09-12: with such a `.env`, a build put
+// `127.0.0.1` into the Firebase implementation chunk and
+// `connectFirestoreEmulator` into the SDK chunk, and the gate printed
+// "live config inlined into 140 chunk(s)" and exited 0.
+//
+// WHY THESE THREE. `useEmulator` is `import.meta.env.VITE_USE_EMULATOR ===
+// "true"`, a build-time replacement, so in an ordinary build it folds to
+// false and rolldown shakes out the whole block — taking the SDK's connect
+// functions and the host literal with it. Measured on a shipping build of
+// this tree: all three appear in ZERO chunks. In an emulator build they are
+// all present, because the branch survives and the imports are retained.
+//
+// The port numbers are NOT markers: `9099` turns up once in a shipping
+// bundle already, and a number that common cannot carry a refusal.
+export const EMULATOR_MARKERS = [
+  "connectFirestoreEmulator",
+  "connectAuthEmulator",
+  "127.0.0.1",
+];
+
+/**
+ * Which emulator markers ARE in this JavaScript. Empty means the bundle was
+ * not built against the emulator.
+ *
+ * ANY of them, not all — the opposite quantifier to `missingLiveMarkers`,
+ * and deliberately. There, the direction that must not happen is a demo
+ * bundle mistaken for the shipping one, so every marker has to be present
+ * before the build is believed. Here the direction that must not happen is
+ * an emulator bundle reaching a user's phone, where every SDK would be
+ * pointed at their own device — so one marker is enough to refuse, and a
+ * tree-shake that left only one behind still gets caught.
+ */
+export function emulatorMarkersIn(js) {
+  return EMULATOR_MARKERS.filter((m) => js.includes(m));
+}

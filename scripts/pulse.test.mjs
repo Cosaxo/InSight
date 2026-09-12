@@ -475,8 +475,21 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "such answer`. Before this the catalog branch read three — event, "
       + "question, private mirror, and no profile — so it matched the "
       + "charge by coincidence while missing the guard. It now reads four, "
-      + "which is exactly the +1 the constant already tolerates.",
-    ).toBe(13);
+      + "which is exactly the +1 the constant already tolerates.\n\n"
+      + "13 -> 14 on 2026-09-12: the RANK branch gained the same read, and "
+      + "it was the last create arm without one — the vote arm has had it "
+      + "since D410, the catalog arm since the entry above, and rank kept "
+      + "whatever cohort the client claimed on a world-readable answer row. "
+      + "TRIGGER_READS does NOT move for it either, and for the same reason "
+      + "the entry above gives: the model charges `world: 3` and its own "
+      + "comment says catalog and rank read one more than that, absorbed. "
+      + "Before this the rank branch read three — event, question, "
+      + "published aggregate — so it too matched the charge by coincidence "
+      + "while missing the guard. It now reads four, the +1 the constant "
+      + "already names for this branch by name. Both arms are now what the "
+      + "model always described, rather than cheaper than it by being "
+      + "wrong.",
+    ).toBe(14);
   });
 
   it("the velocity scan's own read is a paged query over the partial day, and the whole days come off the pass's reader", () => {
