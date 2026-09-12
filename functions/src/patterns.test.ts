@@ -145,6 +145,13 @@ function memoryStore(
     async putCitySamples(next) {
       for (const [id, d] of next) citySamples.set(id, clone(d));
     },
+    // What is published RIGHT NOW, before tonight's write — the real store
+    // reads it by id range. The fold uses it to rewrite a country that
+    // emptied out, so a fake that always answered nothing would hide
+    // exactly the case this exists for.
+    async listWorldMapIds() {
+      return [...worldMaps.keys()];
+    },
     async putWorldMaps(next) {
       // a set, not a merge — the run rebuilds each document whole
       worldMaps.clear();
@@ -1377,6 +1384,41 @@ describe("the whole-world map's positions (D462)", () => {
     expect(world.country).toBeUndefined();
     // nothing about a position reaches the loadings document itself
     expect(JSON.stringify(state.pub).includes(pad(0))).toBe(false);
+  });
+
+  it("a country that emptied out is rewritten, not left drawing last night's people", async () => {
+    // The build emits one document per country with somebody in it
+    // TONIGHT, and the write is a set per emitted id — so a country whose
+    // last placed account moved its chip, fell under the floor or deleted
+    // itself kept yesterday's document, and the lens drew those people as
+    // that country's crowd, stated as current, with no way to know better.
+    // The world's own document is rebuilt every night and could never go
+    // stale this way, which is why only the small ones were exposed.
+    const qids = [...PATTERNS_ITEM_QIDS].slice(0, WORLD_MAP_MIN_ANSWERS + 2);
+    const night = (country: string) => {
+      const rows: Array<{ uid: string; qid: string; optionIdx: number; anchors: { country: string } }> = [];
+      for (let i = 0; i < 12; i++) {
+        qids.forEach((qid, j) => {
+          rows.push({ uid: pad(i), qid, optionIdx: j === qids.length - 1 ? i % 2 : i % 2, anchors: { country } });
+        });
+      }
+      return rows;
+    };
+    const { store, state } = memoryStore({ [yesterday]: night("NO") });
+    await runPatternsFit(store, NOW);
+    expect(state.worldMaps.has(worldMapId("NO")), "the fixture never published Norway").toBe(true);
+    expect(state.worldMaps.get(worldMapId("NO"))!.n).toBeGreaterThan(0);
+
+    // …and the next night everybody is somewhere else.
+    const day2 = "2026-09-10";
+    const { store: s2, state: st2 } = memoryStore({ [day2]: night("SE") });
+    for (const [id, d] of state.worldMaps) st2.worldMaps.set(id, d);
+    await runPatternsFit(s2, new Date(Date.parse(`${day2}T00:00:00Z`) + 26 * 3600 * 1000));
+    const no = st2.worldMaps.get(worldMapId("NO"));
+    expect(no, "Norway's document vanished instead of being emptied").toBeTruthy();
+    expect(no!.n, "Norway still publishes people who are no longer in it").toBe(0);
+    expect(Object.keys(no!.rows), "the rows outlived the country's last member").toEqual([]);
+    expect(st2.worldMaps.get(worldMapId("SE"))!.n).toBeGreaterThan(0);
   });
 
   it("a night with nothing owed does not touch them", async () => {

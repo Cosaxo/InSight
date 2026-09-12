@@ -302,6 +302,11 @@ export interface PatternsStore {
    *  world's own, keyed by document id. A set, like the samples — the
    *  document is rebuilt whole every night. */
   putWorldMaps(docs: Map<string, WorldMapDoc>): Promise<void>;
+  /** Every world-map document id standing right now. Bounded by the
+   *  country catalogue plus the world's own, and read so that a country
+   *  which produced NOBODY tonight can be rewritten empty rather than left
+   *  drawing last night's people as current. */
+  listWorldMapIds(): Promise<string[]>;
   /** The newest PATTERNS_SAMPLE_CAP world answers to one question, as
    * sample additions — the who-voted sheet's own query, run once per
    * question ever, to seed its sample (D442). Up to the cap in billed
@@ -1057,6 +1062,24 @@ export async function runPatternsFit(
     });
   });
   const worldDocs = world.docs(yesterday);
+  // A COUNTRY THAT EMPTIED OUT IS STILL PUBLISHED. `docs()` emits one
+  // document per country with somebody in it tonight, and the write is a
+  // `set` per emitted id — so a country whose last placed account moved
+  // its chip, fell under the answer floor, or deleted itself keeps
+  // yesterday's document, and the lens draws those people as that
+  // country's crowd with no way to know better. The world's own document
+  // is rewritten every night and cannot go stale this way, which is why
+  // this was only ever true of the small ones.
+  //
+  // Rewritten EMPTY rather than deleted: the reader states "N of M" off
+  // this document, and a document that says nobody is here is a different
+  // thing from a document that is not there yet. Bounded by the country
+  // catalogue — one range query, ~245 documents at the very most, the
+  // same range the erasure arm walks.
+  for (const id of await store.listWorldMapIds()) {
+    if (worldDocs.has(id)) continue;
+    worldDocs.set(id, { id, rows: {}, n: 0, total: 0, day: yesterday });
+  }
   await store.putWorldMaps(worldDocs);
 
   await store.putModel(pub);
@@ -1274,6 +1297,17 @@ export function firestorePatternsStore(
         });
       }
       return out;
+    },
+    async listWorldMapIds() {
+      // The same id range `deleteAccount`'s world-map arm walks, and for
+      // the same reason it gives: the family is bounded by the country
+      // catalogue plus one ('.' follows '-'), so this is one query.
+      const snap = await db.collection("v2_patterns")
+        .where(FieldPath.documentId(), ">=", "people-")
+        .where(FieldPath.documentId(), "<", "people.")
+        .select()
+        .get();
+      return snap.docs.map((d) => d.id);
     },
     async putWorldMaps(docs) {
       // `v2_patterns/{docId}` again: signed-in reads, nobody writes — the
