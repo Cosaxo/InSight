@@ -930,11 +930,31 @@ function restorePending(uid: string): void {
     // count, once. An id inflight because an earlier run restored it is
     // in the set already and stays.
     if (aid in state.inflight && !restoredPending.has(aid)) continue;
+    // WHICH OPTION THE CROWD STILL HOLDS THIS DEVICE AT, read before the
+    // line below overwrites it. An edit records two facts and this mirror
+    // carried one: `editVote` sets `unaggregatedFrom` so `countsFor` can
+    // take the vote out of the option the published counts still have it
+    // in, and a restore that skipped it left the crowd holding the viewer
+    // at the old option while the card added its own +1 at the new one —
+    // the old option one high, the total one high, every share over a
+    // denominator that does not exist, which is the failure editVote's
+    // own comment names. `warmFromDisk` has just put the ACKED value in
+    // `state.votes`, so it is here to be read, for one more line.
+    //
+    // The `wasFolded` condition editVote applies is satisfied by the same
+    // test one boot later: a mark in `state.unaggregated` would mean the
+    // trigger has not folded the create, and at this point in the boot
+    // nothing has put one there but this loop.
+    const held = state.votes[aid];
     state.votes[aid] = p.v;
     state.inflight[aid] = true;
     if (!isDuelAid(aid)) {
       const n = Number(p.v);
+      const folded = !(aid in state.unaggregated);
       state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+      if (p.edit && folded && held !== undefined && held !== p.v) {
+        state.unaggregatedFrom[aid] = held;
+      }
     }
     restoredPending.add(aid);
   }
