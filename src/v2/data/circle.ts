@@ -82,7 +82,7 @@ export const FOLLOW_CAP = 50;
  * AND IT BOUND. This said "it cannot bind today — the core bank is ~130
  * questions" until the closing review of 2026-08-31 measured it against
  * the wrong bank. `core` is the Mirror's corpus; the query asks for
- * WORLD_ANSWER_SURFACES, six surfaces — 1250 answerable
+ * WORLD_ANSWER_SURFACES, six surfaces — 1280 answerable
  * questions across the committed banks against a cap of 300, no bank
  * growth required. Somebody who had worked through more than half of what
  * they could answer was read from the alphabetically-first slice of it.
