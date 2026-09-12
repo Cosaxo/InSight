@@ -4,9 +4,11 @@ import {
   WORLD_MAP_ID,
   WorldMapBuilder,
   positionModel,
+  positionTheta,
   roundPos,
   worldMapId,
 } from "./patternsWorld";
+import { ridgeTheta } from "./patternsAls";
 
 const person = (uid: string, n: number, country?: string) => ({ uid, x: 0.1, y: -0.2, n, ...(country ? { country } : {}) });
 
@@ -19,6 +21,41 @@ describe("the published position's rounding (D462)", () => {
     // the grid is coarse enough that two nearby people share a cell —
     // which is the point: a place on a picture, not a fingerprint
     expect(roundPos(0.4451)).toBe(roundPos(0.4487));
+  });
+});
+
+describe("the ridge a published position is solved under (D462)", () => {
+  // THE CROWD AND THE VIEWER ARE ONE PICTURE, so the two solves have to be
+  // one solve. The phone places the viewer and every sampled stranger with
+  // `ridgeSolve(obs, k, lambdaU)` — the published lambda on the diagonal
+  // as it stands. The fold placed the published crowd with
+  // `lambdaU * obs.length + 0.5`, a ridge that grows with the answer
+  // count, and the block's own comment says the dots and the viewer's dot
+  // "are in one space". They were not: on anisotropic evidence the two
+  // ridges point in different directions, not merely at different
+  // lengths, so normalising to the unit circle does not reconcile them.
+  const obs = [
+    { L: [1, 0], r: 1 },
+    { L: [1, 0], r: 1 },
+    { L: [0.2, 1], r: -1 },
+  ];
+  const unit = (v: readonly number[]) => {
+    const n = Math.hypot(...v);
+    return n > 0 ? v.map((x) => x / n) : [...v];
+  };
+
+  it("is the phone's ridge, raw — not one scaled by the observation count", () => {
+    const lambdaU = 0.5;
+    // what the device computes for the same evidence
+    const mine = unit(ridgeTheta(obs, 2, lambdaU));
+    expect(unit(positionTheta(obs, 2, lambdaU))).toEqual(mine);
+    // …and the scaled form this replaced is a DIFFERENT DIRECTION, which
+    // is what makes the agreement above worth pinning rather than obvious
+    const scaled = unit(ridgeTheta(obs, 2, lambdaU * obs.length + 0.5));
+    const cos = mine[0] * scaled[0] + mine[1] * scaled[1];
+    expect(Math.acos(Math.min(1, cos)) * 180 / Math.PI,
+      "the two ridges agree after all — this case cannot see the defect it is about")
+      .toBeGreaterThan(5);
   });
 });
 

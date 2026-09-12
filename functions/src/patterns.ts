@@ -138,7 +138,6 @@ import {
   alsScoreDay,
   anchorSpecsOf,
   observationsOf,
-  ridgeTheta,
   binRows,
   pickSpecsOf,
   candidateWon,
@@ -318,6 +317,7 @@ import {
   WORLD_MAP_MIN_ANSWERS,
   WorldMapBuilder,
   positionModel,
+  positionTheta,
   roundPos,
   type WorldMapDoc,
 } from "./patternsWorld";
@@ -1047,7 +1047,10 @@ export async function runPatternsFit(
       ...(st.p ? { p: st.p } : {}),
     }, posIndex);
     if (!obs.length) return;
-    const theta = ridgeTheta(obs, k, posLambda * obs.length + 0.5);
+    // The device's ridge, through the one function that owns the
+    // convention — see `positionTheta`, which says what the scaled form
+    // was and why the two solves have to agree.
+    const theta = positionTheta(obs, k, posLambda);
     let norm = 0;
     for (const x of theta) norm += x * x;
     norm = Math.sqrt(norm);
