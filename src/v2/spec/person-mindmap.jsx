@@ -783,6 +783,14 @@ function PersonMindMap({ p, following, centerName, still }) {
           cats={CATS}
           activeCat={activeCat}
           atHome={atHome}
+          /* THEIR name on the home crumb, because this is their map. The
+             trail's fallback is `You`, which is right on the Map tab and
+             a claim of ownership here — `atHome` even gives it the solid
+             `is-here` pill and `aria-current`, so the first control on a
+             read-only map of somebody else's answers announced itself as
+             the reader's own. The rest of the screen says whose it is
+             twice over (the header, the centre node). */
+          crumbs={[{ id: 'home', label: String(centerName || 'Them').split(' ')[0] }]}
           onPick={(id) => { if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); } else if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
           onHome={() => { if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); } else clearSel(); }}
         ></Chips>

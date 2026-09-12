@@ -12,8 +12,11 @@
 // takes. The rail owns none of the data: map-tab.jsx folds the matches
 // and hands the state down, so this file is still what it was, the
 // chrome along the top. person-mindmap.jsx renders the same row for
-// somebody else's map with neither a trail nor Find — it passes no
-// `onFind`, and the glass is drawn only when there is something to open.
+// somebody else's map with no Find — it passes no `onFind`, and the
+// glass is drawn only when there is something to open. It DOES pass a
+// trail, of one crumb carrying that person's name: the fallback below is
+// `You`, which is the truth on the Map tab and a claim about whose
+// answers these are anywhere else.
 import React from 'react';
 
 // InSight — Map tab: the branch chip row along the top.

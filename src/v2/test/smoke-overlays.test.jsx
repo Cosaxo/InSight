@@ -122,6 +122,64 @@ describe("the overlays with no button — opened through the nav registry", () =
     expectNoBoundary("person overlay");
   });
 
+  // THE LEGEND UNDER THE INTERESTS LADDER NAMES THE MARKS ABOVE IT — and
+  // for a day it named them backwards. The rows draw the reader in
+  // `var(--ink)` and the other person in their own hue; the legend was
+  // rewritten to a solid hue for *you* and a faded hue for *them*, so its
+  // "you" swatch was the exact colour every row uses for the OTHER person
+  // and its second swatch appeared in no row at all. A reader who
+  // consulted it read their interests as the other person's and back.
+  // Pinned through the shared `var(--ink)` literal, which is what ties
+  // the legend to the rows: recolour both and this still holds; invert
+  // one and it does not.
+  it("the Interests legend draws the same two colours its rows do", async () => {
+    const expectNoBoundary = mountApp();
+    const who = (IS_DATA.people || []).find((p) => p.name && !p.anon);
+    expect(who, "sample data has no named person to open").toBeTruthy();
+    await openVia("openPerson", who);
+    // The compare rail lays every slide out side by side, so the Interests
+    // card is in the DOM without a swipe.
+    const card = [...document.querySelectorAll(".cb-rail .card")]
+      .find((c) => (c.textContent || "").includes("shared ground"));
+    expect(card, "the person page drew no Interests slide, so this case pinned nothing").toBeTruthy();
+    const marks = [...card.querySelectorAll("span")].filter((n) => n.style && n.style.borderRadius === "50%");
+    expect(marks.length, "the slide drew no marks at all").toBeGreaterThan(2);
+    // the legend is the last pair — one per label, both always drawn
+    const legendThem = marks[marks.length - 1], legendYou = marks[marks.length - 2];
+    expect(legendYou.style.background, "the legend's \"you\" swatch is not the colour the rows give the reader").toBe("var(--ink)");
+    expect(legendThem.style.background, "the legend gave the reader and the other person the same swatch").not.toBe("var(--ink)");
+    // …and the rows really do use it: the reader's mark is the first of
+    // each pair, and at least one of them is filled in this fixture.
+    const rowMarks = marks.slice(0, -2).filter((_, i) => i % 2 === 0);
+    expect(rowMarks.some((m) => m.style.background === "var(--ink)"),
+      "no row drew the reader in the colour the legend claims for them").toBe(true);
+    expectNoBoundary("person overlay interests legend");
+  });
+
+  // THEIR MAP SAYS WHOSE IT IS. The chip rail's breadcrumb falls back to
+  // a crumb labelled "You" when the caller passes none — the truth on the
+  // Map tab, and a claim of ownership on a read-only map of somebody
+  // else's answers, where `atHome` also gives it the solid pill and
+  // `aria-current="location"`.
+  //
+  // PINNED AT THE CALL SITE, not on screen: the full mind map is a
+  // MEASURED body and jsdom gives it no size, so opening it here draws no
+  // rail at all (which is why the still map has a suite of its own). The
+  // regression this has to catch is the prop going missing, and that is
+  // exactly what this reads — the same shape as the render-guard case
+  // below, which checks app-shell's source for the same reason.
+  it("passes somebody else's name to their map's home crumb", () => {
+    const mm = readFileSync(resolve(cwd(), "src/v2/spec/person-mindmap.jsx"), "utf8");
+    const chips = /<Chips\b[\s\S]*?\/?>/.exec(mm);
+    expect(chips, "person-mindmap no longer renders the chip rail — this case is pinning nothing").toBeTruthy();
+    expect(chips[0], "the rail on somebody else's map takes the default trail, which is labelled You")
+      .toMatch(/crumbs=\{/);
+    expect(chips[0], "the home crumb is not drawn from the name of the person whose map it is")
+      .toMatch(/centerName/);
+    const rail = readFileSync(resolve(cwd(), "src/v2/spec/map-chiprow.jsx"), "utf8");
+    expect(rail, "the fallback this guards against is gone — re-read the case").toMatch(/label: 'You'/);
+  });
+
   it("opens a city's profile", async () => {
     const expectNoBoundary = mountApp();
     const city = (IS_DATA.cities || [])[0];
