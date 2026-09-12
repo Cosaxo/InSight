@@ -1084,8 +1084,26 @@ export const onV2AnswerCreated = onDocumentCreated(
         const canon = canonTopN(ent, CANON_TOP_N);
         // With the pick and the chips since D459 — the fit compacts the one
         // and the samples carry the other, exactly as on the vote arm.
-        tx.set(eventRef, ledgerEntry(event.params.uid, qid, undefined, undefined, snap.get("anchors"), key));
-        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
+        //
+        // `anchors`, NOT `snap.get("anchors")`, and the difference is the
+        // D410 guard with one arm missing. Three lines up this arm computes
+        // the honest set and rewrites the answer document with it; this
+        // entry took the raw CLAIM off the event payload, which the rewrite
+        // does not touch. The vote arm does the opposite under an explicit
+        // contract comment — "the ledger entry carries the anchors too, and
+        // the nightly passes read them — so it takes the honest set, not
+        // the claim" — and those readers are real: patternsSamples writes
+        // `a: add.anchors` onto the world-readable sample row and keys city
+        // pairs off `add.anchors?.city`, and patterns.ts builds D458's cube
+        // from every entry of the day. So a forged cohort on a catalogue
+        // pick was corrected on the answer and published through the
+        // samples anyway.
+        //
+        // The log row takes them for the same reason, and took NOTHING
+        // before: it omitted `anchors` entirely, so phase D's SQL folds saw
+        // null for every catalogue pick where a vote carries its cohort.
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid, undefined, undefined, anchors, key));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface"), anchors });
         // Bounded growth: `ent` is capped by catalogue validation (~1k
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB

@@ -578,6 +578,33 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
       .toEqual({ ageBand: "25-34", country: "NO" });
   });
 
+  it("and the catalog LEDGER carries the honest cohort, not the claim", async () => {
+    // The fold and the answer row were corrected at D410's sweep; the
+    // ledger entry beside them was not, and it is the one the nightly
+    // passes read. `patternsSamples` writes `a: add.anchors` onto the
+    // world-readable sample row and keys its city pairs off
+    // `add.anchors?.city`; `patterns.ts` builds D458's cube from every
+    // entry of the day. So a forged cohort was corrected where a reader
+    // could see it and published where a reader could not — which is the
+    // worse half.
+    //
+    // The vote arm has said so in a comment since it was written: "the
+    // ledger entry carries the anchors too, and the nightly passes read
+    // them — so it takes the honest set, not the claim." This is that
+    // sentence made true on the other arm.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("e-pick-ledger", {
+      surface: "daily", entity: 25,
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    const entry = store.get("v2_agg_events/e-pick-ledger") as Record<string, unknown>;
+    expect(entry, "no ledger entry was written at all").toBeTruthy();
+    expect(entry.anchors, "the ledger published the cohort the client invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
   it("writes nothing on the CATALOG arm when the claim is honest", async () => {
     store.clear();
     store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
