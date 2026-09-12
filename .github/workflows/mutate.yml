@@ -1,0 +1,83 @@
+# The nightly mutation lane — break the code on purpose, see if the tests
+# notice.
+#
+# WHY IT IS ITS OWN WORKFLOW AND NOT A GATE. Every `check:*` script runs on
+# every pull request; this one must not. It spawns a test runner per
+# mutant, so it costs minutes rather than seconds, and a survivor is a
+# finding to read rather than a reason to block a merge — the same
+# placement rule ci.yml applies to check:monitoring and the audit, one
+# level over.
+#
+# WHY IT EXISTS. 48 gates and ~5,100 tests, and until 2026-09-09 nothing in
+# the tree could answer the only question that matters about any of them:
+# do they FAIL when the code is wrong? A suite that runs, passes and
+# asserts nothing is indistinguishable from one that guards the invariant —
+# in CI, in coverage, and in review. `src/v2/README.md` and ORIENTATION §3
+# have both called src/v2/ui "one suite each, mutation-checked" for months;
+# check:panel-suites proves the first half by `existsSync`. This is the
+# second half, and its first real run found a live gap (typeMix's country
+# scope: flipping one `&&` to `||` widened "in your country" to the whole
+# world with the suite still green).
+#
+# The run is a SAMPLE, deliberately: a handful of mutants a night from a
+# rotating pool, seeded by the date so any survivor can be re-planted
+# exactly. A complete sweep of this tree would be tens of thousands of test
+# invocations and would tell you less — the value is the named survivor,
+# not a score.
+name: Mutation lane
+
+on:
+  schedule:
+    # 04:20 UTC, after the nightly fit and clear of the content lanes, so a
+    # red run here is never competing for a reader's attention with them.
+    - cron: "20 4 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Seed (default: today's date). Re-run a night's exact sample by pasting its seed."
+        required: false
+      count:
+        description: "How many mutants (default 5)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutate
+  cancel-in-progress: false
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    # Generous: each mutant is one vitest file run, and a KILLED verdict
+    # costs a full run of that file. Five mutants over the two largest
+    # suites is the realistic worst case.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # functions/ has its own lockfile and its own vitest — a mutant in
+      # functions/src runs its suite from that directory.
+      - run: npm ci --prefix functions
+      - name: Plan
+        run: node scripts/mutate.mjs --dry --seed "${{ inputs.seed || '' }}" --count "${{ inputs.count || 5 }}"
+      - name: Run
+        run: node scripts/mutate.mjs --seed "${{ inputs.seed || '' }}" --count "${{ inputs.count || 5 }}"
+      # The tree must come back exactly as it was checked out. The script
+      # restores each file in a `finally`, and this is the assertion that
+      # it did — a lane that writes defects into source has to prove it
+      # left none behind, in the run itself rather than in its own header.
+      - name: The tree is unchanged
+        if: always()
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::mutate left the working tree modified — a mutant was not restored."
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "working tree clean"

@@ -49520,7 +49520,6 @@ Two gates cannot pass from here and neither is the composition's:
 `check:web-firebase` needs the release secrets and runs only on the
 release workflows; `check:store-copy` fails identically on `origin/main`,
 on the Play signing SHA-256 placeholder that is the owner's to fill.
-
 ## D450 · The 2026-09-11 night review: two shifts merged as one tree — 63 commits kept, thirteen files touched by both, and the first night the merge had something to stop on
 
 **2026-09-11.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
@@ -51317,7 +51316,6 @@ after first paint. Deferring it as D122's handles and invitations are
 deferred, one file over, is the next change to that graph — its own
 change, not a rider on a feature.
 
-
 ## D465 · The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads
 
 **Found and fixed 2026-09-11**, from the owner's question about their own
@@ -52329,6 +52327,648 @@ on `main` and for reasons outside the tree: `check:web-firebase` wants
 the release `VITE_FIREBASE_*` secrets, and `check:store-copy` wants the
 Play signing SHA-256, which is a placeholder because Play is deferred
 (D42). Both were run against a `main` worktree to confirm it.
+
+## D471 · The hard stop: the budget's function detaches billing at three budgets — the owner's ceiling of 1,500 NOK — and the phone rings only for money
+
+**Decided by the owner and built 2026-09-12.** The ask, the morning
+after a night of failing runs: *"I find it a bit hard working with
+firebase cause one function beeing setup wrong or something might ruin
+me as the cost can be unlimeted … i was scared that might cause massive
+cost."* The answer put to the owner was that nothing in the project
+turned the money off, that Google offers no spend limit, and that the one
+true ceiling — the budget's own notification calling
+`projects.updateBillingInfo` with an empty billing account — was one
+branch and one IAM role away from built, waiting on `OWNER-LIST.md` for a
+threshold. The ruling: *"yeah i want a celling on 1500nok as that should
+in theory not be issue for a long time unless something goes wrong and
+will make me alot calmer"* — and, on the second half of the same answer,
+*"add this as well: let the phone ring only for money."*
+
+### What was true before
+
+- The Cloud Billing budget mailed at 50/90/100/150 % of 500 NOK (D332).
+- The read breaker set itself at 100 % (`functions/src/budget.ts`, C4,
+  built 2026-09-09) — deployed, and hearing nothing until the owner's
+  console click attaches the topic, still unticked.
+- The hard stop was **recorded as available and not built**, from D7's
+  control note through `COSTS.md` § control 1 to `COST-EXPOSURE.md` §8.3,
+  on one line of reasoning: *for an app whose worst modelled month is a
+  few dollars, an outage is the more expensive failure.* That reasoning
+  priced the outage and not the fear. The owner's fear is the invoice,
+  and a ceiling is the only thing that answers it when the model is
+  wrong — which `COSTS.md` itself says is the case that matters: the
+  page has been corrected four times, every time for a missing term, and
+  *"a fifth one exists and the model is not the thing that will catch
+  it."* A cap holds when the assumption is wrong. A bound does not.
+- What the night had actually cost was **nothing**: the sixty-eight
+  failed runs were GitHub refusing to read `firebase-deploy.yml` after
+  #498 put an empty expression, `${{ }}`, in a shell comment; zero jobs
+  ran, nothing reached Firebase, and the real consequence was the
+  opposite one — production has not deployed since #486 (18:01 UTC,
+  2026-09-11). #504 fixes the comment and #502 gates the next one.
+  Recorded here because it is the shape the owner will meet again: a
+  run that fails cannot spend, and the two mails that mean money are the
+  budget's and the runaway alert's.
+
+### The arithmetic the owner ruled on
+
+- **Three budgets, not an amount.** `BUDGET_DETACH_AT = 3.0` — 1,500
+  NOK on the 500 NOK the tree arms. A multiple rather than a figure so a
+  retuned budget moves the ceiling with it, the same one-figure
+  discipline D332 imposed between the budget and the pulse guard; and a
+  ratio off the notification itself (`costAmount / budgetAmount`) so it
+  needs no threshold rule on the budget and no currency.
+- **Nothing legitimate reaches it for a long time.** August's invoice
+  was kr10.74. The model's bill at 5,000 daily users is about $13 a
+  month (`COST-EXPOSURE.md` §8.1), and the 500 NOK budget trips at
+  roughly 12,000 daily users (§3.D) — so 1,500 NOK is on the order of
+  36,000 daily users of legitimate traffic, three times the
+  write-contention wall D7 records at ~14,400, past which both figures
+  are retuned as a matter of course. Reaching the line before then means
+  something is wrong, which is the right meaning for a ceiling.
+- **What the worst invoice becomes.** The line plus the lag: Cloud
+  Billing's data trails spend by hours and the budget publishes every
+  twenty to thirty minutes. At the App-Check-bounded burn rates of §3.A —
+  500 reads a second is $13 a day, 10,000 a second $259 — a six-hour lag
+  adds a few dollars to tens of dollars. Estimates, not measurements;
+  the order of magnitude is the point: hundreds of kroner past the line,
+  never the four-figure invoice the old table described.
+- **What it costs.** When it fires the app is down until the account is
+  re-attached by hand, an outage the owner chose over an invoice. Google
+  warns that disabling billing stops billable activity and can leave the
+  application not functioning; the exact wording could not be fetched
+  from this sandbox (the docs host is blocked), which is one more reason
+  the Backups dispatch on `OWNER-LIST.md` should be clicked first.
+
+### What was built
+
+**The detach** (`functions/src/budget.ts`): one more branch of
+`budgetDecision`, taken when the ratio reaches the line, ahead of every
+softer branch. Production's `BillingPort` is `google-auth-library` as the
+functions' own runtime account, one `PUT` to
+`cloudbilling.googleapis.com/v1/projects/{id}/billingInfo` with
+`billingAccountName: ""`; the emulator's port is inert and says so, so a
+local test publish can never detach production through a developer's
+credentials.
+
+**The latch, and why the ceiling ratchets rather than repeats.** A
+detach stops the functions with everything else, so nothing runs again
+until the owner re-attaches the account — and the next notification,
+twenty minutes later, still shows a month over the line. Detaching again
+would take the app down every half hour until the month ends, an
+un-restorable app rather than a ceiling. So the function writes the
+detach to `v2_meta/app` first (`billingDetachedRatio`,
+`billingDetachedInterval`, the reason and the time), and the line for
+the rest of that month is that ratio plus one more multiple: a re-attach
+is the owner's deliberate act and buys another 1,500 NOK of room, never
+unlimited room. A new cost interval starts the count over; the release
+clears the latch; `scripts/budget-mode.mjs --status` prints it, and there
+is deliberately no flag to clear it, because a cleared latch with the
+month still over the line re-detaches within half an hour of the
+re-attach.
+
+**The order of operations**, each step a failure somebody lives with:
+the latch is written BEFORE the API call, because a write after it may
+never land and the re-attach trap would be armed; a write that fails
+does not stop the detach, because the ceiling outranks the bookkeeping;
+an API call that fails — a missing role, most likely — clears the latch
+it wrote and logs the remedy at ERROR naming the account and the role,
+so the next notification tries again rather than believing the account
+is gone. Pinned in `budget.test.ts`, every branch.
+
+**The mail from outside.** `scripts/apply-budget.mjs` arms a fifth
+threshold rule at the detach line, read off the function's constant by
+regex the way `cost-arith.mjs` reads the region off `db.ts`, so Cloud
+Billing's own 300 % mail says the app was taken down — from outside the
+project the detach silences, which a Cloud Monitoring page after the
+detach cannot be relied on to be. Getting that rule onto the live budget
+found a second thing: the retune's `updateMask` always carried
+`notificationsRule`, and the Budgets API demands
+`pubsub.topics.setIamPolicy` of the caller whenever a topic is in the
+request (measured 2026-09-10, run 34477868495) — so every later retune,
+this one included, would have failed with the topic's 403 from the
+deploy credential even after the console click attached it. The mask now
+carries only the fields that differ, and the 403 text names the topic
+click only when the request named the topic.
+
+**The reading.** A grant nobody can see is a control that stays undone
+(D300, twice), and the one test of this grant is the one nobody can
+run. So `scripts/observe.mjs` gained a `hardStop` probe: the project's
+IAM policy read for `roles/billing.projectManager`, joined with the
+account `onBudgetAlert` actually runs as (read off the function, never
+typed), printed as `ARMED`, `NOT ARMED` with the exact `gcloud` line, or
+*not deployed* — three states kept apart, because "not armed" over an
+undeployed function would send the operator to IAM for nothing.
+
+**The policy.** `monitoring/onBudgetAlert-acted.json`: three conditions,
+one policy — the breaker set (`budget_mode_set` at level 1), the detach
+being made (`budget_billing_detach`, written before the API call because
+after it the line may be the first thing the detach silences), and the
+detach refused (`budget_detach_failed`). `check:monitoring` holds the
+chain at eleven policies and eleven metrics.
+
+**The phone.** `scripts/apply-monitoring.mjs --sms +47…` creates an SMS
+channel and attaches it to the MONEY policies alone — the two Firestore
+runaways and this one — at creation, and by one masked PATCH onto the
+two that were armed at D303 before the phone existed. Cloud Monitoring
+creates an SMS channel unverified and it pages nobody until the code
+Google texts comes back, so the apply that creates it asks for the code
+and `--sms-code` on the next dispatch verifies; `monitoring.yml` carries
+both as inputs, through the environment. A crashing trigger at 3 am
+stays an email. The other half of *"only for money"* is the owner's own
+GitHub notification setting — Actions email off — because every one of
+the night's sixty-eight mails was that, and it is on `OWNER-LIST.md`
+with the reason.
+
+### What the owner still holds, and in what order
+
+1. Merge #504 first, or nothing here deploys: the workflow file is
+   unreadable on `main` until it does.
+2. The topic click (the standing row) — the breaker and the detach both
+   hear nothing until the budget publishes.
+3. **The grant** (`LAUNCH-RUNBOOK.md` 5.18): `roles/billing.projectManager`
+   on the project to the functions' runtime service account. Until it is
+   there the function logs `budget_detach_failed` on every notification
+   past the line and the ceiling is a mail. Never proved with a publish.
+4. *Arm budget*, dry then `apply`, for the 300 % mail.
+5. *Arm monitoring* with `sms`, then again with `sms_code`.
+6. Backups, `apply` on — before the first day the detach could fire.
+
+### Verified, and not
+
+Verified: 17 cases on the function (every branch of the decision and the
+order of operations), 19 on `apply-budget.mjs` (the line pinned to the
+function, the mask), 24 on `apply-monitoring.mjs` (the channel, the
+code, the verify, the PATCH, the split), four on the observer's
+`hardStop` reading; `check:monitoring` at 11/11; `check:figures` with
+the five counts moved; the functions typecheck and build. Not verified,
+and not verifiable without an outage: a live detach. The first real one
+will be the test, and 5.18 says how to read the grant without making
+one.
+
+Supersedes the *"recorded as available, not built"* line in `COSTS.md`
+§ control 1 and the owner row it pointed at; amends nothing about D332's
+breaker, which stands as the first line the same wire crosses.
+
+## D-2026-09-09a · The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+`CLAUDE.md`'s opening says what is distinctive about this app: *"answering
+BLIND — committing before the crowd can anchor you."* The enforcement was
+one ternary. `daily-split.jsx:845` reads `revealed = voted || !blind`, and
+for the whole life of `live.ts` the boot read `refreshAggs(state.deckIds)`
+— the **whole deck**, seven documents — inside `hydrate()`. So every count
+the card was hiding was in the store, in memory, and on the wire before the
+first card painted. Devtools, a proxy, or thirty lines of patched client
+recovered it. The product's one distinctive claim was a render decision.
+
+**The change is one filter.** `readableDeckIds` admits a deck id only if
+this device has already answered it, and it sits in both places the deck is
+read: the boot read and the 60-second poll body. An unanswered question's
+crowd is not on the device, so there is nothing to reveal early.
+
+**It is also cheaper, which is worth stating because honesty fixes usually
+run the other way.** A cold boot for a new account reads **0** aggregates
+instead of 7, and a card the reader skips costs nothing at all. The counts
+a reader is entitled to still arrive: `scheduleAggRefresh` re-reads on the
+vote's ack, on both write paths, and that read has always been the one that
+puts the number on screen.
+
+**What the reader sees between the vote and that read** is not blank and
+does not claim an empty crowd. `noCountsYet` (`deck.ts` `hasPublishedCounts`)
+already distinguishes *the aggregate has not landed* from *the aggregate
+says nobody*, and `daily-split` already draws **"You're first — the count
+lands in a moment."** for exactly this state. The flag existed for the
+first-vote case; this widens the window it covers rather than adding a
+state.
+
+**What it does NOT change.** The feed never bulk-prefetched, so it was
+already blind; the Mirror's score profiles and the learn stack read their
+own aggregates on their own paths and are untouched; the 6-hourly answered
+top-up (`insight.aggCheck.v1`) was already answered-only.
+
+**What was reversed to do it.** D129 replaced seven `onSnapshot` listeners
+with one boot read, and its case in `idle-detach.test.ts` said *"so a card
+renders with real numbers on first paint"*. That sentence was true and it
+was the leak, written down as a requirement. The case now pins the opposite
+and names why.
+
+**Pinned, and mutation-checked.** Three cases across two files
+(`idle-detach.test.ts`, `vote.test.ts`) — the refusal on an unanswered
+deck, the refusal in the timer body, and the admission of an answered
+question. Deleting the filter fails all three. `_deliverAggsForTest` was
+added so the cache-coalescing cases can receive an aggregate without
+borrowing the poll: borrowing a filtered tick would have made them assert
+the filter and go vacuous on a filter change.
+
+**One tripwire moved with it.** `scripts/pulse.test.mjs` matched the poll
+body as the literal `refreshAggs(state.deckIds.slice(0, 1))` and went red
+on a change that makes the app cheaper — the shape that gets a tripwire
+deleted rather than fixed. It now matches the **slice**, which is what the
+cost model actually depends on, and names the filter separately.
+
+**One test-file leak closed on the way.** `takes.test.ts` had no
+`_teardownForTest()` in its `afterEach`, so the previous case's store kept
+running into the next one's fresh module registry; with the boot read gone
+the timing shifted enough for its dynamic `import("./circle")` to resolve
+outside the mocked registry and take the REAL `collection()`. Both cases
+passed in isolation, which is that class's signature.
+
+## D-2026-09-09b · The Patterns tab waits on the fit's own skill, not only on the answer counts
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+D265 mounts the Patterns tab on two numbers: questions the fit published
+at a worthwhile basis, and the viewer's own answers among them. **Both
+count DATA. The tab does not draw data; it draws a MODEL of it**, and the
+two can diverge.
+
+They do. `docs/ALGORITHM-REFLECTION.md` §1.2 is this project's own
+measurement of the shipped fit: one-step-ahead surprisal **equal to a
+marginal-only guess to three decimals**, and **113 of 113** loading vectors
+still within cosine 0.9 of the hash seed they were born as. A corpus that
+satisfies D265's counts on that model opens a Map that is a drawing of
+`seedLoading` — and the People lens places **real, named strangers** on it
+(`peopleMap.ts` positions every dot by a ridge solve over these loadings).
+Its agreement rows are counted straight off shared answers and are exactly
+true; the POSITIONS would not be. One picture, one visual vocabulary, one
+true half and one invented half. That is the failure D265's gate is for,
+one level deeper than D265 could see.
+
+**The instrument already existed and simply never reached the gate.** D394
+publishes `skill = 1 − bits/baselineBits` — the share of a marginal-only
+guess's surprisal the vectors remove, 0 for a fit that has learned nothing.
+It lives on `v2_patterns/loadings`, which is ~11 KB and is exactly the read
+the mount decision cannot afford (the whole argument for putting the gate's
+numbers on `v2_meta/app`). `patternsFit.sustainedSkill` reduces the
+published quality series to one scalar that document can carry.
+
+**Sustained, not newest.** The crossing is LATCHED — `patternsEarned`
+writes it down and never takes the tab away again — so one lucky night must
+not open it permanently. `sustainedSkill` returns the **worst** skill across
+the last `PATTERNS_SKILL_DAYS` (3) days that scored at least
+`PATTERNS_SKILL_MIN_N` (30) observations. A thin day is **skipped, not
+failed**: a quiet Sunday is an absence of evidence about the model, not
+evidence against it. Rows published before 2026-09-06 carry no
+`baselineBits` and are skipped rather than read as skill 0 — back-filling a
+number the run never computed is the invented figure that field's own note
+refuses. This is D395's fortnight streak for promoting a candidate engine,
+one feature over.
+
+**`PATTERNS_MIN_SKILL = 0.01`, and what it is a floor on.** It is a floor on
+*has learned anything at all*, not on *is good* — deliberately the smallest
+number that is not zero at the published precision, because the claim being
+gated is that the vectors carry something the question's popularity did not,
+and the honest threshold for that claim is any measurable amount. Raising it
+makes the tab arrive later and mean more; it is one constant with its
+reasoning beside it and an argument to `patternsReady`.
+
+**Absent ≠ zero, all the way down.** The fit OMITS `patternsSkill` when it
+has not posted enough scorable days (`dropUndefined`'s idiom, one field
+over); `live.ts` reads it for presence rather than `|| 0`; `patternsSignal`
+spreads it so the key is absent rather than present-and-undefined; and
+`patternsReady` refuses a signal with no skill. *Not measured yet* and
+*measured, and it learned nothing* both keep the tab shut, and only one of
+them will ever move on its own. A device running against a backend that has
+not deployed the publishing half fails CLOSED for the same reason: the tab
+waits a night rather than opening on a number nobody sent.
+
+**This is not a privacy floor**, and it has the shape of one, so: nothing
+is withheld from anybody. Every number these lenses read publishes exactly
+and at any size (D98). What is withheld is the TAB, until what it draws can
+be believed — which is D265's own sentence, now measured against the model
+rather than against the corpus.
+
+**Pinned:** five cases in `patternsReady.test.ts` (a learned-nothing fit
+with ten times both counts, the floor exactly, a fit that hurts, a signal
+with no skill, and the absent-vs-zero distinction), six in
+`patternsFit.test.ts` for `sustainedSkill`, one in `patterns.test.ts` for
+the publish, and one mount case in `smoke-live.test.jsx` proving the bar
+stays at two tabs on `skill: 0`.
+
+**On the owner's list**, because the floor is a product judgement rather
+than an engineering one: whether an honest tab is worth waiting for at all,
+or whether the Map and Oracle should ship with the seed caveat drawn on
+them instead.
+
+## D-2026-09-09c · Comparison gates get a library, and the two store forms are compared for the first time
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+**The finding.** This tree's gates fall into two classes and the class
+boundary predicts which have ever caught anything. A **comparison** gate
+reads two artifacts that must agree and diffs them — `check:content`
+regenerates `v2content.ts` and byte-compares, `check:logic-sync` holds two
+copies identical, `check:data-inventory` holds a doc against
+`firestore.rules`, `rules-coverage` holds the ruleset against the
+emulator's own execution report. Every one has a named kill on the record.
+A **presence** gate reads one artifact and asserts a pattern inside it, and
+`check-policy-claims.mjs` states the limit in its own header: *"matching a
+phrase proves the sentence is present, not that it is true."* It is right,
+and it is also structurally unable to notice a required clause that was
+never written at all — an omission has nothing to match.
+
+Presence gates are not a mistake; some properties have one artifact. But
+where there are two, writing the comparison has been harder than writing
+the grep, so the grep is what got written.
+
+**`scripts/lib/compare.mjs`** reverses that ordering: `compareSets`,
+`compareValues`, `findingsOf` and `finish`, and a comparison is four lines.
+Three properties come with it and are the point:
+
+1. **A vacuity floor that is not optional.** Every entry point REFUSES to
+   return a clean result on an empty side unless the caller passes a
+   REASON string — a boolean would let *"0 is fine here"* be asserted
+   without an argument, which is how a stale scan shape survives review.
+   D179, D197 and D275 are three separate occasions in this repository
+   where a check went silently vacuous.
+2. **Both artifacts named on every line.** A failure that names one file
+   makes the reader open two to learn which is wrong.
+3. **A required success sentence.** `finish()` will not print a bare "OK";
+   a green gate says what it compared and how much of it, so the coverage
+   question is answerable by running the gate.
+
+**The first conversion found a live divergence.** `check:store-forms` rules
+1–6 each hold ONE store's form against its own prose twin. Nothing had ever
+compared the two FORMS to each other — and they are two legal attestations
+about one app, filed with two companies, in two vocabularies. Rule 7 does,
+through a written-out mapping (the vocabularies genuinely differ; Play
+splits Apple's single sensitive bucket), and it found the same two this
+branch and `main` independently named:
+
+- **Health** — `app-privacy.json` declares `HEALTH_AND_FITNESS/HEALTH`
+  collected; `play-data-safety.json` has no Health row at all.
+- **App activity** — Apple is told `OTHER_USER_CONTENT` and
+  `PRODUCT_INTERACTION` are collected (answers, takes, and the interest
+  profile that sizes the feed's topic pages, D322) while the Play form
+  answers its combined *App activity, Web browsing, Contacts, Financial,
+  Purchases* row as **not collected**. That is a strong claim about an app
+  whose product IS the activity.
+
+**Both branches wrote rule 7 on the same night, and the merge kept main's.**
+D452's shift reached the same gap from the other side and its version is a
+superset: it compares the paired data *by value in both directions* rather
+than by name in one, which is the shape that would have caught the Photos
+under-declaration `play-data-safety.json`'s own `$photos` note records; its
+completeness sweep runs both ways, so a Play row with no Apple type is a
+finding too; and its `DIVERGENT` list carries a fourth divergence this
+branch missed entirely — **Gender**, declared on Play with no Apple type,
+the under-declaration pointing the other way. What this branch's version
+contributed and the merge kept is the **vacuity floor**: both sides of the
+comparison are now declared non-empty through `refuseVacuous`, because the
+two completeness sweeps iterate what was *parsed*, and an empty parse
+iterates zero times and reports success. Measured: emptying
+`privacy.collected` prints `matched 0 items, under the floor of 1` and
+exits non-zero, where before it would have skipped both sweeps in silence.
+
+**It decides no filing, and the reason is authority rather than
+convenience.** A store form is one of the four things `CLAUDE.md` puts
+OUTSIDE the D334 ask: a routine may not rewrite a legal attestation on its
+own reading of the app. So the divergences are carried in `DIVERGENT` with
+what each waits on, an unlisted one fails the gate, the green line names
+them on every run, and `docs/OWNER-LIST.md` is where the ones worth closing
+are put to the owner.
+
+## D-2026-09-09d · The tests are tested: a nightly mutation lane, and the ratchet it starts at
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+48 gates and ~5,100 tests, and nothing in the tree could answer the only
+question that matters about any of them: **do they fail when the code is
+wrong?** A suite that runs, passes and asserts nothing is indistinguishable
+from one that guards the invariant — in CI, in coverage, and in review.
+`check:panel-suites` proves a suite EXISTS, by `existsSync`; `src/v2/README.md`
+and `ORIENTATION` §3 have both described `src/v2/ui/` as *"one suite each,
+mutation-checked"* for months, which was true of the first half.
+
+**`scripts/mutate.mjs`** is the second half, in this repo's own idiom — a
+nightly lane plus a shrink-only baseline. A run takes a handful of mutants
+from a rotating pool seeded by the date, applies each to ONE file, runs
+only that file's owning suite, and records how many survived. Deliberately
+a SAMPLE: a full sweep would be tens of thousands of test invocations and
+would say less, because the value is the named survivor and not a score.
+
+Four properties, each with a failure behind it:
+
+- **Reproducible.** `Math.random()` would make a survivor an anecdote. The
+  seed is the date, the site selection is a hash, and `--dry` re-prints any
+  night's exact plan.
+- **Plausible mutants only.** Seven textual operators, each a defect a
+  person could write — a boundary off by one, an inverted guard, a min used
+  as a max — and comments and imports are refused, because a suite that
+  fails to notice a mangled comment tells you nothing.
+- **Restores in a `finally`, and refuses a dirty tree.** It writes the
+  defect into the real file (the only way to run the real suite), so it
+  will not start when a file it plans to touch has uncommitted changes.
+  The workflow asserts `git diff --quiet` afterwards, in the run rather
+  than in its own header.
+- **Not a `check:*` script, on purpose.** Every `check:*` runs on every PR;
+  this costs minutes per mutant and a survivor is a finding to read, not a
+  reason to block a merge. It runs from `.github/workflows/mutate.yml` at
+  04:20 UTC — the placement rule `ci.yml` already applies to the audit.
+
+**Its first real run found a live gap.** 6 mutants: 5 killed, 1 survived —
+`typeMix.ts:184`, the country scope's `&&` flipped to `||`, which makes the
+guard read *"I have a country, OR this person's city ends with it"* and so
+admits **everyone** the moment the viewer has a country set. The card says
+*"in your country"* over that reading, on a screen whose entire claim is
+which population you are being compared to. `typeMixFor` had **no scope
+case at all**, and `check:panel-suites` was satisfied throughout. Four
+cases were added; the mutant now dies, so `scripts/mutation-baseline.json`
+starts at **0** rather than at 1.
+
+**The baseline may only go down**, and the repair for a survivor is to fix
+the suite. Raising the number is the one repair that is never right,
+because the number is the whole instrument.
+
+## D-2026-09-09e · The decision number stops being a global lock
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+`D` plus the next integer is a **global lock**, and this repository runs
+several scheduled lanes against one `main`. Two lanes that branch on the
+same morning both read the same highest record and both claim the number after it; whichever merges second
+renumbers its record and every reference to it. Measured 2026-09-09:
+**90 of 1,503 commits** match `git log -i --grep=renumber` — one commit in
+seventeen, spent entirely on an identifier that carries no meaning. D299
+and D408 are the two records about managing this cost; neither could
+remove it, because the cost is in the shape of the name.
+
+**Nothing about a decision needs its number to be dense, consecutive or
+allocated.** The number is a name. So a new record may take a **dated id**
+— `D-YYYY-MM-DDx`, the letter distinguishing records made on one day. Two
+lanes can now collide only by choosing the same letter on the same date,
+which is a one-line rename of one record instead of a cascade; and
+`doc-index.mjs` now **fails on a duplicate id**, because under dated ids a
+collision stops being self-announcing (two lanes appending
+`D-2026-09-09a` in different sections merge cleanly and produce one anchor
+pointing at two records).
+
+**D1–D449 are not renumbered.** They are cited by number in thousands of
+places across the tree and in every commit message that ever referenced
+one; rewriting them to buy consistency would be the largest possible
+instance of the exact churn this change exists to stop. `orderOf` gives
+dated records a sort key far above any number this file will reach, so the
+index reads as the historical run followed by a continuous dated tail, and
+the two vocabularies cannot interleave.
+
+The citation column follows: the matcher takes both shapes (the dated
+alternative first, so `D-2026-09-09a` is not also read as a citation of
+`D2026`), and the rendered cell names the id rather than the sort key.
+
+**This record and the four above it are the first users of the scheme**,
+which is also the end-to-end proof of it.
+
+## D-2026-09-09f · The cost alarm learns about the other bill
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+`pulse --check` is the one automated financial control in this repository,
+and D332 pointed it at Firebase: modelled burn against recorded revenue,
+allowance $50/month, and the tree's own model prices the running app at
+about **$28/month**.
+
+`docs/USAGE-REDUCTION.md` §1 measured the other bill on 2026-09-03, from
+`list_sessions` rather than by estimate: the program that WRITES this app —
+the scheduled lanes, the dispatchers, the night worker — metered
+**$7,011.27 over eighteen days**, about **$390/day**. That is roughly
+**410×** the thing every instrument in the tree was watching. `pulse.mjs`
+reads `monitoring/rates.json`, and `rates.json` had no notion of session
+spend; there is no `cost_usd` anywhere in `scripts/`. The measurement
+existed and nothing read it back.
+
+**What was added.** A `program` section on the rate card carrying the
+measured figure, the window it was measured over, its date, an allowance,
+and the largest single line (the night worker, **$2,325.68**, two thirds of
+all routine spend, on 968.8M cache-read tokens). `programVerdict` in
+`pulse-collect.mjs` is the same shape as `guardVerdict` one panel over —
+unarmed · unmeasured · over · stale · ok — and `pulse --check` trips on
+`over` and `stale`.
+
+**Staleness is the property that matters.** This checkout cannot call
+`list_sessions`, so the figure is RECORDED and moves only when a person
+refreshes it. A recorded number that passes forever would be the same blind
+spot in a new place, so `PROGRAM_MAX_AGE_DAYS = 30` makes an unrefreshed
+figure a condition rather than a pass — the asymmetry
+`MEASURE_MAX_AGE_DAYS` already carries: over wins over stale, because an
+overshoot is true at the size it was measured at and what staleness makes
+unbelievable is the PASS.
+
+**The allowance is a threshold, not a target.** $450/day is the measured
+$390 plus room for a heavy day, so the alarm means *this changed* rather
+than *this is Tuesday*. **Nobody has decided what this program should
+cost**, and that decision is not a routine's to make; the row says so and
+points at `OWNER-LIST.md`. A threshold with no decision behind it is still
+better than no threshold, because it turns an unwatched number into a
+watched one.
+
+**And it is trended.** `programUsdPerDay` joins `netBurnUsd` and
+`answersCounted` on the pulse trail row. Those three on one line is the
+whole point: two of them were already there and the number that dwarfs both
+was in a document nothing read.
+
+## D-2026-09-09g · One generated page that says where the project is
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+~93,000 lines of markdown, nine vision documents, 442 decision records, six
+owner-facing lists. Every number a person actually wants — what is live,
+what is stuck, what waits on the owner and for how long, what it costs, how
+many answers exist — is already computed by something in `scripts/`, and
+none of it is in one place. Answering *where are we* means opening five
+documents and trusting each is current.
+
+`docs/STATE.md` is generated by `scripts/state.mjs` and holds no reasoning
+of its own — the contract `ORIENTATION.md` already declares. Every figure is
+READ from the tree at generation time, so a stale line is impossible by
+construction rather than by discipline; the page can only be OLD, and it
+stamps the day it was made.
+
+**The answer is not writing less.** The documents are the tree's memory and
+this record does not propose trimming them. What was missing is an index of
+FACTS, the way `DECISIONS-INDEX.md` is an index of records.
+
+**It leads with the two bills side by side** — ~$28/month to run against
+~$390/day to build — and puts *answers counted* (**107**) directly beneath,
+because a program is only expensive relative to what it has produced, and
+nothing in the tree had ever printed those three numbers together.
+
+**It does not judge.** *"121 open owner rows against 3 ticked"* is a fact;
+*"the owner queue is a bottleneck"* is a reading, and a generated page that
+editorialises is one nobody trusts the facts of.
+
+It rides `pulse.yml`'s existing daily commit rather than taking a workflow
+of its own: it is derived from the tree and the date exactly as the trail
+row is, so it converges under the same retry — and a second workflow would
+be a second thing that can stop, on a page whose whole claim is that it
+cannot be more than a day old. `state.mjs` is Node stdlib plus
+`pulse-collect.mjs`, so that job still needs no `npm ci`.
+
+## D-2026-09-09h · The first slice leaves live.ts, and a meter goes on the file
+
+**Decided:** 2026-09-09 · **Status:** binding
+
+**The measurement.** `src/v2/data/live.ts` went **1,285 → 8,682 lines in 39
+days**, and **one commit in ten** in the whole repository lands in it —
+which is where several scheduled lanes against one `main` start colliding.
+`src/v2/spec/world-feed.jsx` is a single 4,200-line class with 102 methods.
+`functions/src/v2content.ts` went **2,926 → 25,993 GENERATED lines in five
+weeks**, is imported statically into all 42 Cloud Functions so every one
+parses it on every cold start, and has already hit the TypeScript TS2590
+wall once. None of it is broken today, which is exactly the window in which
+a meter is cheap and an extraction is not.
+
+**Why nothing caught it.** This tree's method is *put a meter on it*, and it
+works — `check:globals` rule 4 took the shared-global bridge from 799
+references to 30 by refusing to let the number rise. But every meter here
+reads a RELATIONSHIP: coupling between modules, a doc against the code, a
+form against its twin. None reads the simplest property there is.
+
+**`check:file-size`** is that meter, in rule 4's shape: a shrink-only
+ceiling per watched file, seeded at each file's current length so the gate
+starts green and every later line is a decision. It is **not a line limit**
+and carries no opinion about whether a big file is bad; the only claim is
+that these files do not get bigger by ACCIDENT. A file that SHRINKS fails
+too, asking for the ceiling to come down with it, and a watched file that
+is renamed or deleted fails rather than reading as zero lines comfortably
+under the ceiling — the D275 class specific to this gate. Generated files
+count, and `v2content.ts` is the argument for that rather than an exception
+to it: nobody reads its diff, so nothing else would ever notice it doubling.
+
+**And the first slice moved.** `data/localWrite.ts` takes the quota
+instrument — `isQuotaError` and the guarded `lsSet` — out of `live.ts`.
+Small (34 lines) and deliberately so: it is here to prove the method on the
+cleanest seam in the file before anything harder is attempted.
+
+**Why the method is safe, and why it had not been used.** The safety net
+already existed and nobody had reached for it: `src/v2/test/live-surface.ts`
+pins all **95** exported members across three surfaces, and **57** suites
+mock the module rather than its internals. So a slice whose seam is INSIDE
+the module cannot change the facade, and `vote.test.ts` proves it did not.
+`lsSet` is a factory taking the store's failure counter, so all nine call
+sites keep their exact spelling and the diff reads as a pure move — and
+`quotaReported` becomes per-writer rather than module state, which is what
+made the old version awkward to test.
+
+**What remains** is written down rather than done: `live.ts` is still
+thousands of lines, and the next slices (the aggregate cache, the presence
+loop, the takes bounds) each need the shared mutable `state` threaded
+through a seam rather than closed over. The ceiling is what makes that a
+decision somebody takes rather than a thing that quietly stops mattering.
+
+**And the meter said something on its first real day, which is the point
+of building it.** The slice put this branch at 8,648 lines. `main`'s own
+shifts added 409 over the same three nights, reaching 9,179; the merge is
+9,257. The file grew roughly four times faster than it was being split, on
+nights when somebody was actively splitting it — so the honest reading is
+that one slice does not turn a trend, and without a number on the file
+nobody would have known which direction it was going. The 2026-09-11 merge
+raises the baseline to 9,257 in the commit that says why, together with
+three other watched files main grew (`world-feed.jsx` +31,
+`vote.test.ts` +191, `rules.test.ts` +151). A raise is allowed; a silent
+one is not.
+
 
 ## D472 · The app is Doxa: the name changes, and nothing under it does
 

@@ -50,6 +50,11 @@ const GUARD_CURRENCY = GUARD.budget?.currency ?? "USD";
 const NUMBER = "123456789012";
 // The topic the function listens on, as the API stores it on the budget.
 const TOPIC = "projects/prvfire33/topics/budget-alerts";
+// The detach line (D471), read off the function the way the script reads
+// it — the one source. The list below is what the script must arm: the
+// four rules COSTS.md's shape gives, then the line billing goes down at.
+const DETACH = Number(readFileSync(join(root, "functions/src/budget.ts"), "utf8").match(/export const BUDGET_DETACH_AT = ([\d.]+);/)[1]);
+const THRESHOLDS = [0.5, 0.9, 1.0, 1.5, DETACH];
 const BA = "billingAccounts/AAAAAA-BBBBBB-CCCCCC";
 const CRM = "/cloudresourcemanager.googleapis.com/v1/projects/prvfire33";
 const INFO = "/cloudbilling.googleapis.com/v1/projects/prvfire33/billingInfo";
@@ -93,10 +98,11 @@ const listedBudget = (over = {}) => ({
   displayName: "InSight",
   budgetFilter: { projects: [`projects/${NUMBER}`] },
   amount: { specifiedAmount: { currencyCode: GUARD_CURRENCY, units: String(GUARD_AMOUNT) } },
-  thresholdRules: [0.5, 0.9, 1.0, 1.5].map((p) => ({ thresholdPercent: p })),
+  thresholdRules: THRESHOLDS.map((p) => ({ thresholdPercent: p })),
   notificationsRule: { pubsubTopic: TOPIC, schemaVersion: "1.0" },
   ...over,
 });
+const patchUrlFor = (mask) => `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=${mask}`;
 
 beforeEach(() => {
   calls = [];
@@ -148,7 +154,12 @@ describe("apply-budget", () => {
     // matches nothing is a budget that never fires.
     expect(post.body.budgetFilter.projects).toEqual([`projects/${NUMBER}`]);
     expect(post.body.amount.specifiedAmount.units).toBe(String(GUARD_AMOUNT));
-    expect(post.body.thresholdRules.map((t) => t.thresholdPercent)).toEqual([0.5, 0.9, 1.0, 1.5]);
+    expect(post.body.thresholdRules.map((t) => t.thresholdPercent)).toEqual(THRESHOLDS);
+    // The top rule IS the detach line: the mail Cloud Billing sends there
+    // is the one that says the app was taken down, from outside the
+    // project the detach silences.
+    expect(post.body.thresholdRules.at(-1).thresholdPercent).toBe(DETACH);
+    expect(DETACH).toBe(3.0);
     // The wire (COST-EXPOSURE.md §6 C4): the budget publishes to the topic
     // functions/src/budget.ts listens on.
     expect(post.body.notificationsRule).toEqual({ pubsubTopic: TOPIC, schemaVersion: "1.0" });
@@ -186,12 +197,12 @@ describe("apply-budget", () => {
     expect(calls.filter((c) => c.method !== "GET")).toEqual([]);
   });
 
-  it("retunes a drifted amount through PATCH, masked to the fields it owns", async () => {
+  it("retunes a drifted amount through PATCH, masked to the ONE field that drifted", async () => {
     reply[key("GET", BUDGETS)] = {
       status: 200,
       body: { budgets: [listedBudget({ amount: { specifiedAmount: { currencyCode: "USD", units: "25" } } })] },
     };
-    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
+    const patchUrl = patchUrlFor("amount");
     reply[key("PATCH", patchUrl)] = { status: 200, body: listedBudget() };
 
     // Dry first: says so, touches nothing.
@@ -206,14 +217,54 @@ describe("apply-budget", () => {
     expect(patch?.url).toBe(patchUrl);
     // The filter is deliberately outside the mask — a re-scoped budget must
     // not be silently re-narrowed by a retune that was about the amount.
-    expect(Object.keys(patch.body).sort()).toEqual(["amount", "notificationsRule", "thresholdRules"]);
+    // And so is the TOPIC once it matches (D471): naming it in the request
+    // is what makes the Budgets API demand pubsub.topics.setIamPolicy of
+    // the caller, which is the 403 that stopped the 2026-09-10 dispatch.
+    expect(Object.keys(patch.body)).toEqual(["amount"]);
+  });
+
+  it("a budget armed before the detach line — four rules and the topic attached — gains the fifth without touching the topic", async () => {
+    // The budget as production holds it once the owner's console click has
+    // attached the topic: the retune that carries D471's rule must go
+    // through from the deploy credential, which the old always-everything
+    // mask could not (the topic's 403, whether or not the topic changed).
+    reply[key("GET", BUDGETS)] = {
+      status: 200,
+      body: { budgets: [listedBudget({ thresholdRules: [0.5, 0.9, 1.0, 1.5].map((p) => ({ thresholdPercent: p })) })] },
+    };
+    const patchUrl = patchUrlFor("thresholdRules");
+    reply[key("PATCH", patchUrl)] = { status: 200, body: listedBudget() };
+    const dry = await apply();
+    expect(dry).toMatch(/would retune/);
+    expect(dry).toMatch(new RegExp(`${DETACH * 100}%`));
+    calls = [];
+    const out = await apply(["--apply"]);
+    expect(out).toMatch(/retuned budget "InSight"/);
+    const patch = calls.find((c) => c.method === "PATCH");
+    expect(patch?.url).toBe(patchUrl);
+    expect(Object.keys(patch.body)).toEqual(["thresholdRules"]);
+    expect(patch.body.thresholdRules.map((t) => t.thresholdPercent)).toEqual(THRESHOLDS);
+  });
+
+  it("a 403 on a retune that never named the topic names the billing-account role alone", async () => {
+    reply[key("GET", BUDGETS)] = {
+      status: 200,
+      body: { budgets: [listedBudget({ thresholdRules: [0.5, 0.9, 1.0, 1.5].map((p) => ({ thresholdPercent: p })) })] },
+    };
+    reply[key("PATCH", patchUrlFor("thresholdRules"))] = { status: 403, body: { error: { message: "The caller does not have permission" } } };
+    const err = await applyFails(["--apply"]);
+    expect(err).toMatch(/roles\/billing\.costsManager/);
+    // The topic reading cannot apply to a request that did not carry the
+    // topic, so the console-click paragraph must not be printed for it.
+    expect(err).not.toMatch(/pubsub\.topics\.setIamPolicy/);
+    expect(err).not.toMatch(/Connect a Pub\/Sub topic/);
   });
 
   it("a budget with no topic — the one armed before the wire existed — is retuned to publish", async () => {
     const noTopic = listedBudget();
     delete noTopic.notificationsRule;
     reply[key("GET", BUDGETS)] = { status: 200, body: { budgets: [noTopic] } };
-    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
+    const patchUrl = patchUrlFor("notificationsRule");
     reply[key("PATCH", patchUrl)] = { status: 200, body: listedBudget() };
     const dry = await apply();
     expect(dry).toMatch(/would retune/);
@@ -221,7 +272,9 @@ describe("apply-budget", () => {
     calls = [];
     const out = await apply(["--apply"]);
     expect(out).toMatch(/retuned budget "InSight"/);
-    expect(calls.find((c) => c.method === "PATCH")?.body.notificationsRule).toEqual({ pubsubTopic: TOPIC, schemaVersion: "1.0" });
+    const patch = calls.find((c) => c.method === "PATCH");
+    expect(patch?.url).toBe(patchUrl);
+    expect(patch?.body.notificationsRule).toEqual({ pubsubTopic: TOPIC, schemaVersion: "1.0" });
   });
 
   it("a 403 on the attach, with the budget listed, names the topic's permission and the console click", async () => {
@@ -234,7 +287,7 @@ describe("apply-budget", () => {
     const noTopic = listedBudget();
     delete noTopic.notificationsRule;
     reply[key("GET", BUDGETS)] = { status: 200, body: { budgets: [noTopic] } };
-    const patchUrl = `/billingbudgets.googleapis.com/v1/${BA}/budgets/b1?updateMask=amount,thresholdRules,notificationsRule`;
+    const patchUrl = patchUrlFor("notificationsRule");
     reply[key("PATCH", patchUrl)] = { status: 403, body: { error: { message: "The caller does not have permission" } } };
     const err = await applyFails(["--apply"]);
     expect(err).toMatch(/pubsub\.topics\.setIamPolicy on projects\/prvfire33\/topics\/budget-alerts/);
@@ -263,6 +316,17 @@ describe("apply-budget", () => {
     expect(inFn).toBeTruthy();
     expect(inScript).toBe(inFn);
     expect(TOPIC.endsWith(`/topics/${inFn}`)).toBe(true);
+  });
+
+  it("arms the detach line the function actually detaches at (D471)", () => {
+    // The function detaches on the ratio it computes; the script's top
+    // rule is only the MAIL for it. Two figures, one wire: a rule armed at
+    // some other line would mail "300 %" about a detach that happened at
+    // another number, or say nothing about the one that did.
+    const fn = readFileSync(join(root, "functions/src/budget.ts"), "utf8");
+    const inFn = Number(fn.match(/export const BUDGET_DETACH_AT = ([\d.]+);/)?.[1]);
+    expect(inFn).toBe(DETACH);
+    expect(Number.isFinite(inFn) && inFn > 1.5).toBe(true);
   });
 
   it("a 403 on budgets names the billing-account role, not a project one", async () => {

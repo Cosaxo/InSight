@@ -26,6 +26,7 @@ import { execFileSync } from "node:child_process";
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
   collectEngagement, engagementFromDays, guardVerdict, MEASURE_MAX_AGE_DAYS,
+  programVerdict, PROGRAM_MAX_AGE_DAYS,
   collectGuard,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
@@ -159,8 +160,24 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // And the thing that makes the polled term cheap — one document per
     // tick, not the whole deck. If the slice widens, POLL_DOCS must move
     // with it or the model understates the replacement's own cost.
-    expect(live).toMatch(/refreshAggs\(state\.deckIds\.slice\(0, 1\)\)/);
+    //
+    // MATCHED ON THE SLICE, NOT ON THE WHOLE CALL, and the difference is
+    // the point. This read `refreshAggs(state.deckIds.slice(0, 1))` as one
+    // literal until the blind-answer filter wrapped it
+    // (`refreshAggs(readableDeckIds(state.deckIds.slice(0, 1)))`), and a
+    // tripwire pinned to a call's exact spelling goes red on a change that
+    // makes the app CHEAPER — which is the shape that gets a tripwire
+    // deleted rather than fixed. What the cost model actually depends on
+    // is the slice width, so that is what is asserted; the filter can only
+    // narrow what the slice admits, never widen it, so POLL_DOCS stays an
+    // upper bound either way.
+    expect(live).toMatch(/state\.deckIds\.slice\(0, 1\)/);
     expect(POLL_DOCS).toBe(1);
+    // …and the filter itself, because it is now part of why the modelled
+    // number is an upper bound: a reader who has not answered today polls
+    // nothing at all. Deleting it would not make this test red on the
+    // slice above, so it is named here.
+    expect(live).toMatch(/readableDeckIds\(state\.deckIds\.slice\(0, 1\)\)/);
   });
 
   it("polling is charged as a real cost, not as zero (D129)", () => {
@@ -1397,5 +1414,84 @@ describe("the person channel in the console (R3/D272)", () => {
     expect(e.people.lensShare).toBeNull();
     expect(e.people.mirrorRead, "the key is there; only the denominator is missing").toBe(0);
     expect(e.people.feedBuckets).toEqual([0, 0, 0, 0, 0]);
+  });
+});
+
+// ── the OTHER bill: what it costs to BUILD the app (D-2026-09-09f) ───
+//
+// The guard above watches Firebase — modelled at ~$28/month — and every
+// instrument in this repository was pointed at it. The program that writes
+// the app metered ~$390/day over the eighteen days to 2026-09-03
+// (docs/USAGE-REDUCTION.md), which is roughly 410x the thing being
+// watched, and nothing read that measurement back. These cases are about
+// the two properties that make the new row worth having: it can go OVER,
+// and it can go STALE — a recorded figure that passes forever would be the
+// same blind spot in a new place.
+describe("programVerdict", () => {
+  const base = {
+    allowanceUsdPerDay: 450,
+    usdPerDay: 390,
+    measuredOn: "2026-09-03",
+    todayIso: "2026-09-09",
+  };
+
+  it("is unarmed with no allowance — a question, not a pass", () => {
+    // The unpriced-path rule, the same one guardVerdict applies: a missing
+    // threshold must not read as "within budget".
+    expect(programVerdict({ ...base, allowanceUsdPerDay: undefined }).state).toBe("unarmed");
+  });
+
+  it("is unmeasured with an allowance and no figure", () => {
+    expect(programVerdict({ ...base, usdPerDay: undefined }).state).toBe("unmeasured");
+  });
+
+  it("passes under the allowance and trips over it", () => {
+    expect(programVerdict(base).state).toBe("ok");
+    expect(programVerdict({ ...base, usdPerDay: 451 }).state).toBe("over");
+    // Exactly at the allowance is not over — the same boundary the usage
+    // guard uses, so the two read the same way.
+    expect(programVerdict({ ...base, usdPerDay: 450 }).state).toBe("ok");
+  });
+
+  it("goes stale, because this checkout cannot measure it", () => {
+    // THE PROPERTY THAT MATTERS MOST. `list_sessions` is not reachable
+    // from a checkout, so the number moves only when a person refreshes
+    // it — and a frozen figure that passes forever is exactly the shape
+    // MEASURE_MAX_AGE_DAYS exists to refuse one panel over.
+    const old = { ...base, measuredOn: "2026-07-01" };
+    expect(programVerdict(old).state).toBe("stale");
+    expect(programVerdict(old).ageDays).toBeGreaterThan(PROGRAM_MAX_AGE_DAYS);
+  });
+
+  it("reports OVER rather than STALE when both are true", () => {
+    // The guard's own asymmetry: an overshoot is true at the size it was
+    // measured at, and what staleness can make unbelievable is the PASS.
+    const both = { ...base, usdPerDay: 900, measuredOn: "2026-07-01" };
+    expect(programVerdict(both).state).toBe("over");
+  });
+
+  it("carries the age even when it passes, so a reader can judge the pass", () => {
+    expect(programVerdict(base).ageDays).toBe(6);
+  });
+
+  it("says nothing about age when it has no date to work from", () => {
+    // Absent and zero are different: a figure with no measurement date is
+    // not a fresh one.
+    expect(programVerdict({ ...base, measuredOn: undefined }).ageDays).toBeNull();
+  });
+});
+
+describe("the rate card carries a program figure", () => {
+  it("has an allowance and a measurement, so the row is armed", () => {
+    // The row is only worth having if it is filled in. A rate card that
+    // shipped the section and left it null would report "unarmed" every
+    // morning, which is the D275 shape wearing a new name.
+    const rates = JSON.parse(readFileSync(join(ROOT, "monitoring/rates.json"), "utf8"));
+    expect(typeof rates.program?.allowanceUsdPerDay).toBe("number");
+    expect(typeof rates.program?.usdPerDay).toBe("number");
+    expect(rates.program.measuredOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // …and it names its source, because the number cannot be derived from
+    // this checkout and a reader has to be able to re-measure it.
+    expect(rates.program.source).toMatch(/USAGE-REDUCTION/);
   });
 });

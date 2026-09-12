@@ -1650,6 +1650,42 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes).toMatchObject({ q_1: "0" });
   });
 
+  // ── the blind vote is a DATA rule ──────────────────────────────────
+  //
+  // `daily-split.jsx` hides the split until you have voted (`revealed =
+  // voted || !blind`), and for the whole life of live.ts the boot read
+  // `refreshAggs(state.deckIds)` — the whole deck — so every count the
+  // card was hiding sat in the store, in memory and on the wire before the
+  // first card painted. Devtools, a proxy or a patched client recovered
+  // it, which made the app's one distinctive claim a render decision.
+  //
+  // `readableDeckIds` is the fix and it is one expression, so it can fail
+  // two ways: admit too much (the leak returns) or admit nothing (counts
+  // never arrive and the card lies the other way, "You're first" forever).
+  // idle-detach.test.ts pins the refusing half — that file has no write
+  // path — and these two pin the admitting half, on the real optimistic
+  // vote this file already drives.
+  it("the poll reads a deck question this device HAS answered", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "0");
+    await flush();
+    const mod = await import("./live");
+    h.aggIdQueries.length = 0;
+    await mod._aggPollForTest().tick();
+    expect(h.aggIdQueries).toHaveLength(1);
+    expect([...h.aggIdQueries[0]]).toEqual(["q_1"]);
+  });
+
+  it("the poll reads NOTHING for a deck question this device has not answered", async () => {
+    // The same tick, one precondition apart. Without this case the one
+    // above passes just as well against a filter that was deleted.
+    await bootLive();
+    const mod = await import("./live");
+    h.aggIdQueries.length = 0;
+    await mod._aggPollForTest().tick();
+    expect(h.aggIdQueries).toHaveLength(0);
+  });
+
   it("coalesces a sitting's post-vote refreshes into ONE drain, not one per answer", async () => {
     // A feed sitting is ten to thirty answers, and each acked write asks
     // for its question's freshly folded aggregate. This used to arm a
@@ -2008,6 +2044,16 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // runs, so these cases still drive the real refresh path (D129). It is
   // async now, where the snapshot callback was synchronous, which is why
   // every caller below awaits it.
+  // Deliver an aggregate for q_1 the way the network delivers one.
+  //
+  // This used to borrow `_aggPollForTest().tick()`, which stopped working
+  // when the poll gained its blind-answer filter: the poll only reads a
+  // question this device has ANSWERED, and these cases never vote — they
+  // are about the cache coalescer, not about the read path. They ask
+  // `_deliverAggsForTest` for the same delivery directly, so a change to
+  // what the poll is allowed to read cannot fail them for the wrong
+  // reason (and cannot silently make them vacuous either, which borrowing
+  // a filtered tick would have done).
   const emitAgg = async (total: number) => {
     h.aggDocs.length = 0;
     h.aggDocs.push({
@@ -2015,7 +2061,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       data: { counts: { "0": total, "1": 0 }, total, tooSmall: false },
     });
     const mod = await import("./live");
-    await mod._aggPollForTest().tick();
+    await mod._deliverAggsForTest(["q_1"]);
   };
 
   it("coalesces a burst of agg snapshots into one cache write, carrying the last state", async () => {
@@ -2931,14 +2977,18 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       data: { counts: { "0": 5, "1": 2 }, total: 7, tooSmall: false },
     });
     const mod = await import("./live");
-    await mod._aggPollForTest().tick();
+    // Delivered directly rather than through the poll: this case is about
+    // what a FAILED read leaves behind, and the poll would refuse to read
+    // an unanswered question at all (readableDeckIds), so borrowing it
+    // would make both halves vacuous.
+    await mod._deliverAggsForTest(["q_1"]);
     const before = LIVE.deck()[0];
 
     const listener = vi.fn();
     LIVE.subscribe(listener);
     const boom = new Error("offline");
     h.getDocsImpl = () => boom;
-    await mod._aggPollForTest().tick();
+    await mod._deliverAggsForTest(["q_1"]);
     h.getDocsImpl = null;
 
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "refreshAggs" });

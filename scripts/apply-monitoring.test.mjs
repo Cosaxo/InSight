@@ -81,13 +81,19 @@ beforeAll(async () => {
       // review deleted the bearer header outright and all ten cases stayed
       // green, because a stub that ignores Authorization cannot tell a
       // signed request from an anonymous one.
+      const body = raw ? JSON.parse(raw) : null;
       calls.push({
         method: req.method,
         url: req.url,
         auth: req.headers.authorization || null,
-        body: raw ? JSON.parse(raw) : null,
+        body,
       });
-      const r = reply[key(req.method, req.url)] || { status: 200, body: {} };
+      // A reply may be a FUNCTION of the request body: the two channel
+      // POSTs (email, then SMS since D471) share one URL and differ only
+      // in what they send, and a stub that answered both with the email
+      // channel would hand the SMS steps the wrong id.
+      const entry = reply[key(req.method, req.url)];
+      const r = (typeof entry === "function" ? entry(body) : entry) || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
     });
@@ -407,6 +413,150 @@ describe("--channel-name", () => {
     expect(made).toHaveLength(1);
     expect(made[0].body.displayName).toBe("Somewhere else");
     expect(out).toContain('channel "Somewhere else"');
+  });
+});
+
+describe("--sms (D471): the phone, for the money policies only", () => {
+  const NUMBER = "+4712345678";
+  const SMS_ID = "projects/prvfire33/notificationChannels/9002";
+  const smsChannel = (over = {}) => ({
+    name: SMS_ID, displayName: "InSight oncall (SMS)", type: "sms", labels: { number: NUMBER },
+    verificationStatus: "UNVERIFIED", ...over,
+  });
+  const emailChannel = () => ({ name: CHANNEL_ID, displayName: "InSight oncall", labels: { email_address: "you@example.com" } });
+  const SEND_CODE = `/monitoring.googleapis.com/v3/${SMS_ID}:sendVerificationCode`;
+  const VERIFY = `/monitoring.googleapis.com/v3/${SMS_ID}:verify`;
+  // The money policies, read off the applier's own rule so the split here
+  // cannot drift from the split there: every committed path matching the
+  // regex the applier uses, and no other.
+  const moneyDisplayNames = () => APPLIED_POLICIES
+    .filter((rel) => /runaway|onBudgetAlert/.test(rel))
+    .map((rel) => JSON.parse(readFileSync(join(root, rel), "utf8")).displayName);
+
+  it("refuses a number that is not E.164 before reading anything", async () => {
+    const { code, stderr } = await applyFails(["--sms", "912 34 567"]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("E.164");
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses a code without a number", async () => {
+    const { stderr } = await applyFails(["--sms-code", "123456"]);
+    expect(stderr).toContain("--sms-code verifies the channel --sms names");
+    expect(calls).toEqual([]);
+  });
+
+  it("dry run names the channel, says a code would go out, and sends nothing", async () => {
+    const out = await apply(["--sms", NUMBER]);
+    expect(out).toContain(`+ SMS channel "InSight oncall (SMS)" → ${NUMBER} — would create`);
+    expect(out).toContain("pages nobody until then");
+    expect(posts()).toEqual([]);
+  });
+
+  it("apply creates the channel, asks Google for the code, and attaches it to the money policies only", async () => {
+    reply[key("POST", CHANNELS)] = (body) => (body.type === "sms"
+      ? { status: 200, body: smsChannel() }
+      : { status: 200, body: emailChannel() });
+    reply[key("POST", SEND_CODE)] = { status: 200, body: {} };
+    const out = await apply(["--sms", NUMBER, "--apply"]);
+    const made = posts().filter((c) => c.url === CHANNELS);
+    expect(made.map((c) => c.body.type)).toEqual(["email", "sms"]);
+    expect(made[1].body.labels).toEqual({ number: NUMBER });
+    expect(made[1].body.displayName).toBe("InSight oncall (SMS)");
+    // The code goes out on the apply that creates the channel — no second
+    // dispatch to ask for it — and the summary says the channel is still
+    // deaf until the code comes back.
+    expect(posts().filter((c) => c.url === SEND_CODE)).toHaveLength(1);
+    expect(posts().filter((c) => c.url === VERIFY)).toEqual([]);
+    expect(out).toContain("verification code sent to +4712345678");
+    expect(out).toContain("UNVERIFIED and pages NOBODY yet");
+    // The split: money policies page both channels, the rest the email alone.
+    const money = moneyDisplayNames();
+    expect(money.length).toBeGreaterThanOrEqual(3);
+    const policyPosts = posts().filter((c) => c.url === POLICIES);
+    expect(policyPosts).toHaveLength(listed().policies);
+    for (const p of policyPosts) {
+      expect(p.body.notificationChannels, p.body.displayName)
+        .toEqual(money.includes(p.body.displayName) ? [CHANNEL_ID, SMS_ID] : [CHANNEL_ID]);
+    }
+    expect(money).toContain("The budget acted: the read breaker is up, billing was detached, or the detach was refused");
+  });
+
+  it("--sms-code verifies an existing unverified channel and asks for no new code", async () => {
+    reply[key("GET", CHANNELS)] = { status: 200, body: { notificationChannels: [emailChannel(), smsChannel()] } };
+    reply[key("POST", VERIFY)] = { status: 200, body: {} };
+    const out = await apply(["--sms", NUMBER, "--sms-code", "123456", "--apply"]);
+    const verify = posts().filter((c) => c.url === VERIFY);
+    expect(verify).toHaveLength(1);
+    expect(verify[0].body).toEqual({ code: "123456" });
+    expect(posts().filter((c) => c.url === SEND_CODE)).toEqual([]);
+    expect(posts().filter((c) => c.url === CHANNELS)).toEqual([]);
+    expect(out).toContain("now VERIFIED");
+  });
+
+  it("a verified channel gets neither a code nor a verify call", async () => {
+    reply[key("GET", CHANNELS)] = {
+      status: 200,
+      body: { notificationChannels: [emailChannel(), smsChannel({ verificationStatus: "VERIFIED" })] },
+    };
+    const out = await apply(["--sms", NUMBER, "--apply"]);
+    expect(posts().filter((c) => c.url === SEND_CODE || c.url === VERIFY)).toEqual([]);
+    expect(out).toContain('= SMS channel "InSight oncall (SMS)" — verified');
+    expect(out).toContain("is paged by the money policies");
+  });
+
+  it("a money policy armed before the phone existed gets the channel ADDED by PATCH; the rest are left alone", async () => {
+    // The two runaway policies were armed at D303 with the email channel
+    // alone. Creating nothing (they exist) and attaching nothing would
+    // leave the phone wired to the one policy that did not exist yet.
+    reply[key("GET", CHANNELS)] = {
+      status: 200,
+      body: { notificationChannels: [emailChannel(), smsChannel({ verificationStatus: "VERIFIED" })] },
+    };
+    const live = committedDisplayNames().map((displayName, i) => ({
+      name: `projects/prvfire33/alertPolicies/${100 + i}`, displayName, notificationChannels: [CHANNEL_ID],
+    }));
+    reply[key("GET", POLICIES)] = { status: 200, body: { alertPolicies: live } };
+    reply[key("GET", METRICS)] = { status: 200, body: { metrics: listedMetricNames().map((name) => ({ name })) } };
+    for (const p of live) {
+      reply[key("PATCH", `/monitoring.googleapis.com/v3/${p.name}?updateMask=notificationChannels`)] = { status: 200, body: p };
+    }
+
+    // Dry: says which, patches none.
+    const dry = await apply(["--sms", NUMBER]);
+    expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+    const money = moneyDisplayNames();
+    for (const name of money) expect(dry).toContain(`~ policy "${name}" — would attach the SMS channel`);
+
+    calls = [];
+    const out = await apply(["--sms", NUMBER, "--apply"]);
+    const patches = calls.filter((c) => c.method === "PATCH");
+    expect(patches).toHaveLength(money.length);
+    for (const p of patches) {
+      const policy = live.find((l) => p.url.includes(l.name));
+      expect(money).toContain(policy.displayName);
+      // The email channel it already had survives; the phone is appended.
+      expect(p.body).toEqual({ notificationChannels: [CHANNEL_ID, SMS_ID] });
+    }
+    expect(posts()).toEqual([]);
+    expect(out).toContain(`the SMS channel attached to ${money.length}`);
+
+    // And a second run attaches nothing: the channel is already there.
+    for (const p of live) if (money.includes(p.displayName)) p.notificationChannels = [CHANNEL_ID, SMS_ID];
+    calls = [];
+    const again = await apply(["--sms", NUMBER, "--apply"]);
+    expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+    for (const name of money) expect(again).toContain(`= policy "${name}" — SMS channel already attached`);
+  });
+
+  it("without --sms nothing about the phone is read, created, or attached", async () => {
+    reply[key("GET", CHANNELS)] = {
+      status: 200,
+      body: { notificationChannels: [emailChannel(), smsChannel({ verificationStatus: "VERIFIED" })] },
+    };
+    const out = await apply(["--apply"]);
+    for (const p of posts().filter((c) => c.url === POLICIES)) expect(p.body.notificationChannels).toEqual([CHANNEL_ID]);
+    expect(out).not.toContain("SMS");
   });
 });
 

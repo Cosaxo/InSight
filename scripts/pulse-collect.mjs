@@ -320,6 +320,66 @@ export function collectGuard(regional, money, engagement) {
 // this console whose neglect causes a user-visible failure — the deck
 // runway.
 
+// ── 2c · what it costs to BUILD the app (D-2026-09-09f) ─────────────
+//
+// The guard above watches Firebase. This watches the program that writes
+// the app, and the arithmetic is the reason it exists: measured over the
+// eighteen days to 2026-09-03, the scheduled lanes and the night worker
+// metered ~$390/day against a Firebase bill of ~$28/MONTH. Every
+// instrument in this repository was pointed at the smaller number, so the
+// one automated financial control it has could see 0.24% of the spend.
+//
+// IT IS A RECORDED FIGURE, NOT A COLLECTED ONE, and that is not a
+// shortcut — this checkout cannot call `list_sessions`. So it goes stale
+// by construction, and staleness has to be able to fail: a frozen number
+// that passes forever is the shape the guard's own MEASURE_MAX_AGE_DAYS
+// exists to refuse, one panel over.
+
+/** How old the program measurement may be before it stops being one.
+ *  Longer than the guard's seven days because the input moves slower (a
+ *  lane's cadence changes weekly at most) and it is refreshed by hand,
+ *  but bounded for the same reason: an unrefreshed figure eventually
+ *  describes a program nobody is running. */
+export const PROGRAM_MAX_AGE_DAYS = 30;
+
+/** The pure verdict, tested without a tree. All inputs USD/day. */
+export function programVerdict({ allowanceUsdPerDay, usdPerDay, measuredOn, todayIso }) {
+  if (typeof allowanceUsdPerDay !== "number") {
+    // The unpriced-path rule: no allowance recorded is a question, not a
+    // pass.
+    return { state: "unarmed" };
+  }
+  if (typeof usdPerDay !== "number") {
+    return { state: "unmeasured", allowanceUsdPerDay };
+  }
+  const ageDays = measuredOn && todayIso
+    ? Math.round((Date.parse(todayIso) - Date.parse(measuredOn)) / 86400000)
+    : null;
+  const figures = { allowanceUsdPerDay, usdPerDay: round2(usdPerDay), measuredOn: measuredOn ?? null, ageDays };
+  // Over wins over stale, for the guard's own reason: an overshoot is true
+  // at the size it was measured at, and what staleness can make
+  // unbelievable is the PASS.
+  if (usdPerDay > allowanceUsdPerDay) return { state: "over", ...figures };
+  if (ageDays != null && ageDays > PROGRAM_MAX_AGE_DAYS) return { state: "stale", ...figures };
+  return { state: "ok", ...figures };
+}
+
+export function collectProgram(todayIso) {
+  const rates = readJson("monitoring/rates.json");
+  const p = rates?.program ?? {};
+  return {
+    ...programVerdict({
+      allowanceUsdPerDay: p.allowanceUsdPerDay,
+      usdPerDay: p.usdPerDay,
+      measuredOn: p.measuredOn,
+      todayIso,
+    }),
+    // Carried through whatever the verdict, because the operator's first
+    // question after "is it over" is always "what is the biggest line".
+    largestSession: p.largestSession ?? null,
+  };
+}
+
 export function collectPipeline() {
   const daily = readJson("content/daily-questions.json");
   const feed = readJson("content/feed-questions.json");
@@ -972,6 +1032,9 @@ export function collect({ regional = REGIONAL } = {}) {
     cost,
     money,
     guard: collectGuard(regional, money, engagement),
+    // What it costs to BUILD the app, beside what it costs to run it. The
+    // two are ~410x apart and only one of them had an instrument.
+    program: collectProgram(new Date().toISOString().slice(0, 10)),
     pipeline,
     population: collectPopulation(pipeline),
     engagement,
