@@ -53,6 +53,31 @@
 //     precisely the lie these rules exist to prevent.
 //   · no smoothing, no rolling mean, no invented baseline anywhere
 import LIVE from "./live";
+
+// -- may invented pulses draw? -----------------------------------
+//
+// LIVE.enabled is false for TWO reasons (D356): this is the DEMO build,
+// or this is a LIVE build whose boot has not attached yet. Only the first
+// may ever see DEMO_BINS, DEMO_SCOPES and HISTORY. Read as a bare
+// negation of that flag, every reading below served the design's invented
+// numbers to a real person on an offline cold start -- and D479 made that
+// reachable, because pulses now ride the feed instead of the daily's own
+// stack, so all five deal into a real user's stream: a streak badge over
+// days they never answered, an 11-of-14 strip, "34% of 24,800 answers
+// today", and a 6/13/28/34/19 split that is a drawing, not a measurement.
+// Answering one was worse than cosmetic: the vote went to localStorage,
+// so when the boot landed it was gone and the pulse asked again blind.
+//
+// Every neighbouring surface was corrected for exactly this on
+// 2026-09-11/12 -- result-card.jsx, passive-progress.js, world-feed's
+// renderEngage and its learn rates, LiveFriendsOverlay -- and this file
+// had no demoInProd reference at all.
+//
+// The two network guards (ensureToday, ensureTrend) deliberately keep the
+// bare flag instead: their question is "is there a server to ask", and
+// under demoInProd there is not yet. They return early, and the ordinary
+// re-render after the boot attaches is what fetches.
+const isDemo = (): boolean => !LIVE.enabled && !LIVE.demoInProd;
 // The one conversion from a stored bucket key to a name (D125). It moved
 // into `data/` for this call site: it wraps `data/places` and sat in
 // `ui/`, so the pulse could not reach it without inverting the layering.
@@ -301,7 +326,7 @@ const demoSaved = (): Record<string, Record<string, number>> => {
  * `hydrate()` had already cached — five times over, at roster size.
  */
 export function roster(): PulseQ[] {
-  if (LIVE.enabled) {
+  if (!isDemo()) {
     return (LIVE.pulseQs() as { id: string; prompt: string; options: string[]; since?: string }[])
       .filter((q) => q.options.length === 5)
       .map((q) => ({
@@ -563,14 +588,14 @@ function mineOn(
   seeded: number | null,
 ): number | null {
   // optionIdx 0..4 → step 1..5
-  if (LIVE.enabled) return k in mineLive ? mineLive[k] + 1 : null;
+  if (!isDemo()) return k in mineLive ? mineLive[k] + 1 : null;
   return mineDemo[k] != null ? mineDemo[k] : seeded;
 }
 
 function days(pid: string): PulseDay[] {
   const mineDemo = demoSaved()[pid] || {};
-  const mineLive = LIVE.enabled ? LIVE.pulseVotes(pid) : {};
-  const hist = LIVE.enabled
+  const mineLive = !isDemo() ? LIVE.pulseVotes(pid) : {};
+  const hist = !isDemo()
     ? Array(DAYS).fill(null)
     : HISTORY;
   return hist.map((v: number | null, i: number) => {
@@ -672,7 +697,7 @@ const cutOf = (agg: DayAgg, scopeId: string, mineIdx = -1): { n: number; mean: n
 };
 
 function scope(pid: string, id: string): PulseScope {
-  if (LIVE.enabled) {
+  if (!isDemo()) {
     const a = LIVE.anchors() || {};
     // THE READER'S NAME FOR THE PLACE, not the storage key. `anchors()`
     // hands back what the cell is keyed by — "NO" for a country, "Oslo,
@@ -764,13 +789,13 @@ export const PULSE = {
   q(pid: string): PulseQ | null { return qOf(pid); },
   steps(pid: string): PulseStep[] { return stepsOf(pid); },
   /** Live: the bank arrived and a card can render. Demo: always. */
-  ready(): boolean { return !LIVE.enabled || roster().length > 0; },
+  ready(): boolean { return isDemo() || roster().length > 0; },
   /** The 21-day window has LANDED — which `aggFor` cannot say, because it
    * answers null for "fetched, nobody answered" and "never fetched" alike
    * and the reading folds both into a confident zero. Demo has no window
    * to land: `scope()` serves DEMO_SCOPES and `ensureTrend` returns at its
    * first line, so the reading is complete the moment it renders. */
-  trendReady(pid: string): boolean { return !LIVE.enabled || !!trendAggs[pid]; },
+  trendReady(pid: string): boolean { return isDemo() || !!trendAggs[pid]; },
   /**
    * Has today's crowd been read? 'loading' | 'ready' | 'failed'.
    *
@@ -781,7 +806,7 @@ export const PULSE = {
    * its numbers are authored and there is nothing to fetch.
    */
   todayState(): "loading" | "ready" | "failed" {
-    if (!LIVE.enabled) return "ready";
+    if (isDemo()) return "ready";
     if (todayAggs && loadedForKey === utcKey(dayAt(DAYS - 1))) return "ready";
     return todayFailed ? "failed" : "loading";
   },
@@ -791,7 +816,7 @@ export const PULSE = {
    * (empty until anyone answers: an honest zero, never invented), demo
    * from the design's bins. */
   bins(pid: string, id: string): number[] {
-    if (!LIVE.enabled) return DEMO_BINS[id] ?? DEMO_BINS.world;
+    if (isDemo()) return DEMO_BINS[id] ?? DEMO_BINS.world;
     const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     if (!agg) return [0, 0, 0, 0, 0];
     // YOUR OWN UNFOLDED ANSWER JOINS AT READ TIME, the store's convention
@@ -825,7 +850,7 @@ export const PULSE = {
       n > 0 ? Math.round(100 * ((cell?.[String(i)] ?? 0) + (i === mineIdx ? 1 : 0)) / n) : 0);
   },
   todayN(pid: string, id: string): number {
-    if (!LIVE.enabled) {
+    if (isDemo()) {
       const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[2];
       return s.n[DAYS - 1];
     }
@@ -859,13 +884,13 @@ export const PULSE = {
     // moment a pulse carries a `since` date and the first day of its
     // window is a day it did not exist.
     const k = utcKey(dayAt(DAYS - 1));
-    const hist = LIVE.enabled
+    const hist = !isDemo()
       ? null
       : HISTORY;
     return mineOn(
       k,
-      LIVE.enabled ? LIVE.pulseVotes(pid) : {},
-      LIVE.enabled ? {} : (demoSaved()[pid] || {}),
+      !isDemo() ? LIVE.pulseVotes(pid) : {},
+      !isDemo() ? {} : (demoSaved()[pid] || {}),
       hist ? hist[DAYS - 1] ?? null : null,
     );
   },
@@ -873,7 +898,7 @@ export const PULSE = {
    * only — the store mirrors immediately, LIVE rolls back on refusal).
    * Demo: localStorage, the design's room. */
   answer(pid: string, v: number): void {
-    if (LIVE.enabled) {
+    if (!isDemo()) {
       void LIVE.votePulse(pid, v - 1);
       // The crowd for today moves with your own answer on the next poll;
       // refresh so the reveal's bins include you promptly. Today only —
@@ -890,7 +915,7 @@ export const PULSE = {
   ensureToday, ensureTrend, ensureLive,
   subscribe(f: () => void): () => void {
     subs.add(f);
-    const un = LIVE.enabled ? LIVE.subscribe(f) : undefined;
+    const un = !isDemo() ? LIVE.subscribe(f) : undefined;
     return () => { subs.delete(f); if (un) un(); };
   },
 };

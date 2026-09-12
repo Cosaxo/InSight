@@ -26,9 +26,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // one assertion: the demo and live branches of `scope()` build their labels
 // differently, and only the demo one had ever been read by a test.
 let liveOn = false;
+// The second half of D356's pair, and a getter for the same reason
+// `enabled` is: the case below flips it to stand the store up as a LIVE
+// build whose boot has not attached, which is a state no other case here
+// has ever expressed.
+let demoInProdOn = false;
 vi.mock("./live", () => ({
   default: {
     get enabled() { return liveOn; },
+    get demoInProd() { return demoInProdOn; },
     anchors: () => ({ city: "Oslo, NO", country: "NO" }),
     // Overridable per case: the `since` cases need a roster the DEMO one
     // cannot express, because the demo furniture is a literal in the
@@ -433,5 +439,40 @@ describe("trendReady — demo has no window to wait for", () => {
     try {
       expect(PULSE.trendReady("pulse-pace"), "an unfetched live window read as landed").toBe(false);
     } finally { liveOn = false; }
+  });
+});
+
+describe("a live build whose boot has not attached (D356)", () => {
+  // `LIVE.enabled` is false for TWO reasons: this is the demo build, or
+  // this is a live build that has not attached yet. Every reading in
+  // pulse.ts asked the bare flag, so the second case served the design's
+  // invented furniture to a real person — and D479 made that reachable by
+  // dealing pulses into the feed, where all five land in a real user's
+  // stream instead of the daily's own stack.
+  //
+  // What they saw: a streak badge counting days they never answered, an
+  // 11-of-14 strip, "34% of 24,800 answers today", and a 6/13/28/34/19
+  // split that is a drawing rather than a measurement. Answering one was
+  // worse than cosmetic — the vote went to localStorage, so when the boot
+  // landed it was gone and the pulse asked again blind.
+  beforeEach(() => { liveOn = false; demoInProdOn = true; });
+  afterEach(() => { demoInProdOn = false; });
+
+  it("draws no card at all, rather than the demo's five", () => {
+    expect(PULSE.ready(), "the demo roster drew on a live build").toBe(false);
+  });
+
+  it("states no crowd size and no split it has not measured", () => {
+    expect(PULSE.todayN("pulse-mood", "world"), "an invented crowd size").toBe(0);
+    expect(PULSE.bins("pulse-mood", "world"), "an invented split").toEqual([0, 0, 0, 0, 0]);
+  });
+
+  it("and the DEMO build still draws its own design", () => {
+    // The control. Without it the three above pass on a module that
+    // simply refuses everything, which would break the demo instead of
+    // fixing the live build.
+    demoInProdOn = false;
+    expect(PULSE.ready(), "the demo lost its own cards").toBe(true);
+    expect(PULSE.todayN("pulse-mood", "world")).toBeGreaterThan(0);
   });
 });
