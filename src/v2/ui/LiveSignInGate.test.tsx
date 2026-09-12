@@ -357,7 +357,7 @@ describe("the email door", () => {
     // condition alone, BEFORE emailSignIn is called, so at that moment the
     // typed address may have no account, or the wrong password; both come
     // back as failures on the second tap. Stating "That account already
-    // has an Doxa history" there is the app telling the user a fact it
+    // has a Doxa history" there is the app telling the user a fact it
     // has not got (D146: say what was measured). The cost is certain
     // either way, and the cost is what the screen is for.
     await openEmail();
@@ -366,7 +366,7 @@ describe("the email door", () => {
     expect(await screen.findByText(/they are not merged/i)).toBeTruthy();
     expect(emailSignIn, "the claim was made after a call, not before").not.toHaveBeenCalled();
     expect(
-      screen.queryByText(/already has an Doxa history/i),
+      screen.queryByText(/already has a Doxa history/i),
       "the email door asserted an account it had not asked about",
     ).toBeNull();
 
@@ -377,7 +377,7 @@ describe("the email door", () => {
     await gateReady();
     fireEvent.click(screen.getByText("Continue with Google"));
     expect(
-      await screen.findByText(/already has an Doxa history/i),
+      await screen.findByText(/already has a Doxa history/i),
       "the door that was refused stopped naming what it was refused for",
     ).toBeTruthy();
   });

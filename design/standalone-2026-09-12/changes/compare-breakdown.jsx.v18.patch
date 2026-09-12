@@ -1,0 +1,235 @@
+--- v18/compare-breakdown.jsx (compiled, normalised)
++++ 2026-09-12/compare-breakdown.jsx (normalised)
+@@ -136,7 +136,7 @@
+       display: "block"
+     },
+     role: "img",
+-    "aria-label": `Where you and ${themLabel} agree, drawn solid; the distance between you, pale`
++    "aria-label": `Solid petals are your scores; each washed dot is ${themLabel} on the same trait`
+   }, React.createElement("circle", {
+     cx: cx,
+     cy: cy,
+@@ -154,21 +154,34 @@
+     opacity: "0.5"
+   }), dims.map((d, i) => {
+     const t = themV[d.id] ?? 50;
+-    const lo = Math.min(d.value, t),
+-      up = Math.max(d.value, t);
+-    return up - lo > 1 ? React.createElement("path", {
++    return t - d.value > 1.5 ? React.createElement("path", {
+       key: "g" + d.id,
+-      d: seg(i, lo, up),
++      d: seg(i, d.value, t),
+       fill: cbPetal(hueOf(d.id, i)),
+-      fillOpacity: "0.26",
++      fillOpacity: "0.18",
+       style: fade(i)
+     }) : null;
+   }), dims.map((d, i) => React.createElement("path", {
+     key: "y" + d.id,
+-    d: seg(i, 0, Math.min(d.value, themV[d.id] ?? 50)),
++    d: seg(i, 0, d.value),
+     fill: cbPetal(hueOf(d.id, i)),
+     style: fade(i)
+-  })), React.createElement("circle", {
++  })), dims.map((d, i) => {
++    const t = themV[d.id];
++    if (t == null) return null;
++    const col = cbPetal(hueOf(d.id, i));
++    const [x, y] = pt(-90 + (i + 0.5) * slice, Math.max(rOf(t), r0 + 5));
++    return React.createElement("circle", {
++      key: "t" + d.id,
++      cx: x.toFixed(1),
++      cy: y.toFixed(1),
++      r: "4.4",
++      fill: cbSoft(col, 45),
++      stroke: "var(--surface-2)",
++      strokeWidth: "1.5",
++      style: fade(i)
++    });
++  }), React.createElement("circle", {
+     cx: cx,
+     cy: cy,
+     r: 3,
+@@ -469,17 +482,7 @@
+     }
+   }), who))), cards);
+ }
+-function CompareCarousel({
+-  pop,
+-  accent = "var(--accent)",
+-  label,
+-  aligns = {},
+-  extra = []
+-}) {
+-  const [idx, setIdx] = React.useState(0);
+-  const railRef = React.useRef(null);
+-  if (!pop) return null;
+-  const who = label || pop.label || "them";
++function cbSlides(pop, who, aligns = {}, extra = []) {
+   const slides = [];
+   CB_ASSESS.forEach(a => {
+     const R = (window.IS_TEST_RESULTS || {})[a.kind];
+@@ -502,6 +505,20 @@
+     });
+   });
+   extra.forEach(s => slides.push(s));
++  return slides;
++}
++function CompareCarousel({
++  pop,
++  accent = "var(--accent)",
++  label,
++  aligns = {},
++  extra = []
++}) {
++  const [idx, setIdx] = React.useState(0);
++  const railRef = React.useRef(null);
++  if (!pop) return null;
++  const who = label || pop.label || "them";
++  const slides = cbSlides(pop, who, aligns, extra);
+   if (!slides.length) return null;
+   const step = el => el.firstElementChild ? el.firstElementChild.getBoundingClientRect().width + 10 : el.clientWidth;
+   const onScroll = e => {
+@@ -613,7 +630,140 @@
+     }
+   }), who)));
+ }
++function CompareList({
++  pop,
++  accent = "var(--accent)",
++  label,
++  aligns = {},
++  extra = [],
++  legend = true,
++  lead
++}) {
++  const who = label || pop && pop.label || "them";
++  const slides = pop ? cbSlides(pop, who, aligns, extra).sort((a, b) => b.align - a.align) : [];
++  const [open, setOpen] = React.useState(() => slides[0] ? slides[0].kind : null);
++  if (!slides.length) return null;
++  const legendTxt = {
++    fontFamily: "var(--sans)",
++    fontSize: 10.5,
++    fontWeight: 700,
++    color: CB_INK,
++    letterSpacing: "0.09em",
++    textTransform: "uppercase",
++    display: "inline-flex",
++    alignItems: "center",
++    gap: 6
++  };
++  return React.createElement("div", null, lead ? lead(slides) : null, React.createElement("div", {
++    style: {
++      borderTop: "0.5px solid var(--rule)"
++    }
++  }, slides.map(s => {
++    const on = open === s.kind;
++    return React.createElement("div", {
++      key: s.kind,
++      style: {
++        borderBottom: "0.5px solid var(--rule)"
++      }
++    }, React.createElement("button", {
++      className: "press",
++      onClick: () => setOpen(on ? null : s.kind),
++      "aria-expanded": on,
++      style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 12,
++        width: "100%",
++        minHeight: 52,
++        padding: "8px 0",
++        border: "none",
++        background: "none",
++        color: "inherit",
++        cursor: "pointer",
++        textAlign: "left",
++        WebkitAppearance: "none",
++        appearance: "none"
++      }
++    }, React.createElement("span", {
++      style: {
++        flex: 1,
++        minWidth: 0
++      }
++    }, React.createElement("span", {
++      style: {
++        display: "block",
++        fontFamily: "var(--sans)",
++        fontSize: 15,
++        fontWeight: on ? 700 : 600,
++        letterSpacing: "-0.01em",
++        color: "var(--ink)"
++      }
++    }, s.title), s.sub ? React.createElement("span", {
++      style: {
++        display: "block",
++        marginTop: 1,
++        fontFamily: "var(--sans)",
++        fontSize: 11.5,
++        color: CB_INK
++      }
++    }, s.sub) : null), React.createElement("span", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontSize: 17,
++        fontWeight: 800,
++        letterSpacing: "-0.02em",
++        color: accent,
++        fontVariantNumeric: "tabular-nums"
++      }
++    }, s.align), React.createElement(CBAlignGlyph, {
++      align: s.align,
++      accent: accent
++    }), React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        width: 7,
++        height: 7,
++        flexShrink: 0,
++        marginLeft: 2,
++        borderRight: "1.5px solid var(--ink-3)",
++        borderBottom: "1.5px solid var(--ink-3)",
++        transform: on ? "translateY(2px) rotate(-135deg)" : "translateY(-2px) rotate(45deg)",
++        transition: "transform 0.22s var(--ease-out)"
++      }
++    })), on ? React.createElement("div", {
++      className: "fade-in",
++      style: {
++        paddingBottom: 18
++      }
++    }, s.body) : null);
++  })), legend ? React.createElement("div", {
++    style: {
++      display: "flex",
++      gap: 16,
++      marginTop: 12
++    }
++  }, React.createElement("span", {
++    style: legendTxt
++  }, React.createElement("span", {
++    style: {
++      width: 11,
++      height: 11,
++      borderRadius: 99,
++      background: accent
++    }
++  }), "you"), React.createElement("span", {
++    style: legendTxt
++  }, React.createElement("span", {
++    style: {
++      width: 11,
++      height: 11,
++      borderRadius: 99,
++      background: cbSoft(accent, 52)
++    }
++  }), who)) : null);
++}
+ Object.assign(window, {
+   CompareBreakdown,
+-  CompareCarousel
++  CompareCarousel,
++  CompareList
+ });

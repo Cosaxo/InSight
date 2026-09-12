@@ -48,7 +48,7 @@ describe("the daily's ruler is the nav (v17)", () => {
     ).toBe(true);
     expect(document.querySelector("#daily-mode-slot"), "the pill slot is still rendered").toBeNull();
     expect(document.querySelector(".app-header .h-title"), "the wordmark is missing").not.toBeNull();
-    for (const label of ["World", "Circle", "1v1"]) {
+    for (const label of ["World", "Groups", "1v1s"]) {
       expect(
         [...row.querySelectorAll('[role="tab"]')].some((b) => b.textContent.trim() === label),
         `the ruler is missing its ${label} stop`,
@@ -62,7 +62,7 @@ describe("the daily's ruler is the nav (v17)", () => {
     const stop = (label) =>
       [...ruler().querySelectorAll('[role="tab"]')].find((b) => b.textContent.trim() === label);
     expect(stop("World").getAttribute("aria-selected")).toBe("true");
-    act(() => { fireEvent.click(stop("1v1")); });
+    act(() => { fireEvent.click(stop("1v1s")); });
     // The shell owns `dailyMode` now and writes it into data-view, so this
     // asserts the round trip rather than DailySplit's private state.
     expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:duo");

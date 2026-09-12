@@ -529,12 +529,26 @@ export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
 }
 
 // ── root ─────────────────────────────────────────────────────────────────────
+// The legend (2026-09-12, VISION-2026-09-12 §3): four dots drawn the way
+// the map draws them, so the card says what the picture means — the
+// design's single visual over four sentences (D182's ordering).
+const LEGEND = [
+  ['', 'near the centre — with the crowd'],
+  ['is-far', 'far out — a rarer take'],
+  ['is-fresh', 'halo — answered this week'],
+  ['is-rare', 'hollow — a minority answer'],
+];
 export function MTRootCard({ count, anchorCount }) {
   return (
     <div>
       <div className="mmt-kicker">your map</div>
       <div className="mmt-title">You</div>
       <div className="mmt-prompt">{count} answers · tap a profile dot to compare yourself with people like you.</div>
+      <div className="mmt-legend">
+        {LEGEND.map(([k, t]) => (
+          <div key={t} className="mmt-leg"><span className={'mmt-legdot ' + k} aria-hidden="true"></span>{t}</div>
+        ))}
+      </div>
     </div>
   );
 }

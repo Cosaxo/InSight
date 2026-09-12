@@ -9,6 +9,16 @@
 // in this prototype the other side accepts after a short, believable delay.
 // Persisted locally.
 //
+// THE DEMO'S HALF of the friends handshake (VISION-2026-09-12 §2,
+// D-2026-09-12d): beside `friends` and `invited` the store keeps
+// `requests` — people who asked YOU, seeded so the demo's *Your friends*
+// overlay has something to accept — and `dismissed`, the suggestions waved
+// away. `status(id)` answers `none · invited · requested · friends`; an
+// invite to somebody already asking is an accept. The live build's
+// equivalent is data/friends.ts, which reads the same four states off
+// D101's follow rows; this store is what the demo and the mount suites
+// play, and the shapes are kept equal so one overlay draws both.
+//
 // The IIFE is vestigial under ESM (D39) and stays only because unwrapping it
 // re-indents the file for no behavioural gain; the binding is hoisted out.
 // Same shape as daily-questions.js — see the note there.
@@ -29,6 +39,9 @@ export let FRIENDS;
   // is written on first run and read back forever after. Clearing site data
   // (or the D51 purge) is what picks up a new seed.
   const SEED = ['f1', 'f2', 'f3', 'f4', 'f6', 'f8', 'f10', 'f12', 'f14', 'f17', 'f18', 'f20'];
+  // Two people asking to compare answers, neither in the seed above and
+  // both in IS_DATA.people (sample-people.test.js holds the ids).
+  const SEED_REQ = ['f5', 'f7'];
   // NOT ON A LIVE BUILD — the gate scenes.js and world-subtopics.js have
   // carried since D66 and this store never got, though it is the one
   // seeding PEOPLE. Consumers read `list()` and resolve the ids against
@@ -45,8 +58,13 @@ export let FRIENDS;
   const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
   let S;
   try { S = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { S = null; }
-  if (!S || !Array.isArray(S.friends)) S = { friends: LIVE_BUILD ? [] : SEED.slice(), invited: {} };
+  const fresh = () => ({ friends: LIVE_BUILD ? [] : SEED.slice(), invited: {}, requests: LIVE_BUILD ? [] : SEED_REQ.slice(), dismissed: [] });
+  if (!S || !Array.isArray(S.friends)) S = fresh();
   S.invited = S.invited && typeof S.invited === 'object' ? S.invited : {};
+  // An install from before the handshake carries neither list; the seeded
+  // requests appear for it too — the key is the same, the shape grew.
+  S.requests = Array.isArray(S.requests) ? S.requests : (LIVE_BUILD ? [] : SEED_REQ.slice());
+  S.dismissed = Array.isArray(S.dismissed) ? S.dismissed : [];
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
@@ -65,21 +83,39 @@ export let FRIENDS;
     timer = setInterval(() => { if (!Object.keys(S.invited).length) { clearInterval(timer); timer = null; return; } sweep(); }, 2500);
   }
   if (Object.keys(S.invited).length) ensureTimer();
+  const dropReq = (id) => { S.requests = S.requests.filter((x) => x !== id); };
+  function accept(id) {
+    if (!S.requests.includes(id)) return;
+    dropReq(id);
+    if (!S.friends.includes(id)) S.friends.push(id);
+    save();
+  }
   FRIENDS = {
-    status: (id) => (S.friends.includes(id) ? 'friends' : S.invited[id] != null ? 'invited' : 'none'),
+    status: (id) => (S.friends.includes(id) ? 'friends' : S.invited[id] != null ? 'invited' : S.requests.includes(id) ? 'requested' : 'none'),
     isFriend: (id) => S.friends.includes(id),
-    invite: (id) => { if (id && !S.friends.includes(id) && S.invited[id] == null) { S.invited[id] = Date.now(); ensureTimer(); save(); } },
+    invite: (id) => {
+      if (!id || S.friends.includes(id)) return;
+      // asking somebody who already asked you is saying yes
+      if (S.requests.includes(id)) return accept(id);
+      if (S.invited[id] == null) { S.invited[id] = Date.now(); ensureTimer(); save(); }
+    },
     cancel: (id) => { delete S.invited[id]; save(); },
-    unfriend: (id) => { S.friends = S.friends.filter((x) => x !== id); delete S.invited[id]; save(); },
+    unfriend: (id) => { S.friends = S.friends.filter((x) => x !== id); delete S.invited[id]; dropReq(id); save(); },
     list: () => S.friends.slice(),
     invitedList: () => Object.keys(S.invited),
     count: () => S.friends.length,
+    requests: () => S.requests.slice(),
+    accept,
+    ignore: (id) => { dropReq(id); save(); },
+    dismiss: (id) => { if (id && !S.dismissed.includes(id)) { S.dismissed.push(id); save(); } },
+    dismissed: () => S.dismissed.slice(),
+    isDismissed: (id) => S.dismissed.includes(id),
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
   // The purge (data/live.ts, D51): drop to the fresh-boot state — the SEED
   // circle, exactly what load() yields with the key gone — or the next
   // invite/unfriend save() writes the previous account's edits back. fire()
   // without save(): notify, but do not re-create the purged key.
-  window.addEventListener('insight:local-purge', () => { S = { friends: LIVE_BUILD ? [] : SEED.slice(), invited: {} }; fire(); });
+  window.addEventListener('insight:local-purge', () => { S = fresh(); fire(); });
 })();
 

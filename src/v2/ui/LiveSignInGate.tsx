@@ -53,6 +53,9 @@ import LIVE from "../data/live";
 // store surface for spec-layer JSX to find by name.
 import { appleSignIn, googleSignIn, type EmailFailure } from "../../lib/firebase";
 import { SITE_ORIGIN } from "../data/siteOrigin";
+import { brandName, brandOf } from "../data/brand";
+// "an inSight history" / "a Doxa history": the article follows the name.
+const aBrandHistory = () => `${/^[aeiou]/i.test(brandName()) ? "an" : "a"} ${brandName()} history`;
 
 const GATE_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -100,8 +103,10 @@ function GateTitle() {
         <circle cx="35.3" cy="41.5" r="6" fill="var(--c-likeness)" />
         <circle cx="50" cy="50" r="8" fill="var(--ink)" />
       </svg>
-      <div style={{ fontFamily: "'DM Serif Display', var(--serif)", fontWeight: 400, fontSize: 36, letterSpacing: "-0.01em", lineHeight: 1 }}>
-        Do<span style={{ color: "var(--c-world)" }}>x</span>a
+      {/* the name, from data/brand.ts: the serif (D472's four glyphs) for
+          Doxa, the wordmark's sans for the two the DEV radio can set */}
+      <div style={{ fontFamily: brandOf().serif ? "'DM Serif Display', var(--serif)" : "var(--sans)", fontWeight: brandOf().serif ? 400 : 800, fontSize: 36, letterSpacing: brandOf().serif ? "-0.01em" : "-0.03em", lineHeight: 1 }}>
+        {brandOf().parts[0]}<span style={{ color: "var(--c-world)" }}>{brandOf().parts[1]}</span>{brandOf().parts[2]}
       </div>
     </div>
   );
@@ -426,7 +431,7 @@ function LiveSignInGate() {
       <GateShell>
         <GateTitle />
         <GateBody>
-          Can&rsquo;t reach Doxa yet{LIVE.bootError ? ` \u2014 ${LIVE.bootError}` : ""}.
+          Can&rsquo;t reach {brandName()} yet{LIVE.bootError ? ` \u2014 ${LIVE.bootError}` : ""}.
           This build keeps your answers to a real account, so it waits for a
           connection rather than showing you sample questions.
         </GateBody>
@@ -503,7 +508,7 @@ function LiveSignInGate() {
           {inUse.known
             // Firebase already refused the link, so the other account is a
             // fact and the screen may name it.
-            ? <>That account already has an Doxa history. Signing in to it leaves
+            ? <>That account already has {aBrandHistory()}. Signing in to it leaves
               this phone&rsquo;s answers behind &mdash; they are not merged.</>
             // Nothing has been asked yet at the email door, so the history
             // is the one thing this screen must not assert. What IS certain
@@ -607,7 +612,7 @@ function LiveSignInGate() {
         <>
           <p style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700,
             color: "var(--ink-2)", margin: "20px 0 0", textAlign: "center" }}>
-            Answers on Doxa are public, yours included.
+            Answers on {brandName()} are public, yours included.
           </p>
           <p style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500,
             color: "var(--ink-3)", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>

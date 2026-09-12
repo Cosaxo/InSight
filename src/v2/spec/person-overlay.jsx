@@ -17,6 +17,10 @@ import { AXES, SEATS, MIN_DUO, MIN_GROUP } from '../data/roles';
 import { cueDuel } from '../data/duelCue';
 import NAV from '../data/nav';
 import { CompareCarousel } from './compare-breakdown.jsx';
+// the receipts (2026-09-12) read the bank and the crowd's counts the way
+// person-mindmap.jsx does, through the same two imports
+import { DAILYQ } from './daily-questions.js';
+import { MapStats } from './map-group-stats.js';
 
 // Expanded Person profile — a detailed portrait of similarity
 // Replaces the basic PersonOverlay — registration is spec-index.js's
@@ -29,6 +33,60 @@ function poHash(s) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return ((h >>> 8) % 100000) / 100000;
+}
+
+// ── the receipts (2026-09-12, VISION-2026-09-12 §4) ────────────────────
+//
+// Which questions you have both answered, and where the answers agree.
+// THE SAME INVENTION AS THE MIND MAP, deliberately: person-mindmap.jsx
+// derives this person's answers from the same seed, the same hash and
+// the same agreement probability (their affinity, less a little), and
+// breaks the majority tie the same way, so the lead under the hero and
+// the map the lead opens agree to the answer. This page is a demo
+// surface (derivePerson invents what it compares; app-shell opens it
+// from the sample people alone), which is what licenses inventing here
+// at all — nothing on a live build reaches it.
+function receiptRows(p) {
+  const D = DAILYQ;
+  if (!p || p.anon || !D || !D.questions) return null;
+  const seed = String(p.id || p.init || p.name || 'x');
+  const H = (s) => poHash(seed + '|' + s);
+  const agreeP = Math.min(0.9, Math.max(0.35, (p.match || 60) / 100 - 0.05));
+  const out = [];
+  D.questions.forEach((q) => {
+    if (H('has' + q.id) > 0.68) return; // one they haven't answered
+    const mineIdx = D.myAnswer(q);
+    if (mineIdx == null) return;        // one YOU haven't — no receipt without both
+    const n = Math.max(2, q.type === 'rating' ? 10 : q.type === 'binary' ? 2 : q.type === 'scale' ? 5 : (q.options || []).length || 2);
+    const qid = q.liveId || q.id;
+    const gd = MapStats.dist(qid, 'all', n, mineIdx);
+    const asked = MapStats.mode(qid, 'all', n, mineIdx);
+    const majIdx = asked != null ? asked : gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
+    let aidx;
+    if (H('agree' + q.id) < agreeP) aidx = mineIdx;
+    else {
+      aidx = H('majb' + q.id) < 0.6 ? majIdx : Math.floor(H('pick' + q.id) * n);
+      if (aidx === mineIdx) aidx = (aidx + 1 + Math.floor(H('shift' + q.id) * (n - 1))) % n;
+    }
+    out.push({ id: q.id, same: aidx === mineIdx });
+  });
+  return out;
+}
+// The sentence and its tail. The tail is the part that moves — the splits
+// are what the page has to show — so it wears the person's hue.
+function receiptLead(rows) {
+  const n = rows.length, nSame = rows.filter((r) => r.same).length, nSplit = n - nSame;
+  if (nSplit === 0) return { main: 'Same answer every time.', tail: `All ${n}` };
+  if (nSame === 0) return { main: 'Different answers every time.', tail: `All ${n}` };
+  return { main: `Same answer ${nSame} times out of ${n}.`, tail: nSplit === 1 ? 'One split' : nSplit === 2 ? 'Two splits' : `${nSplit} splits` };
+}
+// The lead over the compare slides (they arrive closest-first): the two
+// ends named, and the far end called far only when it is.
+function matchLead(all) {
+  const slides = (all || []).filter((s) => s.kind !== 'interests');
+  if (slides.length < 2) return null;
+  const top = slides[0], low = slides[slides.length - 1];
+  return low.align >= 75 ? `Closest on ${top.title}, least on ${low.title}.` : `Closest on ${top.title}. Furthest apart on ${low.title}.`;
 }
 
 // ─── Deterministic derivation of a person's full profile from p ───
@@ -392,6 +450,8 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   });
   const p = { ...rawP, interests: normInterests };
   const prof = derivePerson(p, me);
+  const rrows = receiptRows(p);
+  const leadParts = rrows && rrows.length ? receiptLead(rrows) : null;
   const parts = affinityBreakdown(me, prof, p);
   const themColor = WPAL.ink(`oklch(0.55 0.13 ${p.hue})`);
 
@@ -399,10 +459,16 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const firstName = p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init);
   const fStatus = !p.anon && p.id ? FRIENDS.status(p.id) : 'none';
   const isFriend = fStatus === 'friends';
+  // Two states draw the filled button (2026-09-12): nobody has asked, or
+  // THEY have — "Accept request" is the person page's door into the
+  // friends handshake, and accepting is the same invite the store already
+  // writes (follows.js: an invite to somebody asking is an accept).
+  const fPrim = fStatus === 'none' || fStatus === 'requested';
   const onFriendBtn = () => {
     if (!p.id) return;
     if (fStatus === 'none') FRIENDS.invite(p.id);
     else if (fStatus === 'invited') FRIENDS.cancel(p.id);
+    else if (fStatus === 'requested') FRIENDS.accept(p.id);
     else setConfirmRemove(true);
   };
 
@@ -411,7 +477,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
       <div className="app-header">
         <button className="avatar-btn" aria-label="Back" onClick={onClose}>←</button>
         <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
-        <div className="h-meta" style={{ flexShrink: 0 }}>{p.dist || (p.anon ? 'nearby' : 'in your orbit')}</div>
+        <div className="h-meta" style={{ flexShrink: 0 }}>{p.dist || (p.anon ? 'nearby' : p.since ? `since ${p.since}` : 'in your orbit')}</div>
       </div>
       <div className="app-body">
 
@@ -440,8 +506,23 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', marginTop: 7, textTransform: 'uppercase' }}>
             {p.anon
               ? `${p.role || 'nearby'} · ${p.dist || 'nearby'}`
-              : <>{p.role || p.rel} · {p.age ? `aged ${p.age} · ` : ''}{p.dist || 'in your orbit'}</>}
+              // `since` (2026-09-12): when the row was written, between the
+              // relation and where they are
+              : [p.role || p.rel, p.age ? `aged ${p.age}` : null, p.since ? `since ${p.since}` : null, p.dist].filter(Boolean).join(' · ') || 'in your orbit'}
           </div>
+          {/* the receipts lead (2026-09-12): a sentence and a tail, the
+              whole line a door to their answers — the mind map, which is
+              where this page draws them */}
+          {leadParts && (
+            <button
+              className="press"
+              onClick={() => setMapOpen(true)}
+              aria-label={`${leadParts.main} ${leadParts.tail}. See the answers`}
+              style={{ marginTop: 8, padding: '2px 0', border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, textAlign: 'center', textWrap: 'pretty' }}
+            >
+              {leadParts.main} <span style={{ color: themColor, fontWeight: 700, whiteSpace: 'nowrap' }}>{leadParts.tail} ›</span>
+            </button>
+          )}
 
           <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
             {!p.anon && p.id && (confirmRemove ? (
@@ -454,12 +535,12 @@ function PersonOverlay({ p: rawP, onClose, me }) {
               <button className="press" onClick={onFriendBtn} style={{
                 padding: '9px 24px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap',
                 fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 700, letterSpacing: '0.01em',
-                background: fStatus === 'none' ? themColor : 'var(--surface-2)',
-                color: fStatus === 'none' ? 'white' : 'var(--ink)',
-                border: `0.5px solid ${fStatus === 'none' ? themColor : 'var(--rule)'}`,
-                boxShadow: fStatus === 'none' ? `0 6px 14px -6px color-mix(in oklch, ${themColor} 50%, transparent)` : 'none',
+                background: fPrim ? themColor : 'var(--surface-2)',
+                color: fPrim ? 'white' : 'var(--ink)',
+                border: `0.5px solid ${fPrim ? themColor : 'var(--rule)'}`,
+                boxShadow: fPrim ? `0 6px 14px -6px color-mix(in oklch, ${themColor} 50%, transparent)` : 'none',
                 transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
-              }}>{isFriend ? 'Friends ✓' : fStatus === 'invited' ? 'Invited · waiting' : 'Add friend'}</button>
+              }}>{isFriend ? 'Friends ✓' : fStatus === 'invited' ? 'Invited · waiting' : fStatus === 'requested' ? 'Accept request' : 'Add friend'}</button>
             ))}
             {fStatus === 'invited' && !confirmRemove && <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>they{'\u2019'}ll see it soon · tap to cancel</span>}
           </div>
@@ -548,8 +629,10 @@ function PersonOverlay({ p: rawP, onClose, me }) {
                   })}
                 </div>
                 <div style={{ marginTop: 11, paddingTop: 9, borderTop: '0.5px solid var(--rule)', display: 'flex', alignItems: 'center', gap: 14, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, 'var(--ink)')}you</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, themColor)}{who}</span>
+                  {/* the person's hue and a faded hue (2026-09-12), the
+                      carousel's own legend one card over — not ink and hue */}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, themColor)}you</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{mark(true, `color-mix(in oklch, ${themColor}, transparent 52%)`)}{who}</span>
                 </div>
               </div>
             ),
@@ -562,6 +645,10 @@ function PersonOverlay({ p: rawP, onClose, me }) {
                 accent={themColor} label={who}
                 aligns={{ big5: Math.round(parts.personality), political: Math.round(parts.politics), values: Math.round(parts.values) }}
                 extra={[interestsSlide]}
+                lead={(slides) => {
+                  const txt = matchLead(slides);
+                  return txt ? <div style={{ marginBottom: 14, fontFamily: 'var(--sans)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.015em', lineHeight: 1.3, color: 'var(--ink)', textWrap: 'pretty' }}>{txt}</div> : null;
+                }}
               />
             </div>
           );

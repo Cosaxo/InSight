@@ -137,7 +137,9 @@ export const SIZE_BASELINE = {
   // is left here is the note saying so — one line longer than the code it
   // replaced. Which is the paragraph above, measuring itself.
   "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4979 },
-  "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2377 },
+  // +19 on 2026-09-12: the 1v1 sheet's door to the friends overlay and the
+  // note on why the sheet has one (D-2026-09-12d's amendment).
+  "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2396 },
   // The suites are watched too, and for the same reason rather than out of
   // tidiness: vote.test.ts is the file that pins the whole window.LIVE
   // surface, so it grows every time the store does, and a 4,000-line test

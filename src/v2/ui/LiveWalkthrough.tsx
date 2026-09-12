@@ -42,6 +42,7 @@ import React from "react";
 // @ts-expect-error TS7016 — untyped spec module (the LiveMirrorLenses pattern)
 import { useDialog } from "../spec/primitives.jsx";
 import { pushBackLayer } from "../data/backLayers";
+import { brandName } from "../data/brand";
 
 interface Page {
   id: string;
@@ -79,7 +80,7 @@ const PAGES: Page[] = [
     // sentence like this outlives the thing it described. What must stay
     // true is the GAME: nobody sees anyone's answer before the reveal.
     // That holds at any cadence, so it is what the sentence says.
-    body: "World is everyone. Circle is a group you make; 1v1 is one friend — answer, then guess theirs. Both stay sealed until the reveal, then open with names.",
+    body: "World is everyone. A group is a room you make; a 1v1 is one friend — answer, then guess theirs. Both stay sealed until the reveal, then open with names.",
     accent: "var(--c-around)",
   },
   {
@@ -108,8 +109,8 @@ const PAGES: Page[] = [
 // colours they wear, so what a page shows is what the tab shows.
 const DAILY_STOPS = [
   { label: "World", accent: "var(--c-around)" },
-  { label: "Circle", accent: "var(--c-likeness)" },
-  { label: "1v1", accent: "var(--c-people)" },
+  { label: "Groups", accent: "var(--c-likeness)" },
+  { label: "1v1s", accent: "var(--c-people)" },
 ];
 const MIRROR_STOPS = [
   { label: "You", accent: "var(--c-today)" },
@@ -264,7 +265,7 @@ function LiveWalkthrough({ onDone, again = false }: { onDone: () => void; again?
   const [page, setPage] = React.useState(0);
   const cur = PAGES[page];
   const last = page === PAGES.length - 1;
-  const dlg = useDialog(onDone, "How Doxa works");
+  const dlg = useDialog(onDone, `How ${brandName()} works`);
 
   // ANDROID'S BACK BUTTON, which `useDialog` above does not cover. D24 gave
   // this overlay Escape and a focus trap — the keyboard path — and
@@ -344,7 +345,7 @@ function LiveWalkthrough({ onDone, again = false }: { onDone: () => void; again?
       paddingBottom: "calc(env(safe-area-inset-bottom) + 24px)",
     }}>
       <div style={{ width: "100%", maxWidth: 420, margin: "0 auto", padding: "0 22px", boxSizing: "border-box", flex: 1, display: "flex", flexDirection: "column" }}>
-        <div className="kicker" style={{ marginBottom: 0 }}>How Doxa works</div>
+        <div className="kicker" style={{ marginBottom: 0 }}>How {brandName()} works</div>
 
         {/* Keyed by page so each one rises in (the paid door's own
             entrance, styles.css .sg-rise, which reduced motion turns

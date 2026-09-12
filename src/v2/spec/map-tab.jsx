@@ -24,6 +24,12 @@ import { MapLens } from './map-branches.js';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
+// The wayfinding pieces (2026-09-12): the card's grab bar and prev/next,
+// and the Find results card. Same chunk, own file.
+import { MTCardGrab, MTCardNav, MTFindCard } from './map-find.jsx';
+// The wayfinding's own stylesheet rides this chunk (see the file's head);
+// the row along the top is styled from styles.css, which loads first.
+import './map-wayfinding.css';
 // The v28 branches (§5, D207) — all reachable only because this chunk is
 // lazy now: the walks, the pulse lines and the Foresight aims, plus the
 // typed cue that opens the Map on one of them (data/mapCue's take-once).
@@ -76,7 +82,17 @@ function MTForeLeaf({ node }) {
 }
 
 // ── the tab ─────────────────────────────────────────────────────────────────
-export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsOn = true }) {
+// The two coach hints' memory (VISION-2026-09-12 §3): one device key, set
+// once both have shown. Module-level so the effect below can name it
+// without owing the dependency list a component-scope value. The purge
+// listener in the component is what check:purge asks of a writer.
+const LS_HINTS = 'insight.mapHints.v1';
+const hintsSeen = () => { try { return !!localStorage.getItem(LS_HINTS); } catch (e) { return true; } };
+const hintsMarkSeen = () => { try { localStorage.setItem(LS_HINTS, '1'); } catch (e) { /* best-effort — the hint simply shows once more */ } };
+
+// `onExit` (2026-09-12): the step past the top level — the Mirror hands
+// it goNav(back), so the Map's edge swipe lands where you came from.
+export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsOn = true, onExit }) {
   const { useState, useEffect, useMemo, useRef } = React;
 
   // editable branch labels (persisted)
@@ -410,6 +426,35 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const [hlCat, setHlCat] = useState(null); // spotlit branch id
   const [pairA, setPairA] = useState(null); // active group filter on the answer card
 
+  // ── wayfinding state (VISION-2026-09-12 §3, D-2026-09-12d) ──────────────
+  // The coach hints: 0 = first arrival, the first hint owed · 0.5 = it has
+  // shown, the second still owed · 1 = the second showing (a group opened)
+  // · 2 = both done, remembered. Nine seconds or a tap each.
+  const [hint, setHint] = useState(() => (hintsSeen() ? 2 : 0));
+  const hintDone = () => { setHint(2); hintsMarkSeen(); };
+  useEffect(() => {
+    if (hint === 0) { const t = setTimeout(() => setHint(0.5), 9000); return () => clearTimeout(t); }
+    if (hint === 1) { const t = setTimeout(() => { setHint(2); hintsMarkSeen(); }, 9000); return () => clearTimeout(t); }
+    return undefined;
+  }, [hint]);
+  // D51: the purge removes the key; this forgets in memory, so the next
+  // account on the device is coached again rather than inheriting a tour.
+  useEffect(() => {
+    const onPurge = () => setHint(0);
+    window.addEventListener('insight:local-purge', onPurge);
+    return () => window.removeEventListener('insight:local-purge', onPurge);
+  }, []);
+  // Find: the rail becomes a field, and two toggles narrow the map
+  const [findOpen, setFindOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [fWeek, setFWeek] = useState(false);
+  const [fRare, setFRare] = useState(false);
+  // the card's three sizes: peek · half · full (MTCardGrab)
+  const [cardMode, setCardMode] = useState('half');
+  // a Find row inside a closed group: open the group, then select it
+  const pendingSel = useRef(null);
+  const cardTouch = useRef(null);
+
   // Whether `age` means "days ago" at all — see the two readings below
   // that used to draw it as though it always did.
   const datesReal = DAILYQ.datesAreReal ? DAILYQ.datesAreReal() : true;
@@ -438,7 +483,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   // one place that did not.
   const anchorRows = selAnchor ? allAnswers.filter((n) => !n.learn).sort((a, b) => a.age - b.age) : [];
 
-  const hlSet = useMemo(() => {
+  const catSet = useMemo(() => {
     if (hlCat) {
       const s = new Set([hlCat]);
       nodes.forEach((n) => { if (mtTopCat(n, byId) === hlCat) s.add(n.id); });
@@ -449,6 +494,43 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
 
   // oldest answer — the far end of the time scrub
   const maxAge = useMemo(() => allAnswers.reduce((m, n) => Math.max(m, n.age || 0), 0), [allAnswers]);
+
+  // ── Find (2026-09-12): matches over what the map already holds ─────────
+  const findActive = findOpen && (query.trim().length > 0 || fWeek || fRare);
+  // "This week" is a claim about WHEN, and on a live build `age` is a
+  // position, not a date (see `dated` in the node pass) — so the toggle is
+  // offered only where the dates are dates, the gate the halo stands behind.
+  const weekReal = recency && datesReal;
+  const matches = useMemo(() => {
+    if (!findActive) return null;
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    return allAnswers.filter((n) => {
+      if (fWeek && !((n.age ?? 999) <= 7)) return false;
+      // the hollow ring's own rule: a minority answer where a crowd
+      // majority was actually folded (mapTrees.test.ts holds the line)
+      if (fRare && !(n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj)) return false;
+      if (!words.length) return true;
+      const hay = [n.prompt, n.ans, n.tag, n.label, n.note].filter(Boolean).join(' ').toLowerCase();
+      return words.every((w) => hay.indexOf(w) >= 0);
+    }).sort((a, b) => (a.age ?? 0) - (b.age ?? 0));
+  }, [findActive, query, fWeek, fRare, allAnswers]);
+  // what lights: each match, its ancestors, and the group it sits in
+  const findSet = useMemo(() => {
+    if (!matches) return null;
+    const by = {};
+    nodes0.forEach((n) => { by[n.id] = n; });
+    const s = new Set();
+    matches.forEach((n) => {
+      s.add(n.id);
+      let cur = by[n.id], g = 0;
+      while (cur && cur.parentId && g++ < 6) { s.add(cur.parentId); cur = by[cur.parentId]; }
+      const gid = GRP ? GRP.of(topOf[n.id]) : null;
+      if (gid) s.add(gid);
+    });
+    return s;
+  }, [matches, nodes0, topOf, GRP]);
+  // Find owns the spotlight while it has one; the branch spotlight otherwise
+  const hlSet = findSet || catSet;
 
   // ---- view: pan / pinch / wheel ----
   const ref = useRef(null);
@@ -591,6 +673,10 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     if (lvlRef.current === openGroup) return;
     lvlRef.current = openGroup;
     if (!view) return;
+    // a Find row that opened this group: land on it rather than on the fit
+    const pend = pendingSel.current;
+    if (pend && pos[pend]) { pendingSel.current = null; setTimeout(() => selectItem(pend), 40); return; }
+    pendingSel.current = null;
     const t = fitAllTarget();
     if (t) tweenTo(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
@@ -683,7 +769,10 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       };
       drag.current = null;
     } else {
-      drag.current = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false };
+      // `edge`: a drag that starts within a thumb of the left edge is the
+      // way back (2026-09-12) — the app's swipe-back skips this canvas
+      // because the Map owns its drag, so the Map draws the gesture itself
+      drag.current = { sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y, moved: false, edge: canvasXY(e).x < 26 };
     }
   };
   const onPointerMove = (e) => {
@@ -708,7 +797,12 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     if (!d) return;
     const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
     if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
-    if (d.moved) { bumpMove(); setView((v) => clampView({ ...v, x: d.vx + dx, y: d.vy + dy })); }
+    if (d.moved) {
+      bumpMove();
+      // the edge swipe drags the map a little and lets go — a gesture, not a pan
+      if (d.edge) { setView((v) => ({ ...v, x: d.vx + Math.max(0, dx) * 0.35 })); return; }
+      setView((v) => clampView({ ...v, x: d.vx + dx, y: d.vy + dy }));
+    }
   };
   // animated zoom step around a canvas point (double-tap / two-finger tap)
   const stepZoom = (cx, cy, factor) => {
@@ -730,8 +824,19 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     }
     const d = drag.current;
     drag.current = null;
+    if (d && d.edge && d.moved) {
+      // a clear right-swipe from the edge steps one level out; anything
+      // less springs the map back to where it was
+      const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+      const back = { ...viewRef.current, x: d.vx, y: d.vy };
+      if (dx > 62 && Math.abs(dy) < dx * 0.7) { viewRef.current = back; setView(back); stepBack(); }
+      else tweenTo(back);
+      return;
+    }
     if (!d || d.moved) return;
-    // a plain tap on the canvas — double-tap zooms in, single tap steps back
+    // a plain tap on the canvas — double-tap zooms in, single tap closes
+    // what is open or settles the zoom (tapEmpty; the STEP is the edge
+    // swipe's and the trail's since 2026-09-12)
     const pt = canvasXY(e);
     const now = performance.now();
     const lt = lastTap.current;
@@ -751,7 +856,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     // NOW (positions at tap time) but fired on the same delay stepBack
     // uses, so a double-tap still wins the race and zooms.
     const near = nearestRef.current ? nearestRef.current(pt) : null;
-    tapTimer.current = setTimeout(near ? near.go : stepBack, 300);
+    tapTimer.current = setTimeout(near ? near.go : tapEmpty, 300);
   };
 
   // ---- time scrub — replay the map growing answer-by-answer ----
@@ -776,10 +881,26 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     setHlCat(null);
     if (had) { const t = fitAllTarget(); if (t) tweenTo(t); }
   };
+  // drilling in and out (2026-09-12): one door each way, so the second
+  // coach hint has a place to fire and a place to retire
+  const enterGroup = (id) => {
+    closeScrub();
+    setSel(null);
+    setHlCat(null);
+    if (hint < 1) setHint(1);
+    setOpenGroup(id);
+  };
+  const leaveGroup = () => {
+    closeScrub();
+    setSel(null);
+    setHlCat(null);
+    if (hint === 1) hintDone();
+    setOpenGroup(null);
+  };
   const selectCat = (id) => {
     closeScrub();
     // at the top level a hub is a door, not a card — tapping it opens the group
-    if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); return; }
+    if (grouped) { enterGroup(id); return; }
     setSel(id);
     setHlCat(id);
     const ids = [id];
@@ -799,16 +920,58 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     setHlCat(null);
     fitRing();
   };
+  const closeFind = () => { setFindOpen(false); setQuery(''); setFWeek(false); setFRare(false); };
+  const openFind = () => { closeScrub(); if (sel || hlCat) clearSel(); setFindOpen(true); };
+  // a Find row: select it where it is, or open its group first and select
+  // it once the constellation has rebuilt (the level effect consumes
+  // `pendingSel`)
+  const goToNode = (id) => {
+    if (byId[id] && !byId[id].quiet) { selectItem(id); return; }
+    const gid = GRP ? GRP.of(topOf[id]) : null;
+    if (!gid || gid === openGroup) { selectItem(id); return; }
+    pendingSel.current = id;
+    enterGroup(gid);
+  };
+  // a horizontal swipe on the card: the nearest answer in that direction,
+  // siblings first, then anything on the map
+  const swipeNext = (dir) => {
+    const cur = sel ? nodes.find((n) => n.id === sel && !n.quiet) : null;
+    if (!cur || !pos[cur.id]) return;
+    const p0 = pos[cur.id];
+    const pick = (list) => {
+      let best = null, bd = Infinity;
+      list.forEach((n) => {
+        if (n.id === cur.id || n.quiet || !pos[n.id]) return;
+        const dx = (pos[n.id].x - p0.x) * dir;
+        if (dx < 8) return;
+        const d = dx + Math.abs(pos[n.id].y - p0.y) * 1.6;
+        if (d < bd) { bd = d; best = n; }
+      });
+      return best;
+    };
+    const hit = pick(nodes.filter((n) => n.parentId === cur.parentId)) || pick(nodes);
+    if (hit) selectItem(hit.id);
+  };
 
-  // semantic back — one level out per tap: answer → its branch → group → all groups
+  // semantic back — one level out per step: answer → its branch → group →
+  // all groups → out of the Map (`onExit`, 2026-09-12 — the Mirror's own
+  // way back, so an edge swipe lands where you came from). Fired by the
+  // edge swipe; a tap on empty canvas is tapEmpty below.
   const stepBack = () => {
+    if (findOpen && !sel) { closeFind(); return; }
     if (selNode) {
       const catId = mtTopCat(selNode, byId);
-      if (catId) { selectCat(catId); return; }
+      if (catId && !findOpen) { selectCat(catId); return; }
+      clearSel();
+      return;
     }
     if (sel || hlCat) { clearSel(); return; }
-    if (openGroup) { setOpenGroup(null); return; }
-    // nothing selected but zoomed in — settle back to the full map
+    if (openGroup) { leaveGroup(); return; }
+    if (onExit) onExit();
+  };
+  // a tap that landed on nothing: close what is open, or settle the zoom
+  const tapEmpty = () => {
+    if (sel || hlCat) { clearSel(); return; }
     const v = viewRef.current;
     if (v && v.z > (fitZRef.current || 0.2) * 1.25) {
       const t = fitAllTarget();
@@ -908,7 +1071,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     nodes.forEach((n) => {
       const p = pos[n.id];
       if (!p) return;
-      if (n.quiet) return;   // group level: mass without labels
+      if (n.quiet && !(findSet && findSet.has(n.id))) return;   // group level: mass without labels — unless Find lit it
       // a spotlit branch owns the stage — never let dimmed branches' labels ghost through
       if (hlSet && !hlSet.has(n.id) && sel !== n.id) return;
       // topic labels surface a beat earlier than answer chips — structure first
@@ -939,6 +1102,44 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const cardHue = selAnchor ? selAnchor.hue : selCat ? selCat.hue : selNodeCat ? selNodeCat.hue : 282;
   const activeCat = hlCat || (selCat ? selCat.id : selNode ? mtTopCat(selNode, byId) : null);
   const atHome = !activeCat && (!sel || sel === 'root');
+
+  // ── wayfinding (2026-09-12) ─────────────────────────────────────────────
+  // the trail: You, then the open group — the first crumb is the way back
+  const crumbs = [{ id: 'home', label: 'You' }];
+  if (openGroupDef) crumbs.push({ id: openGroupDef.id, label: openGroupDef.label, hue: openGroupDef.hue });
+  const hintTxt = hint === 0 && !openGroup ? 'Pinch to zoom · tap a branch to open it'
+    : hint === 1 && openGroup ? '‹ You in the trail steps back out' : null;
+  // a Find row's hue: its branch, or at the top level the group the branch sits in
+  const hueOf = (id) => {
+    const cid = topOf[id];
+    const c = allCats.find((x) => x.id === cid);
+    if (openGroup || !grouped) return c ? c.hue : 250;
+    const g = GRP ? GRP.get(GRP.of(cid)) : null;
+    return g ? g.hue : (c ? c.hue : 250);
+  };
+  // prev / next through the selected answer's siblings — its sub-topic's
+  // answers when there are two or more, else its branch's, oldest last
+  const sibNav = (() => {
+    if (!selNode || selIsSub || selNode.quiet) return null;
+    const same = answers.filter((n) => n.parentId === selNode.parentId && !n.sub);
+    const cid = mtTopCat(selNode, byId);
+    const list = (same.length > 1 ? same : answers.filter((n) => mtTopCat(n, byId) === cid)).slice().sort((a, b) => (a.age ?? 0) - (b.age ?? 0));
+    const i = list.findIndex((n) => n.id === selNode.id);
+    if (i < 0 || list.length < 2) return null;
+    const par = byId[selNode.parentId];
+    const ctx = same.length > 1 && par && par.sub ? par.label : selNodeCat ? selNodeCat.label : '';
+    return { i, n: list.length, ctx, onPrev: i > 0 ? () => selectItem(list[i - 1].id) : null, onNext: i < list.length - 1 ? () => selectItem(list[i + 1].id) : null };
+  })();
+  // the hub the daily's open question would land in — a pulse, so the map
+  // says where the next answer goes (`is-wait`). Today's question only:
+  // that is the one the daily is holding for you right now.
+  const waitCat = (() => {
+    const D = DAILYQ;
+    const q = D && D.today;
+    if (!q || !D.isAnswered || D.isAnswered(q)) return null;
+    try { return D.catMeta(D.categoryPath(q)[0]).catId; } catch (e) { return null; }
+  })();
+  const waitId = waitCat && grouped && GRP ? GRP.of(waitCat) : waitCat;
 
   // "You" drifted off-screen — an edge pill points the way back
   let recenter = null;
@@ -1028,7 +1229,8 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             onClick={(e) => {
               e.stopPropagation();
               // inside a group the centre is the way back out
-              if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); return; }
+              if (openGroup) { leaveGroup(); return; }
+              if (findOpen) closeFind();
               setSel('root'); setHlCat(null); fitRing();
             }}
           >
@@ -1090,7 +1292,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               <button
                 type="button"
                 key={c.id}
-                className={'mmt-node mmt-hub' + (isSel ? ' is-sel' : '') + (hubDim ? ' is-dim' : '') + (hubLab ? '' : ' is-nolab')}
+                className={'mmt-node mmt-hub' + (isSel ? ' is-sel' : '') + (hubDim ? ' is-dim' : '') + (hubLab ? '' : ' is-nolab') + (waitId && c.id === waitId ? ' is-wait' : '')}
                 data-screen-label={c.label}
                 style={{ '--hue': c.hue, transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${catScale})` }}
                 // .is-dim is pointer-events:none, so a dimmed hub is already
@@ -1104,6 +1306,11 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               >
                 <span className="mmt-hub-dot" style={{ width: hubSz, height: hubSz }}></span>
                 <span className="mmt-hub-label" style={{ fontSize: hubFs }}>{c.label}</span>
+                {/* a small count on the hub when the layout gives it one
+                    (2026-09-12). Nothing sets `badge` on a branch yet —
+                    the design carries the slot and so does this; a reader
+                    who wants one writes it where `cats` are built. */}
+                {c.badge ? <span className="mmt-hub-badge" style={{ fontSize: Math.max(9.5, hubFs * 0.7) }}>{c.badge}</span> : null}
               </button>
             );
           })}
@@ -1168,7 +1375,8 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (n.person ? ' is-person' : '') + (sel === n.id ? ' is-sel' : '')
                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
-                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
+                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.walk && !n.pulse && !n.sealed && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')
+                  + (findSet && n.daily && findSet.has(n.id) ? ' is-hit' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
                   // ink-in, delayed by distance from the hub — the map
@@ -1185,7 +1393,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
                 aria-hidden={dim || off || undefined}
                 aria-pressed={sel === n.id}
                 aria-label={n.label}
-                onClick={(e) => { e.stopPropagation(); if (n.quiet) { setSel(null); setHlCat(null); setOpenGroup(n.gid); } else selectItem(n.id); }}
+                onClick={(e) => { e.stopPropagation(); if (n.quiet) enterGroup(n.gid); else selectItem(n.id); }}
               >
                 {n.person
                   ? <span className="mmt-pdot" style={{ '--deg': Math.round((n.score || 0) * 360) + 'deg' }}></span>
@@ -1203,8 +1411,24 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
           cats={cats}
           activeCat={activeCat}
           atHome={atHome}
-          onPick={(id) => { if (grouped) { setSel(null); setHlCat(null); setOpenGroup(id); } else if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
-          onHome={() => { if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); } else clearSel(); }}
+          crumbs={crumbs}
+          onCrumb={(id) => {
+            if (hint === 1) hintDone();
+            if (id === 'home') {
+              if (openGroup) leaveGroup();
+              else { clearSel(); if (!sel && !hlCat) { const t = fitAllTarget(); if (t) tweenTo(t); } }
+            } else clearSel();
+          }}
+          onPick={(id) => { if (grouped) { enterGroup(id); } else if (activeCat === id) { clearSel(); } else { selectCat(id); } }}
+          onHome={() => { if (openGroup) leaveGroup(); else clearSel(); }}
+          findOpen={findOpen}
+          onFind={() => (findOpen ? closeFind() : openFind())}
+          query={query}
+          onQuery={setQuery}
+          fWeek={fWeek}
+          fRare={fRare}
+          onWeek={weekReal ? () => setFWeek((v) => !v) : null}
+          onRare={() => setFRare((v) => !v)}
         ></MTBranchChips>
       ) : (
         <div className="mmt-chip mmt-ui">{allAnswers.length} answers · {cats.length} branches</div>
@@ -1219,6 +1443,11 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
           <button className="fitb" onClick={() => (cut == null ? openScrub() : closeScrub())} aria-label={cut == null ? 'Replay the map' : 'Close replay'}>{cut == null ? '↺' : '✕'}</button>
         ) : null}
       </div>
+      {/* the coach (2026-09-12): one sentence, once, on first arrival and
+          again the first time a group opens; nine seconds or a tap */}
+      {hintTxt && !sel && !findOpen && cut == null ? (
+        <button type="button" className="mmt-hint mmt-coach mmt-ui" onClick={() => (hint === 0 ? setHint(0.5) : hintDone())}>{hintTxt}</button>
+      ) : null}
       {recenter ? (
         <button
           className="mmt-recenter mmt-ui"
@@ -1243,9 +1472,23 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       ) : null}
 
       {/* bottom card */}
-      {sel ? (
-        <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
-          <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
+      {sel || findOpen ? (
+        <div
+          className={'mmt-card mmt-ui is-' + cardMode}
+          style={{ '--hue': cardHue }}
+          // a horizontal swipe on the card steps to the next answer (2026-09-12)
+          onTouchStart={(e) => { cardTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+          onTouchEnd={(e) => {
+            const t0 = cardTouch.current;
+            cardTouch.current = null;
+            if (!t0 || !e.changedTouches || !e.changedTouches[0]) return;
+            const dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y;
+            if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.4) swipeNext(dx < 0 ? 1 : -1);
+          }}
+        >
+          <button className="mmt-card-x" onClick={() => (sel ? clearSel() : closeFind())} aria-label="Close">✕</button>
+          <MTCardGrab mode={cardMode} onMode={setCardMode}></MTCardGrab>
+          {sibNav ? <MTCardNav {...sibNav}></MTCardNav> : null}
           {sel === 'root' ? (
             <MTRootCard count={allAnswers.length} anchorCount={anchors.length}></MTRootCard>
           ) : selAnchor ? (
@@ -1298,6 +1541,8 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
               onFilter={(aid) => setPairA(aid)}
             ></MTAnswerCard>
             )
+          ) : findOpen ? (
+            <MTFindCard matches={matches} total={allAnswers.length} active={findActive} hueOf={hueOf} onPick={goToNode} key="find"></MTFindCard>
           ) : null}
         </div>
       ) : null}

@@ -1,0 +1,35 @@
+--- v18/feed-read.js (compiled, normalised)
++++ 2026-09-12/feed-read.js (normalised)
+@@ -89,13 +89,14 @@
+         oi: pick(f.name)
+       }));
+       const same = sides.filter(f => f.oi === mySide).length;
+-      if (same * 2 < friends.length) return {
++      if (same === 0) return {
+         kind: "friends",
+         dim: "friends",
+         same,
+         of: friends.length,
+         sides,
+-        mySide
++        mySide,
++        strong: true
+       };
+     }
+     let flip = null,
+@@ -118,11 +119,13 @@
+     });
+     if (flip) return {
+       kind: "flip",
+-      ...flip
++      ...flip,
++      strong: flip.pct >= 68
+     };
+     if (skew && skew.pct >= 62) return {
+       kind: "skew",
+-      ...skew
++      ...skew,
++      strong: false
+     };
+     return null;
+   };

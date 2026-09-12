@@ -1,0 +1,6 @@
+
+
+/* Doxa wordmark — the one serif in the chrome. The x is the <em>, so it takes
+   the tab accent (and the daily sub-mode accent, set inline) like inSight's "Sight" did. */
+.app-header .h-title.wm-serif { font-family: 'DM Serif Display', var(--serif); font-weight: 400; font-size: 25px; letter-spacing: -0.01em; line-height: 1; padding-bottom: 2px; }
+.app-header .h-title.wm-serif em { font-weight: 400; }

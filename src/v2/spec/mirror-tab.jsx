@@ -96,7 +96,7 @@ const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody
 //
 // No retry loop and console.error rather than reportError, for the reason
 // the relmap slot gives: main.jsx already reports a dead chunk once.
-function MapSlot() {
+function MapSlot({ onExit }) {
   const [MapTab, setMapTab] = React.useState(null);
   React.useEffect(() => {
     if (MapTab) return undefined;
@@ -106,7 +106,7 @@ function MapSlot() {
       .catch((e) => { console.error('[Doxa] map chunk failed to load:', e); });
     return () => { live = false; };
   }, [MapTab]);
-  return MapTab ? <MapTab /> : null;
+  return MapTab ? <MapTab onExit={onExit} /> : null;
 }
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
@@ -397,7 +397,11 @@ export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, b
             paint, so this import is a module-cache hit. No Suspense —
             MapSlot resolves into state, so there is nothing to suspend
             on, and nothing to poison if the fetch fails. */}
-        <MapSlot />
+        {/* onExit (2026-09-12): the Map's edge swipe past its top level
+            lands where the Mirror was entered from — the same door the
+            frame's own swipe-back uses, which skips the Map's canvas
+            because the Map owns its drag (swipe-back.js OWNS_X). */}
+        <MapSlot onExit={() => NAV.goNav(backTo.current)} />
       </div>
     );
   } else if (isGeoLive) {

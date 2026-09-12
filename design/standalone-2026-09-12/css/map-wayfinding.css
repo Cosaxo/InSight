@@ -1,0 +1,363 @@
+/* ── map wayfinding: trail + find + card nav + coach ─────────────── */
+.mmt-rail { position: absolute; top: 10px; left: 0; right: 0; z-index: 6; display: flex; align-items: flex-start; pointer-events: none; transition: opacity 0.26s ease, transform 0.26s ease; }
+.mmt-rail .mmt-chips { position: relative; top: auto; left: auto; right: auto; flex: 1; min-width: 0; padding-right: 10px; }
+.mmt-root.is-ringstage .mmt-rail { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+.mmt-findbtn {
+  flex: none; pointer-events: auto; position: relative; width: 36px; height: 36px; margin: 1px 12px 0 0; border-radius: 50%;
+  border: 1px solid var(--rule); background: color-mix(in oklch, var(--surface-2) 97%, transparent); color: var(--ink-2);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow-card);
+  transition: transform 0.15s var(--ease-spring), background 0.16s ease, color 0.16s ease;
+}
+.mmt-findbtn::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
+.mmt-findbtn:active { transform: scale(0.94); }
+/* the trail — where you are, and the way back, in one pill */
+.mmt-trail {
+  flex: none; display: flex; align-items: center; pointer-events: auto; border-radius: 999px;
+  border: 1px solid var(--rule); background: color-mix(in oklch, var(--surface-2) 97%, transparent);
+  box-shadow: var(--shadow-card); overflow: hidden;
+}
+.mmt-crumb {
+  display: flex; align-items: center; gap: 7px; padding: 8px 13px; border: none; background: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; border-radius: 999px;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.mmt-crumb + .mmt-crumb { padding-left: 6px; margin-left: -8px; }
+.mmt-crumb .mmt-back { font-size: 19px; line-height: 0.8; margin: -2px -1px 0 -3px; color: var(--ink-2); }
+.mmt-trail.is-deep .mmt-crumb:first-child { color: var(--ink-3); }
+.mmt-crumb-sep { color: var(--ink-3); font-size: 15px; line-height: 1; }
+.mmt-crumb.is-last { color: var(--ink); font-weight: 700; }
+.mmt-crumb.is-last.is-hue { color: oklch(0.42 0.09 var(--hue)); }
+.app.dark .mmt-crumb.is-last.is-hue { color: oklch(0.82 0.07 var(--hue)); }
+.mmt-crumb.is-here { color: var(--surface); background: var(--ink); }
+.mmt-crumb.is-here.is-hue { color: white; background: oklch(0.605 0.118 var(--hue)); }
+.mmt-crumb.is-here .mmt-crumb-sep { color: color-mix(in oklch, white, transparent 35%); }
+.app.dark .mmt-crumb.is-here.is-hue { background: oklch(0.62 0.12 var(--hue)); color: oklch(0.16 0.02 var(--hue)); }
+.app.dark .mmt-crumb.is-here.is-hue .mmt-crumb-sep { color: oklch(0.16 0.02 var(--hue) / 0.6); }
+/* find — the rail becomes a field */
+.mmt-find { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 12px; pointer-events: auto; }
+.mmt-find-back, .mmt-find-field, .mmt-findf { height: 36px; border: 1px solid var(--rule); background: var(--surface-2); box-shadow: var(--shadow-card); }
+.mmt-find-back { flex: none; width: 36px; border-radius: 50%; color: var(--ink-2); font-size: 22px; line-height: 1; padding: 0 0 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.mmt-find-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0 8px 0 11px; border-radius: 999px; color: var(--ink-3); transition: border-color 0.16s ease; }
+.mmt-find-field:focus-within { border-color: var(--ink-3); }
+.mmt-find-field input { flex: 1; min-width: 0; border: none; background: none; outline: none; font-family: var(--sans); font-size: 14px; color: var(--ink); padding: 0; -webkit-appearance: none; appearance: none; }
+.mmt-find-field input::-webkit-search-cancel-button, .mmt-find-field input::-webkit-search-decoration { display: none; -webkit-appearance: none; }
+.mmt-find-field input::placeholder { color: var(--ink-3); }
+.mmt-find-clear { flex: none; width: 22px; height: 22px; border-radius: 50%; border: none; background: color-mix(in oklch, var(--ink) 10%, transparent); color: var(--ink-2); font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.mmt-findf { flex: none; padding: 0 11px; border-radius: 999px; color: var(--ink-2); font-family: var(--sans); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.mmt-findf.is-on { background: var(--ink); color: var(--surface); border-color: transparent; }
+.mmt-dotnode.is-hit .mmt-ddot { box-shadow: 0 0 0 3px var(--surface-2), 0 0 0 4.5px oklch(0.605 0.118 var(--hue)); }
+.mmt-dotnode.is-hit .mmt-dlab { font-weight: 700; }
+/* card: grab to resize, prev/next through siblings */
+.mmt-card { transition: max-height 0.32s var(--ease-out); }
+.mmt-card.is-peek { max-height: 96px; overflow: hidden; }
+.mmt-card.is-full { max-height: 86%; }
+.mmt-grab { display: flex; justify-content: center; padding: 2px 0 10px; margin: -6px 0 0; cursor: grab; touch-action: none; }
+.mmt-grab:active { cursor: grabbing; }
+.mmt-grab-bar { width: 36px; height: 4px; border-radius: 2px; background: color-mix(in oklch, var(--ink) 18%, transparent); }
+.mmt-cardnav { display: flex; align-items: center; gap: 6px; margin: -4px 28px 10px 0; }
+.mmt-cardnav-b { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); font-size: 21px; line-height: 1; padding: 0 0 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s var(--ease-spring); }
+.mmt-cardnav-b:active { transform: scale(0.9); }
+.mmt-cardnav-b:disabled { opacity: 0.3; cursor: default; }
+.mmt-cardnav-t { flex: 1; min-width: 0; text-align: center; font-family: var(--sans); font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mmt-cardnav-t b { color: var(--ink-2); font-weight: 700; }
+/* find results */
+.mmt-matchlist.is-find { margin-top: 8px; }
+.mmt-frow { gap: 5px; }
+.mmt-frow-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.mmt-frow-top .mmt-mrow-q { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.mmt-frow-when { flex: none; font-family: var(--sans); font-size: 11px; color: var(--ink-3); }
+.mmt-frow .mmt-mchip.is-same { align-self: flex-start; margin-left: 14px; }
+/* legend in the You card */
+.mmt-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--rule); }
+.mmt-leg { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 11.5px; line-height: 1.3; color: var(--ink-2); }
+.mmt-legdot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: oklch(0.605 0.118 282); box-sizing: border-box; }
+.mmt-legdot.is-far { width: 9px; height: 9px; margin: 0 1.5px; opacity: 0.75; }
+.mmt-legdot.is-fresh { box-shadow: 0 0 0 3px oklch(0.605 0.118 282 / 0.25); }
+.mmt-legdot.is-rare { background: oklch(0.605 0.118 282 / 0.10); border: 2.5px solid oklch(0.605 0.118 282); }
+/* first-visit coach — one sentence, tap to dismiss */
+.mmt-hint.mmt-coach {
+  pointer-events: auto; cursor: pointer; border: none; text-transform: none; letter-spacing: 0;
+  font-size: 12.5px; font-weight: 600; color: var(--surface); background: var(--ink); box-shadow: var(--shadow-lift);
+  padding: 9px 14px; bottom: 18px; left: calc(50% + 18px); max-width: calc(100% - 96px); white-space: normal; text-align: center;
+  animation: mmtUp 0.4s cubic-bezier(0.18, 1.08, 0.32, 1) both;
+}
+/* thumb-sized zoom controls */
+.mmt-zoomctl button { width: 40px; height: 40px; font-size: 18px; position: relative; }
+.mmt-zoomctl button::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; }
+.mmt-zoomctl button.fitb { font-size: 17px; }
+
+/* bottom card */
+.mmt-card {
+  position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 6;
+  background: color-mix(in oklch, var(--surface-2) 93%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  border: 1px solid var(--rule); border-radius: 18px;
+  box-shadow: var(--shadow-lift);
+  padding: 14px 16px;
+  max-height: 58%; overflow-y: auto;
+  animation: mmtUp 0.36s cubic-bezier(0.18, 1.08, 0.32, 1) both;
+  scrollbar-width: none;
+}
+.mmt-card::-webkit-scrollbar { display: none; }
+@keyframes mmtUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mmt-card { animation: none; } .mmt-dbar-seg, .mmt-matchbar i, .mmt-astat-bar i, .mmt-ridge-col > i, .mmt-astat-them { animation: none; } }
+@keyframes mmtMark { from { opacity: 0; } }
+.mmt-card-x {
+  position: absolute; top: 9px; right: 9px; z-index: 3;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--ink-3);
+  font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s var(--ease-spring), color 0.15s ease, border-color 0.15s ease;
+}
+.mmt-card-x:hover { color: var(--ink); border-color: var(--ink-3); }
+.mmt-card-x:active { transform: scale(0.88); }
+.mmt-kicker {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0;
+  color: oklch(0.52 0.08 var(--hue));
+  margin-bottom: 7px;
+}
+.app.dark .mmt-kicker { color: oklch(0.74 0.08 var(--hue)); }
+.mmt-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); padding-right: 26px; }
+.mmt-prompt { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); margin-top: 3px; text-wrap: pretty; }
+.mmt-dot { width: 7px; height: 7px; border-radius: 50%; background: oklch(0.605 0.118 var(--hue)); flex: none; }
+
+/* filter chips — the 7 profile facts, one active; fades at the card edges */
+.mmt-fchips { display: flex; gap: 6px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 2px; scrollbar-width: none; }
+.mmt-fchips::-webkit-scrollbar { display: none; }
+.mmt-fchip {
+  flex: none; cursor: pointer; white-space: nowrap;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px;
+  color: var(--ink-3); background: transparent;
+  border: 1px solid color-mix(in oklch, var(--ink) 14%, transparent);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.2s var(--ease-spring);
+}
+.mmt-fchip:active { transform: scale(0.94); }
+.mmt-fchip.is-on {
+  color: white; border-color: transparent;
+  background: oklch(0.605 0.118 var(--hue));
+}
+.app.dark .mmt-fchip.is-on { background: oklch(0.62 0.12 var(--hue)); color: oklch(0.16 0.02 var(--hue)); }
+/* the anchor switcher sits at the very top of the card. The opaque bar is the
+   outer element — the scrolling lane inside it carries the edge-fade mask, so
+   the mask never eats the bar's own background. The lane stops short of the
+   close button rather than sliding beneath it. */
+.mmt-achips-bar { margin: -2px -16px 0; padding: 0 0 8px; background: var(--surface-2); }
+.mmt-achips { margin: 0 38px 0 0; padding: 0 4px 2px 16px; }
+.mmt-achips-bar + .mmt-astat-sub { margin-top: 0; }
+
+/* who the group is — one small line above the bars */
+.mmt-gwho { margin-top: 14px; font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--ink-2); }
+
+/* group answer viz — daily-style stacked bar; your slice carries the hue */
+/* verdict — the hero: are you with the crowd or against it? */
+.mmt-verdict { display: flex; align-items: center; gap: 12px; margin-top: 15px; }
+.mmt-verdict .mmt-matchpct { flex: none; }
+.mmt-matchtext { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mmt-matchtext b { font-size: 13.5px; font-weight: 750; letter-spacing: -0.005em; color: var(--ink); }
+.mmt-matchtext span { font-size: 12px; line-height: 1.35; color: var(--ink-3); text-wrap: pretty; }
+.mmt-dbar-wrap { position: relative; margin-top: 22px; }
+.mmt-dbar-mark { position: absolute; top: -15px; transform: translateX(-50%); white-space: nowrap; font-size: 12px; font-weight: 800; letter-spacing: 0.01em; }
+.mmt-dbar-mark::after { content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); border-left: 3.5px solid transparent; border-right: 3.5px solid transparent; border-top: 4px solid currentColor; }
+.mmt-dbar-mark.is-you { color: oklch(0.48 0.12 var(--hue)); }
+.mmt-dbar-mark.is-most { color: var(--ink-3); }
+.app.dark .mmt-dbar-mark.is-you { color: oklch(0.80 0.09 var(--hue)); }
+.mmt-dbar-wrap .mmt-dbar { margin-top: 0; }
+.mmt-dbar { display: flex; gap: 3px; height: 18px; border-radius: 99px; overflow: hidden; margin-top: 11px; }
+.mmt-dbar-seg { display: block; position: relative; background: color-mix(in oklch, var(--ink) 9%, transparent); transition: flex-grow 0.5s var(--ease-out), background 0.2s ease; animation: mmtEven 0.55s var(--ease-out) both; }
+@keyframes mmtEven { from { flex-grow: 1; } }
+.mmt-dbar-seg.is-you { background: oklch(0.605 0.118 var(--hue)); }
+.mmt-dbar-seg.is-mode { background: color-mix(in oklch, var(--ink) 24%, transparent); }
+.app.dark .mmt-dbar-seg.is-mode { background: color-mix(in oklch, var(--ink) 30%, transparent); }
+.app.dark .mmt-dbar-seg.is-you { background: oklch(0.68 0.12 var(--hue)); }
+/* a soft inner tick marks which side is yours, readable at a glance */
+.mmt-dbar-seg.is-you::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 5px; height: 5px; border-radius: 50%; background: var(--surface-2); opacity: 0.9; }
+.mmt-dbar-labs { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 9px; }
+.mmt-dbar-lab {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font-size: 12.5px; color: var(--ink-2);
+}
+.mmt-dbar-lab::before { content: ''; align-self: center; width: 7px; height: 7px; border-radius: 50%; flex: none; background: color-mix(in oklch, var(--ink) 14%, transparent); }
+.mmt-dbar-lab b { font-weight: 600; color: var(--ink-2); }
+.mmt-dbar-lab em { font-style: normal; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.mmt-dbar-lab.is-you b { font-weight: 800; color: oklch(0.40 0.09 var(--hue)); }
+.mmt-dbar-lab.is-you em { font-weight: 800; color: oklch(0.40 0.09 var(--hue)); }
+.app.dark .mmt-dbar-lab.is-you b, .app.dark .mmt-dbar-lab.is-you em { color: oklch(0.84 0.06 var(--hue)); }
+.mmt-dbar-lab.is-most b { color: var(--ink); font-weight: 650; }
+.mmt-dbar-lab.is-most::before { background: color-mix(in oklch, var(--ink) 26%, transparent); }
+.mmt-dbar-lab.is-you::before { background: oklch(0.605 0.118 var(--hue)); }
+.app.dark .mmt-dbar-lab.is-you::before { background: oklch(0.68 0.12 var(--hue)); }
+
+/* rating distribution — the group's full 1–10 spread, your pick lit ─────── */
+.mmt-ridge { position: relative; margin-top: 26px; }
+.mmt-ridge-youlab {
+  position: absolute; top: -19px; transform: translateX(-50%); white-space: nowrap;
+  font-size: 13px; font-weight: 700; color: oklch(0.42 0.09 var(--hue));
+}
+.app.dark .mmt-ridge-youlab { color: oklch(0.82 0.07 var(--hue)); }
+.mmt-ridge-cols { display: flex; align-items: flex-end; gap: 3px; height: 48px; }
+.mmt-ridge-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.mmt-ridge-col > i { display: block; width: 100%; border-radius: 3px 3px 2px 2px; background: oklch(0.605 0.118 var(--hue) / 0.17); transition: height 0.5s var(--ease-out); animation: mmtRise 0.55s var(--ease-out) both; }
+@keyframes mmtRise { from { height: 0; } }
+.mmt-ridge-col.is-you > i { background: oklch(0.605 0.118 var(--hue)); }
+.app.dark .mmt-ridge-col.is-you > i { background: oklch(0.68 0.12 var(--hue)); }
+/* where the group typically lands — the same hollow "them" ring used elsewhere */
+.mmt-ridge-col.is-peak::before {
+  content: ''; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box;
+  background: var(--surface-2); border: 2px solid oklch(0.605 0.118 var(--hue)); opacity: 0.72;
+}
+.app.dark .mmt-ridge-col.is-peak::before { border-color: oklch(0.68 0.12 var(--hue)); }
+.mmt-ridge-foot {
+  display: flex; justify-content: space-between; margin-top: 8px;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+}
+.mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.50 0.09 var(--hue)); font-weight: 500; }
+.app.dark .mmt-ridge-foot .mmt-ridge-peaklab { color: oklch(0.78 0.08 var(--hue)); }
+
+/* match bar — one slim proportion bar under the headline */
+.mmt-matchbar { height: 8px; border-radius: 99px; background: oklch(0.605 0.118 var(--hue) / 0.14); overflow: hidden; margin-top: 8px; }
+.mmt-matchbar i { display: block; height: 100%; border-radius: 99px; background: oklch(0.605 0.118 var(--hue)); animation: barIn 0.6s var(--ease-out) var(--rv-row) both; }
+.app.dark .mmt-matchbar i { background: oklch(0.68 0.12 var(--hue)); }
+
+.mmt-mchip.is-same { color: oklch(0.46 0.11 var(--hue)); background: oklch(0.95 0.03 var(--hue)); }
+.app.dark .mmt-mchip.is-same { color: oklch(0.82 0.08 var(--hue)); background: oklch(0.295 0.045 var(--hue)); }
+
+/* anchor card — your actual stat, before the group breakdown */
+.mmt-astat { margin: 2px 0 0; }
+.mmt-astat-big { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); padding-right: 26px; }
+.mmt-astat-sub { margin-top: 3px; font-family: var(--sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 13px; padding: 8px 4px; }
+.mmt-astat-lab { font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mmt-astat-bar { height: 5px; border-radius: 99px; background: color-mix(in oklch, var(--ink) 8%, transparent); overflow: visible; }
+.mmt-astat-bar i { display: block; position: relative; height: 100%; border-radius: 99px; background: oklch(0.62 0.12 var(--hue)); animation: barIn 0.5s var(--ease-out) both; }
+.mmt-astat-bar i::after { content: ''; position: absolute; right: 0; top: 50%; transform: translate(50%, -50%); width: 9px; height: 9px; border-radius: 50%; background: inherit; box-shadow: 0 0 0 2px var(--surface-2); }
+/* one row-stagger constant, shared with every other list in the app */
+.mmt-astat-item:nth-child(2) .mmt-astat-bar i { animation-delay: var(--rv-row); }
+.mmt-astat-item:nth-child(3) .mmt-astat-bar i { animation-delay: calc(var(--rv-row) * 2); }
+.mmt-astat-item:nth-child(4) .mmt-astat-bar i { animation-delay: calc(var(--rv-row) * 3); }
+.mmt-astat-item:nth-child(5) .mmt-astat-bar i { animation-delay: calc(var(--rv-row) * 4); }
+.app.dark .mmt-astat-bar i { background: oklch(0.74 0.10 var(--hue)); }
+/* where the group sits on this axis — hollow ring, shown on every row */
+.mmt-astat-legend { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 11px; }
+.mmt-astat-legkey { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); }
+.mmt-astat-legkey .lk-you { width: 9px; height: 9px; border-radius: 50%; background: oklch(0.62 0.12 var(--hue)); box-shadow: 0 0 0 2px var(--surface-2); }
+.mmt-astat-legkey .lk-them { width: 11px; height: 11px; border-radius: 50%; box-sizing: border-box; background: var(--surface-2); border: 2px solid oklch(0.605 0.118 var(--hue)); }
+.app.dark .mmt-astat-legkey .lk-them { border-color: oklch(0.74 0.10 var(--hue)); }
+.app.dark .mmt-astat-legkey .lk-you { background: oklch(0.74 0.10 var(--hue)); }
+
+/* anchor dims — tap a branch row to open its group comparison */
+.mmt-astat-row {
+  appearance: none; border: 0; background: none; width: 100%;
+  font-family: inherit; color: inherit; text-align: left; cursor: pointer;
+  border-radius: 7px;
+}
+.mmt-astat-row:hover { background: color-mix(in oklch, var(--rule) 26%, transparent); }
+.mmt-astat-row:active { background: color-mix(in oklch, var(--rule) 42%, transparent); }
+.mmt-astat-item.is-open .mmt-astat-row { background: color-mix(in oklch, var(--rule) 30%, transparent); }
+.mmt-astat-bar { position: relative; }
+.mmt-astat-item.is-open .mmt-astat-lab { color: var(--ink); font-weight: 600; }
+.mmt-astat-them {
+  animation: mmtMark 0.3s ease 0.4s both;
+  position: absolute; top: 50%; width: 13px; height: 13px; border-radius: 50%;
+  transform: translate(-50%, -50%); box-sizing: border-box;
+  background: var(--surface-2); border: 2px solid oklch(0.605 0.118 var(--hue));
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.mmt-astat-item.is-open .mmt-astat-them { box-shadow: 0 0 0 3px oklch(0.605 0.118 var(--hue) / 0.2); }
+.app.dark .mmt-astat-them { border-color: oklch(0.74 0.10 var(--hue)); }
+.mmt-astat-x { padding: 5px 8px 10px 107px; display: grid; gap: 7px; }
+.mmt-astat-ends {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.mmt-astat-key { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mmt-astat-blurb { font-size: 12px; color: var(--ink-2); min-width: 0; }
+.mmt-astat + .mmt-matchhead { margin-top: 19px; padding-top: 16px; border-top: 0.5px solid var(--rule); }
+
+/* anchor card — match headline + typical-vs-you list */
+.mmt-matchhead { display: flex; align-items: baseline; gap: 9px; margin-top: 4px; }
+.mmt-matchpct { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; color: oklch(0.46 0.11 var(--hue)); }
+.app.dark .mmt-matchpct { color: oklch(0.80 0.09 var(--hue)); }
+.mmt-matchwho { font-size: 12.5px; line-height: 1.35; color: var(--ink-2); text-wrap: pretty; }
+.mmt-matchlist { display: flex; flex-direction: column; margin-top: 6px; }
+.mmt-mrow {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px; width: 100%; text-align: left;
+  padding: 9px 2px; cursor: pointer;
+  background: none; border: none; border-bottom: 0.5px solid var(--rule);
+}
+.mmt-mrow:last-child { border-bottom: none; }
+.mmt-mrow:active { background: color-mix(in oklch, var(--rule) 25%, transparent); }
+.mmt-mrow-q {
+  flex: 1; min-width: 0;
+  font-size: 12px; line-height: 1.35; color: var(--ink-2); text-wrap: pretty;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.mmt-mrow-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.mmt-mchip {
+  font-size: 12px; font-weight: 700; padding: 3.5px 9px; border-radius: 999px;
+  white-space: nowrap;
+}
+.mmt-mchip i {
+  font-style: normal; font-weight: 500; font-size: 12px; margin-right: 4px;
+}
+.mmt-mchip.is-you { color: white; background: oklch(0.605 0.118 var(--hue)); }
+.mmt-mchip.is-them { color: var(--ink-3); border: 1px solid color-mix(in oklch, var(--ink) 22%, transparent); }
+.mmt-mchip.is-them i { color: var(--ink-3); }
+
+/* agree disclosure — matches tucked away until asked for */
+.mmt-samehead {
+  display: flex; align-items: center; gap: 6px; margin-top: 14px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.mmt-samehead-chev { font-size: 12px; transition: transform 0.15s ease; }
+.mmt-samehead.is-open .mmt-samehead-chev { transform: rotate(180deg); }
+.mmt-matchlist.is-quiet .mmt-mrow-q { color: var(--ink-3); }
+.mmt-allsame { margin-top: 12px; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.app.dark .mmt-mchip.is-you { background: oklch(0.62 0.12 var(--hue)); color: oklch(0.16 0.02 var(--hue)); }
+
+/* swipeable answer tokens — browsing without text rows */
+.mmt-swipe { display: flex; gap: 7px; overflow-x: auto; margin-top: 12px; padding-bottom: 3px; scrollbar-width: none; }
+.mmt-swipe::-webkit-scrollbar { display: none; }
+.mmt-tok {
+  flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 7px;
+  width: 150px; padding: 10px 12px; border-radius: 12px; cursor: pointer; text-align: left;
+  background: var(--surface);
+  border: 0.5px solid var(--rule);
+}
+.mmt-tok:active { transform: scale(0.97); }
+.mmt-tok-q {
+  font-size: 12px; line-height: 1.35; font-weight: 550; color: var(--ink-2); text-wrap: pretty;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: calc(2 * 1.35 * 12px);
+}
+.mmt-tok-ans {
+  font-size: 12.5px; font-weight: 700; padding: 3px 11px; border-radius: 999px;
+  color: oklch(0.40 0.09 var(--hue)); background: oklch(0.95 0.03 var(--hue));
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box;
+}
+/* the active token in a sub card — the answer whose breakdown is showing */
+.mmt-tok.is-on { border-color: oklch(0.605 0.118 var(--hue)); box-shadow: 0 0 0 1px oklch(0.605 0.118 var(--hue)); }
+.mmt-swipe + .mmt-q, .mmt-slim + .mmt-q { margin-top: 12px; }
+.app.dark .mmt-tok { background: var(--surface); border-color: var(--rule); }
+.app.dark .mmt-tok-ans { color: oklch(0.84 0.06 var(--hue)); background: oklch(0.295 0.045 var(--hue)); }
+
+/* the question — the hero of the answer card */
+.mmt-q { font-size: 15px; line-height: 1.4; font-weight: 650; color: var(--ink); letter-spacing: -0.005em; text-wrap: pretty; padding-right: 26px; }
+
+/* slim header cards — branch / sub selection */
+.mmt-slim { display: flex; align-items: center; gap: 9px; min-height: 26px; }
+.mmt-slim .mmt-dot { width: 10px; height: 10px; }
+.mmt-slim-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mmt-slim-ct {
+  flex: none; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  background: oklch(0.95 0.03 var(--hue)); color: oklch(0.42 0.09 var(--hue));
+}
+.app.dark .mmt-slim-ct { background: oklch(0.295 0.045 var(--hue)); color: oklch(0.82 0.07 var(--hue)); }

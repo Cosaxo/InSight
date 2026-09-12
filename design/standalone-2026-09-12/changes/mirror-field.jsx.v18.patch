@@ -1,0 +1,55 @@
+--- v18/mirror-field.jsx (compiled, normalised)
++++ 2026-09-12/mirror-field.jsx (normalised)
+@@ -240,8 +240,9 @@
+       cc = (top + bot) / 2;
+     const aspectH = box ? MF_W * (box.h / box.w) : tall ? 470 : MF_H;
+     const h = Math.max(contentH, aspectH);
++    const lift = box ? Math.min(40, Math.max(0, (h - contentH) / 2 - 12)) : 0;
+     return {
+-      y: cc - h / 2,
++      y: cc - h / 2 + lift,
+       h
+     };
+   }, [key, box, tall]);
+@@ -409,7 +410,7 @@
+       alignItems: "center",
+       gap: 6,
+       fontFamily: "var(--sans)",
+-      fontSize: 11,
++      fontSize: 12,
+       fontWeight: 600,
+       color: "var(--ink-3)"
+     }
+@@ -641,9 +642,12 @@
+       size: 38
+     }));
+     title = `${(d.role || "").replace(/^\w/, c => c.toUpperCase())}, ${d.age}`;
+-    sub = d.dist && d.dist.includes("km") ? "nearby" : d.dist || "nearby";
++    sub = "";
+     chips = (d.interests || []).slice(0, 3).map(x => x.t);
+-    if (d.id && onPerson) action = btn("Portrait →", () => onPerson(d));
++    if (d.id && onPerson) action = btn("Portrait →", () => onPerson({
++      ...d,
++      anon: true
++    }));
+   } else if (node.kind === "group") {
+     const gcol = mfGroupFill(node.hue);
+     av = React.createElement(MatchRing, {
+@@ -724,7 +728,7 @@
+     key: c,
+     style: {
+       fontFamily: "var(--sans)",
+-      fontSize: 11,
++      fontSize: 12,
+       fontWeight: 500,
+       color: `oklch(0.34 0.13 ${hue})`,
+       padding: "2px 8px",
+@@ -792,7 +796,7 @@
+   return React.createElement("div", {
+     style: {
+       marginTop: "auto",
+-      paddingTop: 16
++      paddingTop: 12
+     }
+   }, React.createElement("div", {
+     ref: rowRef,
