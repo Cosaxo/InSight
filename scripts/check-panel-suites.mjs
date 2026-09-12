@@ -23,7 +23,7 @@
 // Node stdlib only. Client-only, so it belongs on ci.yml and NOT on
 // backend-checks.yml — the placement rule every gate on that job obeys.
 
-import { readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -55,6 +55,31 @@ if (panels.length < 20) {
 }
 
 const missing = panels.filter((p) => !existsSync(join(UI, `${p}.test.tsx`)));
+
+// A FILE IS NOT A SUITE. `existsSync` was the whole test, and
+// docs/ORIENTATION.md — which check:docs rule 4 points at this gate —
+// claims "One test suite each, mutation-checked". Measured 2026-09-12: a
+// new panel plus a two-line suite that never imports it passed this gate
+// at "50/50 panels carry a suite", and passed vitest too. The direction
+// that matters most is the one the header names — a panel that HAD a
+// suite and lost it — and gutting one down to a trivial `it()` was
+// invisible here.
+//
+// The cheapest honest check is that the suite names the thing it stands
+// for: its own module identifier has to appear in it. That does not prove
+// the case is good — nothing a gate can read does — but it refuses a file
+// that is a suite for this panel in name only, which is the shape a
+// gutting leaves behind.
+//
+// The panel's BASENAME rather than its path, because a subdirectory panel
+// is imported as `./sub/Panel` from the suite beside it and as `Panel` in
+// the JSX; and a `import … from "./Panel"` line satisfies it either way.
+const hollow = panels
+  .filter((p) => !missing.includes(p))
+  .filter((p) => {
+    const name = p.split("/").pop();
+    return !readFileSync(join(UI, `${p}.test.tsx`), "utf8").includes(name);
+  });
 const unexplained = missing.filter((p) => !(p in OWED));
 const ghosts = Object.keys(OWED).filter((p) => !missing.includes(p));
 const errors = [];
@@ -65,6 +90,17 @@ if (unexplained.length) {
     + unexplained.map((p) => `    src/v2/ui/${p}.tsx`).join("\n")
     + "\n\n  Write src/v2/ui/<panel>.test.tsx. A panel is where a correct fold gets\n"
     + "  printed backwards, and it is the one place tsc cannot help.",
+  );
+}
+
+if (hollow.length) {
+  errors.push(
+    "these panels have a suite FILE that never names them:\n"
+    + hollow.map((p) => `    src/v2/ui/${p}.test.tsx`).join("\n")
+    + "\n\n  A suite that does not so much as mention its panel is not standing in\n"
+    + "  for it. Import the panel and render it, or — if the file is genuinely\n"
+    + "  about something else — move it and put the panel on OWED with the\n"
+    + "  reason, so the debt reads true.",
   );
 }
 
