@@ -40,13 +40,14 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-12T08:48:28Z -->
+<!-- console:generated 2026-09-12T08:56:42Z -->
 
 ## Open
 
-- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 81 behind main · conflicts · opened 2026-09-11 · stage **new**
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 30 behind main · conflicts · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 386 behind main · conflicts · opened 2026-09-01 · stage **new**
+- [ ] **#506** · a session · *what:* Both of last night's shifts, composed onto `main` as one tree, reviewed as one unit, and merged. · *how:* All 63 commits are kept as written; nothing was reverted.** What this PR adds on top is the composition itself and the four things that were only visible once both shifts existed… · CI running (9 pending) · current with main · opened 2026-09-12 · stage **new**
+- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 82 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 31 behind main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 387 behind main · opened 2026-09-01 · stage **new**
 - [ ] **night-20260912** (no PR yet) · Claude 2's night shift · 33 commits · last 05:27 UTC 2026-09-12
 - [ ] **nightb-20260912** (no PR yet) · Claude 1's night shift B · 30 commits · last 04:11 UTC 2026-09-12
 
@@ -54,14 +55,14 @@ merge shift like any other PR.
 
 **Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
 
-- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 16 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 65 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 65 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 65 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 65 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 66 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 66 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 66 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 17 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 66 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 66 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 66 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 66 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 67 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 67 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 67 behind main · opened 2026-09-11 · stage **new**
 
 **Self-merging:** #505 Catalog 2026-09-12: pk42 — the film you quote the most
 
