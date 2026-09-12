@@ -1,0 +1,57 @@
+--- standalone-2026-08-26/place-stats.jsx (normalised)
++++ 2026-09-12/place-stats.jsx (normalised)
+@@ -7,11 +7,6 @@
+   id: "visitor",
+   label: "I’m visiting"
+ }];
+-const PS_PLACE = {
+-  city: "Oslo",
+-  country: "Norway",
+-  world: "the world"
+-};
+ function PSDot({
+   x,
+   col,
+@@ -276,41 +271,7 @@
+       fontWeight: 500,
+       color: "var(--ink-3)"
+     }
+-  }, "Score these in the World feed — your marks land with ", split ? role === "visitor" ? "the visitors" : "the locals" : "the crowd", "."), React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      gap: 10,
+-      flexWrap: "wrap"
+-    }
+-  }, React.createElement("button", {
+-    className: "press",
+-    onClick: () => window.openCatalog && window.openCatalog("author"),
+-    style: {
+-      minHeight: 36,
+-      padding: "0 13px",
+-      borderRadius: 999,
+-      cursor: "pointer",
+-      WebkitAppearance: "none",
+-      border: "1px solid var(--rule)",
+-      background: "var(--surface)",
+-      color: "var(--ink)",
+-      fontFamily: "var(--sans)",
+-      fontSize: 12.5,
+-      fontWeight: 700,
+-      flexShrink: 0
+-    }
+-  }, "+ Author a metric for ", PS_PLACE[scope] || "this place"), React.createElement("span", {
+-    style: {
+-      flex: 1,
+-      minWidth: 130,
+-      fontFamily: "var(--sans)",
+-      fontSize: 10.5,
+-      fontWeight: 600,
+-      color: "var(--ink-3)",
+-      lineHeight: 1.4
+-    }
+-  }, "this set stays editorial — authored metrics list in the catalog and run once funded"))));
++  }, "Score these in the World feed — your marks land with ", split ? role === "visitor" ? "the visitors" : "the locals" : "the crowd", ".")));
+ }
+ Object.assign(window, {
+   PlaceStatsCard

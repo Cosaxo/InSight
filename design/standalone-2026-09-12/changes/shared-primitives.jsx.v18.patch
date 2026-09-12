@@ -1,0 +1,162 @@
+--- v18/Av.js (compiled, normalised)
++++ 2026-09-12/shared-primitives.jsx (normalised)
+@@ -161,6 +161,21 @@
+   TabSection,
+   Lazy
+ });
++const LAZY_PENDING = new Set();
++let lazyTimer = null;
++function lazyWatch(fn) {
++  LAZY_PENDING.add(fn);
++  if (!lazyTimer) lazyTimer = setInterval(() => {
++    LAZY_PENDING.forEach(f => f());
++  }, 400);
++  return () => {
++    LAZY_PENDING.delete(fn);
++    if (!LAZY_PENDING.size && lazyTimer) {
++      clearInterval(lazyTimer);
++      lazyTimer = null;
++    }
++  };
++}
+ function Lazy({
+   minHeight = 240,
+   children
+@@ -186,20 +201,28 @@
+     };
+     if (check()) return;
+     const target = sp || window;
++    let ticking = false,
++      dead = false;
+     const onScroll = () => {
+-      if (check()) cleanup();
++      if (ticking || dead) return;
++      ticking = true;
++      requestAnimationFrame(() => {
++        ticking = false;
++        if (!dead && check()) cleanup();
++      });
+     };
+     target.addEventListener("scroll", onScroll, {
+       passive: true
+     });
+     window.addEventListener("resize", onScroll);
+-    const iv = setInterval(() => {
++    const unwatch = lazyWatch(() => {
+       if (check()) cleanup();
+-    }, 400);
++    });
+     function cleanup() {
++      dead = true;
+       target.removeEventListener("scroll", onScroll);
+       window.removeEventListener("resize", onScroll);
+-      clearInterval(iv);
++      unwatch();
+     }
+     return cleanup;
+   }, [show]);
+@@ -267,3 +290,104 @@
+ Object.assign(window, {
+   MatchRing
+ });
++function useSubSwipe(bodyRef, panelRef, ids, cur, set) {
++  const live = React.useRef(null);
++  live.current = {
++    ids,
++    cur,
++    set
++  };
++  React.useEffect(() => {
++    const sc = bodyRef.current;
++    if (!sc || sc._subSwipe) return;
++    sc._subSwipe = true;
++    const SKIP = "svg, canvas, .h-scroll, .subnav, .mmt-swipe, .cb-rail, [data-nopan], input, textarea, [type=range]";
++    const T = () => panelRef.current;
++    const step = dir => {
++      const L = live.current;
++      const i = L.ids.indexOf(L.cur),
++        ni = i + dir;
++      if (i < 0 || ni < 0 || ni >= L.ids.length) return false;
++      if (window.HAPTIC) window.HAPTIC.tick();
++      const b = T();
++      if (b) {
++        b.style.transition = "transform 0.17s ease, opacity 0.17s ease";
++        b.style.transform = "translateX(" + (dir > 0 ? -34 : 34) + "px)";
++        b.style.opacity = "0";
++      }
++      setTimeout(() => L.set(L.ids[ni]), 150);
++      return true;
++    };
++    const spring = () => {
++      const b = T();
++      if (!b) return;
++      b.style.transition = "transform 0.25s cubic-bezier(0.2,0.9,0.2,1), opacity 0.25s ease";
++      b.style.transform = "translateX(0)";
++      b.style.opacity = "1";
++    };
++    let sx = 0,
++      sy = 0,
++      dx = 0,
++      horiz = null,
++      dragging = false;
++    sc.addEventListener("touchstart", e => {
++      const t = e.touches[0];
++      if (e.target.closest && e.target.closest(SKIP)) {
++        dragging = false;
++        return;
++      }
++      sx = t.clientX;
++      sy = t.clientY;
++      dx = 0;
++      horiz = null;
++      dragging = true;
++      const b = T();
++      if (b) b.style.transition = "none";
++    }, {
++      passive: true
++    });
++    sc.addEventListener("touchmove", e => {
++      if (!dragging) return;
++      const t = e.touches[0],
++        mx = t.clientX - sx,
++        my = t.clientY - sy;
++      if (horiz === null && (Math.abs(mx) > 9 || Math.abs(my) > 9)) horiz = Math.abs(mx) > Math.abs(my) * 1.4;
++      if (!horiz) return;
++      e.preventDefault();
++      dx = mx;
++      const b = T();
++      if (b) {
++        b.style.transform = "translateX(" + mx * 0.7 + "px)";
++        b.style.opacity = String(1 - Math.min(Math.abs(mx) / 520, 0.4));
++      }
++    }, {
++      passive: false
++    });
++    const end = () => {
++      if (!dragging) return;
++      dragging = false;
++      if (horiz && Math.abs(dx) > 66) {
++        if (!step(dx < 0 ? 1 : -1)) spring();
++      } else spring();
++    };
++    sc.addEventListener("touchend", end);
++    sc.addEventListener("touchcancel", end);
++    let lock = false;
++    sc.addEventListener("wheel", e => {
++      if (e.target.closest && e.target.closest(SKIP)) return;
++      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) + 4) return;
++      e.preventDefault();
++      if (lock || Math.abs(e.deltaX) < 24) return;
++      lock = true;
++      step(e.deltaX > 0 ? 1 : -1);
++      setTimeout(() => {
++        lock = false;
++      }, 650);
++    }, {
++      passive: false
++    });
++  }, []);
++}
++Object.assign(window, {
++  useSubSwipe
++});

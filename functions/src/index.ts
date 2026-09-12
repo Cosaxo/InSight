@@ -1522,6 +1522,7 @@ export {
   leaveGroupV2,
   nearbyCountV2,
   nearbyRoomV2,
+  onV2FollowCreated,
   registerPushToken,
   scheduledDuelReveals,
   revealDuelsNowV2,

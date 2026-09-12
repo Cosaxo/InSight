@@ -1,0 +1,19 @@
+--- v18/passive-meter.jsx (compiled, normalised)
++++ 2026-09-12/passive-meter.jsx (normalised)
+@@ -88,15 +88,7 @@
+     k: k,
+     size: 13,
+     thick: 3.2
+-  }))), React.createElement("span", {
+-    style: {
+-      fontFamily: "var(--sans)",
+-      fontWeight: 700,
+-      fontSize: 10.5,
+-      letterSpacing: "0.04em",
+-      color: "var(--ink-3)"
+-    }
+-  }, "profile")), open && host && ReactDOM.createPortal(React.createElement("div", {
++  })))), open && host && ReactDOM.createPortal(React.createElement("div", {
+     className: "wf-scrim" + (closing ? " is-closing" : ""),
+     onClick: close
+   }, React.createElement("div", {

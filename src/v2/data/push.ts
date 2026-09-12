@@ -11,6 +11,7 @@
 //   · "someone invited you"    — inviteToGroupV2,  channel "invites"
 //   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D240)
 //   · "you're in"              — approveJoinV2,    channel "invites"  (D240)
+//   · "wants to compare answers" / "said yes" — onV2FollowCreated, channel "invites" (D-2026-09-12d)
 //
 // It was one class for a long time and this comment said so. The second is
 // what turned D122's invitation — consent, an inbox, a handle registry —

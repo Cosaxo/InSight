@@ -481,11 +481,12 @@ export class DailySplit extends React.Component {
   // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
   get modeAxis() { return ['world', 'group', 'duo']; }
 
-  // ── the daily's scale: World · Circle · 1v1 — the same ruler the Mirror wears,
+  // ── the daily's scale: World · Groups · 1v1s — the same ruler the Mirror wears,
   // because it is the same kind of choice: how far out this answer reaches.
   dailyRuler(mode, accents, badges) {
     const h = React.createElement;
-    const STOPS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Circle' }, { id: 'duo', label: '1v1' }];
+    // World · Groups · 1v1s since the 2026-09-12 design (D-2026-09-12d; app-shell's DAILY_DOTS says why)
+    const STOPS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Groups' }, { id: 'duo', label: '1v1s' }];
     const n = STOPS.length;
     const idx = Math.max(0, STOPS.findIndex((s) => s.id === mode));
     const acc = accents[mode];
@@ -1196,7 +1197,7 @@ export class DailySplit extends React.Component {
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
           h('span', { 'aria-hidden': true, style: { width: 6, height: 6, borderRadius: '50%', background: topicCol, flexShrink: 0 } }),
           h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
-        wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
+        wIdx !== 0 && h('button', { className: 'tap44', onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
         // the \u24d8 icon button that sat here became the underlined words
         // under the ballot (2026-09-06) \u2014 no icon buttons in the kicker row

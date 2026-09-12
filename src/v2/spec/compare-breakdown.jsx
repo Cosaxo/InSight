@@ -262,7 +262,12 @@ export function CompareBreakdown({ scope, accent = 'var(--accent)', label, n, po
 // Used on person profiles where vertical space is precious. `aligns` lets the
 // caller pin each card's % to the numbers it shows elsewhere; `extra` appends
 // custom slides ({kind,title,sub,align,body}).
-export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [] }) {
+// `lead` (2026-09-12, VISION-2026-09-12 §4): a function of the slides —
+// sorted closest-first, which is also the order the rail now draws them
+// in — returning the sentence over the rail, or null. The carousel owns
+// the slides, so the sentence about them is computed here rather than
+// re-derived by the page that mounts it.
+export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, extra = [], lead }) {
   const [idx, setIdx] = React.useState(0);
   const railRef = React.useRef(null);
   if (!pop) return null;
@@ -284,6 +289,9 @@ export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns =
   });
   extra.forEach(s => slides.push(s));
   if (!slides.length) return null;
+  // closest first (2026-09-12): the rail reads as a ranking, and the lead
+  // above it names its two ends
+  slides.sort((a, b) => (b.align ?? -1) - (a.align ?? -1));
 
   const step = (el) => (el.firstElementChild ? el.firstElementChild.getBoundingClientRect().width + 10 : el.clientWidth);
   const onScroll = (e) => {
@@ -295,6 +303,7 @@ export function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns =
 
   return (
     <div>
+      {lead ? lead(slides) : null}
       <div className="cb-rail" ref={railRef} onScroll={onScroll}>
         {slides.map(s => (
           <div className="card" key={s.kind}>

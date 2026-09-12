@@ -54128,3 +54128,258 @@ pace with nulls).
 **Records moved.** `docs/OMIB-PLAN.md` §5; `docs/data-inventory.md` row
 18. The privacy page needed no word: it never named a cadence for the
 test, and `check:policy-claims` agrees.
+
+## D-2026-09-12d · The 2026-09-12 design arrives — a name, a friends list, and a Map with a trail — recorded, measured, planned, and nothing built
+
+**Decided:** 2026-09-12 · **Status:** binding as a record; every ruling it
+touches stands until the owner answers. The owner's `InSight_19.html`
+upload, titled *Doxa*, with one line — *"new visuals and functionality
+plan how to add the new features and visuals"* — extracted to
+[`design/standalone-2026-09-12/`](../design/standalone-2026-09-12/README.md)
+and planned in [`VISION-2026-09-12.md`](VISION-2026-09-12.md). Made the
+current vision by D361's standing rule (an owner upload is a vision
+without a request). Nothing is built in this record's PR, on purpose:
+the largest thing in it is a name, and a name is the owner's.
+
+### What arrived, and how it was measured
+
+The nineteenth numbered standalone, in a new bundle shape — a core of 94
+modules and a *late* bundle of 18 deferred past first paint, which is
+the split the tree already makes — with **112 modules**: the 09-09
+record's 110 plus `friends-overlay.jsx` and `map-find.jsx`. The 09-09
+record's per-module hashes were the previous bundle's own and this
+bundle carries none, so the moved set was measured by comparing the
+AST of every module with its latest whole record — comments and literal
+spellings stripped, regenerated, compared line for line; JSX-source
+records compiled first with the 09-02 recipe. **38 moved, 2 are new, 29
+are identical to a later record** (the whole duel family to 09-09, the
+Patterns lenses and the result card to 09-06), **43 identical to v18.**
+The record's README has the table and the recipe, and it records the
+limit the 09-08 README recorded: the v18-plus-patches baselines of the
+five largest modules could not be rebuilt byte-exact today (a fresh
+compile of v18 no longer takes the 08-26 patches), so those five are
+diffed against v18 and read against the recorded hunks by hand.
+
+### What the design says
+
+Four things, in order of what they cost. **A name**: *Doxa*, in DM
+Serif Display, with *Endoxa* and *inSight* behind a Tweaks radio — the
+wordmark, the boot splash and the demographics cards follow the pick.
+**A friends list with a handshake**: request · accept · ignore ·
+dismiss · invited · unfriend on the demo store, a *Your friends* overlay
+(Requests · Suggested with reasons · Invited · Friends · a remove sheet
+whose claim is that the 1v1 ends), and four doors to it (the New-1v1
+sheet, search, the profile header with a pending dot, *Accept request*
+on the person page). **A Map you can find your way around**: a trail
+with the way back, Find with *This week* and *Rare takes* and matches
+lit on the map, a results card, a card you resize, prev/next through
+siblings, two coach hints, a legend, hub badges. **Smaller things**: the
+person page's receipts lead with a tappable tail and a Match lead
+sentence, overlays that leave with a slide, tap-target slack on six
+small controls, the profile's sub-tabs on a swipe, four D182 deletions,
+and the daily's modes labelled *Groups · 1v1s*.
+
+### What the mapping found
+
+- **The handshake is D101 read twice.** D101 made a follow a bookmark —
+  no request, no acceptance, no consent, because answers are public
+  (D98) and a follow grants nothing — and called a mutual follow *a
+  reading, not a state*. The design's four states are exactly that
+  reading: *invited* is your row without theirs, *requested* theirs
+  without yours, *friends* both. No new collection, no rules change;
+  what the design adds is that the other side learns, which is one
+  trigger sending through D236's fan-out, and a followers query
+  `circle.ts` already runs. The tree's `spec/follows.js` on a live build
+  is an empty demo store that the person page's *Add friend* writes to —
+  the plan's step 1 is one `FRIENDS` over the real rows for both builds.
+- **One suggestion reason is a deny.** *a few streets away* would draw
+  the presence cell — the physical-safety deny that survived D98, and
+  Near is presence-only since D111. On live the reason is *in Oslo now*,
+  the fact Near already shows; recorded as a departure, and not an ask
+  under D334, which names the three denies as outside it.
+- **A claim the demo makes that live cannot.** *some of it stays private
+  until you are friends* beside a person's map — in the record since
+  09-09 — describes invented locked nodes; live locks nothing. The tree
+  has never drawn the line. D334 says the owner decides rather than a
+  routine defaulting, so it is one of the three questions, with the
+  recommendation that it ships nowhere.
+- **The Map's wayfinding reads nothing new.** Every piece of it — the
+  trail, Find and its two filters, the results, the card modes, the
+  sibling nav, the hints, the legend — folds from the answers the Map
+  already holds and lands in the lazy Map chunk; 36 of the 40 stylesheet
+  classes new since every recorded stylesheet are its.
+- **The design caught up with the tree.** The *Asked for Oslo* rows,
+  *+ Author a metric*, the header's ask door and the paid overlays are
+  gone from the bundle, as D288 and D368 took them from the app.
+- **The daily's labels are the owner's word twice.** *Groups · 1v1s*
+  where the tree says *Circle · 1v1* — the collision ROUNDS-PLAN §9
+  recorded from the owner's own sentence (*"circle is something else in
+  the app"*). Asked once so the rename is a ruling.
+
+### What is decided, and what is not
+
+- The record and the plan; the vision moved; the build order (§7 there)
+  with what needs no answer first: friends on D101, the Map's trail and
+  Find, the person page, the shell.
+- **Three questions on `OWNER-LIST.md`**, each with a recommendation so
+  one word answers it: which name (and if not *inSight*, a visual
+  request for the lockups follows — D302's canvas is the old name's);
+  *Groups · 1v1s*; whether anything stays private until you are friends
+  (recommended: no).
+- **The name is not built ahead of the answer**: the module is cheap,
+  the store listing, the web pages and the identity canvas are not, and
+  a name that goes on a store needs a search the plan does not do.
+- The standing rows from earlier visions are unchanged by this one and
+  listed in the plan's §8 so the next reader does not re-file them.
+
+### Amendment, 2026-09-12 (later the same day) — the owner's rulings, and the design built
+
+**The owner answered two of the three questions in one message and
+said build it**: *"the name should be Doxa for now inSight was to
+crowded the ruler says group- 1v1 so implement with A name"* — then
+the design's list, item by item. **Q1: Doxa**, *for now*. **Q2: yes —
+Groups · 1v1s.** **Q3 was not answered**, so the line ships nowhere,
+which was the recommendation; the row stays open on `OWNER-LIST.md`.
+Everything the plan's §7 listed as needing no answer, plus the two
+answered, is built in this amendment's PR. What each became, and where
+it departs from the design:
+
+- **The name.** `src/v2/data/brand.ts` — three names, *Doxa* the
+  default, `brandOf`/`brandName`/`pageTitle`, and `setBrand` moving
+  `document.title`; the DEV Tweaks radio (`app-shell.jsx`, dev builds
+  only, nothing persisted) picks *Endoxa* or *inSight*. The wordmark
+  wears DM Serif Display **subset to the wordmark's twelve glyphs**
+  (`public/fonts/dm-serif-display-wordmark.woff2`, 1.9 KB — the two
+  full faces the design ships are 35 KB, past `check:bundle`'s font
+  ceiling), the boot splash says *Doxa* in the system serif before any
+  font arrives, and every self-reference in copy — the walkthrough, the
+  sign-in gate, the privacy panel, Near's location line, the budget
+  pause, the demographics cards — reads `brandName()`.
+  `functions/src/brand.ts` mirrors the name for the pushes that say it.
+  **The outward surfaces were renamed the same day by D472** — the
+  naming session's *"lets go with Doxa, do the rename"*: the shells'
+  display names, the store listing (*Doxa: What Everyone Thinks*, after
+  Apple refused the bare word), the web pages, the auth mail sender.
+  This amendment first wrote that they were left alone and put a row
+  on `OWNER-LIST.md`; the merge with `main` found D472 had done it,
+  the row is withdrawn, and what this branch adds on top is the
+  module the wordmark and the copy read, the radio, and the serif
+  drawn from D472's four-glyph subset — Doxa is the only name the
+  radio sets in the serif, so D, o, x, a are the glyphs it needs and
+  the twelve-glyph file this branch first shipped went.
+- **The friends handshake, on D101's rows.** `src/v2/data/friends.ts`:
+  `friendState(uid)` is the two rows read both ways; `friendsView()`
+  the four lists; `loadFriends` one bounded followers query
+  (`circle.ts`'s new `fetchFollowers`, the collection-group read the
+  rules already allow) plus the follows of up to twelve mutual friends
+  for *through Henrik*; `invite` = `LIVE.setFollowing(uid, true)` — the
+  accept is the same write; `unfriend` leaves the duo room first, then
+  drops the row, so the remove sheet's claim is made true by the call;
+  ignored and dismissed in `insight.friendsHidden.v1` with the D51
+  listener. **No collection, no rules line changed** (`test:rules`
+  green as it stood). The one server piece: `onV2FollowCreated`
+  (`functions/src/v2social.ts`, the deploy list, `check:fn-runtime`) —
+  one read to see whether the target already follows the writer, then
+  *{name} wants to compare answers with you* or *{name} said yes —
+  you're comparing answers now* through `sendPushToUids`, channel
+  `invites`; `web/privacy.html`'s notifications sentence names it (six
+  now, `check:figures`). The demo store `spec/follows.js` grew
+  `requests` (seeded f5, f7) and `dismissed` under its existing key.
+- **The overlay and its four doors.** `ui/LiveFriendsOverlay.tsx`, a
+  `React.lazy` chunk behind `LIVE_OVERLAYS`' `friends` key — Requests ·
+  Suggested (*Show N more*) · Invited · Friends · the remove sheet —
+  drawing the demo store or the live fold through one row shape. **A
+  live row is not a door**: the person page invents what it compares
+  and opens from the sample people only, so the overlay offers it to
+  demo rows alone. **The one copy departure stands**: a suggestion says
+  *nearby now* (the fact Near shows) and never a distance — the presence
+  cell is a D98 deny, outside D334. The doors: *Find more friends →*
+  under the 1v1 sheet's picker (`LiveDuelPanel.tsx`), *Manage →*
+  beside search's *Friends* (demo) and *Following* (live) headings
+  (`ManageFriends` in `LivePeopleSearch.tsx`, imported by
+  `search-overlay.jsx` so the two builds draw one control), the
+  profile header's friends button with its count in the name and a red
+  dot while a request waits (both builds; live reads the fold, one
+  bounded read per session), and *Accept request* on the person page
+  (the demo store's accept).
+- **The Map's wayfinding.** `spec/map-chiprow.jsx` is the trail and
+  Find; `spec/map-find.jsx` is new (the grab, the prev/next, the Find
+  card — with `spec/sub-swipe.js` below, two more modules off the
+  bridge, ordinary ESM that nothing waits on); `map-tab.jsx` folds the
+  matches over `allAnswers`, lights them (`is-hit`, the matched groups
+  and ancestors too), holds the card mode, the sibling nav, the hints
+  (`insight.mapHints.v1`, purge listener, `check:purge`) and the crumbs,
+  and takes `onExit` — the Mirror hands it `goNav(backTo)`, and the Map
+  grew the **edge swipe** that steps out (`stepBack`: find → answer →
+  branch → group → out) because `swipe-back.js` skips the Map's canvas
+  by design; a tap on empty canvas is `tapEmpty` (close what is open,
+  or settle the zoom), the design's split. Three departures, each
+  recorded in the code: **This week** is offered only where the dates
+  are dates (`datesAreReal`, the gate the recency halo already stands
+  behind — on a live build `age` is a position); **Rare takes** uses
+  the hollow ring's own rule, not the design's shorter one (a walk, a
+  pulse and a sealed call have no majority to be rare against); the
+  grab bar is a `<button>` with arrow keys rather than the design's
+  `role=button` div (`check:a11y`). **`is-wait`** pulses the hub the
+  daily's open question would land in (today's, `DAILYQ.today`, while
+  unanswered); the **badge** slot is drawn when a cat carries `badge`
+  and nothing sets one yet — the design's own state, kept rather than
+  invented. The legend is on the root card (`map-bottom-card.jsx`); the
+  Find field defers to `--field-size` (`check:touch-zoom`); the new
+  chrome carries 44px pseudo-boxes.
+- **The person page and the profile.** The receipts lead (*Same answer
+  7 times out of 9.* **Two splits ›**) is derived exactly as
+  `person-mindmap.jsx` invents this person's answers — same seed, same
+  hash, same agreement, same majority tie-break — so the sentence and
+  the map it opens agree; the tail opens the mind map, which is where
+  the tree draws their answers (the design's Answers panel does not
+  exist here). The Match lead (*Closest on Values, least on Politics.*
+  / *…Furthest apart on…*) is `CompareCarousel`'s new `lead` prop over
+  slides now sorted closest-first. *since* joined the hero line and the
+  header meta; the interests slide's two marks are the person's hue and
+  a faded hue. `useSubSwipe` (`spec/sub-swipe.js` — its own module, off the
+  first-paint graph, because only the deferred profile calls it and
+  `check:bundle` has no eager headroom) steps the profile's sub-tabs
+  on a horizontal swipe or a trackpad flick, skipping scrollers, rails,
+  ranges and inputs.
+- **The shell and the copy.** `useLeaveHold` (`spec/primitives.jsx`,
+  wired in `app-shell.jsx`): the overlay block moved out of the return
+  as `ovLive`, built from the held `{ ov, person, city }` — **state,
+  not the element**: the design read a ref during render, which
+  `react-hooks/refs` forbids, and holding the identity lets every other
+  prop be read fresh — and `.ov-host.is-leaving .overlay` plays
+  `ovLeave` (200 ms, none under reduced motion). The dialog suite waits
+  for the leave now, because the overlay's own cleanup (focus back to
+  its opener) runs when the hold lets go. The fourth pass: `::before`
+  slack on the docked header stops and the Map's chips and crumbs;
+  the meter and topic chips keep the box they already grow (both sit in
+  clipping scrollers, the stylesheet's own note); *Walk again* retired
+  at D211; the ballot's links wear `.tap44`. One zero-specificity rule
+  gives form controls the page face. **The copy pass shipped two of
+  the design's five**: *Strangers most like you.* and *A stretched
+  amber thread is a pattern you break.*; the Big Five's *tap one to
+  read it*, the meter chip's *profile* label and the Foresight caption
+  have no target in the tree (the chip is rings and an aria-label; the
+  hint and the caption were never ported).
+- **Groups · 1v1s.** The ruler, the dock, `daily-split.jsx`'s stops,
+  the walkthrough's reach labels and the duel panel's room copy
+  (*Group made*, *Leave group*); the Mirror's *Circle* stop keeps its
+  name — it is the follow graph, the thing the owner said circle means.
+
+**What was NOT built, and why, each on a list**: Q3; the identity
+request for D302's lockups, which still say InSight (waits on the name
+being more than *for now* — D472's own three owner steps are the same
+wait). **Gates run on the
+head**: `lint`, `tsc -b`, `test:unit` (1541 in the client tree, the
+new suites: `friends.test.ts`, `LiveFriendsOverlay.test.tsx`,
+`brand.test.ts`, `overlay-motion.test.jsx`, five wayfinding cases in
+`map-body-renders`, one overlay smoke case), `test --prefix functions`
+(`follow-push.test.ts`), `test:rules`, `test:scripts`, and every
+`check:*` the plan named — `figures` (four sentences moved with the
+tree), `file-size` (LiveDuelPanel +19, signed), `panel-suites`,
+`purge`, `a11y`, `tap-targets`, `touch-zoom`, `globals` (27, flat),
+`bundle` (the Map's wayfinding sheet rides the Map's lazy chunk so the
+blocking number did not pay for it; the total ceiling and the eager
+graph's each moved by what first paint needed, signed in the script),
+`eager-content`, `public-copy`, `policy-claims`, `deploy-targets`,
+`fn-runtime`, `appcheck`, `docs`.

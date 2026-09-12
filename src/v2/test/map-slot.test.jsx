@@ -102,8 +102,8 @@ describe("and the Map is built that way", () => {
 
   it("holds the map module in state rather than in a lazy", () => {
     expect(src, "the Map is a React.lazy again").not.toMatch(/React\.lazy\([^)]*map-tab/);
-    expect(src).toMatch(/function MapSlot\(\)/);
+    expect(src).toMatch(/function MapSlot\(\{ onExit \}\)/);
     expect(src).toMatch(/import\('\.\/map-tab\.jsx'\)/);
-    expect(src, "the You stop no longer renders the slot").toMatch(/<MapSlot \/>/);
+    expect(src, "the You stop no longer renders the slot").toMatch(/<MapSlot onExit=/);
   });
 });

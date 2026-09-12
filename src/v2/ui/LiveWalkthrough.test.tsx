@@ -110,7 +110,7 @@ describe("what it claims", () => {
     const pages = walkAll();
     const reach = pages.find((p) => /1v1/.test(p));
     expect(reach, "no page names the 1v1 stop").toBeTruthy();
-    for (const stop of ["World", "Circle", "1v1"]) expect(reach).toContain(stop);
+    for (const stop of ["World", "Groups", "1v1s"]) expect(reach).toContain(stop);
     // The SEALING, not the cadence. This asserted the exact phrase
     // "sealed until tomorrow" and broke the day the copy stopped naming a
     // day — which was the point of the change: the owner intends to

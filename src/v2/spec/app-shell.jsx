@@ -37,15 +37,22 @@ import { FEEDREAD } from './feed-read.js';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
-import { askDoorOffered } from '../data/askDoor';
+// The name (2026-09-12, D-2026-09-12d): the wordmark, the tab title and
+// every self-reference read data/brand.ts; the DEV radio below moves it.
+import { BRAND_DEFAULT, brandOf, setBrand } from '../data/brand.ts';
 // The buyer's room (PAID-PLAN §7, D288) — its own lazy chunk, not part of
 // the spec overlay group: typed, and nothing on first paint pays for it.
 const AskedByYouLazy = React.lazy(() => import('../ui/AskedByYouOverlay'));
+// Your friends (VISION-2026-09-12 §2.3, D-2026-09-12d) — the same shape,
+// and in LIVE_OVERLAYS so `NAV.openOverlay('friends')` is its door from
+// anywhere: the 1v1 sheet, search, the profile header, the person page.
+const FriendsLazy = React.lazy(() => import('../ui/LiveFriendsOverlay'));
+import { askDoorOffered } from '../data/askDoor';
 const AskDoorLazy = React.lazy(() => import('../ui/AskDoorButton'));
 // R2/D270: the anonymous feature tally — a no-op until initLive arms it,
 // so every demo mount and jsdom suite stays silent without a test flag.
 import * as engagement from '../data/engagement';
-import { useDialog } from './primitives.jsx';
+import { useDialog, useLeaveHold } from './primitives.jsx';
 
 // The third tab, ON TRIAL (D166 §1) and MOUNTED ON THE DATA (D265) — lazy
 // by requirement, not taste: check:bundle has no eager headroom, and the
@@ -110,6 +117,13 @@ const DevTweaks = import.meta.env.DEV
     default: function DevTweaksBody({ t, setTweak, onResetToday }) {
       return (
         <m.TweaksPanel>
+          {/* The three names the 2026-09-12 design carries — Doxa ships;
+              Endoxa and inSight are here for a comparison or a screenshot
+              (D-2026-09-12d). Tweak state, not persisted: data/brand.ts. */}
+          <m.TweakSection label="Brand" />
+          <m.TweakRadio label="Name" value={t.brand}
+            options={[{ value: 'doxa', label: 'Doxa' }, { value: 'endoxa', label: 'Endoxa' }, { value: 'insight', label: 'inSight' }]}
+            onChange={(v) => setTweak('brand', v)} />
           <m.TweakSection label="Display" />
           <m.TweakRadio label="Density" value={t.density} options={['compact', 'regular']}
             onChange={(v) => setTweak('density', v)} />
@@ -139,6 +153,8 @@ const { useState, useEffect } = React;
 // is hardcoded at its own site now; what remains here is live state (which
 // tab, which population, which zoom) plus the one surviving flag, density.
 const TWEAK_DEFAULTS = {
+  // the shipped name; the Brand radio in DevTweaks moves it (data/brand.ts)
+  brand: BRAND_DEFAULT,
   density: "compact",
   tab: "track",
   mirrorPop: "you",
@@ -229,10 +245,14 @@ const NAV_ONE = [
 // system: its lens dial (short labels; the in-page ruler keeps the long
 // ones) takes the wordmark's place when its ruler folds. One dock slot,
 // two riders (VISION-2026-09-06 §3).
+// World · Groups · 1v1s since the 2026-09-12 design (D-2026-09-12d): the
+// owner's word, twice — ROUNDS-PLAN §9 recorded that *Circle* is the
+// Mirror's stop over the follow graph and a wrong name for a room, and the
+// upload labels the modes this way. The ids keep their historical names.
 const DAILY_DOTS = [
   { id: 'world', label: 'World', acc: 'var(--c-around)' },
-  { id: 'group', label: 'Circle', acc: 'var(--c-likeness)' },
-  { id: 'duo', label: '1v1', acc: 'var(--c-people)' },
+  { id: 'group', label: 'Groups', acc: 'var(--c-likeness)' },
+  { id: 'duo', label: '1v1s', acc: 'var(--c-people)' },
 ];
 const PT_DIAL = [
   { id: 'oracle', label: 'Oracle', acc: 'var(--c-today)' },
@@ -243,7 +263,10 @@ const PT_DIAL = [
 // Overlays that ship. `test` left this list at D121 with the sit-down
 // flow it opened; `logic` was never in it (LogicOverlay opens through its
 // own path).
-const LIVE_OVERLAYS = ['profile', 'search', 'relmap'];
+// `friends` joined 2026-09-12: a typed React.lazy chunk (FriendsLazy
+// above), so it needs no line in loadOverlays — openOverlay's await is
+// harmless for it and keeps every key on one path.
+const LIVE_OVERLAYS = ['profile', 'search', 'relmap', 'friends'];
 
 // One exception in any of the ~450 components should cost a card, not the app.
 class ErrorBoundary extends React.Component {
@@ -430,6 +453,10 @@ export function App() {
 
   const mirrorPop = MIRROR_POP_IDS.includes(t.mirrorPop) ? t.mirrorPop : 'you';
   const worldZoom = WORLD_ZOOM_IDS.includes(t.worldZoom) ? t.worldZoom : 'world';
+  // The name in force — the wordmark below draws it, and the effect moves
+  // the tab title and the module-level reading with it (data/brand.ts).
+  const brand = brandOf(t.brand);
+  useEffect(() => { setBrand(brand.id); }, [brand]);
 
   const closeAll = () => { setOv(null); setPerson(null); setCity(null); };
 
@@ -666,6 +693,96 @@ export function App() {
   // 2026-09-06 design (VISION-2026-09-06 §3): the Patterns instrument
   // draws ink on paper, the default rather than a hook nothing set — the
   // dusk branch of ui/patterns.css stands as the family's record.
+  // Overlays — one at a time, keyed by `ov`. Built here rather than inline
+  // in the return so useLeaveHold (2026-09-12, VISION-2026-09-12 §5.1) can
+  // hold the last one for its exit: `V` is the live `{ ov, person, city }`
+  // while something is open and the last one for 200ms after it closes,
+  // while `.is-leaving` plays ovLeave (styles.css §11c). Same key, same
+  // element type, so nothing remounts; the overlay's own cleanup (focus
+  // back to its opener, the back layer) runs when the hold lets go.
+  const ovId = ov || (person ? 'person' : city ? 'city' : null);
+  const ovHold = useLeaveHold({ ov, person, city }, 200, ovId);
+  const V = ovHold.state;
+  const ovLive = V ? (
+    <ErrorBoundary key={'ov-' + (V.ov || 'none') + (V.person ? '-p' : '') + (V.city ? '-c' : '')} onReset={closeAll}>
+      {/* Some below read their component off window rather than as a
+          bare identifier: they ship in the after-first-paint overlay
+          chunk (loadOverlays, spec-index.js), and a bare name would be a
+          ReferenceError rather than a blank if the chunk ever failed.
+          The openers await the chunk, so in practice these are never
+          false while their state is set — see openDeferred above.
+
+          `profile` and `search` joined that chunk at D223 and KEPT the
+          bare identifier, deliberately: the `window.X &&` form costs two
+          shared-global references where a bare name costs one, and
+          check:globals rule 4 only moves down. What makes them safe is
+          the same thing that makes the guard redundant — every path that
+          sets `ov` now goes through openDeferred, including the two
+          header buttons, so the module is in before the state that
+          mounts it. */}
+      {V.person && window.PersonOverlay && <window.PersonOverlay p={V.person} me={me} onClose={() => setPerson(null)} />}
+      {V.city && window.CityOverlay && <window.CityOverlay city={V.city} onClose={() => setCity(null)} />}
+      {V.ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
+      {/* null fallback like the tabs' lazies: the room's own first frame
+          is its header, and a spinner in front of that is one loading
+          state too many. A failed chunk lands in this ErrorBoundary. */}
+      {V.ov === 'askedby' && (
+        <React.Suspense fallback={null}>
+          <AskedByYouLazy onClose={() => setOv(null)} />
+        </React.Suspense>
+      )}
+      {/* Your friends (2026-09-12). Closes to where it opened from —
+          the profile's header door sets ovBack, the other three do
+          not. A demo row opens the person page; a live row cannot
+          (the overlay's own header says why), so onPerson is the
+          demo's door only. */}
+      {V.ov === 'friends' && (
+        <React.Suspense fallback={null}>
+          <FriendsLazy onClose={backOv} back={!!ovBack} onPerson={(p) => { setOv(null); setOvBack(null); setPerson(p); }} />
+        </React.Suspense>
+      )}
+      {/* samplePeople: the overlay's people rows are sample-data personas
+          with invented relationships ("sister", "% match"), so they must
+          not render in live mode — the gate rides down as a prop from the
+          liveOn this shell already computes, rather than a window.LIVE
+          read in the overlay, so the spec layer's coupling meter (D39
+          rule 4) stays flat. This said "live mode has no person graph at
+          all (D3)" until D200; D101 gave it one, and what the gate is
+          about is that these particular people are made up. */}
+      {/* No `onCity`: the overlay never took one. Search finds
+          questions, topics and people — its own placeholder says so —
+          and the handler sat here wired on one side only, closing the
+          overlay and opening a city sheet that nothing could ask for.
+          If city hits are ever added, this is the line they need
+          back. */}
+      {/* `!liveOn && !LIVE.demoInProd`, NOT `!liveOn`. `LIVE.enabled` is
+          false for two different reasons and only one of them is a demo
+          build: `demoInProd` is a LIVE build whose boot has not attached
+          — an offline cold start, a lost 2500ms race, a misconfigured
+          key. `search-overlay.jsx` states the contract this broke in as
+          many words: "In a live build the section renders empty instead
+          (samplePeople is false there), and a real user reading an
+          invented sister into their search is the D1 fabrication this
+          store predates." Measured 2026-09-11 with `demoInProd` true:
+          the overlay drew "91% match", "86% match", "sister" and
+          "since birth" to a real account. The header Search button is on
+          screen from first paint, so it is one tap from a cold start.
+          This is the third site in this family; the daily's demo sheets
+          and the Mirror's preview tag already ask both halves. */}
+      {V.ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn && !LIVE.demoInProd} onPerson={(p) => { setOv(null); setPerson(p); }} />}
+      {V.ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
+      {/* The one overlay here NOT read off window, though its module is
+          deferred like the rest (D200). Reachable only from the embedded
+          map's own expand button — which exists only once the chunk that
+          defines this component has loaded — so `ov` cannot be 'relmap'
+          with the name unbound. If a second opener ever appears it must
+          go through openDeferred like the others, and this line becomes
+          `window.RelationshipMapOverlay && …`; until then the
+          ErrorBoundary above is the backstop rather than the plan. */}
+      {V.ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
+    </ErrorBoundary>
+  ) : null;
+
   const appClasses = `app surface-tint acc-now lens-paper ${t.density || 'regular'} quiet-ground`;
 
   return (
@@ -684,7 +801,7 @@ export function App() {
               wordmark until the ruler scrolls away — then the two crossfade
               and a compact ruler takes over. */}
           <div className="h-center">
-            <div className="h-title wm-serif">
+            <div className={'h-title' + (brand.serif ? ' wm-serif' : '')}>
               {/* The compact iris, not the full mark: at 21px the outer
                   ring muddies (D302 — full mark above ~24px, compact
                   below). Fills are the live tokens rather than baked hex,
@@ -705,7 +822,11 @@ export function App() {
                 <circle cx="27.5" cy="37" r="10" fill="var(--c-likeness)"/>
                 <circle cx="50" cy="50" r="12.5" fill="var(--ink)"/>
               </svg>
-              <span>Do<em>x</em>a</span>
+              {/* The name's three runs (data/brand.ts): Do·x·a with the x
+                  as the accented <em>, the way in·Sight's "Sight" was. On
+                  the daily the accent is the open mode's, as the design
+                  sets it inline; elsewhere .h-title em's --accent-ink. */}
+              <span>{brand.parts[0]}<em style={tab === 'track' ? { color: `color-mix(in oklch, ${(DAILY_DOTS.find((d) => d.id === dailyMode) || DAILY_DOTS[0]).acc}, var(--ink) 12%)` } : undefined}>{brand.parts[1]}</em>{brand.parts[2]}</span>
             </div>
             {(tab === 'track' || tab === 'patterns') && (
               // The undocked slot sits under the wordmark's crossfade —
@@ -837,7 +958,7 @@ export function App() {
                 onClick={() => {
                   if (tab !== id) HAPTIC.tick();
                   markNav();
-                  // the daily's scale runs World · Circle · 1v1, with Mirror just
+                  // the daily's scale runs World · Groups · 1v1s, with Mirror just
                   // past its far end and Patterns past the near one — so arriving
                   // from either lands on the stop that sits next to it, not on
                   // whatever you last had open
@@ -852,74 +973,10 @@ export function App() {
           </div>
         </nav>
 
-        {/* Overlays — one at a time, keyed by `ov` */}
-        <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
-          {/* Some below read their component off window rather than as a
-              bare identifier: they ship in the after-first-paint overlay
-              chunk (loadOverlays, spec-index.js), and a bare name would be a
-              ReferenceError rather than a blank if the chunk ever failed.
-              The openers await the chunk, so in practice these are never
-              false while their state is set — see openDeferred above.
-
-              `profile` and `search` joined that chunk at D223 and KEPT the
-              bare identifier, deliberately: the `window.X &&` form costs two
-              shared-global references where a bare name costs one, and
-              check:globals rule 4 only moves down. What makes them safe is
-              the same thing that makes the guard redundant — every path that
-              sets `ov` now goes through openDeferred, including the two
-              header buttons, so the module is in before the state that
-              mounts it. */}
-          {person && window.PersonOverlay && <window.PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
-          {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
-          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
-          {/* null fallback like the tabs' lazies: the room's own first frame
-              is its header, and a spinner in front of that is one loading
-              state too many. A failed chunk lands in this ErrorBoundary. */}
-          {ov === 'askedby' && (
-            <React.Suspense fallback={null}>
-              <AskedByYouLazy onClose={() => setOv(null)} />
-            </React.Suspense>
-          )}
-          {/* samplePeople: the overlay's people rows are sample-data personas
-              with invented relationships ("sister", "% match"), so they must
-              not render in live mode — the gate rides down as a prop from the
-              liveOn this shell already computes, rather than a window.LIVE
-              read in the overlay, so the spec layer's coupling meter (D39
-              rule 4) stays flat. This said "live mode has no person graph at
-              all (D3)" until D200; D101 gave it one, and what the gate is
-              about is that these particular people are made up. */}
-          {/* No `onCity`: the overlay never took one. Search finds
-              questions, topics and people — its own placeholder says so —
-              and the handler sat here wired on one side only, closing the
-              overlay and opening a city sheet that nothing could ask for.
-              If city hits are ever added, this is the line they need
-              back. */}
-          {/* `!liveOn && !LIVE.demoInProd`, NOT `!liveOn`. `LIVE.enabled` is
-              false for two different reasons and only one of them is a demo
-              build: `demoInProd` is a LIVE build whose boot has not attached
-              — an offline cold start, a lost 2500ms race, a misconfigured
-              key. `search-overlay.jsx` states the contract this broke in as
-              many words: "In a live build the section renders empty instead
-              (samplePeople is false there), and a real user reading an
-              invented sister into their search is the D1 fabrication this
-              store predates." Measured 2026-09-11 with `demoInProd` true:
-              the overlay drew "91% match", "86% match", "sister" and
-              "since birth" to a real account. The header Search button is on
-              screen from first paint, so it is one tap from a cold start.
-              This is the third site in this family; the daily's demo sheets
-              and the Mirror's preview tag already ask both halves. */}
-          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn && !LIVE.demoInProd} onPerson={(p) => { setOv(null); setPerson(p); }} />}
-          {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
-          {/* The one overlay here NOT read off window, though its module is
-              deferred like the rest (D200). Reachable only from the embedded
-              map's own expand button — which exists only once the chunk that
-              defines this component has loaded — so `ov` cannot be 'relmap'
-              with the name unbound. If a second opener ever appears it must
-              go through openDeferred like the others, and this line becomes
-              `window.RelationshipMapOverlay && …`; until then the
-              ErrorBoundary above is the backstop rather than the plan. */}
-          {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
-        </ErrorBoundary>
+        {/* Overlays — one at a time, keyed by `ov`; built above the
+            return as `ovLive` so useLeaveHold can hold the last one for its
+            exit (2026-09-12) */}
+        <div className={'ov-host' + (ovHold.leaving ? ' is-leaving' : '')}>{ovLive}</div>
       </div>
 
       {DevTweaks && (

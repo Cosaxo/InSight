@@ -1,0 +1,42 @@
+--- v18/daily-questions.js (compiled, normalised)
++++ 2026-09-12/daily-questions.js (normalised)
+@@ -671,6 +671,18 @@
+   } catch (e) {
+     saved = {};
+   }
++  const LSA = "insight.dailyq.anon.v1";
++  let anonSaved = {};
++  try {
++    anonSaved = JSON.parse(localStorage.getItem(LSA) || "{}");
++  } catch (e) {
++    anonSaved = {};
++  }
++  const saveAnon = () => {
++    try {
++      localStorage.setItem(LSA, JSON.stringify(anonSaved));
++    } catch (e) {}
++  };
+   const listeners = new Set();
+   const LSC = "insight.dailyq.cat.v1";
+   let savedCat = {};
+@@ -744,11 +756,19 @@
+     today: QUESTIONS[0],
+     myAnswer,
+     isAnswered: q => myAnswer(q) != null,
+-    answer(id, choice) {
++    answer(id, choice, anon) {
+       saved[id] = choice;
++      if (anon) anonSaved[id] = true;else delete anonSaved[id];
+       try {
+         localStorage.setItem(LS, JSON.stringify(saved));
+       } catch (e) {}
++      saveAnon();
++      listeners.forEach(f => f());
++    },
++    isAnon: id => !!anonSaved[id && typeof id === "object" ? id.id : id],
++    setAnon(id, on) {
++      if (on) anonSaved[id] = true;else delete anonSaved[id];
++      saveAnon();
+       listeners.forEach(f => f());
+     },
+     unansweredCount() {

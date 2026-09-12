@@ -1,0 +1,45 @@
+--- v18/result-rose.jsx (compiled, normalised)
++++ 2026-09-12/result-rose.jsx (normalised)
+@@ -84,15 +84,16 @@
+   dims,
+   hueOf,
+   subOf,
+-  animate
++  animate,
++  compact
+ }) {
+   const W = 360,
+-    H = 330,
++    H = compact ? 238 : 330,
+     cx = 180,
+-    cy = 168,
+-    R = 92,
+-    labelR = 106,
+-    r0 = 9;
++    cy = compact ? 121 : 168,
++    R = compact ? 70 : 92,
++    labelR = compact ? 84 : 106,
++    r0 = compact ? 7 : 9;
+   const n = dims.length,
+     slice = 360 / n,
+     gapD = n > 6 ? 9 : 12;
+@@ -238,7 +239,8 @@
+ function TestRose({
+   testKey,
+   dims,
+-  animate
++  animate,
++  compact
+ }) {
+   const cfg = RP_TESTS[testKey];
+   if (!cfg || !dims || !dims.length) return null;
+@@ -256,7 +258,8 @@
+     dims: roseDims,
+     hueOf: hueOf,
+     subOf: subOf,
+-    animate: animate
++    animate: animate,
++    compact: compact
+   });
+ }
+ Object.assign(window, {
