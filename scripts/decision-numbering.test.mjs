@@ -9,7 +9,7 @@
 // working.
 
 import { describe, it, expect } from "vitest";
-import { numberingProblems, unclaimedNumbers } from "./decision-numbering.mjs";
+import { DATED_BASE, numberingProblems, orderOf, unclaimedNumbers } from "./decision-numbering.mjs";
 
 const rec = (num, line, kind = "record") => ({ num, line, kind });
 const cited = (pairs) => new Map(pairs.map(([t, from]) => [t, new Set(from)]));
@@ -160,5 +160,77 @@ describe("amendments claim no number, which is the whole reason for `kind`", () 
     // hole block asserts the same thing from the other side.
     const out = unclaimedNumbers([rec(295, 1), rec(296, 2, "amendment"), rec(297, 3)]);
     expect(nums(out)).toEqual([296]);
+  });
+});
+
+// ── dated records are outside the sequence (D-2026-09-09e) ───────────
+//
+// `D` plus the next integer is a global lock, and several scheduled lanes
+// run against one `main`: 90 of 1,503 commits were renumbering. A dated id
+// (`D-YYYY-MM-DDx`) removes the allocation, and its sort key sits above
+// DATED_BASE so the two vocabularies cannot interleave. Everything below
+// is about keeping the hole scan away from those keys.
+describe("dated records and the hole scan", () => {
+  const dated = (yyyymmdd, letter = 0, line = 1) =>
+    ({ num: DATED_BASE + yyyymmdd * 100 + letter, kind: "record", line });
+
+  it("sits above every number this file will ever reach", () => {
+    // `orderOf` and the hole scan live in the SAME module on purpose. The
+    // first version put orderOf in doc-index.mjs, which meant the test had
+    // to import doc-index — a module whose header says plainly that it
+    // runs its whole gate at import and exits non-zero, so the test would
+    // have been hostage to every unrelated documentation problem in the
+    // tree. One constant, one module, no drift to hold.
+    expect(DATED_BASE).toBeGreaterThan(100_000);
+    expect(orderOf("D437")).toBeLessThan(DATED_BASE);
+  });
+
+  it("does not walk the gap between a numbered record and a dated one", () => {
+    // THE CRASH THIS PREVENTS, and it is not hypothetical: the first time a
+    // dated record was written, the scan ran from D1 to ~1.2 billion and
+    // threw `Set maximum size exceeded`.
+    const out = unclaimedNumbers([
+      { num: 1, kind: "record", line: 1 },
+      { num: 437, kind: "record", line: 2 },
+      dated(20260909, 1, 3),
+    ]);
+    // The 435 real holes between D1 and D437 are reported; nothing above.
+    expect(out.every((r) => r.num < DATED_BASE)).toBe(true);
+    expect(out).toHaveLength(435);
+  });
+
+  it("never reports a date as an unclaimed number", () => {
+    // There is no such thing as an unclaimed date: a hole is a number
+    // somebody claimed and moved away from, which is the failure mode
+    // dated ids remove.
+    const out = unclaimedNumbers([dated(20260909, 1, 1), dated(20260911, 1, 2)]);
+    expect(out).toEqual([]);
+  });
+
+  it("ignores a citation that points at a dated record", () => {
+    const cited = new Map([[DATED_BASE + 20260909 * 100 + 1, new Set([5])]]);
+    const out = unclaimedNumbers([{ num: 5, kind: "record", line: 1 }], cited);
+    expect(out).toEqual([]);
+  });
+});
+
+describe("orderOf", () => {
+  it("keeps the numbered run below every dated key", () => {
+    expect(orderOf("D437")).toBeLessThan(orderOf("D-2026-09-09a"));
+    expect(orderOf("D1")).toBeLessThan(orderOf("D437"));
+  });
+
+  it("orders dated records by date, then by letter", () => {
+    expect(orderOf("D-2026-09-09a")).toBeLessThan(orderOf("D-2026-09-09b"));
+    expect(orderOf("D-2026-09-09z")).toBeLessThan(orderOf("D-2026-09-10a"));
+  });
+
+  it("treats a letterless dated id as first that day", () => {
+    expect(orderOf("D-2026-09-09")).toBeLessThan(orderOf("D-2026-09-09a"));
+  });
+
+  it("still reads the historical suffixed numbers", () => {
+    // D7a and friends exist; the suffix is not part of the number.
+    expect(orderOf("D7a")).toBe(7);
   });
 });

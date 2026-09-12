@@ -17,7 +17,6 @@
     "",
     "Nothing reads this at runtime. It is an operator input to a local script."
   ],
-
   "guard": {
     "maxNetBurnUsdPerMonth": 50,
     "note": "How much a month may cost NET of revenue before the daily pulse run goes red. $50 is docs/COSTS.md's own budget arithmetic — launch sizes model at ~$0-2 infra plus ~$28 fixed, so red means 'traction arrived, or something is wrong', both of which are an operator's morning. Keep it in step with the Cloud Billing budget when that is retuned.",
@@ -29,7 +28,48 @@
       "source": "docs/DECISIONS.md D332 §3; docs/COSTS.md control 1"
     }
   },
-
+  "program": {
+    "$why": [
+      "WHAT IT COSTS TO BUILD THIS APP, as opposed to what it costs to RUN it.",
+      "",
+      "The guard above watches Firebase: about $28/month, and every instrument",
+      "in this repository is pointed at it. The program that writes the app —",
+      "the scheduled lanes, the dispatchers, the night worker — metered",
+      "$7,011.27 over the eighteen days to 2026-09-03, which is ~$390/day, or",
+      "roughly 410x the thing being watched. docs/USAGE-REDUCTION.md measured",
+      "it; nothing read that measurement back, so the one automated financial",
+      "control in the tree could see the rounding error and not the bill.",
+      "",
+      "IT LIVES HERE because it is exactly what this file is for: a number",
+      "that is neither derivable from the repo nor stated by an API this",
+      "checkout can call. It is read from `list_sessions` by hand, so it goes",
+      "STALE, and `programVerdict` says so rather than pricing an old month —",
+      "the same asymmetry the guard's own `stale` state carries.",
+      "",
+      "Refresh it: `list_sessions` -> each finished session's `usage.cost_usd`,",
+      "summed over the window, divided by its days. Then move `measuredOn`."
+    ],
+    "measuredOn": "2026-09-03",
+    "windowDays": 18,
+    "usdPerDay": 390.0,
+    "allowanceUsdPerDay": 450.0,
+    "$allowanceUsdPerDay": [
+      "What a day of building may cost before the daily pulse run goes red.",
+      "450 is the measured 390 plus room for a heavy day, so the alarm means",
+      "'this changed' rather than 'this is Tuesday'. It is deliberately NOT a",
+      "target: nobody has decided what this program should cost, and that",
+      "decision is on docs/OWNER-LIST.md. A threshold with no decision behind",
+      "it is still better than no threshold, because it turns an unwatched",
+      "number into a watched one."
+    ],
+    "largestSession": {
+      "id": "session_013UfS4opexyJsoD3K9NxqFF",
+      "label": "InSight night worker",
+      "usdInWindow": 2325.68,
+      "note": "Two thirds of all routine spend, on 968.8M cache-read tokens. The single largest lever in the program: a context budget on this session saves more than any code change in the tree."
+    },
+    "source": "docs/USAGE-REDUCTION.md §1; measured 2026-09-03 from list_sessions"
+  },
   "fixed": [
     {
       "item": "Apple Developer Program",
@@ -50,7 +90,6 @@
       "source": "docs/COSTS.md, 'The question farm'; docs/QUESTION-FARM.md"
     }
   ],
-
   "paths": [
     {
       "id": "geo",
@@ -83,6 +122,5 @@
       "note": "Contextual only. Per-user targeting is ruled out by standing posture, so the achievable CPM is the untargeted one — assume low single digits, not programmatic rates, if you price this."
     }
   ],
-
   "constraint": "Users never pay, with money or with their identity, and the sold split is the same number every user sees for free. There is no premium data tier to model: a paying city's window is the public aggregate. D98 removed the floor, so what bounds a buyer is SCOPE and not arithmetic — the window is a convenience over data the buyer could read themselves, and any pitch offering more is a new decision (docs/MONETIZATION.md)."
 }

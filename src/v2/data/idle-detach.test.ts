@@ -32,6 +32,7 @@
 // reads it from this file and moves with it.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { scopeIds } from "./live";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -191,7 +192,17 @@ beforeEach(() => {
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
 
-afterEach(() => {
+afterEach(async () => {
+  // Stop the store this case booted before the next one boots its own.
+  // `vi.resetModules()` hands the next case a FRESH module instance and
+  // does not stop the old one, whose timers and in-flight chains keep
+  // running against a registry that has moved on — the failure
+  // `_teardownForTest`'s own comment records from warm-boot.test.ts
+  // (D357), and the one that made a vote in this file resolve
+  // `import("./circle")` outside the mocked registry.
+  await import("./live").then((m) => m._teardownForTest()).catch(() => {
+    /* a case that never imported the store has nothing to tear down */
+  });
   vi.useRealTimers();
   vi.unstubAllEnvs();
   delete (document as unknown as Record<string, unknown>).hidden;
@@ -208,11 +219,21 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     expect(aggSubs()).toHaveLength(0);
   });
 
-  it("reads the deck once on boot instead", async () => {
+  it("reads NOTHING on boot for a deck this device has not answered", async () => {
     await bootLive();
-    // Losing the listener must not mean losing the counts: the deck is
-    // fetched, so a card renders with real numbers on first paint.
-    expect(h.aggQueries.length).toBeGreaterThan(0);
+    // THE BLIND VOTE IS A DATA RULE. D129 replaced seven listeners with one
+    // boot read of the whole deck, and its case here said "so a card renders
+    // with real numbers on first paint" — which was true, and was the leak:
+    // `daily-split.jsx` hides the split until you vote (`revealed = voted
+    // || !blind`) while every hidden count sat in the store, in memory and
+    // on the wire before the first card painted. Devtools or a patched
+    // client recovered it, so the app's one distinctive claim was a render
+    // decision.
+    //
+    // A boot with no votes now reads no aggregates at all. That is also the
+    // cheapest boot the app has ever had — seven billed documents to zero —
+    // which is worth stating because honesty fixes usually run the other way.
+    expect(h.aggQueries).toHaveLength(0);
   });
 
   it("arms the poll while visible", async () => {
@@ -220,16 +241,25 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     expect(mod._aggPollForTest().running).toBe(true);
   });
 
-  it("a poll tick asks about today only, not the whole deck", async () => {
+  it("a poll tick asks for nothing while today is unanswered", async () => {
     // This is what keeps the replacement cheap. Polling seven documents a
     // minute would trade a quadratic term for a flat one seven times larger
     // than it needs to be — and only today's aggregate is hot, because only
     // today's question is being answered by the whole population at once.
+    // The tick body is `readableDeckIds(state.deckIds.slice(0, 1))`, so
+    // "today only" and "answered only" are one expression and this file
+    // can only see the first half — it has no vote path (its firebase mock
+    // is a bank/aggregate fixture, not a write one). The ANSWERED half is
+    // pinned in vote.test.ts, where a real optimistic write already runs;
+    // both are named here so neither can be deleted as unexplained.
+    //
+    // What this case can still prove is the slice: with today unanswered
+    // the tick asks for nothing at all, which is one document rather than
+    // seven whatever the filter later admits.
     const mod = await bootLive();
     h.aggQueries.length = 0;
     await mod._aggPollForTest().tick();
-    expect(h.aggQueries).toHaveLength(1);
-    expect(h.aggQueries[0]).toHaveLength(1);
+    expect(h.aggQueries).toHaveLength(0);
   });
 
   it("stops polling immediately when the app is hidden", async () => {
@@ -257,12 +287,38 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     expect(h.aggQueries).toHaveLength(0);
   });
 
-  it("a return to the foreground re-reads today only, not the whole deck", async () => {
+  it("a return to the foreground re-reads today only, not the whole deck", () => {
     // DATA-EFFICIENCY-RUNBOOK 1.4. The boot read the seven; a foreground
     // reads one — the term COSTS.md calls `reattach`, 28 reads a user-day
     // when every app switch re-read the deck. A card this device holds no
-    // aggregate for would ride along (a rollover while backgrounded); the
-    // fixture holds all seven, so this is exactly one query of one id.
+    // aggregate for rides along (a rollover while backgrounded).
+    //
+    // ASSERTED ON THE PURE SLICE rather than by driving a foreground and
+    // counting the query, since D-2026-09-09a. `readableDeckIds` now sits
+    // in front of the same expression, so the driven path reads nothing
+    // until this device has voted — and this file's Firestore double
+    // cannot carry a vote (the vote path's dynamic `import("./circle")`
+    // resolves outside the mocked registry and takes the real
+    // `collection()`, which throws on the `{ __db: true }` stand-in).
+    // Weakening this to "reads nothing" would have lost the claim; moving
+    // the arithmetic out keeps it, and keeps it exact.
+    const deck = ["d0", "d1", "d2", "d3", "d4", "d5", "d6"];
+    const allHeld = Object.fromEntries(deck.map((id) => [id, {}]));
+    expect(scopeIds("today", deck, allHeld)).toEqual(["d0"]);
+    // …and the boot still asks for the whole deck.
+    expect(scopeIds("deck", deck, allHeld)).toEqual(deck);
+    // A card the device holds no aggregate for rides along — the rollover
+    // case the runbook names.
+    expect(scopeIds("today", deck, { d0: {}, d1: {}, d2: {}, d3: {}, d5: {}, d6: {} }))
+      .toEqual(["d0", "d4"]);
+  });
+
+  it("a return to the foreground reads NOTHING while today is unanswered", async () => {
+    // The composed behaviour, driven for real: whatever slice `scopeIds`
+    // picks, an unanswered card's crowd is not fetched on the foreground
+    // path either. A reader who opens the app, sits on the card, switches
+    // away and comes back would otherwise be handed the counts they have
+    // not earned — the worst moment for the number to arrive.
     vi.useFakeTimers();
     const mod = await bootLive();
     setHidden(true);
@@ -272,8 +328,7 @@ describe("deck aggregates are polled, not streamed (D129)", () => {
     await vi.waitFor(() => {
       expect(mod._aggPollForTest().running).toBe(true);
     });
-    expect(h.aggQueries).toHaveLength(1);
-    expect(h.aggQueries[0]).toHaveLength(1);
+    expect(h.aggQueries).toHaveLength(0);
   });
 
   it("re-arms the poll when the app comes back", async () => {

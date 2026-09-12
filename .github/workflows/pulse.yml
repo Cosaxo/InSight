@@ -7,24 +7,29 @@
 # subject changes on its own belongs on a clock, not on a diff — the same
 # split security-audit.yml makes for `npm audit`.
 #
-# WHY IT NEVER RUNS `npm ci`. pulse.mjs is Node stdlib only, so this job
+# WHY IT NEVER RUNS `npm ci`. pulse.mjs is Node stdlib only — and so is
+# state.mjs, which imports pulse-collect.mjs and nothing else — so this job
 # needs a checkout and a Node binary and nothing else. That is not just
 # speed: a console whose job is to tell you the ground moved must not be
 # able to fail because a registry did. Verified in a dependency-free clone
 # before this file was written. Keep it that way — if pulse ever grows an
 # import that needs node_modules, that is the bug, not this omission.
 #
-# WHAT IT COMMITS. monitoring/pulse-trail.jsonl and monitoring/engagement.json,
-# and nothing else. pulse.json and the rendered HTML are both derivable from
-# the tree plus today's date — those two are the only outputs holding
-# something the repo does not already know, namely what the numbers were on
-# days nobody is looking at any more. engagement.json joined them on
-# 2026-09-11 for exactly that reason and no other: it is FETCHED, so it is
-# the one output regenerating cannot recover (D465). It is not
+# WHAT IT COMMITS. monitoring/pulse-trail.jsonl, monitoring/engagement.json
+# and docs/STATE.md, and nothing else. pulse.json and the rendered HTML are
+# both derivable from the tree plus today's date — these three are the only
+# outputs holding something the repo does not already know, namely what the
+# numbers were on days nobody is looking at any more. engagement.json joined
+# them on 2026-09-11 for exactly that reason and no other: it is FETCHED, so
+# it is the one output regenerating cannot recover (D465). It is not
 # content/scorecard.json, which the same fetch writes and the question farm
 # owns — the farm lane moved that file on 2026-09-11 without touching this
 # trail, so the two already travel separately and this job drops the side
-# effect rather than racing for it.
+# effect rather than racing for it. docs/STATE.md is the opposite case and
+# rides along for a different reason (D-2026-09-09g): it IS derivable, and
+# it is here because the page's whole claim is that it cannot be out of date
+# by more than a day, which a second workflow would be a second thing that
+# can stop.
 # An earlier version committed pulse.json too, which meant a bot commit every
 # single day forever (runwayDays moves at midnight by construction) for a
 # file `npm run pulse` rebuilds in a second. The rendered HTML is gitignored and
@@ -220,6 +225,12 @@ jobs:
           # derived from the tree and the date, so regenerating is always
           # safe and always converges — and if the winning run already wrote
           # today's row, the diff comes back empty and this exits happy.
+          # docs/STATE.md rides the same commit (D-2026-09-09g). It is
+          # derived from the tree and the date exactly as the trail row is,
+          # so it converges under the same retry, and it belongs on THIS
+          # job rather than on its own: the page's whole claim is that it
+          # cannot be out of date by more than a day, and a second workflow
+          # would be a second thing that can stop.
           for attempt in 1 2 3 4; do
             # RE-APPLIED INSIDE THE LOOP, because the reset below undoes it
             # and regenerating cannot bring it back. The row is derived from
@@ -231,11 +242,12 @@ jobs:
               cp "$RUNNER_TEMP/engagement.json" monitoring/engagement.json
             fi
             node scripts/pulse.mjs > /dev/null
-            if git diff --quiet -- monitoring/pulse-trail.jsonl monitoring/engagement.json; then
-              echo "pulse: today's row is already recorded."
+            node scripts/state.mjs --write > /dev/null
+            if git diff --quiet -- monitoring/pulse-trail.jsonl monitoring/engagement.json docs/STATE.md; then
+              echo "pulse: today's row, engagement and state page are already recorded."
               exit 0
             fi
-            git add monitoring/pulse-trail.jsonl monitoring/engagement.json
+            git add monitoring/pulse-trail.jsonl monitoring/engagement.json docs/STATE.md
             git commit -m "pulse: trail row for $(date -u +%Y-%m-%d)"
             if git push; then exit 0; fi
             echo "push rejected (attempt ${attempt}) — re-syncing and recomputing"

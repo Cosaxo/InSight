@@ -127,14 +127,46 @@ export function numberingProblems(records) {
  * @returns {{num:number, citers:number[]}[]} ascending; `citers` empty when
  *   nothing points at the number.
  */
+/** Sort keys at or above this belong to a DATED record (`D-YYYY-MM-DDx`),
+ *  not to the numbered sequence D1-D449 (D-2026-09-09e). */
+export const DATED_BASE = 1_000_000;
+
+/** A sort key that keeps D1-D449 in their own numeric run and files every
+ *  dated record after them, chronologically, then by letter.
+ *
+ *  The base is far above any number this file will ever reach, so the two
+ *  vocabularies cannot interleave: a reader scrolling the index meets the
+ *  historical run first and the dated records as a continuous tail. */
+export function orderOf(id) {
+  const dated = /^D-(\d{4})-(\d{2})-(\d{2})([a-z]?)$/.exec(id);
+  if (dated) {
+    const [, y, m, d, letter] = dated;
+    const day = Number(`${y}${m}${d}`);
+    return DATED_BASE + day * 100 + (letter ? letter.charCodeAt(0) - 96 : 0);
+  }
+  return Number(id.replace(/^D/, "").replace(/[a-z]$/, ""));
+}
+
 export function unclaimedNumbers(records, cited = null) {
+  // DATED RECORDS ARE NOT PART OF THE SEQUENCE, and must not be, for two
+  // separate reasons (D-2026-09-09e). Their sort key is above DATED_BASE,
+  // so including them would make the gap scan below walk from D1 to a
+  // billion — it did, and threw `Set maximum size exceeded` the first time
+  // a dated record was written. And the scan would be meaningless anyway:
+  // a hole is a number somebody CLAIMED and then moved away from, which is
+  // exactly the failure mode dated ids remove. There is no such thing as
+  // an unclaimed date.
   const nums = [...new Set(
-    (records || []).filter((r) => r && r.kind === "record").map((r) => r.num),
+    (records || [])
+      .filter((r) => r && r.kind === "record" && r.num < DATED_BASE)
+      .map((r) => r.num),
   )].sort((a, b) => a - b);
   if (!nums.length) return [];
   const have = new Set(nums);
   const targets = new Map();
   for (const [target, citers] of cited || []) {
+    // A citation of a dated record is never a hole either — same reason.
+    if (target >= DATED_BASE) continue;
     if (!have.has(target)) targets.set(target, [...citers].sort((a, b) => a - b));
   }
 
@@ -147,4 +179,8 @@ export function unclaimedNumbers(records, cited = null) {
 
   return [...report].sort((a, b) => a - b)
     .map((num) => ({ num, citers: targets.get(num) || [] }));
+  // NOTE for whoever renders this: a citer may be a DATED record, whose
+  // `num` is a sort key rather than a name (D-2026-09-09e). Render it
+  // through the caller's id lookup, not as `D${num}` — the first version
+  // of this printed "cited by D2027090905".
 }
