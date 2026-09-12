@@ -77,20 +77,25 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:874},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;item&quot;,&quot;example&quot;],&quot;default&quot;:&quot;item&quot;,&quot;tsType&quot;:&quot;'item' | 'example'&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light' | 'dark'&quot;},&quot;puzzle&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;max&quot;:2,&quot;tsType&quot;:&quot;number&quot;},&quot;placed&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;number[]&quot;},&quot;phase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;building&quot;,&quot;pressed&quot;,&quot;committed&quot;],&quot;default&quot;:&quot;building&quot;,&quot;tsType&quot;:&quot;'building' | 'pressed' | 'committed'&quot;},&quot;itemIndex&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;min&quot;:0,&quot;max&quot;:11,&quot;tsType&quot;:&quot;number&quot;},&quot;left&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.7,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;},&quot;clock&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;11:52&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;live&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;selectedStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;accent&quot;,&quot;inverted&quot;],&quot;default&quot;:&quot;accent&quot;,&quot;tsType&quot;:&quot;'accent' | 'inverted'&quot;},&quot;grid&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;large&quot;,&quot;match&quot;],&quot;default&quot;:&quot;large&quot;,&quot;tsType&quot;:&quot;'large' | 'match'&quot;}}">
 const SHAPES = [
-  {d:'M6 6H23L6 23Z',k:'f'},{d:'M66 6V23L49 6Z',k:'f'},{d:'M6 66V49L23 66Z',k:'f'},{d:'M66 66H49L66 49Z',k:'f'},
-  {d:'M19 29L29 19',k:'l'},{d:'M43 19L53 29',k:'l'},{d:'M19 43L29 53',k:'l'},{d:'M43 53L53 43',k:'l'},
-  {d:'M28 6H44V12H28Z',k:'f'},{d:'M6 28V44H12V28Z',k:'f'},{d:'M60 28V44H66V28Z',k:'f'},{d:'M28 60H44V66H28Z',k:'f'},
-  {d:'M28 28H44V44H28Z',k:'f'},{d:'M28 28H44V44H28Z',k:'s'},{d:'M27.5 36a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0-17 0Z',k:'f'},{d:'M27.5 36a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0-17 0Z',k:'s'},
-  {d:'M29 14H43L36 24Z',k:'f'},{d:'M14 29V43L24 36Z',k:'f'},{d:'M58 29V43L48 36Z',k:'f'},{d:'M29 58H43L36 48Z',k:'f'}
+  // OMIB's element ids, in OMIB's order — every family counter-clockwise, arrows
+  // pointing OUT — each path the bank's own drawing.js polygon scaled into 6..66.
+  // Derived, not drawn: src/v2/data/omib-shapes.ts is the source and its test
+  // holds both copies to drawing.js. (The 2026-09-12 upload had these in reading
+  // order with the arrows pointing in; see the README.)
+  {d:'M6 6L21 6L6 21Z',k:'f'},{d:'M21 66L6 66L6 51Z',k:'f'},{d:'M66 51L66 66L51 66Z',k:'f'},{d:'M51 6L66 6L66 21Z',k:'f'},
+  {d:'M13.5 36L36 13.5',k:'l'},{d:'M13.5 36L36 58.5',k:'l'},{d:'M36 58.5L58.5 36',k:'l'},{d:'M36 13.5L58.5 36',k:'l'},
+  {d:'M28.5 6L43.5 6L43.5 13.5L28.5 13.5Z',k:'f'},{d:'M6 28.5L6 43.5L13.5 43.5L13.5 28.5Z',k:'f'},{d:'M28.5 58.5L43.5 58.5L43.5 66L28.5 66Z',k:'f'},{d:'M58.5 28.5L58.5 43.5L66 43.5L66 28.5Z',k:'f'},
+  {d:'M30 30L42 30L42 42L30 42Z',k:'f'},{d:'M30 30L42 30L42 42L30 42Z',k:'s'},{d:'M30 36a6 6 0 1 0 12 0a6 6 0 1 0 -12 0Z',k:'f'},{d:'M30 36a6 6 0 1 0 12 0a6 6 0 1 0 -12 0Z',k:'s'},
+  {d:'M36 13.5L28.5 21L43.5 21Z',k:'f'},{d:'M13.5 36L21 28.5L21 43.5Z',k:'f'},{d:'M36 58.5L28.5 51L43.5 51Z',k:'f'},{d:'M58.5 36L51 28.5L51 43.5Z',k:'f'}
 ];
 // palette reads column = family, row = member
 const TILE_ORDER = [];
 for (let r = 0; r < 4; r++) for (let f = 0; f < 5; f++) TILE_ORDER.push(f * 4 + r);
 // 9 cells per puzzle; the 9th is the solution
 const PUZZLES = [
-  [[0],[14],[0,14],[8],[5],[8,5],[3,17],[13],[3,17,13]],
-  [[0,1,4,5,6],[2,5],[0,1,2,4,6],[3,5,7],[0,7],[0,3,5],[0,2,4,5,7],[1,4],[0,1,2,5,7]],
-  [[12,16],[12,18],[12,16,18],[15,17],[15,19],[15,17,19],[13,16],[13,19],[13,16,19]]
+  [[0],[14],[0,14],[8],[7],[8,7],[2,17],[13],[2,17,13]],
+  [[0,3,4,7,5],[1,7],[0,3,1,4,5],[2,7,6],[0,6],[0,2,7],[0,1,4,7,6],[3,4],[0,3,1,7,6]],
+  [[12,16],[12,19],[12,16,19],[15,17],[15,18],[15,17,18],[13,16],[13,18],[13,16,18]]
 ];
 const THEMES = {
   light: {surface:'oklch(0.965 0.004 75)', surface2:'oklch(0.994 0.0025 80)', surface3:'oklch(0.936 0.005 74)', rule:'oklch(0.905 0.006 74)', ink:'oklch(0.216 0.011 70)', ink2:'oklch(0.41 0.011 68)', ink3:'oklch(0.472 0.010 68)', acc:'oklch(0.52 0.14 195)'},

@@ -60,18 +60,18 @@ purpose:
   there is no clock. That is request 8 answered in the same pass, which
   is what kept it from teaching a screen that no longer exists.
 
-## Two things the BUILD must fix, both measured rather than noticed
+## Two things the artboard got wrong — both measured, both now fixed in it
 
-The artboard redraws the twenty shapes in the app's own 72 × 72 frame —
-which is a gift, because it means the port is already done. But its
-shape ARRAY INDEX is not OMIB's element id, and a build that assumes it
-is would render every item wrong while looking entirely plausible.
+The artboard redrew the twenty shapes in the app's own 72 × 72 frame —
+which was a gift, because it meant the port was already done. But its
+shape ARRAY INDEX was not OMIB's element id, and a build that assumed it
+was would have rendered every item wrong while looking entirely plausible.
 
-**1 · The order differs in twelve of twenty places.** Compared
+**1 · The order differed in twelve of twenty places.** Compared
 geometrically (centroid, and apex direction for the triangles) rather
 than by eye:
 
-| Family | OMIB's ids 0→3 | The artboard's array 0→3 |
+| Family | OMIB's ids 0→3 | The upload's array 0→3 |
 | --- | --- | --- |
 | corner | TL · BL · BR · TR | TL · TR · BL · BR |
 | line | upper-left · lower-left · lower-right · upper-right | UL · UR · LL · LR |
@@ -81,25 +81,45 @@ than by eye:
 
 **OMIB numbers every family counter-clockwise, and that is load-bearing
 rather than arbitrary**: `Rotation` is one of the bank's six rules, and
-it works by stepping an element through its family's four ids. Under the
-artboard's reading order those four are no longer a rotation, so a
-rotation item rendered on an identity mapping would show
-top → left → right → bottom and be unsolvable — while every gate stayed
-green, because nothing downstream can see a picture. The fix is a
-mapping table at the render site, not a design change.
+it works by stepping an element through its family's four ids. Under
+reading order those four are no longer a rotation, so a rotation item
+rendered on an identity mapping would show top → left → right → bottom
+and be unsolvable — while every gate stayed green, because nothing
+downstream can see a picture.
 
-**2 · The arrows point the wrong way.** OMIB's arrows point OUTWARD (the
-one at the top points up); the artboard's point inward. Position is
-right, direction is inverted, in all four. Unlike the ordering this is
-not a build-side rename: it changes what the solver sees, and the 220
-difficulty values were measured on people looking at the outward ones.
-Small, but it wants either four redrawn paths or a decision to accept
-the difference.
+**2 · The arrows pointed the wrong way.** OMIB's arrows point OUTWARD
+(the one at the top points up); the upload's pointed inward. Position
+was right, direction inverted, in all four. Unlike the ordering this
+was not a rename: it changed what the solver sees, and the 220 difficulty
+values were measured on people looking at the outward ones.
 
-Neither is a defect in the design. A designer laying out twenty shapes
+**Fixed 2026-09-12, on the owner's word (*"redraw the arrows to point
+outward like the real bank"*), and fixed by DERIVATION rather than by
+drawing.** `src/v2/data/omib-shapes.ts` is now the source of the twenty:
+every path is the bank's own `drawing.js` polygon scaled from its
+100-unit cell into the design's 60-unit working area (6..66 of 72), in
+OMIB's order, arrows out. So the shapes a solver sees are proportioned
+exactly as the shapes 2,572 people were calibrated on — which also
+corrected two things the comparison had not been asked about: the
+upload's diagonal lines were short ticks where the bank's run
+edge-middle to edge-middle, and its centre square was 16 units where the
+bank's is a fifth of the cell (12). What is the design's stays the
+design's — the 6-unit inset, the round caps, the stroke weights. **The
+designer owns the screen; the bank owns the stimuli.**
+`omib-shapes.test.ts` parses every path back to points, unscales them,
+and holds them to `drawing.js` — with the upload's own inward arrow
+pinned as the negative case, so the check is proved to reject what it
+exists to reject.
+
+`LogicPhone.dc.html`'s `SHAPES` array is replaced with the same table,
+and its three demo puzzles are remapped index-for-index so the SAME
+shapes appear under the bank's ids; its `TILE_ORDER` (column = family,
+row = member) already reads correctly against OMIB's numbering and is
+what `PALETTE_ORDER` in the module reproduces.
+
+Neither was a defect in the design. A designer laying out twenty shapes
 has no reason to know a third-party bank's internal numbering, and the
-request did not give it to them — that omission is the record's, and it
-is fixed here.
+request did not give it to them — that omission was the record's.
 
 ## Answered by the owner, 2026-09-12: twenty-five items at ninety seconds
 
