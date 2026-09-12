@@ -45,7 +45,7 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 // ops.ts sets the global runtime options as an import side effect and must
 // be evaluated before any function here is defined — the same reason every
 // other function module imports it (check:fn-runtime guards the outcome).

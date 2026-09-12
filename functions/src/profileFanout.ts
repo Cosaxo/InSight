@@ -50,7 +50,7 @@
 // (v2_ratelimits, server-only, erased with the account — index.ts 4b).
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { FieldPath, type Firestore } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { profileStamp, sameStamp, type ProfileStamp } from "./profileStamp";

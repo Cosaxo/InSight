@@ -88,7 +88,7 @@
 // 8-vector), so the day the buffer is the wrong shape the sweep streams
 // people through those statistics and holds none of them. That is the
 // graduation, not a bigger box.
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import type { Firestore } from "firebase-admin/firestore";
 import { V2_QUESTIONS } from "./v2content";

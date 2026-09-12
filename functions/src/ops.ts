@@ -9,7 +9,7 @@
 // SEED_ADMIN_UIDS (same contract seedContentV2 has used all along).
 
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2/options";
 
 export function seedAdmins(): string[] {

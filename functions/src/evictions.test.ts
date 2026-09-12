@@ -10,7 +10,7 @@
 // and bucket an operator needs; one line per discard, so the metric counts
 // discards; and silence when the attempt discarded nothing.
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { logBucketCaps } from "./v2";
 
 let warn: ReturnType<typeof vi.spyOn>;

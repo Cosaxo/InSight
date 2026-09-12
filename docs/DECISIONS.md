@@ -54128,3 +54128,134 @@ pace with nulls).
 **Records moved.** `docs/OMIB-PLAN.md` §5; `docs/data-inventory.md` row
 18. The privacy page needed no word: it never named a cadence for the
 test, and `check:policy-claims` agrees.
+
+## D479 · One command runs the gates, and it reads its own list out of CI
+
+**Decision (2026-09-12, from an architecture audit the owner asked for).**
+`npm run verify` runs what CI runs, locally. It carries no list of gates:
+`scripts/verify-plan.mjs` extracts the `run:` steps from `ci.yml` and
+`backend-checks.yml` and `scripts/verify.mjs` executes them in that order,
+so a gate wired into CI is in the sweep the same commit.
+
+**Why it did not exist, and what that cost.** There are 54 `check:*` gates
+and five test runners, and the only enumeration of them was ci.yml's lint
+job — one `- run:` at a time, 44 of them. So "have I run everything?" was
+answered by reading YAML, and `npm run lint` locally is eslint alone.
+CLAUDE.md §2 already named the resulting failure class ("the fifth one
+hides, and that has shipped breakage three times") and listed the three:
+D179's stale read tripwire and store-form assertion, D197's bank parser in
+three copies, D275's branch counting `tx.get(` after the code had moved to
+`tx.getAll(`. Every one is a script that CHECKS something, so nothing else
+went red to give it away. `check:docs` rule 4 could not see the gap either,
+because that rule reads `check:*` names and `test:scripts` is not one.
+
+**Why the list is derived and not written down.** A hand-kept list is the
+documentation error this repo keeps re-committing (D39, `check:figures`),
+and here it would fail in the precise way that matters: a gate added to
+ci.yml and not to the list is a gate the pre-push sweep silently stops
+running — the defect this closes, reproduced inside the fix.
+
+**The two rules that keep it honest.**
+
+- **An unclassified step FAILS the run.** A step form `classify()` has not
+  been taught stops the sweep and names itself, rather than being skipped.
+  Silent truncation reads as "covered everything" when it did not, and the
+  next person would trust it. That rule earned itself while the file was
+  being written: the first extractor matched `- run:` only and missed the
+  `- name:` + `run:` form, which is how both `npm audit` steps in ci.yml
+  are written — two real checks, invisible, in the script whose whole
+  subject is not silently covering less than it claims.
+- **A step a laptop cannot run is PRINTED with what it needs**, never
+  dropped: `test:rules` and `test:e2e:all` (Java 21 emulators), `cap sync`
+  and gradle (native toolchains), `npm audit` (the registry), `npm ci`
+  (already installed). `--all` attempts them; the default says out loud
+  that they are unproven here.
+
+**What it covers.** 57 steps, deduped — five gates are on both workflows
+on purpose, and `npm run build` is in three jobs. The release workflows
+are deliberately out: their gates want signing material and store
+credentials, so including them would fail on every machine that is not a
+release runner. A step's own `env:` travels with it, which is load-bearing
+rather than tidy: ci.yml sets `VITE_V2_LIVE` and `VITE_SENTRY_DSN` on the
+build step, and `check:bundle` refuses to grade a build not made as the
+shipping one — so a sweep that dropped the environment would fail the next
+gate for a reason about the runner rather than about the tree, which is
+the shape of red that teaches people to ignore a gate.
+
+**Not a merge gate.** CI runs on a clean checkout with the emulators and
+both native toolchains; this runs what a laptop can. It is a pre-push
+sweep, and the contract for a mergeable head (D299, D385) is unchanged.
+
+## D480 · Every Cloud Function was loading the Realtime Database client, and the boot graph now has a meter
+
+**Decision (2026-09-12, same audit).** The server's cold-start require
+graph is gated by `check:fn-boot`, and the 27 modules that took `logger`
+from the root `firebase-functions` barrel now take it from
+`firebase-functions/logger`.
+
+**The measurement.** `firebase.json` declares one codebase, so a container
+parses the whole of `functions/lib/index.js` on every cold start whichever
+single function it was started to serve. Median of three fresh processes
+requiring the real compiled entry:
+
+| | boot | modules | `@firebase/database-compat` |
+| --- | --- | --- | --- |
+| root barrel (before) | 744 ms | 831 | present |
+| `/logger` subpath (after) | 637 ms | 802 | absent |
+
+The root barrel re-exports the v1 API and every v2 provider, `database`
+included, which pulls `firebase-admin/database` and with it
+`@firebase/database-compat` — the Realtime Database client — into all 49
+functions of an app that has no `getDatabase` and no `.ref()` anywhere.
+Every `logger` member (`debug, error, info, log, warn, write`) is the
+IDENTICAL function object across the two specifiers, verified before the
+swap, so the change could not alter behaviour; that is also why nothing in
+the tree could notice it for as long as it stood. 1,142 function tests
+green before and after.
+
+**What the audit got wrong first, recorded because the correction is the
+useful part.** The finding was originally written as "every function
+parses the 609 KB question bank", with a proposed lazy-`require()` refactor
+across nine modules and twelve derived constants. Then it was measured:
+`v2content` is 21–26 ms of a ~1,100 ms boot — about 2%, ninth on the
+per-module profile, behind `google-auth-library` (99 ms),
+`@google-cloud/firestore` (53 ms), `jose` (49 ms) and
+`@firebase/database-compat` (45 ms). The wide, risky diff would have bought
+2%; one mechanical import change bought 14%. The profile came first only
+because the arithmetic was checked before the refactor was written, which
+is D1's discipline pointed at a plan instead of at a claim.
+
+**Why it asserts the graph and not the clock.** Module presence is exact
+and reproducible; timing on a shared runner is not — the same tree measured
+637 ms and 744 ms within a minute here. A gate that fails on a slow
+neighbour is a gate people re-run until it passes, and it eventually stops
+meaning anything (the same reasoning D276-era CI notes give about a green
+suite reported as a failure). So two deterministic rules:
+
+- **A denylist**, each entry carrying what the package is and how it last
+  got in. Substring rather than package name, because the v1 API is a PATH
+  inside a package the app does use.
+- **A shrink-only module count**, `check:globals` rule 4's shape: growth
+  fails, and a shrink fails too, asking for the baseline to come down with
+  the improvement — otherwise the number drifts back to an old ceiling for
+  free. `--pin` writes it.
+
+Unlike `check-appcheck`'s exemptions and `check:eager-content`'s allowlist,
+a denylist entry that stops matching is NOT a failure: those lists name
+debt someone must come back for, so a stale entry hides a finished job;
+these name a package that must stay out, so "absent" is the gate working.
+
+**Placement: `ci.yml` only.** A fat boot graph cannot say whether a rules
+fix is safe to deploy, and nothing that cannot answer that question gets to
+block one — `check:fn-types`' rule. It needs a built `functions/lib`, so
+the lint job gains `npm run build --prefix functions`; the gate requires
+the compiled entry rather than reading imports because the whole failure
+class is transitive, and no line in this repository names the denied
+package. The cause is also held source-side in
+`scripts/fn-boot-rules.test.mjs`, so a barrel import that comes back fails
+`test:scripts` in seconds rather than after a tsc.
+
+**What is NOT done here.** The bank's 21 ms stands, unlazied; so does
+`google-auth-library`'s 99 ms and `jose`'s 49 ms, both inside
+`firebase-admin`'s own graph and not this tree's to move. The ratchet is
+what makes that a recorded position rather than an unexamined one.

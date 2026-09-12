@@ -19,7 +19,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 import {

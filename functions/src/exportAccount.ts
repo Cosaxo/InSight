@@ -58,7 +58,7 @@ import type { Query, DocumentSnapshot, QueryDocumentSnapshot } from "firebase-ad
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { ENFORCE_APP_CHECK, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import { isStamped, playedIn } from "./pure";

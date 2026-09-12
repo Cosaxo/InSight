@@ -380,6 +380,20 @@ before you push. Both the count in that heading and the number of rows in
 the table are `check:figures`'s now, off package.json — D279 has what it
 does and does not decide is a runner.
 
+**`npm run verify` is how you run all of it at once**, and it exists
+because the three breakages above share one cause: there was no such
+command, so "have I run everything?" was answered by reading ci.yml's
+lint job one `- run:` at a time. It does not carry a list — it READS the
+steps out of `ci.yml` and `backend-checks.yml`, so a gate added to CI is
+in the sweep the same commit, and a hand-kept list cannot go stale in the
+one way that matters here. Two rules make it honest: a step form
+`scripts/verify-plan.mjs` has not been taught FAILS the run rather than
+being skipped (silent truncation reads as "covered everything"), and the
+steps a laptop cannot run — `test:rules`, the e2e drivers, `cap sync`,
+gradle — are printed with what they need instead of dropped. It is not a
+merge gate and does not replace CI: `--list` shows the plan, `--all`
+attempts the deferred ones, `--only` narrows.
+
 Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
 (question form + provenance, D97), `check:taxonomy` (a category is
 written at every site or not at all — the feed's palette against its
@@ -401,7 +415,20 @@ start-up cost and put two content lanes behind the eager budget; the
 worst edge was invisible to `check:bundle`, since a module inlined into
 the entry chunk has no chunk of its own to name, and the answer twice was
 to raise the ceiling instead. Its allowlist is a shrink-only ratchet in
-`check:globals` rule 4's shape), `check:deploy-targets`, `check:fn-runtime`,
+`check:globals` rule 4's shape), **`check:fn-boot`** (the same claim
+about the SERVER's boot graph, which had no gate at all until
+2026-09-12: `firebase.json` declares one codebase, so a container parses
+the whole of `functions/lib/index.js` on every cold start whichever one
+function it was started for — and 27 modules took `logger` from the root
+`firebase-functions` barrel, which re-exports the v1 API and the v2
+`database` provider, so `@firebase/database-compat` was in all 49
+functions of a Firestore-only app. 744 ms / 831 modules before, 637 / 802
+after. It asserts the GRAPH and not the clock, because the same tree
+timed 637 and 744 ms within a minute and a gate that fails on a slow
+runner is one people re-run until it passes; a denylist plus a
+shrink-only count, and it needs `functions/lib` built because the
+failure is transitive — no line in this repository names the denied
+package), `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:elements`
 and `check:catalogs` — the last three also run on the deploy path,

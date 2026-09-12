@@ -10,7 +10,7 @@
 // error by accident, and a silently-swallowed fold is an answer that never
 // reaches the aggregate.
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { runAggTransaction } from "./v2";
 
 // A Firestore stand-in whose runTransaction invokes the callback `times`

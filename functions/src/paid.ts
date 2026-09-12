@@ -48,7 +48,7 @@ import { FieldPath, FieldValue, Timestamp, type Firestore } from "firebase-admin
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION, SITE_ORIGIN } from "./ops";
 // The day key, offset in days. Was a byte-identical local copy until the
 // two families of `utcDayKey` were separated — see pure.ts's own comment.

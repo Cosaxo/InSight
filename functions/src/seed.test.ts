@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import { runSeedV2 } from "./v2";
 import { SEEDED_FIELDS, seedDocMatches } from "./pure";

@@ -16,7 +16,7 @@
 // about Firestore. The assertions are all about which purchases the
 // closer actually closed.
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 
 type Rec = { id: string; data: Record<string, unknown> };
 

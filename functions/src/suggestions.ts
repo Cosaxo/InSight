@@ -22,7 +22,7 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 

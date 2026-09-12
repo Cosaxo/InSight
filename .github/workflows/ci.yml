@@ -124,6 +124,30 @@ jobs:
       # whether a rules fix is safe to ship, and nothing that cannot answer
       # that question gets to block one.
       - run: npm run check:fn-types
+      # WHAT EVERY FUNCTION LOADS BEFORE IT CAN SERVE ANYTHING. firebase.json
+      # declares one codebase, so a container parses the whole of
+      # functions/lib/index.js on every cold start whichever single function
+      # it was started for — and nothing measured that graph.
+      # check:eager-content makes exactly this claim about the CLIENT's
+      # first-paint graph; the server half had no equivalent, and what grew in
+      # the gap was not this repo's own code: 27 modules imported `logger`
+      # from the ROOT `firebase-functions` barrel, which re-exports the v1 API
+      # and the v2 `database` provider, so @firebase/database-compat — the
+      # Realtime Database client — was in all 49 functions of a Firestore-only
+      # app. 744 ms / 831 modules before, 637 / 802 after. The logger members
+      # are the identical function objects across both specifiers, which is
+      # why nothing else in the tree could notice.
+      # It asserts the GRAPH, not the clock: the same tree timed 637 and 744 ms
+      # here within a minute, and a gate that fails on a slow neighbour is one
+      # people re-run until it passes. Module presence is exact.
+      # Needs the compiled entry, because the failure is transitive — no line
+      # in this repository names @firebase/database-compat — hence the build
+      # step below, which the lint job otherwise has no reason to run.
+      # Here and not on backend-checks.yml by the same rule as check:fn-types
+      # above: a fat boot graph cannot say whether a rules fix is safe to
+      # deploy, and nothing that cannot answer that gets to block one.
+      - run: npm run build --prefix functions
+      - run: npm run check:fn-boot
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,

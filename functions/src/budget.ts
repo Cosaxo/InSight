@@ -73,7 +73,7 @@
 // Billing API on the day it fires. Nothing a device reads changes shape.
 import { onMessagePublished } from "firebase-functions/v2/pubsub";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { GoogleAuth } from "google-auth-library";
 import { FUNCTIONS_REGION, LIGHT_CALLABLE } from "./ops";
 import { db as firestore } from "./db";

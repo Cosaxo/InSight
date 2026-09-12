@@ -36,7 +36,7 @@
 import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
 import {

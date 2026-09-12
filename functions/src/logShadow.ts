@@ -40,7 +40,7 @@
 // and the candidate's corpus filter — patterns.ts folds only the items
 // its corpus names, the shadow folds every option-shaped entry, a
 // superset, and equality on the superset is equality on the subset.
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import type { LedgerDayEntry, LedgerDayReader } from "./ledger";
 import { LOG_SHADOW_ID_CHUNK, logWriter, rowFromLedgerEntry, type LogWriter, type ShadowFold } from "./log";
 import type { AnswerMap } from "./patternsAls";

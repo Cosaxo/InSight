@@ -34,7 +34,7 @@ import { citySampleId, WORLD_SAMPLE_PAGE } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
 import { rateLimitLedgers } from "./exportAccount";
 import { ledgerRemoval, playedRemovals, revealDueRounds, stampRemoval } from "./v2social";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
 // import (not `import "./ops"`) because deleteAccount reads

@@ -36,7 +36,7 @@ import { profileStamp, type ProfileStamp } from "./profileStamp";
 import { answerMapMerge, answerMapRef } from "./answerMaps";
 import { isShardedQid, shardEditIncrements, shardIncrements, shardOf, shardRef } from "./aggShards";
 import { appendLog, logRow, type LogRow } from "./log";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
   canonBreakdownFor,

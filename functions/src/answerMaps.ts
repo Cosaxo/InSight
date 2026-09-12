@@ -86,7 +86,7 @@
 // deploy and the click.
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { FieldPath, FieldValue, type Firestore } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { assertOperator, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import type { LedgerDayReader } from "./ledger";

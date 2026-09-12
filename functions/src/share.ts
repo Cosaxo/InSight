@@ -27,7 +27,7 @@
 // because check:web-headers holds the FILES under web/ and a rewrite
 // served from here is not one.
 import { onRequest } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 

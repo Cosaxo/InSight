@@ -84,7 +84,7 @@
 //     foldCanonAnchors' own per-cell entity cap.
 
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { db as firestore } from "./db";
 import { assertOperator, FUNCTIONS_REGION } from "./ops";
 // The trigger's own breakdown helper, imported rather than reimplemented.

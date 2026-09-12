@@ -36,7 +36,7 @@
 // TOPIC a device actually renders); recorded here so the next author
 // shards instead of trimming.
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import type { Firestore } from "firebase-admin/firestore";
 // ops.ts sets the global runtime options as an import side effect and must

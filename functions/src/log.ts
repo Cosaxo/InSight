@@ -55,7 +55,7 @@
 import { BigQuery } from "@google-cloud/bigquery";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { FieldPath, type Firestore, type Timestamp } from "firebase-admin/firestore";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { assertOperator, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import type { LedgerDayEntry, LedgerDayReader } from "./ledger";

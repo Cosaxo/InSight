@@ -58,7 +58,7 @@
 // schedule), not a fourth function — splitting the pass is what this file
 // removed.
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 // ops.ts sets the global runtime options as an import side effect and must
 // stay imported wherever a function is declared (check:fn-runtime guards
 // the outcome).

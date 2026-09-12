@@ -41,7 +41,7 @@
 
 import { Timestamp, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { utcDayKeyOf } from "./pure";
 import type { LedgerDayReader } from "./ledger";
 // ops.ts sets the global runtime options as an import side effect and

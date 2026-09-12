@@ -36,7 +36,7 @@ import {
   FUNCTIONS_REGION,
 } from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { randomBytes } from "node:crypto";
 import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";

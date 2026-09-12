@@ -82,7 +82,7 @@
 import { FieldValue, type DocumentSnapshot, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { assertOperator, COMPACTOR, FUNCTIONS_REGION, LIGHT_CALLABLE } from "./ops";
 import { db as firestore } from "./db";
 import { V2_QUESTIONS } from "./v2content";

@@ -30,7 +30,7 @@
 import { createPrivateKey, randomUUID, sign as cryptoSign } from "node:crypto";
 import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { logger } from "firebase-functions";
+import { logger } from "firebase-functions/logger";
 import { GoogleAuth } from "google-auth-library";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { levelFor, levelDef } from "./accountLevel";
