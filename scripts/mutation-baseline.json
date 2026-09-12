@@ -1,0 +1,11 @@
+{
+  "survivors": 0,
+  "$why": [
+    "Mutants that survived the last nightly run — a suite that passed while",
+    "its subject was wrong. SHRINK-ONLY: scripts/mutate.mjs fails when a run",
+    "exceeds this, and the repair is to fix the suite, never to raise the",
+    "number. 0 is the honest starting point rather than a claim: the sample",
+    "is a handful of mutants a night from a rotating pool, so a clean run is",
+    "evidence about those mutants and not a mutation score for the tree."
+  ]
+}

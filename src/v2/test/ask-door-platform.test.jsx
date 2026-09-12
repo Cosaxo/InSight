@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // ask-door-platform.test.jsx — the in-app door is Android's, and the iOS
-// build carries none (D472).
+// build carries none (D473).
 //
 // D368 took every ask-a-question call to action out of the binary and
 // inverted two smoke-live cases to pin the absence. Those cases mount with
@@ -20,8 +20,10 @@
 // in whichever file runs next.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
-import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
-import { ASK_URL } from "../data/askDoor";
+import { awaitNode, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { SITE_ORIGIN } from "../data/siteOrigin";
+
+const ASK_URL = `${SITE_ORIGIN}/ask`;
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -36,7 +38,14 @@ describe("the in-app door asks the platform", () => {
     setPlatform("android");
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     const expectNoBoundary = mountApp();
-    await act(async () => {});
+    // awaitNode, the harness's own wait for a lazy chunk: the button's body
+    // is React.lazy (askDoor.ts's header has why), so it lands a tick after
+    // the header paints, with nothing holding its place meanwhile.
+    const landed = await awaitNode('header button[aria-label="Ask a question"]');
+    // If the chunk never landed, surface the boundary's real error first
+    // rather than a bare "not found".
+    if (!landed) expectNoBoundary("Android, waiting for the door's chunk");
+    expect(landed, "the door's lazy chunk never landed in the header").not.toBeNull();
     const doors = screen.getAllByRole("button", DOOR);
     expect(doors, "Android draws exactly one door, in the header").toHaveLength(1);
     expect(doors[0].closest("header"), "the door is not in the header").not.toBeNull();

@@ -17,7 +17,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import LIVE from "./live";
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
-import { TYPE_SYSTEMS, TYPE_TEST, typeLine, typeNames, typeOfParsed, typeOfPerson, typeSharesOn } from "./typeMix";
+import { TYPE_SYSTEMS, TYPE_TEST, typeLine, typeMixFor, typeNames, typeOfParsed, typeOfPerson, typeSharesOn } from "./typeMix";
 import { agreementOf } from "./cohort";
 
 /** A profile's `testResults` as the owner's client writes it. */
@@ -200,5 +200,69 @@ describe("typeSharesOn", () => {
     const shares = typeSharesOn(TYPE_TEST)!;
     expect(shares.typedN).toBe(0);
     expect(shares.rows.every((r) => r.n === 0 && r.pct === 0)).toBe(true);
+  });
+});
+
+// ── who the reading is ABOUT: the scope cut (D141) ───────────────────
+//
+// FOUND BY MUTATION, 2026-09-09, on the nightly lane's first real run
+// (scripts/mutate.mjs). `typeMixFor` had no scope case at all: flipping
+// the country cut's `&&` to `||` — which makes the guard read "I have a
+// country, OR this person's city ends with it", so ANY person is in scope
+// the moment the viewer has a country set — left the whole suite green.
+//
+// That defect is not cosmetic. The card says "in your country" over the
+// reading; with the mutant it would say it over the world, on a screen
+// whose entire claim is which population you are being compared to.
+// check:panel-suites was satisfied throughout, because a suite existed.
+describe("typeMixFor scope", () => {
+  const store = LIVE as typeof LIVE & {
+    enabled: boolean;
+    kindredPeople: () => unknown[];
+    anchors: () => Record<string, unknown> | null;
+  };
+  const real = { enabled: store.enabled, kindredPeople: store.kindredPeople, anchors: store.anchors };
+  afterEach(() => { Object.assign(store, real); });
+
+  const at = (city: string, uid: string) => ({
+    ...person({ O: 88, C: 40, E: 75, A: 55, N: 45 }), uid, city,
+  });
+  const crowd = () => [at("Oslo, NO", "a"), at("Bergen, NO", "b"), at("Stockholm, SE", "c")];
+
+  it("counts the whole crowd at world scope", () => {
+    store.enabled = true;
+    store.kindredPeople = crowd;
+    store.anchors = () => ({ city: "Oslo, NO", country: "NO" });
+    expect(typeMixFor("world").sampleN).toBe(3);
+  });
+
+  it("counts only this country at country scope — and NOT the neighbour", () => {
+    // The mutant's exact case. `sampleN` is 3 under `||` and 2 under
+    // `&&`, so this line is what makes the country cut real.
+    store.enabled = true;
+    store.kindredPeople = crowd;
+    store.anchors = () => ({ city: "Oslo, NO", country: "NO" });
+    expect(typeMixFor("country").sampleN).toBe(2);
+  });
+
+  it("counts nobody at country scope when the viewer has no country", () => {
+    // The other half of the same `&&`, and the reason it is an AND: with
+    // no country of your own there is no country cut to make, and a
+    // reading over everybody labelled "in your country" is the same lie
+    // pointed the other way.
+    store.enabled = true;
+    store.kindredPeople = crowd;
+    store.anchors = () => ({ city: "Oslo, NO" });
+    expect(typeMixFor("country").sampleN).toBe(0);
+  });
+
+  it("counts only the exact city at city scope", () => {
+    store.enabled = true;
+    store.kindredPeople = crowd;
+    store.anchors = () => ({ city: "Oslo, NO", country: "NO" });
+    expect(typeMixFor("city").sampleN).toBe(1);
+    // …and nobody when the viewer has no city, for the reason above.
+    store.anchors = () => ({ country: "NO" });
+    expect(typeMixFor("city").sampleN).toBe(0);
   });
 });

@@ -2,19 +2,19 @@
 
 **Status: ADOPTED 2026-09-05 (D368) — shape A, and BUILT: phase 2 at
 D368's amendment, phase 3 at D369, phase 4 at
-[D471](DECISIONS.md#d471--the-door-nobody-could-reach-shape-as-acquisition-half-built--and-the-320-premise-it-was-argued-from)
+[D472](DECISIONS.md#d472--the-door-nobody-could-reach-shape-as-acquisition-half-built--and-the-320-premise-it-was-argued-from)
 (2026-09-12).** The owner chose it on
 the three-shape table below; what was plan is now the build order. The
 two questions §8 puts to the owner are still open and stay on
 `OWNER-LIST.md`.
 
-**§5's discoverability sentence is STALE, and D471 is the correction.**
+**§5's discoverability sentence is STALE, and D472 is the correction.**
 It argues off €320; `content/pricing.json` has said €5–€50 since D373
 and D376, so §1's cut table is arithmetic on a price the card no longer
 carries. The structural argument — IAP has no partial-refund primitive,
 so D164's billing cannot live inside it — is price-independent and still
 decides the shape. What the cut changes is WHO the buyer is, and
-therefore how much the missing funnel cost: see D471.
+therefore how much the missing funnel cost: see D472.
 
 **Phase 4 was written here and not built**, so from D368 to 2026-09-12
 the only address that reached `web/ask.html` was one sentence inside the
@@ -125,7 +125,7 @@ injunctions do. B is a real option if in-app Android conversion turns
 out to matter, but it buys a second code path against a risk Play has
 never actually enforced.
 
-**A plus B, at one boolean — DECIDED, D472 (2026-09-12).** Once the
+**A plus B, at one boolean — DECIDED, D473 (2026-09-12).** Once the
 web door existed, B stopped costing a second code path: the Android
 build's header "+" simply opens `web/ask.html` in the system browser
 (`src/v2/data/askDoor.ts`, `platform === "android"`), so the composer,
@@ -195,7 +195,7 @@ pages Stripe already returns to.
 - The rate card prints off `content/pricing.json`, which the page needs
   fetched or inlined at deploy.
 
-**Phase 4 — acquisition. BUILT at D471 (2026-09-12), and it was four
+**Phase 4 — acquisition. BUILT at D472 (2026-09-12), and it was four
 routes rather than one.** `web/home.html` said it was *"Deliberately NOT
 the app"*; it is where the door is found now. With it: the `/q/`
 sponsored results pages and their 404 (the one public surface a buyer

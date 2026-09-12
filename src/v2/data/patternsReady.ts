@@ -130,7 +130,37 @@ export function patternsEligible(q: PatternsEligible): boolean {
   return isCore(q);
 }
 
-/** What the gate reads. Both default to nothing published and nothing answered. */
+/**
+ * The skill the fit must have posted before the tab is offered.
+ *
+ * `skill` is `1 − bits/baselineBits`: the share of a marginal-only
+ * guess's surprisal that the loading vectors remove. 0 is a fit that has
+ * learned nothing beyond how popular each answer is.
+ *
+ * THE OTHER TWO NUMBERS COUNT DATA; THIS ONE MEASURES THE MODEL, and the
+ * distinction is the whole reason it exists. `pool` and `mine` can both
+ * be satisfied while every loading is still the hash seed it was born as
+ * — that is not a hypothetical, it is what docs/ALGORITHM-REFLECTION.md
+ * §1.2 measured about the shipped fit: surprisal equal to the marginal to
+ * three decimals, 113 of 113 vectors within cosine 0.9 of their seed. On
+ * that model the Map is a drawing of `seedLoading`, and the People lens
+ * puts real, named strangers on it (peopleMap places every dot by a ridge
+ * solve over these loadings). Its agreement rows are counted straight off
+ * shared answers and stay true; the POSITIONS would not be. One picture,
+ * one visual vocabulary, one true half and one invented half — which is
+ * the thing D265's gate is for, one level deeper than D265 could see.
+ *
+ * 0.01 is a floor on "has learned ANYTHING", not on "is good". It is
+ * deliberately the smallest number that is not zero at the published
+ * precision: the claim being gated is that the vectors carry something
+ * the question's popularity did not, and the honest threshold for that
+ * claim is any measurable amount. Raising it makes the tab arrive later
+ * and mean more; the constant is an argument to `patternsReady` so that
+ * is a one-line change with its reasoning beside it.
+ */
+export const PATTERNS_MIN_SKILL = 0.01;
+
+/** What the gate reads. All default to nothing published and nothing answered. */
 export interface PatternsSignal {
   /** Questions the fit published at `basis` or better — `v2_meta/app`. */
   pool?: number;
@@ -138,14 +168,36 @@ export interface PatternsSignal {
   basis?: number;
   /** The viewer's answers among eligible questions — device-side, free. */
   mine?: number;
+  /**
+   * The fit's worst one-step-ahead skill across its last few scorable
+   * days (`patternsFit.sustainedSkill`), or ABSENT when it has not
+   * posted enough of them to say.
+   *
+   * Absent and 0 are different facts and the gate keeps them different:
+   * absent is "not measured yet", 0 is "measured, and it learned
+   * nothing". Both keep the tab shut — but a reader of this signal (a
+   * scorecard, a console line) can tell which, and only one of them will
+   * ever move on its own.
+   */
+  skill?: number;
 }
 
 /**
  * Whether the Patterns tab may be offered at all.
  *
- * Both halves, and the AND is the point: a fit fat enough to draw and a
- * viewer with enough answers to be drawn in it. Either alone puts a lens
- * on screen that has to apologise for one of its two axes.
+ * THREE halves now, and the AND is the point: a corpus fat enough to
+ * draw, a viewer with enough answers to be drawn in it, and a MODEL that
+ * has learned something from the first about the second. Any one alone
+ * puts a lens on screen that has to apologise for one of its axes — and
+ * the third is the one D265 could not state, because the instrument that
+ * measures it (D394's `skill`) arrived after the gate did.
+ *
+ * A signal carrying no `skill` at all fails, and that is deliberate: it
+ * is the state of a fit that has not posted enough scorable days to say
+ * anything, and "we have not measured the model" is not a reason to draw
+ * one. It is also the state of every device running against a backend
+ * that has not deployed the publishing half yet, which fails CLOSED —
+ * the tab waits a night rather than opening on a number nobody sent.
  *
  * The thresholds are arguments so a test can pin the verdict rather than
  * the constant, and so raising one is a one-line change with a reason
@@ -156,11 +208,19 @@ export function patternsReady(
   minPool = PATTERNS_MIN_POOL,
   minMine = PATTERNS_MIN_MINE,
   minBasis = PATTERNS_MIN_BASIS,
+  minSkill = PATTERNS_MIN_SKILL,
 ): boolean {
   const pool = signal.pool ?? 0;
   const basis = signal.basis ?? 0;
   const mine = signal.mine ?? 0;
-  return basis >= minBasis && pool >= minPool && mine >= minMine;
+  // NOT `?? 0` — see PatternsSignal.skill. An absent measurement and a
+  // measured zero both fail here, but collapsing them into one number is
+  // how a reader downstream loses the difference.
+  const skill = typeof signal.skill === "number" ? signal.skill : null;
+  return basis >= minBasis
+    && pool >= minPool
+    && mine >= minMine
+    && skill !== null && skill >= minSkill;
 }
 
 /** Where the crossing is remembered — swept with every other insight.*

@@ -381,7 +381,7 @@ inside the app: `suggestions.jsx` calls `SG.payFor(id)`…" from D313
 until 2026-09-12, four days after D368 deleted that file — the
 D179/D183 shape.)* Since [D368](DECISIONS.md) nothing is bought from
 inside the app; the funnel is `web/ask.html`. Since
-[D472](DECISIONS.md) the **Android** build carries a header button that
+[D473](DECISIONS.md) the **Android** build carries a header button that
 opens that page in the system browser (`src/v2/data/askDoor.ts` —
 `window.open(url, '_blank')`, the same hop the old pay tap made to
 Stripe), and the iOS build draws no such control, which

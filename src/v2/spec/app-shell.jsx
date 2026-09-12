@@ -37,10 +37,11 @@ import { FEEDREAD } from './feed-read.js';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
-import { askDoorOffered, openAskDoor } from '../data/askDoor';
+import { askDoorOffered } from '../data/askDoor';
 // The buyer's room (PAID-PLAN §7, D288) — its own lazy chunk, not part of
 // the spec overlay group: typed, and nothing on first paint pays for it.
 const AskedByYouLazy = React.lazy(() => import('../ui/AskedByYouOverlay'));
+const AskDoorLazy = React.lazy(() => import('../ui/AskDoorButton'));
 // R2/D270: the anonymous feature tally — a no-op until initLive arms it,
 // so every demo mount and jsdom suite stays silent without a test flag.
 import * as engagement from '../data/engagement';
@@ -743,7 +744,7 @@ export function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             <PassiveMeter />
-            {/* The ask-a-question door — back, on Android only (D472).
+            {/* The ask-a-question door — back, on Android only (D473).
                 D368 took it out of the binary because a purchase call to
                 action inside an app is what Apple's anti-steering rule
                 polices, and a "+" one tap from anywhere was the most
@@ -755,10 +756,17 @@ export function App() {
                 is the rule and ask-door-platform.test.jsx mounts the App
                 as iOS to prove it. Same class and glyph weight as Search,
                 because it is a peer of it, not a promotion. */}
+            {/* The body is a lazy chunk (ui/AskDoorButton.tsx): the eager
+                graph sat 484 bytes under check:bundle's ceiling and the
+                door was 619 (askDoor.ts's header has the arithmetic). The
+                fallback is null, not a same-size slot — the slot cost 75
+                eager bytes of a 38-byte deficit, and on native Capacitor
+                serves the chunk from the app's own bundle, so the import
+                resolves within a tick and there is no gap to hold. */}
             {askDoorOffered() && (
-              <button className="icon-btn" aria-label="Ask a question" onClick={openAskDoor}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
+              <React.Suspense fallback={null}>
+                <AskDoorLazy />
+              </React.Suspense>
             )}
             <button className="icon-btn" aria-label="Search" onClick={() => openDeferred(() => { closeAll(); setOv('search'); })}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>

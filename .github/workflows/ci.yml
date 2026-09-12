@@ -66,6 +66,17 @@ jobs:
       # name), and the answer twice was to raise its ceiling. Client-only
       # and off backend-checks.yml by the same rule as check:figures above.
       - run: npm run check:eager-content
+      # A shrink-only ratchet on the files already too big to change
+      # safely. Every other meter in this tree reads a RELATIONSHIP —
+      # coupling, a doc against the code, a form against its twin — and
+      # none read the simplest property there is, so live.ts went 1,285 →
+      # 8,682 lines in 39 days and functions/src/v2content.ts went 2,926 →
+      # 25,993 in five, both unmeasured. Not a line limit and not an
+      # opinion about file size: the only claim is that a watched file does
+      # not get bigger by ACCIDENT. Client/docs-only in the same sense as
+      # check:figures above — a fat file says nothing about whether a rules
+      # fix is safe to deploy — so it stays off backend-checks.yml.
+      - run: npm run check:file-size
       # D290's invariant: the answer document is the source of truth and
       # every aggregate is a projection rebuilt from it, which holds only
       # while the answer keeps carrying its `anchors` snapshot. Trim that to

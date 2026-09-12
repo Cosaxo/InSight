@@ -17,7 +17,8 @@
 // reset() did: a NEW store that persists an insight.* key and forgets the
 // listener fails here, with the fix in the error message.
 //
-// THE RULE. A file that both (a) calls localStorage.setItem and (b) names
+// THE RULE. A file that both (a) writes localStorage — `setItem`, or the
+// tree's own guarded `lsSet` (data/localWrite.ts) — and (b) names
 // an 'insight.' key must either register an insight:local-purge listener
 // or be exempted below WITH ITS REASON — the check-appcheck shape: the
 // exemption list is documentation, and a stale entry (file stops matching
@@ -138,7 +139,18 @@ const matched = new Set();
 for (const file of files) {
   const rel = file.slice(root.length + 1);
   const src = stripComments(readFileSync(file, "utf8"));
-  const writes = /localStorage\s*\.\s*setItem/.test(src);
+  // A WRITE IS A WRITE THROUGH THE TREE'S OWN WRITER TOO. This matched
+  // `localStorage.setItem` alone until D-2026-09-09h moved the guarded
+  // `lsSet` out of live.ts into data/localWrite.ts — at which point the
+  // biggest writer of `insight.*` keys in the app stopped looking like a
+  // writer, and this gate reported its EXEMPT entry as stale. That is the
+  // right failure (the stale-entry rule is this file's vacuity floor) and
+  // the wrong diagnosis: live.ts writes exactly the keys it always did,
+  // through a helper. A predicate pinned to one call's spelling is the
+  // class the tripwires in scripts/ have gone vacuous on three times over
+  // (D179, D197, D275) — here it failed loudly instead, which is the only
+  // reason it is being fixed rather than discovered later.
+  const writes = /localStorage\s*\.\s*setItem/.test(src) || /\blsSet\s*\(/.test(src);
   const insightKey = /['"]insight\./.test(src);
   const opensIdb = /indexedDB\s*\.\s*open\s*\(/.test(src);
   if (!(writes && insightKey) && !opensIdb) continue;
