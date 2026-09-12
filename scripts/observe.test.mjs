@@ -71,6 +71,7 @@ beforeEach(() => {
     "logging.googleapis.com": { status: 200, body: { metrics: [{ name: "m1" }] } },
     "cloudfunctions.googleapis.com": { status: 200, body: { functions: [] } },
     "cloudbilling.googleapis.com": { status: 200, body: { billingEnabled: true, billingAccountName: "billingAccounts/X" } },
+    "cloudresourcemanager.googleapis.com": { status: 200, body: { bindings: [] } },
     "bigquery.googleapis.com": { status: 200, body: { datasets: [] } },
     "bigquery:tables": { status: 200, body: { tables: [] } },
     "firestore.googleapis.com": { status: 200, body: { name: "projects/prvfire33/databases/insight", pointInTimeRecoveryEnablement: "POINT_IN_TIME_RECOVERY_DISABLED" } },
@@ -107,10 +108,11 @@ describe("a refusal is a result, not a crash", () => {
   it("reports EVERY refusal in one run, not just the first", async () => {
     for (const h of Object.keys(reply)) reply[h] = { status: 403, body: { error: { message: "denied" } } };
     const j = await asJson();
-    // Seven probes now: the original four, D454's bigquery and D455's two
-    // backup readings. The count is the assertion — a run that quietly
-    // stopped making one would otherwise still look green here.
-    expect(j.blocked).toHaveLength(7);
+    // Eight probes now: the original four, D454's bigquery, D455's two
+    // backup readings, and D471's hard-stop grant. The count is the
+    // assertion — a run that quietly stopped making one would otherwise
+    // still look green here.
+    expect(j.blocked).toHaveLength(8);
     expect(j.reachable).toEqual([]);
   });
 
@@ -553,5 +555,74 @@ describe("the two BigQuery steps (runbook 5.11, 5.12)", () => {
       body: { datasets: [{ datasetReference: { datasetId: "firestore_export" }, location: "us-central1" }] },
     };
     expect(await observe()).toContain("firestore_export (us-central1)");
+  });
+});
+
+// The one reading D471 could not otherwise have: whether the billing detach
+// is ARMED. The function detaches with a call its runtime account may not
+// make until it holds roles/billing.projectManager on the project, and the
+// only other test is a month at three budgets — so the IAM policy is read
+// and joined with the account the function actually runs as.
+describe("the hard-stop reading (D471)", () => {
+  const SA_EMAIL = "123456789012-compute@developer.gserviceaccount.com";
+  const deployed = () => ({
+    status: 200,
+    body: {
+      functions: [{
+        name: "projects/prvfire33/locations/europe-west1/functions/onBudgetAlert",
+        serviceConfig: { serviceAccountEmail: SA_EMAIL },
+      }],
+    },
+  });
+
+  it("reads the binding by POST, and says nothing to arm while the function is not deployed", async () => {
+    const out = await observe();
+    expect(out).toContain("hardStop       onBudgetAlert is not deployed — nothing to arm yet");
+    const j = await asJson();
+    expect(j.readings.hardStop.deployed).toBe(false);
+    expect(j.readings.hardStop.armed).toBeNull();
+  });
+
+  it("says NOT ARMED, with the exact grant, when the function's own account lacks the role", async () => {
+    reply["cloudfunctions.googleapis.com"] = deployed();
+    // A binding for somebody else is not a binding for the function.
+    reply["cloudresourcemanager.googleapis.com"] = {
+      status: 200,
+      body: { bindings: [{ role: "roles/billing.projectManager", members: ["user:owner@example.com"] }] },
+    };
+    const out = await observe();
+    expect(out).toContain("**NOT ARMED**");
+    expect(out).toContain(`gcloud projects add-iam-policy-binding prvfire33 --member serviceAccount:${SA_EMAIL} --role roles/billing.projectManager`);
+    const j = await asJson();
+    expect(j.readings.hardStop.armed).toBe(false);
+    expect(j.readings.hardStop.functionAccount).toBe(SA_EMAIL);
+    // The account is READ off the function, never typed: it is what the
+    // grant line prints, so a typed default would print the wrong grant.
+    expect(j.readings.functions.detail[0].serviceAccount).toBe(SA_EMAIL);
+  });
+
+  it("says ARMED once the binding names that account", async () => {
+    reply["cloudfunctions.googleapis.com"] = deployed();
+    reply["cloudresourcemanager.googleapis.com"] = {
+      status: 200,
+      body: { bindings: [{ role: "roles/billing.projectManager", members: [`serviceAccount:${SA_EMAIL}`, "user:owner@example.com"] }] },
+    };
+    const out = await observe();
+    expect(out).toContain(`ARMED — onBudgetAlert runs as ${SA_EMAIL}`);
+    expect(out).not.toContain("NOT ARMED");
+    expect((await asJson()).readings.hardStop.armed).toBe(true);
+  });
+
+  it("does not answer ARMED off a refused functions reading", async () => {
+    reply["cloudfunctions.googleapis.com"] = { status: 403, body: { error: { message: "denied" } } };
+    reply["cloudresourcemanager.googleapis.com"] = {
+      status: 200,
+      body: { bindings: [{ role: "roles/billing.projectManager", members: [`serviceAccount:${SA_EMAIL}`] }] },
+    };
+    const j = await asJson();
+    expect(j.readings.hardStop.status).toBe("ok");
+    expect(j.readings.hardStop.deployed).toBeNull();
+    expect(j.readings.hardStop.armed).toBeNull();
+    expect(await observe()).toContain("hardStop       unreadable");
   });
 });

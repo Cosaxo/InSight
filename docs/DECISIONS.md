@@ -52329,3 +52329,185 @@ on `main` and for reasons outside the tree: `check:web-firebase` wants
 the release `VITE_FIREBASE_*` secrets, and `check:store-copy` wants the
 Play signing SHA-256, which is a placeholder because Play is deferred
 (D42). Both were run against a `main` worktree to confirm it.
+
+## D471 · The hard stop: the budget's function detaches billing at three budgets — the owner's ceiling of 1,500 NOK — and the phone rings only for money
+
+**Decided by the owner and built 2026-09-12.** The ask, the morning
+after a night of failing runs: *"I find it a bit hard working with
+firebase cause one function beeing setup wrong or something might ruin
+me as the cost can be unlimeted … i was scared that might cause massive
+cost."* The answer put to the owner was that nothing in the project
+turned the money off, that Google offers no spend limit, and that the one
+true ceiling — the budget's own notification calling
+`projects.updateBillingInfo` with an empty billing account — was one
+branch and one IAM role away from built, waiting on `OWNER-LIST.md` for a
+threshold. The ruling: *"yeah i want a celling on 1500nok as that should
+in theory not be issue for a long time unless something goes wrong and
+will make me alot calmer"* — and, on the second half of the same answer,
+*"add this as well: let the phone ring only for money."*
+
+### What was true before
+
+- The Cloud Billing budget mailed at 50/90/100/150 % of 500 NOK (D332).
+- The read breaker set itself at 100 % (`functions/src/budget.ts`, C4,
+  built 2026-09-09) — deployed, and hearing nothing until the owner's
+  console click attaches the topic, still unticked.
+- The hard stop was **recorded as available and not built**, from D7's
+  control note through `COSTS.md` § control 1 to `COST-EXPOSURE.md` §8.3,
+  on one line of reasoning: *for an app whose worst modelled month is a
+  few dollars, an outage is the more expensive failure.* That reasoning
+  priced the outage and not the fear. The owner's fear is the invoice,
+  and a ceiling is the only thing that answers it when the model is
+  wrong — which `COSTS.md` itself says is the case that matters: the
+  page has been corrected four times, every time for a missing term, and
+  *"a fifth one exists and the model is not the thing that will catch
+  it."* A cap holds when the assumption is wrong. A bound does not.
+- What the night had actually cost was **nothing**: the sixty-eight
+  failed runs were GitHub refusing to read `firebase-deploy.yml` after
+  #498 put an empty expression, `${{ }}`, in a shell comment; zero jobs
+  ran, nothing reached Firebase, and the real consequence was the
+  opposite one — production has not deployed since #486 (18:01 UTC,
+  2026-09-11). #504 fixes the comment and #502 gates the next one.
+  Recorded here because it is the shape the owner will meet again: a
+  run that fails cannot spend, and the two mails that mean money are the
+  budget's and the runaway alert's.
+
+### The arithmetic the owner ruled on
+
+- **Three budgets, not an amount.** `BUDGET_DETACH_AT = 3.0` — 1,500
+  NOK on the 500 NOK the tree arms. A multiple rather than a figure so a
+  retuned budget moves the ceiling with it, the same one-figure
+  discipline D332 imposed between the budget and the pulse guard; and a
+  ratio off the notification itself (`costAmount / budgetAmount`) so it
+  needs no threshold rule on the budget and no currency.
+- **Nothing legitimate reaches it for a long time.** August's invoice
+  was kr10.74. The model's bill at 5,000 daily users is about $13 a
+  month (`COST-EXPOSURE.md` §8.1), and the 500 NOK budget trips at
+  roughly 12,000 daily users (§3.D) — so 1,500 NOK is on the order of
+  36,000 daily users of legitimate traffic, three times the
+  write-contention wall D7 records at ~14,400, past which both figures
+  are retuned as a matter of course. Reaching the line before then means
+  something is wrong, which is the right meaning for a ceiling.
+- **What the worst invoice becomes.** The line plus the lag: Cloud
+  Billing's data trails spend by hours and the budget publishes every
+  twenty to thirty minutes. At the App-Check-bounded burn rates of §3.A —
+  500 reads a second is $13 a day, 10,000 a second $259 — a six-hour lag
+  adds a few dollars to tens of dollars. Estimates, not measurements;
+  the order of magnitude is the point: hundreds of kroner past the line,
+  never the four-figure invoice the old table described.
+- **What it costs.** When it fires the app is down until the account is
+  re-attached by hand, an outage the owner chose over an invoice. Google
+  warns that disabling billing stops billable activity and can leave the
+  application not functioning; the exact wording could not be fetched
+  from this sandbox (the docs host is blocked), which is one more reason
+  the Backups dispatch on `OWNER-LIST.md` should be clicked first.
+
+### What was built
+
+**The detach** (`functions/src/budget.ts`): one more branch of
+`budgetDecision`, taken when the ratio reaches the line, ahead of every
+softer branch. Production's `BillingPort` is `google-auth-library` as the
+functions' own runtime account, one `PUT` to
+`cloudbilling.googleapis.com/v1/projects/{id}/billingInfo` with
+`billingAccountName: ""`; the emulator's port is inert and says so, so a
+local test publish can never detach production through a developer's
+credentials.
+
+**The latch, and why the ceiling ratchets rather than repeats.** A
+detach stops the functions with everything else, so nothing runs again
+until the owner re-attaches the account — and the next notification,
+twenty minutes later, still shows a month over the line. Detaching again
+would take the app down every half hour until the month ends, an
+un-restorable app rather than a ceiling. So the function writes the
+detach to `v2_meta/app` first (`billingDetachedRatio`,
+`billingDetachedInterval`, the reason and the time), and the line for
+the rest of that month is that ratio plus one more multiple: a re-attach
+is the owner's deliberate act and buys another 1,500 NOK of room, never
+unlimited room. A new cost interval starts the count over; the release
+clears the latch; `scripts/budget-mode.mjs --status` prints it, and there
+is deliberately no flag to clear it, because a cleared latch with the
+month still over the line re-detaches within half an hour of the
+re-attach.
+
+**The order of operations**, each step a failure somebody lives with:
+the latch is written BEFORE the API call, because a write after it may
+never land and the re-attach trap would be armed; a write that fails
+does not stop the detach, because the ceiling outranks the bookkeeping;
+an API call that fails — a missing role, most likely — clears the latch
+it wrote and logs the remedy at ERROR naming the account and the role,
+so the next notification tries again rather than believing the account
+is gone. Pinned in `budget.test.ts`, every branch.
+
+**The mail from outside.** `scripts/apply-budget.mjs` arms a fifth
+threshold rule at the detach line, read off the function's constant by
+regex the way `cost-arith.mjs` reads the region off `db.ts`, so Cloud
+Billing's own 300 % mail says the app was taken down — from outside the
+project the detach silences, which a Cloud Monitoring page after the
+detach cannot be relied on to be. Getting that rule onto the live budget
+found a second thing: the retune's `updateMask` always carried
+`notificationsRule`, and the Budgets API demands
+`pubsub.topics.setIamPolicy` of the caller whenever a topic is in the
+request (measured 2026-09-10, run 34477868495) — so every later retune,
+this one included, would have failed with the topic's 403 from the
+deploy credential even after the console click attached it. The mask now
+carries only the fields that differ, and the 403 text names the topic
+click only when the request named the topic.
+
+**The reading.** A grant nobody can see is a control that stays undone
+(D300, twice), and the one test of this grant is the one nobody can
+run. So `scripts/observe.mjs` gained a `hardStop` probe: the project's
+IAM policy read for `roles/billing.projectManager`, joined with the
+account `onBudgetAlert` actually runs as (read off the function, never
+typed), printed as `ARMED`, `NOT ARMED` with the exact `gcloud` line, or
+*not deployed* — three states kept apart, because "not armed" over an
+undeployed function would send the operator to IAM for nothing.
+
+**The policy.** `monitoring/onBudgetAlert-acted.json`: three conditions,
+one policy — the breaker set (`budget_mode_set` at level 1), the detach
+being made (`budget_billing_detach`, written before the API call because
+after it the line may be the first thing the detach silences), and the
+detach refused (`budget_detach_failed`). `check:monitoring` holds the
+chain at eleven policies and eleven metrics.
+
+**The phone.** `scripts/apply-monitoring.mjs --sms +47…` creates an SMS
+channel and attaches it to the MONEY policies alone — the two Firestore
+runaways and this one — at creation, and by one masked PATCH onto the
+two that were armed at D303 before the phone existed. Cloud Monitoring
+creates an SMS channel unverified and it pages nobody until the code
+Google texts comes back, so the apply that creates it asks for the code
+and `--sms-code` on the next dispatch verifies; `monitoring.yml` carries
+both as inputs, through the environment. A crashing trigger at 3 am
+stays an email. The other half of *"only for money"* is the owner's own
+GitHub notification setting — Actions email off — because every one of
+the night's sixty-eight mails was that, and it is on `OWNER-LIST.md`
+with the reason.
+
+### What the owner still holds, and in what order
+
+1. Merge #504 first, or nothing here deploys: the workflow file is
+   unreadable on `main` until it does.
+2. The topic click (the standing row) — the breaker and the detach both
+   hear nothing until the budget publishes.
+3. **The grant** (`LAUNCH-RUNBOOK.md` 5.18): `roles/billing.projectManager`
+   on the project to the functions' runtime service account. Until it is
+   there the function logs `budget_detach_failed` on every notification
+   past the line and the ceiling is a mail. Never proved with a publish.
+4. *Arm budget*, dry then `apply`, for the 300 % mail.
+5. *Arm monitoring* with `sms`, then again with `sms_code`.
+6. Backups, `apply` on — before the first day the detach could fire.
+
+### Verified, and not
+
+Verified: 17 cases on the function (every branch of the decision and the
+order of operations), 19 on `apply-budget.mjs` (the line pinned to the
+function, the mask), 24 on `apply-monitoring.mjs` (the channel, the
+code, the verify, the PATCH, the split), four on the observer's
+`hardStop` reading; `check:monitoring` at 11/11; `check:figures` with
+the five counts moved; the functions typecheck and build. Not verified,
+and not verifiable without an outage: a live detach. The first real one
+will be the test, and 5.18 says how to read the grant without making
+one.
+
+Supersedes the *"recorded as available, not built"* line in `COSTS.md`
+§ control 1 and the owner row it pointed at; amends nothing about D332's
+breaker, which stands as the first line the same wire crosses.
