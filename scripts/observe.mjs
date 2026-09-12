@@ -306,6 +306,12 @@ const results = await Promise.all([
           runtime: f.buildConfig?.runtime || null,
           updateTime: f.updateTime || null,
           uri: f.serviceConfig?.uri || null,
+          // Whose credentials the function runs with — the identity the
+          // hard stop's grant goes to (D465), read rather than assumed:
+          // the gen-2 default is the Compute Engine default account, and a
+          // deploy that set another would leave a typed default granting
+          // the wrong principal.
+          serviceAccount: f.serviceConfig?.serviceAccountEmail || null,
           envNames: envMap ? Object.keys(envMap) : null,
           trigger: scheduled ? "schedule"
             : ev.eventType ? ev.eventType
@@ -329,6 +335,27 @@ const results = await Promise.all([
     api("cloudbilling.googleapis.com", `/v1/projects/${PROJECT}/billingInfo`),
     "roles/billing.viewer",
     (b) => ({ enabled: b.billingEnabled === true, account: b.billingAccountName || null }),
+  ),
+  // WHETHER THE HARD STOP IS ARMED (D465). functions/src/budget.ts detaches
+  // billing at three budgets with one API call the functions' runtime
+  // account may not make until it holds roles/billing.projectManager on
+  // the project — and the only other way to learn whether it may is to
+  // let a month reach the line, which is the one test nobody can run.
+  // So the project's IAM policy is read for the binding, and joined below
+  // with the account onBudgetAlert actually runs as (the functions
+  // reading carries it), so nothing here is typed. A POST, like
+  // entries:list: getIamPolicy is a method, not a resource.
+  probe(
+    "hardStop",
+    api("cloudresourcemanager.googleapis.com", `/v1/projects/${PROJECT}:getIamPolicy`),
+    "roles/viewer (resourcemanager.projects.getIamPolicy)",
+    (b) => ({
+      role: "roles/billing.projectManager",
+      holders: (b.bindings || [])
+        .filter((x) => x.role === "roles/billing.projectManager")
+        .flatMap((x) => x.members || []),
+    }),
+    { method: "POST", body: JSON.stringify({ options: { requestedPolicyVersion: 3 } }) },
   ),
   // Runbook 5.11 and 5.12 both END in a BigQuery dataset, and neither could
   // be answered from this repository before today — 5.12's own text says the
@@ -472,6 +499,23 @@ const billingExport = await (async () => {
   };
 })();
 
+// The hard stop's ARMED reading is the join of two probes: the binding
+// (hardStop) and the account onBudgetAlert runs as (functions). Written
+// onto the hardStop result so the JSON carries one answer, with the three
+// honest states kept apart — not deployed, deployed and not granted,
+// granted — because "not armed" over an undeployed function would send
+// the operator to IAM for a function that does not exist yet.
+{
+  const hs = results.find((r) => r.name === "hardStop");
+  const fn = results.find((r) => r.name === "functions");
+  if (hs?.status === "ok") {
+    const budgetFn = fn?.status === "ok" ? fn.detail.find((d) => d.name === "onBudgetAlert") : undefined;
+    hs.functionAccount = budgetFn?.serviceAccount ?? null;
+    hs.deployed = fn?.status === "ok" ? Boolean(budgetFn) : null;
+    hs.armed = hs.functionAccount ? hs.holders.includes(`serviceAccount:${hs.functionAccount}`) : null;
+  }
+}
+
 const out = {
   project: PROJECT,
   // No Date.now() in the payload beyond this: the caller stamps the day.
@@ -526,6 +570,20 @@ if (AS_JSON) {
       }
     } else if (r.name === "billing") {
       console.log(`  ✓ billing        enabled=${r.enabled} account=${r.account ?? "-"}`);
+    } else if (r.name === "hardStop") {
+      if (r.deployed === null) {
+        console.log(`  ✓ hardStop       unreadable — the functions reading is not available, so which account to check is unknown`);
+      } else if (!r.deployed) {
+        console.log("  ✓ hardStop       onBudgetAlert is not deployed — nothing to arm yet (D465)");
+      } else if (!r.functionAccount) {
+        console.log("  ✓ hardStop       onBudgetAlert is deployed but the API did not say which account it runs as");
+      } else if (r.armed) {
+        console.log(`  ✓ hardStop       ARMED — onBudgetAlert runs as ${r.functionAccount}, which holds ${r.role} (D465)`);
+      } else {
+        console.log(`  ✓ hardStop       **NOT ARMED** — ${r.functionAccount} does not hold ${r.role} on ${PROJECT};`);
+        console.log("      the detach at three budgets is refused until it does (LAUNCH-RUNBOOK 5.18):");
+        console.log(`      gcloud projects add-iam-policy-binding ${PROJECT} --member serviceAccount:${r.functionAccount} --role ${r.role}`);
+      }
     } else if (r.name === "bigquery") {
       console.log(`  ✓ bigquery       ${r.count} dataset(s)`
         + (r.count ? `: ${r.datasets.map((d) => `${d.id} (${d.location})`).join(", ")}` : ""));

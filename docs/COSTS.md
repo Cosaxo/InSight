@@ -1115,19 +1115,24 @@ figures. Raise it when a row of the table becomes real, not before. (What
 the budget actually holds is the 500 NOK `guard.budget` records — the same
 threshold in the money the account bills, not a raise.)
 
-**A budget notifies; it does not cap.** There is no spend limit for
-Firestore — the only hard stop is a budget → Pub/Sub → function that
-detaches the billing account, which takes the app down with it. That is a
-real option and a deliberate one, not a default: for an app whose worst
-modelled month at launch size is a few dollars, an outage is the more
-expensive failure. Recorded as available, not built (D7); the owner's
-row on `OWNER-LIST.md` carries the arithmetic. Since D332 the same wire
-has a softer target, **built 2026-09-09** (`COST-EXPOSURE.md` §6 C4,
-`functions/src/budget.ts`): the budget's Pub/Sub notification flips
-`budgetMode` (the read breaker below) at 100 % instead of detaching
-billing, and releases it when the next month arrives under the line —
-the hours between a budget mail and a person, closed. `DEPLOYMENT.md`
-§ The budget's wire has the two clicks that stand it up. And the repo side no longer waits for the invoice to ask
+**A budget notifies; what caps is the function its notifications reach.**
+There is no spend limit for Firestore — the only hard stop is a budget →
+Pub/Sub → function that detaches the billing account, which takes the app
+down with it. From D7 to D465 that was recorded as available and not
+built, on the reasoning that for an app whose worst modelled month at
+launch size is a few dollars an outage is the more expensive failure. The
+owner ruled otherwise on 2026-09-12 and it is **built** (D465,
+`functions/src/budget.ts`): at three budgets — 1,500 NOK on this page's
+500 — the same notification detaches billing, once per re-attach (the
+line ratchets one multiple past where it fired, so a re-attach buys
+another 1,500 NOK of room and never unlimited room), and the worst
+invoice becomes the line plus the hours Cloud Billing's data trails the
+spend. The softer target came first, **built 2026-09-09**
+(`COST-EXPOSURE.md` §6 C4): the notification flips `budgetMode` (the read
+breaker below) at 100 %, and releases it when the next month arrives
+under the line — the hours between a budget mail and a person, closed.
+`DEPLOYMENT.md` § The budget's wire has the clicks that stand both up —
+the topic's, and the one IAM grant the detach needs. And the repo side no longer waits for the invoice to ask
 the question: the pulse's usage-vs-revenue guard
 (`monitoring/rates.json`, the same $50) reds the daily run when the
 modelled bill at the *measured* actives outruns recorded revenue.
@@ -1175,7 +1180,7 @@ still the largest single line that could be wrong without any code being
 wrong. Also console-only.
 
 **4 · A notification channel on the alert policies.** `monitoring/` holds
-ten policies and `check:monitoring` proves the chain from log line to
+eleven policies and `check:monitoring` proves the chain from log line to
 condition — but `notificationChannels` is `[]` in every file, filled in at
 POST time by the **Arm monitoring** workflow (`npm run monitoring:apply --
 --email` locally). A policy with no channel evaluates correctly and pages

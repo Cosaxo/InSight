@@ -1,0 +1,60 @@
+{
+  "displayName": "The budget acted: the read breaker is up, billing was detached, or the detach was refused",
+  "documentation": {
+    "content": "The budget's own function (`functions/src/budget.ts`, `onBudgetAlert`) did something about money — or tried to and could not. Three conditions, one policy, because all three are the same story at three sizes, and this is the one policy the phone is meant to ring for (D465: *let the phone ring only for money*).\n\n**Condition 1 — the read breaker went to level 1.** Spend reached the budget (500 NOK, `scripts/apply-budget.mjs`) and `budgetMode` on `v2_meta/app` is 1: the D98 social reads — named who-voted, Kindred, Circle, takes — pause on every device's NEXT boot, and every gated surface says it is paused. About 80 % of per-user reads (D332). NOTHING TO DO on the app: it keeps answering and the Mirror's folds keep working. What to do is find out why a month reached the budget — `npm run observe`, the Firestore usage page, the read-runaway policy's own runbook — because at the sizes the cost model predicts (docs/COSTS.md) the budget means *something is wrong*, not *traction*. It releases itself when the next month's first notification arrives under the line; release it earlier with `node scripts/budget-mode.mjs --level 0` once the cause is known.\n\n**Condition 2 — billing is being detached.** Spend reached the detach line: `BUDGET_DETACH_AT` times the budget, three budgets, 1,500 NOK today (D465, the owner's figure). The function wrote the latch to `v2_meta/app` and called `projects.updateBillingInfo` with an empty account: every paid service stops with the spend, THE APP IS DOWN, and it stays down until a person re-attaches the billing account — Console → Billing → the project → *Link a billing account*. Before re-attaching, know what was burning: the Cloud Billing reports for the month, the two runaway policies' state, the deploy log for what changed last. After re-attaching, the function resumes with everything else; the line for the rest of the month is the ratio it fired at PLUS one more multiple (the ratchet — a re-attach buys another 1,500 NOK of room, never unlimited room), and the breaker is still at level 1 until released. `node scripts/budget-mode.mjs --status` prints the latch. This log line is written BEFORE the API call on purpose: after it, the line may be the first thing the detach silences — so a page from this condition means the detach was attempted, and Cloud Billing's own 300 % mail (the budget's top threshold rule) is the confirmation from outside the project.\n\n**Condition 3 — the detach was REFUSED.** The ceiling did not hold. The log line carries the API's refusal and the remedy, which is almost always one grant: `roles/billing.projectManager` on the project to the functions' runtime service account (the line names it; `docs/DEPLOYMENT.md` § The budget's wire has the command). The function clears its latch and tries again on the next notification, every twenty to thirty minutes, so once the role is in place nothing else is needed — but until it is, the spend is bounded by nothing but the runaway alerts and a person, which is the state D465 exists to end. Treat it as a page.\n\n**Why a threshold of zero over an hour.** None of these is a rate. Each is *this happened*, at most once a month for the first two and once per notification for the third, so a count alert would never trip a sensible rate.\n\n**What this policy is not.** It is not the spend signal — the two Firestore runaway policies are, five minutes into a runaway. This is the machine reporting what it did with the signal, which is the one thing worth waking for at 3 am: the money stopped, or it could not be stopped.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "the read breaker went to level 1 — spend reached the budget, the D98 social reads are paused",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/budget_mode_set\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    },
+    {
+      "displayName": "billing is being DETACHED — spend reached the detach line; the app is down until the account is re-attached",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/budget_billing_detach\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    },
+    {
+      "displayName": "the detach was REFUSED — the ceiling did not hold; grant the role the log line names",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/budget_detach_failed\" AND resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// apply-monitoring.mjs — put the ten alert policies in place, in one command.
+// apply-monitoring.mjs — put the eleven alert policies in place, in one command.
 //
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
+//   … --sms +4712345678 --apply             # and a phone, for the money policies (D465)
+//   … --sms +4712345678 --sms-code 123456 --apply   # the code Google texted, next run
 //
 // WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
-// steps: a notification channel, eight log-based metrics, and ten policies
+// steps: a notification channel, eleven log-based metrics, and eleven policies
 // that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
@@ -74,6 +76,34 @@ const PROJECT = argOf("--project") || process.env.FIREBASE_PROJECT_ID || "prvfir
 const EMAIL = argOf("--email");
 const CHANNEL_NAME = argOf("--channel-name") || "InSight oncall";
 
+// THE PHONE (D465, the owner's rule of 2026-09-12: *"let the phone ring
+// only for money"*). Optional, E.164 — the only shape the API's `number`
+// label takes — and attached to the MONEY policies alone (MONEY_POLICIES
+// below): a runaway read rate, a runaway write rate, and the budget's own
+// function acting. A crashing trigger at 3 am stays an email; the night
+// of 2026-09-11, sixty-eight failure mails from a workflow file GitHub
+// could not read, is what the rule is for.
+//
+// VERIFICATION is the part the email channel never needed. Cloud
+// Monitoring creates an SMS channel UNVERIFIED and, in its own words, an
+// unverified channel "is non-functioning" — it pages nobody until the code
+// Google texts to the number comes back through `notificationChannels.verify`.
+// So the apply that creates the channel asks Google to send the code, and
+// the operator re-dispatches once with --sms-code. The channel is attached
+// to the money policies either way, so the second dispatch has nothing
+// left to do but verify.
+const SMS = argOf("--sms");
+const SMS_CODE = argOf("--sms-code");
+const SMS_CHANNEL_NAME = `${CHANNEL_NAME} (SMS)`;
+if (SMS !== null && !/^\+[1-9]\d{6,14}$/.test(SMS)) {
+  console.error(`apply-monitoring: --sms must be an E.164 number (+ and 7 to 15 digits, no spaces) — got "${SMS}".`);
+  process.exit(1);
+}
+if (SMS_CODE !== null && SMS === null) {
+  console.error("apply-monitoring: --sms-code verifies the channel --sms names; pass both.");
+  process.exit(1);
+}
+
 // Log-based metrics, created before the policies that read them.
 const METRICS = [
   {
@@ -138,6 +168,28 @@ const METRICS = [
     description: "closePaidCampaignsV2: a refund was already on the intent — a run died mid-close",
     filter: 'jsonPayload.metric="paid_refund_already"',
   },
+  // The budget's own function (functions/src/budget.ts). Three lines, one
+  // policy (monitoring/onBudgetAlert-acted.json), all money: the read
+  // breaker going up is ~80 % of per-user reads shed and every social
+  // surface saying it is paused; the detach is the outage the owner chose
+  // over an invoice (D465); a refused detach is the ceiling not holding.
+  // The breaker line is filtered to level 1 — the release, at level 0, is
+  // the good news and needs no page.
+  {
+    name: "budget_mode_set",
+    description: "onBudgetAlert set the read breaker to level 1 — spend reached the budget; the D98 social reads pause on every device's next boot",
+    filter: 'jsonPayload.metric="budget_mode_set" AND jsonPayload.level=1',
+  },
+  {
+    name: "budget_billing_detach",
+    description: "onBudgetAlert is detaching the project's billing account — spend reached the detach line (D465); the app is down until the account is re-attached",
+    filter: 'jsonPayload.metric="budget_billing_detach"',
+  },
+  {
+    name: "budget_detach_failed",
+    description: "onBudgetAlert could not detach billing — the ceiling did not hold; the log line names the role to grant",
+    filter: 'jsonPayload.metric="budget_detach_failed"',
+  },
 ];
 
 const POLICIES = [
@@ -169,7 +221,20 @@ const POLICIES = [
   // "Writes are only 3% of the bill" is a statement about organic traffic,
   // not a bound during an incident.
   "monitoring/firestore-write-runaway.json",
+  // The budget's function acting (D332 C4, D465): the breaker up, billing
+  // detached, or the detach refused. The two runaway policies above say
+  // the money is going; this one says the machine did something about it
+  // — or could not.
+  "monitoring/onBudgetAlert-acted.json",
 ];
+
+// THE MONEY POLICIES — where the SMS channel goes, and nowhere else. The
+// runaway pair and the budget's own policy: each fires only when the bill
+// is moving, which is what the owner wants woken for. Derived from the
+// list above by name rather than written a second time, so a policy
+// renamed there cannot leave a stale path here.
+const MONEY_POLICIES = new Set(POLICIES.filter((rel) => /runaway|onBudgetAlert/.test(rel)));
+
 
 if (!EMAIL) {
   console.error(
@@ -220,6 +285,7 @@ async function step(label, exists, doIt) {
 
 console.log(
   `apply-monitoring: project ${PROJECT}, channel "${CHANNEL_NAME}" → ${EMAIL}`
+  + (SMS ? `, SMS → ${SMS} for the money policies` : "")
   + (APPLY ? "" : "  (DRY RUN — pass --apply to make changes)"),
 );
 
@@ -252,6 +318,73 @@ if (channel && channel.labels?.email_address && channel.labels.email_address !==
     + "    Left alone — repointing an oncall channel is not something a script\n"
     + "    should do silently. Change it in the console, or use --channel-name.",
   );
+}
+
+// ── 1b. the SMS channel (D465) ──────────────────────────────────────
+// Same matching as the email channel, a different type, and the one step
+// email never has: verification (see THE PHONE above). Its name is the
+// email channel's plus a suffix, so --channel-name renames both.
+let smsChannel = null;
+/** What the summary says about the phone, decided here where the facts are. */
+let smsNote = "";
+if (SMS) {
+  smsChannel = (channelList.notificationChannels || []).find((c) => c.displayName === SMS_CHANNEL_NAME) ?? null;
+  await step(`SMS channel "${SMS_CHANNEL_NAME}" → ${SMS}`, Boolean(smsChannel), async () => {
+    smsChannel = must(
+      "creating the SMS channel",
+      await googleFetch(mon("/notificationChannels"), token, {
+        method: "POST",
+        body: { type: "sms", displayName: SMS_CHANNEL_NAME, labels: { number: SMS }, enabled: true },
+      }),
+      "roles/monitoring.notificationChannelEditor",
+    );
+  });
+  if (smsChannel && smsChannel.labels?.number && smsChannel.labels.number !== SMS) {
+    console.log(
+      `  ! the existing SMS channel points at ${smsChannel.labels.number}, not ${SMS}.\n`
+      + "    Left alone, for the email channel's reason. Change it in the console, or use --channel-name.",
+    );
+  }
+  // Verification. `verificationStatus` is VERIFIED, UNVERIFIED, or absent
+  // for a type that needs none; SMS needs it, so anything but VERIFIED is
+  // a channel that pages nobody yet.
+  const verified = smsChannel?.verificationStatus === "VERIFIED";
+  if (!smsChannel?.name) {
+    smsNote = APPLY ? "" : `\n  · The SMS channel does not exist yet: the apply creates it and asks Google to text ${SMS} a code;`
+      + "\n    re-dispatch with sms_code to finish, and it pages nobody until then.";
+  } else if (verified) {
+    console.log(`  = SMS channel "${SMS_CHANNEL_NAME}" — verified`);
+    smsNote = `\n  · The SMS channel is VERIFIED: ${SMS} is paged by the money policies.`;
+  } else if (SMS_CODE) {
+    if (!APPLY) {
+      console.log(`  + SMS channel "${SMS_CHANNEL_NAME}" — would verify with the code given`);
+    } else {
+      must(
+        "verifying the SMS channel",
+        await googleFetch(api("monitoring.googleapis.com", `/v3/${smsChannel.name}:verify`), token, {
+          method: "POST", body: { code: SMS_CODE },
+        }),
+        "roles/monitoring.notificationChannelEditor",
+      );
+      console.log(`  ✓ SMS channel "${SMS_CHANNEL_NAME}" — verified`);
+      smsNote = `\n  · The SMS channel is now VERIFIED: ${SMS} is paged by the money policies.`;
+    }
+  } else if (!APPLY) {
+    console.log(`  + SMS channel "${SMS_CHANNEL_NAME}" — would send the verification code to ${SMS}`);
+  } else {
+    // A fresh channel, or one a previous run created whose code was never
+    // entered (it expires): ask for a new one either way.
+    must(
+      "sending the SMS verification code",
+      await googleFetch(api("monitoring.googleapis.com", `/v3/${smsChannel.name}:sendVerificationCode`), token, {
+        method: "POST", body: {},
+      }),
+      "roles/monitoring.notificationChannelEditor",
+    );
+    console.log(`  ✓ SMS channel "${SMS_CHANNEL_NAME}" — verification code sent to ${SMS}`);
+    smsNote = `\n  ! The SMS channel is UNVERIFIED and pages NOBODY yet. Google has texted ${SMS} a code:`
+      + "\n    re-dispatch Arm monitoring with sms_code set to it (apply on) before the code expires.";
+  }
 }
 
 // ── 2. the log-based metrics ────────────────────────────────────────
@@ -331,11 +464,20 @@ const policyList = must(
   await googleFetch(mon("/alertPolicies"), token),
   "roles/monitoring.alertPolicyEditor",
 );
-const livePolicies = (policyList.alertPolicies || []).map((p) => p.displayName);
+const livePolicyByName = new Map((policyList.alertPolicies || []).map((p) => [p.displayName, p]));
 
+/** The channels a policy pages: the email channel always, the phone only
+ *  for the money policies (MONEY_POLICIES) and only when --sms named one. */
+const channelsFor = (rel) => [
+  channel.name,
+  ...(smsChannel?.name && MONEY_POLICIES.has(rel) ? [smsChannel.name] : []),
+];
+
+let attached = 0;
 for (const rel of POLICIES) {
   const body = JSON.parse(readFileSync(join(root, rel), "utf8"));
-  await step(`policy "${body.displayName}"`, livePolicies.includes(body.displayName), async () => {
+  const live = livePolicyByName.get(body.displayName);
+  await step(`policy "${body.displayName}"`, Boolean(live), async () => {
     // The committed file carries `notificationChannels: []` because the id
     // is per-operator and correctly not in the repo. Filling it at POST is
     // the whole reason the channel step runs first — a policy created with
@@ -348,16 +490,40 @@ for (const rel of POLICIES) {
       `creating policy "${body.displayName}"`,
       await googleFetch(mon("/alertPolicies"), token, {
         method: "POST",
-        body: { ...body, notificationChannels: [channel.name] },
+        body: { ...body, notificationChannels: channelsFor(rel) },
       }),
       "roles/monitoring.alertPolicyEditor",
     );
   });
+  // A money policy that already existed before the phone did (the two
+  // runaway policies were armed at D303) gets the SMS channel ADDED —
+  // the one PATCH this script makes, masked to the channel list, keeping
+  // whatever channels it already had. Never the reverse: a channel is
+  // taken off a policy in the console, by a person.
+  if (live?.name && smsChannel?.name && MONEY_POLICIES.has(rel)) {
+    const has = (live.notificationChannels || []).includes(smsChannel.name);
+    if (has) {
+      console.log(`  = policy "${body.displayName}" — SMS channel already attached`);
+    } else if (!APPLY) {
+      console.log(`  ~ policy "${body.displayName}" — would attach the SMS channel`);
+    } else {
+      must(
+        `attaching the SMS channel to policy "${body.displayName}"`,
+        await googleFetch(`${api("monitoring.googleapis.com", `/v3/${live.name}`)}?updateMask=notificationChannels`, token, {
+          method: "PATCH",
+          body: { notificationChannels: [...(live.notificationChannels || []), smsChannel.name] },
+        }),
+        "roles/monitoring.alertPolicyEditor",
+      );
+      attached++;
+      console.log(`  ✓ policy "${body.displayName}" — SMS channel attached`);
+    }
+  }
 }
 
 console.log(
   APPLY
-    ? `\napply-monitoring: done, ${created} created. Verify with the instrument rather`
+    ? `\napply-monitoring: done, ${created} created${attached ? `, the SMS channel attached to ${attached}` : ""}. Verify with the instrument rather`
       + " than by eye:\n"
       + "  npm run observe\n"
       + "`armed` should read true and no committed policy should be listed missing.\n"
@@ -365,5 +531,6 @@ console.log(
       + "ever seen arrive is an alert you do not know is wired up.\n"
       + "\n"
       + absenceCaveat()
-    : "\napply-monitoring: dry run. Re-run with --apply to create the above.",
+      + smsNote
+    : "\napply-monitoring: dry run. Re-run with --apply to create the above." + smsNote,
 );

@@ -45,6 +45,16 @@ on:
         type: string
         required: false
         default: ""
+      sms:
+        description: "A phone number in E.164 form (+4712345678, no spaces) for the MONEY policies only — the two Firestore runaways and the budget's own function acting (D465). Empty = no SMS channel. The first apply creates the channel and Google texts the number a code; it pages nobody until that code comes back through sms_code."
+        type: string
+        required: false
+        default: ""
+      sms_code:
+        description: "The verification code Google texted to `sms` on the previous apply. Set it together with the same `sms` number and apply on; the channel is verified and starts paging."
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -90,6 +100,8 @@ jobs:
           FIREBASE_PROJECT_ID: prvfire33
           EMAIL: ${{ inputs.email }}
           CHANNEL_NAME: ${{ inputs.channel_name }}
+          SMS: ${{ inputs.sms }}
+          SMS_CODE: ${{ inputs.sms_code }}
         run: |
           # pipefail, for the reason seed-content.yml records: `cmd | tee`
           # reports TEE's status, so without it a FAILED run is a green job.
@@ -106,6 +118,10 @@ jobs:
           # it and, worse, would not break at all for one with a `;`.
           ARGS=(--email "$EMAIL")
           [ -n "$CHANNEL_NAME" ] && ARGS+=(--channel-name "$CHANNEL_NAME")
+          # The phone and its code are free text too, and travel the same
+          # way; the script refuses anything that is not E.164.
+          [ -n "$SMS" ] && ARGS+=(--sms "$SMS")
+          [ -n "$SMS_CODE" ] && ARGS+=(--sms-code "$SMS_CODE")
           [ "${{ inputs.apply }}" = "true" ] && ARGS+=(--apply)
           node scripts/apply-monitoring.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/arm.txt"
 
@@ -130,6 +146,13 @@ jobs:
             echo ""
             echo "Afterwards, confirm with the instrument rather than by eye: run"
             echo "**Observe production** and check \`armed\` reads true."
+            echo ""
+            echo "**The phone (D465).** With \`sms\` set, the run creates an SMS channel"
+            echo "for the money policies only and asks Google to text the number a"
+            echo "code — the channel pages NOBODY until that code is entered. Re-dispatch"
+            echo "with the same \`sms\`, the code in \`sms_code\`, and \`apply\` on; the"
+            echo "log above says \`verified\` when it is done. A run without \`sms\` never"
+            echo "touches the SMS channel."
             echo ""
             echo "One silence policy watches an ABSENCE — the duel-reveal scan — and an"
             echo "absence condition needs a time series that has existed at least once,"
