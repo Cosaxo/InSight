@@ -1113,6 +1113,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const eventRef = db.collection("v2_agg_events").doc(event.id);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
+      const rankProfRef = db.collection("v2_users").doc(event.params.uid);
       let logged: LogRow | null = null;
       await runAggTransaction(db, qid, async (tx) => {
         logged = null;
@@ -1128,7 +1129,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         // trigger's one question-doc read, the catalog branch's pattern.
         // Rules already bound the size; the elements (a permutation of
         // 0..n-1, no duplicates) can only be checked here.
-        const [seen, qDoc, agg] = await tx.getAll(eventRef, qRef, pubRef);
+        const [seen, qDoc, agg, rankProf] = await tx.getAll(eventRef, qRef, pubRef, rankProfRef);
         if (seen.exists) return;
         const n = ((qDoc.get("options") as unknown[] | undefined) || []).length;
         const order = validRankOrder(snap.get("order"), n);
@@ -1144,6 +1145,33 @@ export const onV2AnswerCreated = onDocumentCreated(
         const pos = Array.isArray(stored) && stored.length === n ? [...stored] : new Array<number>(n).fill(0);
         foldRankOrder(pos, order);
         const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
+        // AND THE COHORT IS CORRECTED HERE TOO (D410). This was the one
+        // create arm with no honest-anchor check: the vote arm has had one
+        // since D410 and the catalog arm since 2026-09-10, and rank kept
+        // whatever the client claimed.
+        //
+        // Nothing is folded from it — a rank publishes position sums and a
+        // total, with no `by` map on purpose — so there is no aggregate to
+        // corrupt, and nothing reads these rows today either (`voters.ts`'s
+        // pick fold and the nightly sample's seed both skip a row with no
+        // integer `optionIdx`). What is wrong is the DOCUMENT:
+        // `v2_users/{uid}/answers/{qid}` is world-readable (D98) and the
+        // People lens reads other users' anchors off answer rows to say who
+        // someone is — which is the reason the vote arm gives for correcting
+        // the row and not only the fold. A guard with one arm missing is the
+        // arm the next lens walks through.
+        //
+        // Written ONLY when it differs, the vote arm's rule: an honest
+        // client pays one read, batched into the getAll above so there is no
+        // extra round trip, and no write.
+        const rankClaimed = snap.get("anchors");
+        const rankHonest = honestAnchors(rankClaimed, rankProf.exists ? rankProf.get("anchors") : {});
+        if (JSON.stringify(rankHonest) !== JSON.stringify(rankClaimed ?? {})) {
+          logger.warn(
+            `[v2] rank answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
+          );
+          tx.set(snap.ref, { anchors: rankHonest }, { merge: true });
+        }
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
         // Published whole, every answer (D98): the sums and the total ARE

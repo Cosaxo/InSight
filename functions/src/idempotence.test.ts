@@ -492,6 +492,39 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
     expect(led?.anchors, "the ledger published the invented cohort").toEqual({ ageBand: "25-34", country: "NO" });
   });
 
+  it("folds the profile's cohort on a RANK answer too, and corrects that answer", async () => {
+    // THE THIRD ARM, and the one that had no check at all. A rank answer
+    // folds position sums with no `by` map, so there is no aggregate to
+    // corrupt — but the ROW is world-readable (D98) and the People lens
+    // reads other users' anchors off answer rows to say who someone is.
+    // The vote arm's own comment gives that as the reason it corrects the
+    // document and not only the fold; rank was the arm that did neither.
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("e-rank-lie", {
+      surface: "daily", order: [2, 0, 1],
+      anchors: { ageBand: "55-64", country: "JP" },
+    });
+    // The rank fold itself is unchanged — this is not a behaviour change
+    // to what publishes, and asserting it keeps the case honest about that.
+    expect(store.get(AGG)?.total, "the rank fold stopped working").toBe(1);
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the rank answer kept the cohort it invented")
+      .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  it("writes NOTHING to an honest RANK answer either", async () => {
+    store.clear();
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("e-rank-true", {
+      surface: "daily", order: [2, 0, 1], anchors: { ageBand: "25-34", country: "NO" },
+    });
+    expect(store.has(`v2_users/u1/answers/${QID}`),
+      "an honest rank answer was rewritten for nothing").toBe(false);
+  });
+
   it("writes NOTHING to an honest CATALOG answer either", async () => {
     store.clear();
     store.set("v2_users/u1", { anchors: { ageBand: "25-34", country: "NO" } });
