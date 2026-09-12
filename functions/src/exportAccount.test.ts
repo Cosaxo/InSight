@@ -73,6 +73,16 @@ function queryOf(
     orderBy: () => queryOf(scope, filters, limit, after),
     limit: (n: number) => queryOf(scope, filters, n, after),
     startAfter: (s: { ref: { path: string } }) => queryOf(scope, filters, limit, s.ref.path),
+    // `count()` is a server-side aggregation: it answers the size without
+    // sending the documents, which is why the export uses it for the
+    // follower tally. The fake has to offer it or a caller that switches
+    // to it looks like a crash rather than a saving.
+    count: () => ({
+      get: async () => {
+        const n = (await q.get()).size;
+        return { data: () => ({ count: n }) };
+      },
+    }),
     get: async () => {
       let paths = [...store.keys()].filter((p) => (
         "parent" in scope ? parentPath(p) === scope.parent : parts(p).at(-2) === scope.group

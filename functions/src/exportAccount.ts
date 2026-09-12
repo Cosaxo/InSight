@@ -598,18 +598,41 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
   //         somebody else's pick (`pickedUids`). The two collection-group
   //         queries the erasure walks, read.
   {
-    const listed = await db.collectionGroup("reveals").where("members", "array-contains", uid).get();
-    for (const r of listed.docs) {
-      if (revealRows.has(r.ref.path)) continue;
-      const rr = revealRow(r, uid);
-      if (rr) revealRows.set(r.ref.path, rr);
-    }
-    const picked = await db.collectionGroup("reveals").where("pickedUids", "array-contains", uid).get();
-    for (const r of picked.docs) {
-      if (revealRows.has(r.ref.path)) continue;
-      const rr = revealRow(r, uid);
-      if (rr) revealRows.set(r.ref.path, rr);
-    }
+    // PAGED, the way the erasure twin pages these same two queries
+    // (index.ts, `PAGE = 400`). They were `.get()` on the whole result:
+    // under D437's round model a member of several rooms accumulates
+    // thousands of reveals a year, each carrying whole `votes`, `names`
+    // and `members` maps, and this callable runs on LIGHT_UNBOUNDED — 256
+    // MiB, the smaller of the two limits, which is the same ceiling the
+    // world-sample walk in this file was paged under on 2026-09-12.
+    //
+    // What is KEPT is one extracted row per reveal either way; what paging
+    // releases is the raw snapshots, which are the large half. The dedupe
+    // map spans the pages, so a reveal named by both queries is still
+    // counted once.
+    const PAGE = 400;
+    const PASS_CAP = 500;
+    const walk = async (field: string) => {
+      let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+      for (let pass = 0; pass < PASS_CAP; pass++) {
+        let q = db.collectionGroup("reveals")
+          .where(field, "array-contains", uid)
+          .orderBy(FieldPath.documentId())
+          .limit(PAGE);
+        if (cursor) q = q.startAfter(cursor);
+        const page = await q.get();
+        if (page.empty) break;
+        for (const r of page.docs) {
+          if (revealRows.has(r.ref.path)) continue;
+          const rr = revealRow(r, uid);
+          if (rr) revealRows.set(r.ref.path, rr);
+        }
+        if (page.size < PAGE) break;
+        cursor = page.docs[page.size - 1];
+      }
+    };
+    await walk("members");
+    await walk("pickedUids");
     out.reveals = m.add([...revealRows.values()]);
   }
 
@@ -628,7 +651,18 @@ export async function buildExport(uid: string): Promise<{ [k: string]: Plain }> 
 
   // 3b. Other people's follows of this account (D101): counted. The
   //     account's own follows are in `collections.following` above.
-  out.followers = m.add((await db.collectionGroup("following").where("to", "==", uid).get()).size);
+  // COUNTED SERVER-SIDE, not fetched and measured. This was `.get()).size`
+  // — every follower document read in full to produce one integer, on a
+  // number this account does not control: anyone may follow anyone, the
+  // rules cap nothing, and `FOLLOW_CAP` is a client-side read limit that
+  // src/v2/data/circle.ts already says is "client-only and leaky". So the
+  // cost of one person's export was set by how many strangers had followed
+  // them. `count()` bills roughly one read per thousand index entries and
+  // answers the same question; v2social.ts made this exact swap for
+  // presence.
+  out.followers = m.add(
+    (await db.collectionGroup("following").where("to", "==", uid).count().get()).data().count,
+  );
   omitted.push({
     what: "followers",
     why: "who follows you is counted, not named — a follow is the follower's record",
