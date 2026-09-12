@@ -51317,7 +51317,486 @@ after first paint. Deferring it as D122's handles and invitations are
 deferred, one file over, is the next change to that graph — its own
 change, not a rider on a feature.
 
-## D465 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, two conflicts, and a gate that can only fail on a tree nobody built
+
+## D465 · The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads
+
+**Found and fixed 2026-09-11**, from the owner's question about their own
+inbox — *"Should all these runs fail?"* — over four screenshots of
+`[Cosaxo/InSight] Run failed: .github/workflows/fireb…`. No. 33 of the 38
+failures in the window were one mistake, and the subject line was the
+whole diagnosis, unread: **a run named after a workflow's PATH is a run
+GitHub could not name**, because it could not parse the file that holds
+the name.
+
+### What broke
+
+D455's step (`0a8994a`, PR #498) wrote this as a shell comment inside its
+own `run:` body:
+
+```
+# THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+# is a textual substitution GitHub performs before bash sees
+```
+
+The sentence is true, and being true is what made it fatal. GitHub
+substitutes `${{ … }}` textually across the whole file before anything
+runs, `run:` bodies included — where a `#` is shell, not YAML, and GitHub
+has no idea it is looking at a comment. So prose ABOUT an expression was
+an expression; `${{ }}` is empty; empty is not parsable; the file failed
+to **load**.
+
+The identical sentence sits in `auth-config.yml` and in
+`play-release.yml` and is harmless in both, because in both it is a YAML
+comment — stripped before GitHub sees anything. Where the text sits is
+the entire difference between documentation and an outage.
+
+### Why a load failure is worse than a failing job
+
+It is not a red job. It is a run with no jobs at all, and every channel
+that would normally tell you what happened is inside the file that did
+not parse:
+
+- **No log.** Nothing executed; the logs endpoint 404s.
+- **No name.** `name:` is in that file, so all 33 runs were titled
+  `.github/workflows/firebase-deploy.yml`.
+- **No `on:` filter.** `branches: [main]` is in that file too, so it was
+  never applied: every push to **every** branch produced a failed run —
+  `nightb-20260912` (11), `night-20260912` (8),
+  `claude/compassionate-sagan-uuenlz` (6), `main` (2),
+  `claude/category-images-voting-specificity-vm3olr` (2),
+  `claude/epic-fermi-p14ur0` (2), `claude/sharp-heisenberg-n7kuas` (1),
+  `claude/project-review-em3c5r` (1). Eight branches, none of which this
+  workflow is supposed to run on at all.
+- **No deploy.** The last one ran 2026-09-11T18:01Z. Both pushes to
+  `main` after the break deployed nothing — including, precisely, the
+  commit that broke it. **D455's buy door has never reached production**,
+  and the step written to configure it is the step that stopped it.
+
+The spread is the tell, and it is worth keeping: a mistake that reds one
+branch is a bug in a job; a mistake that reds *every* branch at once is a
+mistake in what GitHub reads before it reads anything else. It was
+visible for 31 hours — from 2026-09-10T14:28Z on a feature branch — and
+read as ordinary CI noise the whole time, because at a glance that is
+exactly what it looks like.
+
+### Why none of the 51 gates saw it
+
+Every gate reads the repository. None asked whether GitHub can load a
+workflow, and each tool that could have spoken was looking one layer off:
+
+- **`check:deploy-targets` reads this exact file** and went green
+  throughout — it validated the `--only` list of a workflow that never
+  ran. A correct answer about a dead file.
+- **YAML parsers accept it.** The file is valid YAML; `${{ }}` is a
+  plain string to YAML, and the fault is in GitHub's expression layer
+  *above* it. So "it parses" was true and useless.
+- **eslint parses no YAML**, the same blind spot D454 recorded for HTML.
+
+The class is the one D179 and D197 are about — a checker that cannot fail
+— pointed at the workflows instead of the scripts.
+
+### The fix, and the guard
+
+The sentence moved to YAML-comment level inside the step's `env:` block,
+where `auth-config.yml` has kept it safely all along. The `run:` body now
+holds no `${{` at all, which is the property `auth-config.yml`'s own
+comment names as the goal: *"the next input added here is then safe by the
+shape of the step rather than by someone remembering."*
+
+`check-deploy-targets.mjs` gained the prior question, ahead of everything
+it already asks: **does this file load?** Two refusals, on the raw text —
+
+1. `${{` inside a shell comment in a `run:` body. Fatal empty or not, and
+   a non-empty one is *worse* than this bug: `${{ secrets.X }}` written
+   as an aside pastes the secret into the script.
+2. An empty `${{ }}` anywhere GitHub actually reads it.
+
+It walks the file rather than grepping it, because where the text sits is
+the whole question — and the first cut of the check proved the point by
+failing on its own explanation, the same trap the comment-stripping
+directly beneath it exists to avoid. Note the inversion: that strip must
+*not* happen up here, because not stripping is precisely what GitHub does
+inside a block scalar.
+
+### Where it runs, which is the only interesting part
+
+The refusals live once, in `scripts/workflow-expressions.mjs`, and two
+gates ask them. One copy on purpose: D197 is the record of a bank parser
+living in three, where the copy with a `try/catch` reported an invented
+figure instead of failing, and a scanner whose whole subject is *prose
+that looks like code* is the last thing to keep three versions of.
+
+**`check:deploy-targets` asks it of `firebase-deploy.yml`, on the deploy
+path.** That path's rule is that nothing which cannot speak to whether a
+rules fix is safe may block one — and this one file clears that bar the
+short way rather than by exemption: a `firebase-deploy.yml` that cannot
+load has *already* blocked every deploy, so failing early only ever
+pre-empts a worse outcome and can never stop a deploy that would
+otherwise have worked.
+
+**`check:workflows` asks it of all 25, in ci only** — first in the lint
+job, because it is the only gate there whose subject is that job's own
+kind. The other 24 do **not** clear the bar above, and that is the whole
+reason for the split rather than a wider first gate: a prose mistake in
+`ios-release.yml` must never stand between an emergency rules fix and
+production, which is the trade CLAUDE.md names at length and refuses. The
+overlap on `firebase-deploy.yml` is deliberate and costs nothing — a gate
+that carved out the one file another gate happens to cover would be one
+reorganisation away from covering nothing.
+
+It is **not** a workflow linter, and should not grow into one. It asks the
+single question whose failure is silent. A wrong `runs-on` or a bad action
+SHA fails loudly, in a job, with a log; this class fails with no job, no
+log, and a run named after the file's own path on every branch at once.
+`check:workflows` also refuses an empty workflow directory, because a
+scanner that reads nothing and reports success is the D179/D197 shape and
+this gate's own glob is the thing that could go stale.
+
+Proved by running, both directions: the restored bug fails at
+`firebase-deploy.yml:246` naming the run body; the fixed file passes with
+46 exported functions matched. Two new suites pin thirteen cases between them
+(`check-deploy-targets.test.mjs`, `check-workflows.test.mjs`), and in both
+the discriminating case is the same sentence as a YAML comment, which must
+PASS. One of them earned its place immediately: moving the scanner into
+its own module broke all six of the first suite's cases at once, because
+the fixture copied the gate and not its new import — so the fixture now
+carries a named dependency list, and a missing one fails as an import
+error rather than as a refusal under test.
+
+`test:scripts` 86 files / 1435 tests, `test:unit` 217 files / 3205 tests,
+`check:figures`, `check:docs` (52 gates now), `check:globals`,
+`check:public-copy`, `check:policy-claims` and eslint all green, plus
+`actionlint` clean across all 25 workflows.
+
+### The other five failures, since the question was about all of them
+
+Two are real and neither is this:
+
+- **Pulse** was failing on a true tripwire, and it is fixed here rather
+  than deferred, because the diagnosis turned out to be the same one:
+  **nothing was on the clock.** The usage guard (D332) prices the
+  population out of `monitoring/engagement.json`, and that file only ever
+  moved when a person ran `npm run scorecard -- --fetch` by hand. Measured
+  on 2026-09-11: the committed trail's newest day was **2026-08-25**, 17
+  days old, so the guard's 7-day window was averaging days that had every
+  one left it — `pulse.mjs`'s own words, "a confident pass while measuring
+  nothing". The gate had been reporting it correctly every morning, naming
+  the fix, to an inbox with nobody in it.
+
+  So the fetch went on the clock beside the check that reads it, in
+  `pulse.yml`. Three things made that cheap and one made it safe:
+  `question-scorecard.mjs` is Node stdlib plus global `fetch`, so the job
+  keeps its no-`npm ci` property (which that file's comment calls
+  load-bearing, not a speed trick — a console that says the ground moved
+  must not be able to fail because a registry did); the only input is the
+  PUBLIC web API key, since `v2_engagement_daily` is world-readable
+  anonymous counts; and the step is `continue-on-error`, so a failed fetch
+  leaves the trail as it was and the gate reports the staleness it was
+  always going to report. The signal degrades to today's behaviour and
+  never inverts.
+
+  **It commits `engagement.json` and not `content/scorecard.json`**, which
+  the same fetch writes. That file is the question farm's, and the farm
+  lane moved it on 2026-09-11 without touching this trail — so the two
+  already travel separately, and this job drops the side effect rather
+  than racing for it. `pulse.yml`'s "WHAT IT COMMITS" contract moved with
+  the code: the trail qualifies under that paragraph's own stated reason,
+  being the one output that is fetched and so the one thing regenerating
+  cannot recover. For the same reason the fetched file is re-applied
+  *inside* the commit loop, because the reset-and-regenerate retry
+  destroys it rather than recomputing it.
+
+  **And an existing gate caught this change being wrong**, which is worth
+  more than the change. `workflow-pipefail.test.mjs` refused a
+  `continue-on-error` step with no `id:` that nothing reads: a failed
+  fetch would have left a green run and an unmoved trail — this bug
+  wearing a green tick. The step now has an id and a readback, and the
+  readback earns its place twice over, because it answers what
+  `pulse.mjs` structurally cannot: a stale guard has two causes, the fetch
+  not running or `digestEngagementV2` stopping, and from the tree they are
+  indistinguishable, which is why the message names both. From inside the
+  job it is decidable, and the annotation says which.
+
+  **The refresh is ON THE CLOCK ONLY, and that condition is a cost
+  decision with arithmetic.** `pulse.yml` also runs on every push to
+  main, and that is the dominant trigger by a wide margin: of its last
+  100 runs on main, 95 were pushes and 5 were the cron — 13 · 10 · 34 ·
+  14 · 13 · 15 runs a day over 09-06…09-11, ~17/day average. The fetch
+  pages the WHOLE `v2_question_aggs` collection (~1,536 documents at
+  pageSize 300), so firing it per push is ~26,000 billed reads a day —
+  about $0.50/month at $0.06–0.072 per 100k — to refresh a trail whose
+  newest row is a DAY old by construction. Once a day is the same signal
+  at 1/17th of the bill, and the guard's own window is 7 days
+  (`MEASURE_MAX_AGE_DAYS`), so nothing downstream can tell the
+  difference. `workflow_dispatch` is included because that is the
+  operator's "refresh it now" — the lever the gate's own message asks
+  for, hand-pulled rather than looping. The first draft of this change
+  had no condition, and the owner asking for the cost to be
+  double-checked is what found it: the measurement was the fix.
+
+  **And the arithmetic on the failures themselves, since the flood is
+  what prompted the question: they cost nothing.** The repository is
+  PUBLIC, and every `runs-on` in the tree is a standard label
+  (`ubuntu-latest` ×31, `macos-latest` ×3 — no larger runners, which are
+  the one thing a public repo still bills), so GitHub-hosted minutes are
+  free and unmetered however many runs go red. The path-named deploy
+  failures are stronger than that: each created ZERO jobs and ran zero
+  seconds (the logs endpoint 404s), so they would bill nothing even on a
+  private repo. A failing Pulse run is ~15 seconds of a free runner and
+  `pulse.mjs` makes no network call at all, so it reads nothing either.
+  And the broken deploy DEPLOYED NOTHING, so the outage's Firebase cost
+  is zero by construction — the bill did not move for 31 hours because
+  nothing ran, which is the same fact as the outage.
+
+  What is NOT claimed: this has not been observed fetching. The key is a
+  production variable and the trail's 8 days are contiguous up to the last
+  fetch (`2026-08-18`…`2026-08-25`, `fetchedOn: 2026-08-26`), which is
+  good evidence the digest was healthy and the fetch alone stopped — but
+  the first scheduled run on `main` is what proves it, and if the guard
+  stays stale after a successful refresh then the second cause is live and
+  `digestEngagementV2` is the place to look.
+- **CI** failed once on `main` (#1305, `1b2477308`, D453's sign-in wall)
+  on `vote.test.ts`'s "a wake while offline does not retry", 1 of 3160.
+  The two `main` commits after it passed, and the full suite is green
+  here. Worth naming rather than filing as noise: D464 found that same
+  test failing one run in three on the Patterns branch from a getter spy
+  leaking across a worker's files — a different cause, since
+  `worldPeople.test.ts` did not exist in `1b2477308`'s tree. So the
+  `main` occurrence is unexplained, not explained-and-fixed, and a second
+  sighting should be read as a real defect in the negative assertion
+  rather than as the leak D464 closed.
+
+The remaining CI failures are on other lanes' PR branches and are theirs.
+## D466 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
+
+**2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK A.7, built on
+the owner's *"start with the free ones, A.7 and the rules gate"*. The
+second of those was already built: D438 chained `rules-budget.mjs
+--gate` into `test:rules` on 2026-09-09, and the assessment that named
+it as open had read `ORIENTATION.md`'s row for the plan rather than the
+plan's own §5. The row said *"Phase 3's gate and Phase 4's split remain
+proposals"* two days after the gate shipped; it is corrected in this
+change, and the finding under it is the one `check:docs` rule 7
+already records for the Status column — a row that summarises a page
+goes stale the day the page moves, so read the page. Numbered D466
+after D452 on this branch; `main` may have claimed it since, and D408's
+rule makes that a move at merge, not a wait.
+
+**What was asked, and what the clocks did to it.** A.7 wanted one
+query per nightly fold whose result is compared with the fold's own —
+the digest's actives, the velocity scan's entry count, the samples'
+newest two hundred per question — so that a week of zero diffs licenses
+phase D. One query per fold cannot be exact here, and the reason is
+worth the record: a ledger entry's `at` is `FieldValue.serverTimestamp()`
+(pure.ts, the commit) and its BigQuery row's `answered_at` is the
+trigger's `Date.now()` a few hundred milliseconds earlier (v2.ts, the
+four `logRow` sites), so an answer committed just past midnight UTC sits
+on the ledger's day D and the log's day D−1. Neither is wrong; they are
+two definitions of a day, and under phase D the log's becomes THE day.
+A shadow that compared the ledger's day D with the log's day D would
+report that seam every busy night and never reach a clean week. The
+reconcile (A.3) already meets the same fact and looks a day either side
+by id; the shadow does the same, and then some.
+
+**What was built** (`functions/src/logShadow.ts`, the pass's tenth
+runner, right after the reconcile so the day it reads is the day the
+reconcile just completed):
+
+- **The exact half, by id.** The ledger day's ids, `LOG_SHADOW_ID_CHUNK`
+  (20,000) a query — an `IN UNNEST` parameter under a megabyte against
+  the 10 MB request ceiling — looked up across three partitions, and
+  each row compared with what `rowFromLedgerEntry` would have written
+  for its entry: `missing` (the reconcile could not put it back),
+  `mismatched` (another person, question or option — an index the row
+  nulls is compared as null, the same rule on both sides), `seam` (the
+  row is filed under another day). Bounded by the pass's clock
+  (`LOG_SHADOW_SLICE_MS`, a minute, through `sliceDeadline` like every
+  bounded fold), checked before each chunk because a chunk started is a
+  chunk paid for; a capped night says `checked` and is never clean.
+- **The fold half, by query, over the log's own day.** The three
+  queries phase D will run — `shadowCountsSql` (`COUNT(*)` and
+  `COUNT(DISTINCT uid)` with an empty uid no person, as the digest reads
+  the ledger) and `shadowAdditionsSql` (each person's newest
+  option-shaped answer of the day, ties by id, which is the ledger's own
+  tie-break; then `ARRAY_AGG … ORDER BY uid LIMIT 200`, the cap inlined
+  because ARRAY_AGG's LIMIT takes a constant) — against the same folds
+  computed off the shared ledger read. The samples' side goes through
+  `sampleAdditions` and `trimAdditions`, the second EXTRACTED from
+  `mergeSample` in this change so the comparison is the fold's own
+  arithmetic and not a second copy of it (D197's lesson, one file over;
+  `mergeSample`'s behaviour is unchanged and its suite says so).
+- **One line.** `log_shadow`, info when `clean`, a warning carrying every
+  number when not. `clean` is the conjunction: the exact half complete
+  with nothing missing, mismatched or on another day, the two counts
+  equal, no question's list differing. Read against `seam`: a fold diff
+  no larger than it is the seam; a fold diff with the seam at zero is a
+  query that does not reproduce the fold, which is the finding the week
+  exists to make before a fold moves.
+
+**What it deliberately does not compare**, so a clean week is read as
+what it is and not more: the cumulative sample DOCUMENT (a Firestore
+read per sample and a scan of the table's whole history, and the merge
+is deterministic over the day's additions this does compare — a week of
+matching days is a matching fold by induction); the frozen chips on a
+row; and the candidate's corpus filter (`patterns.ts` folds only the
+items its corpus names, the shadow folds every option-shaped entry, and
+equality on the superset is equality on the subset). The week is read
+off the log lines — seven nights of `clean: true` — and nothing is
+written anywhere to count it: a state document for a diagnostic that
+retires with phase D would outlive its purpose.
+
+**What it costs.** The ledger day: nothing, the memoised reader holds it
+for the folds ahead. BigQuery: two aggregates over one partition plus
+`ceil(entries / 20,000)` lookups over three partitions' id column, each
+billed at the 10 MB minimum — about a gigabyte a night at 50,000 DAU on
+COSTS.md's answer rate, twenty cents a month, and the minute caps what a
+larger day can spend. COSTS.md's phase-A note carries the sentence.
+
+**Verified, not assumed.** 15 new tests: the fold (an edit is the later
+entry, a pick is a person and not an addition, the cap in uid order
+through the fold's own trim), the diff (an option, a person, a missing
+question, the examples bounded), the runner (skips reading nothing where
+there is no BigQuery, and a skip is not clean; a mirror is one info
+line; each of the three exact findings counted once at warn; a nulled
+index is not a mismatch; a fold disagreement is not clean and names the
+question; the chunking at the constant; the clock stopping before the
+second chunk and a deadline already past looking nothing up while the
+two fold queries still run), the queries held to the fold's cap, order
+and tie-break, and the pass's order and the tenth runner's deadline
+(the source scan that derives bounded runners from the interface found
+it without being told). 1,007 functions tests green, `tsc` and the test
+typecheck clean, eslint clean. Not verified from here: a real BigQuery
+answering the two shapes — the first night's `log_shadow` line is that
+test, and the emulator and the suites are off by construction.
+
+## D467 · Phase B: the daily lane's aggregate is sharded and a compactor publishes it — on Firestore, with Redis as the swap and not the start
+
+**2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK phase B, built on
+the owner's *"build phase B"*. The wall D7 recorded and every cost page
+since has named first — one `v2_question_aggs/{qid}` document written on
+every answer, Firestore's ~1 write a second per document, the daily
+question answered by everyone in a waking window, ~14,400 DAU (`npm run
+costs`) — is sixteen times further out, and the ceiling of 200 folds in
+flight beside it is 1,000.
+
+**What shipped.** For a question the daily bank names — `SHARDED_QIDS`
+in `functions/src/aggShards.ts`, read off the compiled content, never off
+the answer's own `surface` claim, because a client that could opt a
+feed question into sharding would put its counts on a path the feed's
+other answers do not take — the trigger reads two documents (the ledger
+event and the profile, D410's honesty check kept) and writes one
+uncontended document: the person's counter shard,
+`v2_agg_shards/{qid}-{s}`, `s` the FNV-1a hash of the uid mod
+`AGG_SHARDS` (16), as BLIND INCREMENTS in the same transaction as the
+ledger mark and the answer map — the option, the total, one cell per
+frozen chip, an edit's -old/+new and its edit-flow crossing. The shard's
+breakdown is uncapped: the cap needs the bucket set, which is the read
+this removes. `compactAggShardsV2`, every minute, sums every shard of
+every question dirtied in the last fifteen minutes and writes
+`v2_question_aggs/{qid}` in exactly the shape the trigger wrote —
+`counts`, `total`, `by`, `edits` — with the union re-capped: the
+`BREAKDOWN_MAX_BUCKETS` biggest buckets a dimension stay hot, ties by
+name, the rest to D400's tail, each tail shard written where it has
+cells and deleted where it has none (the replay's rule, so the two
+writers agree; the rebuild publishes a sharded question through this
+same cap). Every client keeps reading the one
+document it reads today at the poll it already polls, which is D447's
+amendment of D98 made literal: exact, and never more than a poll behind.
+
+**Why Firestore shards and not the Redis the runbook wrote.** What makes
+Redis a fixed line is the counter store — Memorystore bills the instance
+from the hour it exists, $36 to $196 a month with two users as with
+fifty thousand, which `COST-EXPOSURE.md` §8 and the owner's list both
+flagged as the unexpected-bill shape this whole program exists to
+prevent. The compactor is the idea that removes the wall; the store is
+an implementation choice. A Firestore shard bills per operation, is
+exactly-once inside the ledger-marked transaction (so B.4's nightly
+reconcile is not needed and is struck with the reason), is exercised by
+the emulator and the e2e where a Redis cannot be, and needs no VPC
+connector, no instance and no owner click. It sits behind the same
+`AggCompactStore` seam the compactor reads through, so the Redis store
+is a swap of that seam and the trigger's one write when `npm run
+costs:target` prints the per-answer trigger line above the instance —
+the condition the owner's row now decides, moved from the start to the
+swap. Recorded here rather than argued in the runbook because it is a
+deviation from an adopted design, and the reason has to be findable.
+
+**Three things the design gained on the way.** *Order-independence:* a
+blind increment commutes with every other, so an edit delivered before
+its create — Eventarc orders nothing — folds to the create's final state
+where the hot path had to refuse and retry (`retargetCounts`), and the
+shard a person lands in need not be stable across a change of
+`AGG_SHARDS`. *A better cap:* the compactor keeps the biggest buckets
+rather than the earliest, deterministically, so `replay.ts`'s "arrival
+order decides the hot map" caveat is gone for a sharded question and a
+bucket that reaches the tail can climb back. *A stateless compactor:* it
+republishes what the lookback names and recomputes from every shard, so
+a run is idempotent and there is no cursor document, no collection for
+it, no rules row and no clock-skew argument — at the price the header
+states: an outage longer than fifteen minutes leaves a QUIET question
+stale until its next answer or the operator lever, which for the
+question this exists for is a minute.
+
+**The migration is a shard.** A question published before this shipped
+has a document holding every count so far and, from the deploy on, the
+trigger never touches it again. The first time the compactor meets a
+question with no `{qid}-base`, it moves the published document and its
+tail into one — hot map and tail as one uncapped map — in a transaction
+that creates or yields, and sums the base like any shard from then on.
+`rebuildAggregateV2` writes the base from its exact fold, deletes every
+other shard, and publishes; its concurrency guard is a stamp over the
+shards' write times, since the published document no longer moves
+during a scan.
+
+**What a user sees, and the one client change.** The same number, at
+most a minute later. The device's optimistic +1 used to clear when the
+post-vote refresh found a document that existed — true evidence when
+the fold was in the same transaction as the answer, false for a whole
+minute now. `aggHoldsMark` in `src/v2/data/live.ts` is ANSWER-SCALE §4's
+rule: a create clears once its option's count has grown past what the
+device held when it answered, an edit once the new option grew or the
+old shrank. Someone else's vote on the same option can satisfy it a
+minute early; the count corrects itself on the next read, and the
+comment says so.
+
+**What it costs.** The daily answer: two reads where there were three,
+one write where there was one. The compactor: a query a minute — a read
+even when empty — and, per minute the daily was dirtied in the
+lookback, seventeen reads, one write and the eight tail writes past the
+cap. `npm run costs` carries it as a flat line (`compactorReadsPerDay`,
+every constant read from source): the launch row's reads tripled and
+its bill rose twenty-five cents, the Hit row moved by a dollar, an
+eighth scheduler job is ten cents. `HOT_TRIGGER.maxInstances` 50 raises
+the hot path's runaway ceiling to ~$3,245 a month for either answer
+trigger (COSTS.md's paragraph). No fixed line anywhere.
+
+**Verified, not assumed.** `aggShards.test.ts` (fourteen cases: the
+daily set off the bank, the hash in range and spread, the writes' exact
+keys, the compacted document EQUAL to `foldAnchors`'s on forty answers,
+an edit before its create, negatives dropped and counted, the cap's
+choice and tie-break, the base, and the run's every outcome);
+`idempotence.test.ts` (the sharded lane's four: one blind increment
+with the mark and the map, a redelivery writing nothing, an edit with
+no refusal, the hot path untouched for an unlisted question);
+`vote.test.ts` (the mark held on a document that does not hold the vote
+and cleared on one that does, for a create and an edit);
+`rules.test.ts` (the shards nobody's to read or write); the e2e loop
+reading the same counts it read off the hot path, through the lever;
+`pulse.test.mjs` (13 → 15 documents across the trigger's read sites,
+2 → 3 map writes, each with its reason); `check:figures`,
+`check:monitoring`, `check:appcheck`, `check:deploy-targets`,
+`check:fn-runtime`, `check:data-inventory`, `check:docs`. Not run: a load
+probe at a hundred answers a second — the tree has no rig for one; the
+arithmetic is sixteen sustained writes a second where there was one,
+and the contention alert now watches the shards.
+
+**What is deliberately not here.** Phase 5.4's deck document. A lag
+policy beyond the heartbeat's own `capped` and `stopped`. Retiring the
+contention alert — the feed lane still folds on the hot path and a shard
+can contend at sixteen times the rate. Sharding any surface but the
+daily: the feed spreads its answers across the bank, and a shard costs
+the compactor a query's worth of reads a minute per dirty question.
+## D468 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, two conflicts, and a gate that can only fail on a tree nobody built
 
 **2026-09-12.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 sixty-three commits are kept as written; nothing was reverted. What this
@@ -51337,7 +51816,9 @@ composition had to change to say so.
 `main` took twenty-three commits during the night: console and pulse
 rows, and the farm lane's own merge (#503, self-merging on green under
 D212). No decision number moved. Neither shift claimed one; the tree sat
-at D464. This record is D465.
+at D464. This record is D468 — `main` took D465, D466 and D467 while this
+review was running (#502 and #497), and D299 moves a number off a
+collision.
 
 **FOURTEEN FILES WERE TOUCHED BY BOTH** — against thirteen the night
 before (D450), nine the night before that (D449) and zero at D430. **Two
@@ -51474,9 +51955,12 @@ than assumed:
 - **Neither shift repeated the trap that has been breaking every deploy
   run since #498.** Both added lines to `.github/workflows/firebase-deploy.yml`;
   both new expressions sit in an `env:` block, which is the placement
-  that survives. The invalid empty expression itself is still on `main`
-  at line 253 of that file — it is #504's to fix, not this review's, and
-  this tree neither repairs nor worsens it.
+  that survives. The invalid empty expression itself was `main`'s, and
+  #502 merged the fix while this review was running: the comment carrying
+  it moved out of the `run:` body up to YAML-comment level, where YAML
+  strips it before GitHub reads a character. So this branch inherits a
+  repaired file rather than a broken one, and #504 — which proposes the
+  same move — is now superseded and can be closed rather than merged.
 - **The rules ratchets survived the composition untouched**, which D450
   named the likeliest casualty. Measured on the composed tree: 7 of 381
   atomic predicates never evaluate false against a baseline of 7, and all

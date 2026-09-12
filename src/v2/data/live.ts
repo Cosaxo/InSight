@@ -384,6 +384,15 @@ const state = {
   // `clearUnaggregated` — a second map with five separate deletions to
   // remember is the drift this file has already paid for once.
   unaggregatedFrom: {} as Record<string, string>,
+  // …and the published counts this device HELD when the mark was set
+  // (phase B, D467). The daily's aggregate is written by a compactor once
+  // a minute rather than by the fold, so a document that merely exists is
+  // no longer proof the answer is in it: the mark clears when the count
+  // has moved past what was held (ANSWER-SCALE.md §4's rule). Null where
+  // there is nothing to compare — a rank or a catalogue pick, whose
+  // documents carry no `counts`, or a mark restored at boot (D357) —
+  // which then clears on its first read, as every mark did before.
+  unaggregatedBase: {} as Record<string, { counts: Record<string, number> } | null>,
   // qid -> Date.now() of the last ACKED edit (D86). Client mirror of the
   // rules' one-edit-per-answer-per-60s cooldown, so the UI can refuse a
   // doomed write synchronously instead of flipping and bouncing back.
@@ -972,6 +981,14 @@ function restorePending(uid: string): void {
       if (p.edit && folded && held !== undefined && held !== p.v) {
         state.unaggregatedFrom[aid] = held;
       }
+      // …and the base is marked NOT COMPARABLE (phase B): a restored
+      // answer has no "what the counts held when I tapped" to compare a
+      // later read against, so `aggHoldsMark` returns true on sight. The
+      // two lines are independent — this one writes `unaggregatedBase`,
+      // the block above writes `unaggregatedFrom`, and the consumer of
+      // each is different (`aggHoldsMark` short-circuits on a null base
+      // before it would read `from`; `countsFor` is what needs `from`).
+      noteAggBase(aid, false);
     }
     restoredPending.add(aid);
   }
@@ -1021,6 +1038,32 @@ function confirmPending(db: Awaited<ReturnType<typeof getDb>>, aid: string, v: s
 function clearUnaggregated(id: string): void {
   delete state.unaggregated[id];
   delete state.unaggregatedFrom[id];
+  delete state.unaggregatedBase[id];
+}
+
+/** Remember what the published counts said when `aid` was marked
+ *  unfolded — the baseline the refresh compares against (phase B). */
+function noteAggBase(aid: string, comparable: boolean): void {
+  const agg = state.aggs[aid] as { counts?: Record<string, number> } | undefined;
+  state.unaggregatedBase[aid] = comparable ? { counts: { ...(agg?.counts ?? {}) } } : null;
+}
+
+/** Whether a freshly read aggregate HOLDS the answer marked on `aid`. A
+ *  create is held once its option's count has grown past what this
+ *  device held when it answered; an edit once the new option grew or the
+ *  old one shrank. Someone else's vote on the same option can satisfy it
+ *  a minute early — the seam ANSWER-SCALE.md §4 names, and the count
+ *  corrects itself on the next read; the old rule, "the document
+ *  exists", was wrong on every daily answer for a whole minute. */
+function aggHoldsMark(aid: string, agg: AggDoc): boolean {
+  const base = state.unaggregatedBase[aid];
+  if (base === undefined || base === null) return true;
+  const counts = ((agg as { counts?: Record<string, number> }).counts) ?? {};
+  const at = (m: Record<string, number>, k: string): number => Number(m[k]) || 0;
+  const to = String(state.unaggregated[aid]);
+  const from = state.unaggregatedFrom[aid];
+  if (from !== undefined) return at(counts, to) > at(base.counts, to) || at(counts, from) < at(base.counts, from);
+  return at(counts, to) > at(base.counts, to);
 }
 
 function rollbackPending(aid: string, serverValue?: string): void {
@@ -1452,7 +1495,7 @@ async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<v
       // clearing would subtract a vote that isn't there. (Defensive:
       // today this drain is only armed after the ack, so inflight
       // is already clear.)
-      if (d.id in state.unaggregated && !(d.id in state.inflight)) {
+      if (d.id in state.unaggregated && !(d.id in state.inflight) && aggHoldsMark(d.id, d.data() as AggDoc)) {
         clearUnaggregated(d.id);
       }
     }
@@ -1689,7 +1732,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       // yet. drainAggRefresh has carried the same guard since the
       // optimistic split; here it was unreachable until restorePending
       // put an inflight answer in front of the boot's deck read.
-      if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight)) {
+      if (d.id in state.unaggregated && state.votes[d.id] && !(d.id in state.inflight) && aggHoldsMark(d.id, d.data() as AggDoc)) {
         clearUnaggregated(d.id);
       }
     });
@@ -7965,6 +8008,7 @@ const LIVE = {
     // answer is an ordinary answer document, so nothing new has to unset
     // it.
     state.unaggregated[aid] = optionIdx;
+    noteAggBase(aid, true);
     // IN FLIGHT, like every other write path — and here it is not
     // bookkeeping. `noteFolded` and both of the store's drains refuse to
     // clear an unfolded mark for an answer the server has not
@@ -8129,6 +8173,7 @@ const LIVE = {
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     state.unaggregated[qid] = optionIdx;
+    noteAggBase(qid, true);
     markPending(qid, optionId);
     notify();
     void (async () => {
@@ -8212,6 +8257,7 @@ const LIVE = {
     state.votes[qid] = String(entity);
     state.inflight[qid] = true;
     state.unaggregated[qid] = entity;
+    noteAggBase(qid, false);
     markPending(qid, String(entity));
     notify();
     void (async () => {
@@ -8277,6 +8323,7 @@ const LIVE = {
     // counts array) — the KEY is the pending flag rankCrowdFor and the
     // agg refresh both key on, same lifecycle as every other vote.
     state.unaggregated[qid] = 0;
+    noteAggBase(qid, false);
     markPending(qid, order.join(","));
     notify();
     void (async () => {
@@ -8353,6 +8400,7 @@ const LIVE = {
     // option read one high AND the total read one high, which put every
     // share on the card over a denominator that did not exist.
     state.unaggregated[qid] = optionIdx;
+    noteAggBase(qid, true);
     // ONLY IF THE CROWD ACTUALLY HOLDS IT. An edit that follows a create
     // the trigger has not folded yet — answer, then nudge the dial again,
     // which every re-pick on the daily and the feed routes through here —
@@ -8430,6 +8478,7 @@ function resetForNewUid(uid: string): void {
   state.inflight = {};
   state.unaggregated = {};
   state.unaggregatedFrom = {};
+  state.unaggregatedBase = {};
   state.editedAt = {};
   state.aggs = {};
   state.overflowCells = {};
@@ -9067,11 +9116,17 @@ export function _aggRefreshForTest(): {
   armed: boolean;
   pending: string[];
   drain: (db: Parameters<typeof drainAggRefresh>[0]) => Promise<void>;
+  /** Queue a refresh without a vote, and read the unfolded marks — the
+   *  phase B clear rule's observables (vote.test.ts). */
+  queue: (qid: string) => void;
+  marks: () => Record<string, number>;
 } {
   return {
     armed: aggRefreshTimer !== null,
     pending: [...pendingAggRefresh],
     drain: (db) => drainAggRefresh(db),
+    queue: (qid) => { pendingAggRefresh.add(qid); },
+    marks: () => ({ ...state.unaggregated }),
   };
 }
 

@@ -1011,6 +1011,43 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     await flush();
   });
 
+  it("phase B: the refresh keeps the mark until the published counts HOLD the answer — a document that exists is no longer proof", async () => {
+    // The daily's document is written by the compactor once a minute
+    // (D467), so the refresh two and a half seconds after a vote finds a
+    // document that exists and does not hold the vote. The old rule
+    // cleared on existence and hid the person's own +1 for a minute;
+    // the rule is now ANSWER-SCALE.md §4's — the count moved past what
+    // the device held.
+    h.bankDocs.push(bankDoc("q_hold", ["A", "B", "C"]));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote("q_hold", "1");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain("q_hold");
+    });
+    await flush();
+    // Seven others, none on this device's option: the mark stays.
+    h.aggDocs = [{ id: "q_hold", data: { total: 7, counts: { "0": 7 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks(), "the mark cleared on a document that does not hold the vote").toHaveProperty("q_hold", 1);
+    // The next minute's document holds it: cleared.
+    mod._aggRefreshForTest().queue("q_hold");
+    h.aggDocs = [{ id: "q_hold", data: { total: 8, counts: { "0": 7, "1": 1 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).not.toHaveProperty("q_hold");
+    // An edit: held once the old option shrank or the new one grew, and
+    // not before — the same document again is not the edit landing.
+    expect(LIVE.editVote("q_hold", "0")).toBe(true);
+    await flush();
+    mod._aggRefreshForTest().queue("q_hold");
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).toHaveProperty("q_hold", 0);
+    mod._aggRefreshForTest().queue("q_hold");
+    h.aggDocs = [{ id: "q_hold", data: { total: 8, counts: { "0": 8 } } }];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    expect(mod._aggRefreshForTest().marks()).not.toHaveProperty("q_hold");
+  });
+
   it("…and a first answer still adds to the crowd — the control", async () => {
     // Without this, "always subtract" would satisfy the case above and
     // show the crowd one short on every optimistic first vote.
