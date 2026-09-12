@@ -1,89 +1,94 @@
 {
-  "fetchedOn": "2026-08-26",
+  "fetchedOn": "2026-09-12",
   "days": [
     {
-      "bySurface": {},
-      "actives": 0,
+      "events": 0,
       "returned": {
-        "d7": {
+        "d30": {
           "returned": 0,
           "of": null
         },
         "d1": {
-          "returned": 0,
-          "of": null
-        },
-        "d30": {
-          "returned": 0,
-          "of": null
-        }
-      },
-      "firstTime": 0,
-      "events": 0,
-      "streaksBroken": 0,
-      "foldedAt": null,
-      "day": "2026-08-18",
-      "votes": 0
-    },
-    {
-      "bySurface": {},
-      "foldedAt": null,
-      "actives": 0,
-      "streaksBroken": 0,
-      "firstTime": 0,
-      "events": 0,
-      "returned": {
-        "d1": {
-          "returned": 0,
-          "of": 0
-        },
-        "d7": {
-          "returned": 0,
-          "of": null
-        },
-        "d30": {
           "of": null,
           "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": null
         }
       },
       "votes": 0,
-      "day": "2026-08-19"
+      "foldedAt": null,
+      "bySurface": {},
+      "streaksBroken": 0,
+      "day": "2026-08-18",
+      "firstTime": 0,
+      "actives": 0
     },
     {
-      "streaksBroken": 0,
-      "actives": 6,
       "returned": {
+        "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
         "d1": {
           "returned": 0,
           "of": 0
-        },
-        "d30": {
-          "of": null,
+        }
+      },
+      "events": 0,
+      "votes": 0,
+      "day": "2026-08-19",
+      "foldedAt": null,
+      "bySurface": {},
+      "firstTime": 0,
+      "actives": 0,
+      "streaksBroken": 0
+    },
+    {
+      "actives": 6,
+      "votes": 10,
+      "returned": {
+        "d1": {
+          "of": 0,
           "returned": 0
         },
         "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
           "returned": 0,
           "of": null
         }
       },
       "events": 10,
-      "votes": 10,
       "bySurface": {
+        "feed": 3,
         "daily": 5,
-        "test": 2,
-        "feed": 3
+        "test": 2
       },
+      "streaksBroken": 0,
       "foldedAt": null,
       "firstTime": 6,
       "day": "2026-08-20"
     },
     {
-      "streaksBroken": 0,
+      "day": "2026-08-21",
       "firstTime": 0,
+      "streaksBroken": 0,
+      "bySurface": {},
+      "actives": 0,
+      "foldedAt": null,
+      "votes": 0,
       "returned": {
         "d30": {
-          "returned": 0,
-          "of": null
+          "of": null,
+          "returned": 0
         },
         "d1": {
           "returned": 0,
@@ -94,70 +99,1637 @@
           "of": null
         }
       },
-      "bySurface": {},
-      "events": 0,
-      "votes": 0,
-      "actives": 0,
-      "foldedAt": null,
-      "day": "2026-08-21"
+      "events": 0
     },
     {
       "returned": {
         "d1": {
-          "returned": 0,
-          "of": 0
+          "of": 0,
+          "returned": 0
         },
         "d30": {
-          "of": null,
-          "returned": 0
+          "returned": 0,
+          "of": null
         },
         "d7": {
-          "of": null,
-          "returned": 0
+          "returned": 0,
+          "of": null
         }
       },
-      "votes": 4,
+      "firstTime": 0,
+      "foldedAt": null,
       "bySurface": {
         "feed": 2,
         "test": 2
       },
-      "foldedAt": null,
-      "events": 4,
       "actives": 1,
-      "streaksBroken": 0,
       "day": "2026-08-22",
-      "firstTime": 0
+      "events": 4,
+      "streaksBroken": 0,
+      "votes": 4
     },
     {
-      "day": "2026-08-23",
+      "returned": {
+        "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "returned": 0,
+          "of": 0
+        }
+      },
+      "events": 0,
       "foldedAt": null,
+      "bySurface": {},
       "streaksBroken": 0,
+      "firstTime": 0,
+      "actives": 0,
+      "day": "2026-08-23",
+      "votes": 0
+    },
+    {
+      "firstTime": 0,
+      "foldedAt": null,
+      "day": "2026-08-24",
+      "bySurface": {
+        "feed": 17,
+        "test": 9,
+        "learn": 9
+      },
+      "streaksBroken": 0,
+      "attn": {
+        "s": {
+          "stopYou": {
+            "reach": 1,
+            "est": 8
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 8
+          },
+          "opens": {
+            "reach": 1,
+            "est": 12
+          },
+          "lensExplore": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "lensPeople": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopCircle": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopNear": {
+            "reach": 1,
+            "est": 4
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 8
+          },
+          "stopWorld": {
+            "est": 4,
+            "reach": 1
+          },
+          "feedPass": {
+            "reach": 1,
+            "est": 4
+          },
+          "slowBoots": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansTest": {
+            "est": 8,
+            "reach": 1
+          },
+          "ansFeed": {
+            "est": 8,
+            "reach": 1
+          },
+          "lensScores": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "lensCompare": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 8
+          },
+          "overlays": {
+            "est": 8,
+            "reach": 1
+          }
+        },
+        "devices": 1,
+        "q": {
+          "lrn-gene12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "dl5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-body4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-time-3": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-body2": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f28": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-political-22": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk05": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "f15": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f10": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk08": {
+            "p": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f58": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-22": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n04": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk04": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene9": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-political-23": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-trust-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-political-21": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-17": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-political-24": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "lrn-gene4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-19": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "tq-values-18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-0": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "f08": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-anc11": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "tq-political-27": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-moral-3": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-20": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f63": {
+            "p": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body6": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "feed-n03": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n01": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f29": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap11": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f34": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-3": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "tq-attachment-7": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-21": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-15": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-trust-3": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-moral-4": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-taste-3": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-risk-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-1": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-thinking-2": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f56": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-6": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f57": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene13": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-political-25": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n02": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f22": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-risk-3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-2": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-political-26": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f03": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-political-28": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-14": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "f01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap12": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "tq-political-29": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-anc10": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-conflict-2": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-humor-2": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cell12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-culture-1": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          }
+        }
+      },
+      "returned": {
+        "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "of": 0,
+          "returned": 0
+        }
+      },
+      "actives": 1,
+      "people": {
+        "dayparts": {
+          "d3": 1,
+          "d1": 0,
+          "d0": 0,
+          "d2": 3
+        },
+        "fgBuckets": {
+          "b3": 1,
+          "b4": 0,
+          "b0": 0,
+          "b2": 0,
+          "b1": 0
+        },
+        "answers": 15,
+        "fading": 0,
+        "depthEnd": 0,
+        "sessions": 4,
+        "quiet": 0,
+        "rollups": 1
+      },
+      "votes": 35,
+      "events": 35
+    },
+    {
+      "events": 0,
+      "day": "2026-08-25",
+      "firstTime": 0,
       "votes": 0,
       "returned": {
         "d1": {
           "of": 0,
           "returned": 0
         },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
         "d7": {
-          "returned": 0,
-          "of": null
+          "of": 0,
+          "returned": 0
+        }
+      },
+      "bySurface": {},
+      "actives": 0,
+      "foldedAt": null,
+      "streaksBroken": 0
+    },
+    {
+      "events": 31,
+      "votes": 31,
+      "people": {
+        "rollups": 1,
+        "sessions": 1,
+        "quiet": 0,
+        "depthEnd": 0,
+        "fading": 0,
+        "fgBuckets": {
+          "b1": 0,
+          "b2": 1,
+          "b4": 0,
+          "b0": 0,
+          "b3": 0
+        },
+        "answers": 23,
+        "dayparts": {
+          "d3": 0,
+          "d1": 0,
+          "d0": 0,
+          "d2": 1
+        }
+      },
+      "attn": {
+        "s": {
+          "feedPass": {
+            "reach": 1,
+            "est": 4
+          },
+          "ansDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "overlays": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "est": 12,
+            "reach": 1
+          },
+          "slowBoots": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansFeed": {
+            "est": 12,
+            "reach": 1
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansTest": {
+            "reach": 1,
+            "est": 4
+          },
+          "opens": {
+            "est": 4,
+            "reach": 1
+          }
+        },
+        "devices": 1,
+        "q": {
+          "feed-f69": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-risk-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-time-4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-24": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-10": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-23": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-s01": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-19": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cell6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f70": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-22": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f68": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-s16": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk01": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk10": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-s07": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f78": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n06": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-moral-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-27": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-cap12": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-13": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f64": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-trust-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-s17": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-values-25": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-risk-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cell9": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-anc10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body2": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-political-29": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f82": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f75": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-sol3": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-gene5": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-taste-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f73": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-body12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-n05": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-political-28": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-9": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-conflict-3": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f65": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk12": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-28": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-29": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n04": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk13": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-taste-3": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-sol2": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f60": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-26": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f61": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-11": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-7": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "tq-attachment-3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-attachment-8": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f71": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body6": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f66": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-thinking-2": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f79": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "tq-values-21": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-culture-2": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        }
+      },
+      "foldedAt": null,
+      "firstTime": 0,
+      "streaksBroken": 0,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
         },
         "d30": {
           "of": null,
           "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
         }
       },
-      "firstTime": 0,
-      "bySurface": {},
-      "events": 0,
-      "actives": 0
+      "bySurface": {
+        "feed": 19,
+        "daily": 1,
+        "learn": 6,
+        "test": 5
+      },
+      "actives": 1,
+      "day": "2026-08-26"
     },
     {
-      "day": "2026-08-24",
-      "events": 35,
+      "returned": {
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 1,
+          "of": 6
+        }
+      },
+      "bySurface": {
+        "feed": 1
+      },
+      "votes": 1,
+      "actives": 1,
+      "foldedAt": null,
+      "firstTime": 0,
+      "attn": {
+        "q": {
+          "feed-dl14": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-14": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "test-values-16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-body6": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-cap12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-trust-4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-17": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-15": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-thinking-2": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-17": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-risk-4": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "lrn-body4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-taste-3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-15": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "test-values-15": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "lrn-cell6": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "test-political-17": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-fd4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "s": {
+          "stopWorld": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "opens": {
+            "est": 8,
+            "reach": 1
+          },
+          "stopYou": {
+            "est": 4,
+            "reach": 1
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 8
+          },
+          "tabMirror": {
+            "est": 4,
+            "reach": 1
+          },
+          "ansFeed": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopNear": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "overlays": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopCircle": {
+            "reach": 1,
+            "est": 4
+          }
+        },
+        "devices": 1
+      },
+      "events": 1,
+      "people": {
+        "rollups": 1,
+        "sessions": 5,
+        "depthEnd": 0,
+        "answers": 1,
+        "fgBuckets": {
+          "b2": 0,
+          "b1": 1,
+          "b3": 0,
+          "b4": 0,
+          "b0": 0
+        },
+        "fading": 0,
+        "quiet": 1,
+        "dayparts": {
+          "d0": 0,
+          "d2": 3,
+          "d1": 0,
+          "d3": 2
+        }
+      },
+      "streaksBroken": 0,
+      "day": "2026-08-27"
+    },
+    {
+      "bySurface": {},
       "returned": {
         "d7": {
-          "of": null,
+          "of": 0,
           "returned": 0
         },
         "d30": {
@@ -169,24 +1741,1020 @@
           "of": 0
         }
       },
-      "votes": 35,
-      "actives": 1,
-      "bySurface": {
-        "learn": 9,
-        "feed": 17,
-        "test": 9
-      },
-      "streaksBroken": 0,
       "firstTime": 0,
-      "foldedAt": null
+      "actives": 0,
+      "events": 0,
+      "day": "2026-08-28",
+      "foldedAt": null,
+      "votes": 0,
+      "streaksBroken": 0
     },
     {
-      "day": "2026-08-25",
+      "people": {
+        "rollups": 1,
+        "sessions": 2,
+        "fading": 0,
+        "depthEnd": 0,
+        "answers": 8,
+        "fgBuckets": {
+          "b0": 0,
+          "b4": 0,
+          "b3": 0,
+          "b1": 1,
+          "b2": 0
+        },
+        "quiet": 0,
+        "dayparts": {
+          "d2": 0,
+          "d0": 1,
+          "d1": 0,
+          "d3": 1
+        }
+      },
+      "attn": {
+        "s": {
+          "ansDaily": {
+            "reach": 1,
+            "est": 8
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          },
+          "stopNear": {
+            "est": 8,
+            "reach": 1
+          },
+          "lensScores": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "lensCompare": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopYou": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "opens": {
+            "est": 4,
+            "reach": 1
+          },
+          "overlays": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 4
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "lensPeople": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopWorld": {
+            "reach": 1,
+            "est": 4
+          },
+          "slowBoots": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopCircle": {
+            "est": 4,
+            "reach": 1
+          }
+        },
+        "devices": 1,
+        "q": {
+          "feed-fd4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-15": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "dl8": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-taste-3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-15": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cell6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "f01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-14": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        }
+      },
+      "events": 8,
       "streaksBroken": 0,
+      "day": "2026-08-29",
+      "bySurface": {
+        "daily": 8
+      },
+      "foldedAt": null,
+      "actives": 1,
+      "firstTime": 0,
+      "returned": {
+        "d7": {
+          "returned": 0,
+          "of": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d1": {
+          "returned": 0,
+          "of": 0
+        }
+      },
+      "votes": 8
+    },
+    {
+      "votes": 11,
       "returned": {
         "d30": {
           "of": null,
           "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
+        },
+        "d1": {
+          "of": 0,
+          "returned": 0
+        }
+      },
+      "foldedAt": null,
+      "streaksBroken": 0,
+      "day": "2026-08-30",
+      "bySurface": {
+        "daily": 2,
+        "feed": 2,
+        "test": 7
+      },
+      "events": 11,
+      "actives": 3,
+      "attn": {
+        "q": {
+          "feed-fd4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-cell6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-body4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-risk-4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-taste-3": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl13": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-14": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-15": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-15": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-15": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          }
+        },
+        "devices": 1,
+        "s": {
+          "ansFeed": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          },
+          "opens": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopNear": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopWorld": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopYou": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabMirror": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "ansTest": {
+            "est": 8,
+            "reach": 1
+          },
+          "stopCircle": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 1.5
+          }
+        }
+      },
+      "people": {
+        "depthEnd": 0,
+        "sessions": 2,
+        "fading": 0,
+        "quiet": 0,
+        "dayparts": {
+          "d3": 1,
+          "d0": 0,
+          "d2": 0,
+          "d1": 1
+        },
+        "answers": 9,
+        "fgBuckets": {
+          "b1": 1,
+          "b2": 0,
+          "b0": 0,
+          "b4": 0,
+          "b3": 0
+        },
+        "rollups": 1
+      },
+      "firstTime": 2
+    },
+    {
+      "actives": 1,
+      "day": "2026-08-31",
+      "streaksBroken": 0,
+      "bySurface": {
+        "feed": 1,
+        "test": 9
+      },
+      "votes": 10,
+      "people": {
+        "rollups": 1,
+        "sessions": 2,
+        "fading": 0,
+        "depthEnd": 0,
+        "answers": 10,
+        "fgBuckets": {
+          "b3": 0,
+          "b4": 0,
+          "b0": 0,
+          "b2": 0,
+          "b1": 1
+        },
+        "quiet": 0,
+        "dayparts": {
+          "d1": 0,
+          "d2": 0,
+          "d0": 0,
+          "d3": 2
+        }
+      },
+      "returned": {
+        "d1": {
+          "returned": 0,
+          "of": 2
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
+        }
+      },
+      "firstTime": 0,
+      "events": 10,
+      "attn": {
+        "q": {
+          "test-values-18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl15": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-dl16": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body4": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene11": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-16": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-political-18": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-thinking-2": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-17": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-time-4": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-17": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-trust-4": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-17": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-16": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "s": {
+          "stopYou": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "ansTest": {
+            "reach": 1,
+            "est": 8
+          },
+          "ansFeed": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "opens": {
+            "reach": 1,
+            "est": 4
+          },
+          "tabDaily": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopCircle": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopNear": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopGroups": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          }
+        },
+        "devices": 1
+      },
+      "foldedAt": null
+    },
+    {
+      "foldedAt": null,
+      "votes": 3,
+      "bySurface": {
+        "test": 1,
+        "daily": 1,
+        "feed": 1
+      },
+      "returned": {
+        "d7": {
+          "returned": 0,
+          "of": 0
+        },
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        }
+      },
+      "firstTime": 0,
+      "attn": {
+        "devices": 1,
+        "q": {
+          "lrn-gene11": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cell8": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-21": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-humor-3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-19": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-19": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-political-20": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-22": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-20": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-moral-6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-taste-5": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-political-21": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-19": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-cap10": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-18": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-dl17": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-sol12": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-20": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-trust-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-21": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-sol11": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-thinking-3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-18": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-time-5": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body12": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl16": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "s": {
+          "overlays": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "est": 12,
+            "reach": 1
+          },
+          "ansDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "opens": {
+            "reach": 1,
+            "est": 8
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansFeed": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopCircle": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopGroups": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopYou": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansTest": {
+            "est": 1.5,
+            "reach": 1
+          }
+        }
+      },
+      "events": 3,
+      "streaksBroken": 0,
+      "actives": 1,
+      "people": {
+        "dayparts": {
+          "d3": 3,
+          "d1": 0,
+          "d0": 0,
+          "d2": 0
+        },
+        "fgBuckets": {
+          "b1": 1,
+          "b2": 0,
+          "b4": 0,
+          "b0": 0,
+          "b3": 0
+        },
+        "quiet": 1,
+        "answers": 3,
+        "depthEnd": 0,
+        "sessions": 3,
+        "rollups": 1,
+        "fading": 0
+      },
+      "day": "2026-09-01"
+    },
+    {
+      "events": 1,
+      "attn": {
+        "devices": 1,
+        "q": {
+          "test-values-18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-dl17": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "s": {
+          "opens": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansFeed": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 4
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          }
+        }
+      },
+      "votes": 1,
+      "people": {
+        "answers": 1,
+        "fading": 0,
+        "sessions": 1,
+        "depthEnd": 0,
+        "rollups": 1,
+        "quiet": 0,
+        "fgBuckets": {
+          "b1": 0,
+          "b2": 0,
+          "b4": 0,
+          "b0": 1,
+          "b3": 0
+        },
+        "dayparts": {
+          "d0": 0,
+          "d2": 1,
+          "d1": 0,
+          "d3": 0
+        }
+      },
+      "day": "2026-09-02",
+      "streaksBroken": 0,
+      "foldedAt": null,
+      "bySurface": {
+        "feed": 1
+      },
+      "actives": 1,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "firstTime": 0
+    },
+    {
+      "actives": 0,
+      "events": 0,
+      "returned": {
+        "d30": {
+          "returned": 0,
+          "of": null
         },
         "d1": {
           "of": 0,
@@ -197,12 +2765,1838 @@
           "returned": 0
         }
       },
-      "actives": 0,
+      "bySurface": {},
+      "day": "2026-09-03",
+      "streaksBroken": 0,
       "firstTime": 0,
       "votes": 0,
-      "events": 0,
+      "foldedAt": null
+    },
+    {
+      "actives": 0,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
+        }
+      },
+      "day": "2026-09-04",
       "foldedAt": null,
-      "bySurface": {}
+      "votes": 0,
+      "bySurface": {},
+      "streaksBroken": 0,
+      "events": 0,
+      "firstTime": 0
+    },
+    {
+      "actives": 0,
+      "attn": {
+        "s": {
+          "stopYou": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopWorld": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopCircle": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "opens": {
+            "reach": 1,
+            "est": 8
+          },
+          "stopNear": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 8
+          },
+          "overlays": {
+            "reach": 1,
+            "est": 4
+          }
+        },
+        "devices": 1,
+        "q": {
+          "feed-dl30": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n08": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n09": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-18": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          }
+        }
+      },
+      "votes": 0,
+      "events": 0,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": 0
+        }
+      },
+      "firstTime": 0,
+      "day": "2026-09-05",
+      "foldedAt": null,
+      "bySurface": {},
+      "streaksBroken": 0,
+      "people": {
+        "answers": 0,
+        "sessions": 3,
+        "rollups": 1,
+        "depthEnd": 0,
+        "fading": 0,
+        "dayparts": {
+          "d3": 0,
+          "d0": 0,
+          "d2": 0,
+          "d1": 3
+        },
+        "fgBuckets": {
+          "b3": 0,
+          "b0": 0,
+          "b4": 0,
+          "b2": 0,
+          "b1": 1
+        },
+        "quiet": 0
+      }
+    },
+    {
+      "day": "2026-09-06",
+      "foldedAt": null,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": 2
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "votes": 45,
+      "attn": {
+        "devices": 1,
+        "s": {
+          "lensPeople": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopCircle": {
+            "est": 8,
+            "reach": 1
+          },
+          "stopWorld": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopGroups": {
+            "est": 8,
+            "reach": 1
+          },
+          "feedPass": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansTest": {
+            "reach": 1,
+            "est": 12
+          },
+          "overlays": {
+            "est": 8,
+            "reach": 1
+          },
+          "lensCompare": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 8
+          },
+          "opens": {
+            "reach": 1,
+            "est": 12
+          },
+          "ansFeed": {
+            "est": 12,
+            "reach": 1
+          },
+          "lensScores": {
+            "est": 4,
+            "reach": 1
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 8
+          },
+          "lensExplore": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopYou": {
+            "est": 8,
+            "reach": 1
+          },
+          "stopNear": {
+            "est": 8,
+            "reach": 1
+          },
+          "ansDaily": {
+            "reach": 1,
+            "est": 8
+          },
+          "feedSeen": {
+            "est": 12,
+            "reach": 1
+          }
+        },
+        "q": {
+          "feed-f62": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-19": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl21": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-time-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-political-21": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-fd6": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-n09": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-s13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-political-19": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f111": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-20": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f74": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-taste-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl30": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-n13": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-moral-6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-20": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f102": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-19": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl35": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f86": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-18": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "feed-dl18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f79": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f80": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n11": {
+            "s": {
+              "reach": 1,
+              "est": 8
+            }
+          },
+          "feed-n12": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap15": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-s03": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cell8": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "pick-pk12": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "feed-n14": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "feed-f83": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-n10": {
+            "s": {
+              "est": 8,
+              "reach": 1
+            }
+          },
+          "feed-dl26": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-21": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f84": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-thinking-3": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "lrn-cap13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n15": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-21": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-trust-5": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f85": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-body6": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-20": {
+            "s": {
+              "reach": 1,
+              "est": 4
+            }
+          },
+          "test-attachment-18": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "feed-f67": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-cap10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f88": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f89": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f94": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-s04": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk15": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-s17": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-humor-3": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-gene11": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          }
+        }
+      },
+      "actives": 7,
+      "events": 45,
+      "bySurface": {
+        "feed": 18,
+        "daily": 15,
+        "test": 12
+      },
+      "firstTime": 6,
+      "streaksBroken": 1
+    },
+    {
+      "bySurface": {
+        "daily": 1,
+        "feed": 10,
+        "learn": 1,
+        "test": 2
+      },
+      "day": "2026-09-07",
+      "returned": {
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": 0
+        },
+        "d1": {
+          "returned": 0,
+          "of": 6
+        }
+      },
+      "events": 14,
+      "firstTime": 1,
+      "streaksBroken": 0,
+      "votes": 14,
+      "foldedAt": null,
+      "attn": {
+        "devices": 1,
+        "q": {
+          "feed-f38": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f09": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f26": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-evo7": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f02": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f01": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-big5-00": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk04": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f22": {
+            "p": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-moral-0": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-body18": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl3": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f52": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f32": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-00": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f15": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-00": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f45": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "f01": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-dl5": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-dl2": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f49": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-n10": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f23": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "s": {
+          "tabDaily": {
+            "est": 8,
+            "reach": 1
+          },
+          "stopWorld": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "stopYou": {
+            "reach": 1,
+            "est": 4
+          },
+          "feedPass": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopNear": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "ansDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          },
+          "ansTest": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 4
+          },
+          "stopCircle": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "opens": {
+            "reach": 1,
+            "est": 12
+          },
+          "ansFeed": {
+            "reach": 1,
+            "est": 8
+          }
+        }
+      },
+      "people": {
+        "sessions": 5,
+        "depthEnd": 0,
+        "lensOpen": 0,
+        "feedBuckets": {
+          "f3": 0,
+          "f4": 1,
+          "f0": 0,
+          "f2": 0,
+          "f1": 0
+        },
+        "mirrorRead": 1,
+        "dayparts": {
+          "d1": 0,
+          "d0": 0,
+          "d2": 1,
+          "d3": 4
+        },
+        "rollups": 1,
+        "quiet": 0,
+        "fading": 0,
+        "fgBuckets": {
+          "b2": 1,
+          "b1": 0,
+          "b3": 0,
+          "b0": 0,
+          "b4": 0
+        },
+        "answers": 13
+      },
+      "actives": 1
+    },
+    {
+      "attn": {
+        "q": {
+          "feed-f52": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f49": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-00": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl1": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          }
+        },
+        "s": {
+          "ansTest": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "opens": {
+            "reach": 1,
+            "est": 4
+          },
+          "slowBoots": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 4
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansFeed": {
+            "reach": 1,
+            "est": 4
+          }
+        },
+        "devices": 1
+      },
+      "bySurface": {
+        "test": 1,
+        "daily": 1,
+        "feed": 3
+      },
+      "people": {
+        "feedBuckets": {
+          "f1": 0,
+          "f2": 1,
+          "f0": 0,
+          "f4": 0,
+          "f3": 0
+        },
+        "quiet": 0,
+        "rollups": 1,
+        "answers": 5,
+        "dayparts": {
+          "d3": 0,
+          "d0": 0,
+          "d2": 2,
+          "d1": 0
+        },
+        "fading": 0,
+        "sessions": 2,
+        "fgBuckets": {
+          "b0": 0,
+          "b4": 0,
+          "b3": 0,
+          "b1": 1,
+          "b2": 0
+        },
+        "mirrorRead": 0,
+        "depthEnd": 0,
+        "lensOpen": 0
+      },
+      "firstTime": 0,
+      "events": 5,
+      "foldedAt": null,
+      "streaksBroken": 0,
+      "actives": 1,
+      "day": "2026-09-08",
+      "votes": 5,
+      "returned": {
+        "d7": {
+          "returned": 0,
+          "of": 0
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
+          "returned": 1,
+          "of": 1
+        }
+      }
+    },
+    {
+      "foldedAt": null,
+      "day": "2026-09-09",
+      "streaksBroken": 0,
+      "returned": {
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": 0
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "votes": 0,
+      "attn": {
+        "devices": 1,
+        "q": {
+          "feed-f46": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f27": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f03": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-sol10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f50": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f23": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f39": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-00": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f33": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-moral-0": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-values-01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-risk-0": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk04": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-evo7": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n12": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-big5-01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f02": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f53": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-fd1": {
+            "s": {
+              "est": 4,
+              "reach": 1
+            }
+          },
+          "feed-n13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-political-01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "s": {
+          "opens": {
+            "est": 8,
+            "reach": 1
+          },
+          "stopCircle": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopNear": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "lensScores": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "overlays": {
+            "reach": 1,
+            "est": 4
+          },
+          "feedSeen": {
+            "est": 12,
+            "reach": 1
+          },
+          "lensPeople": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 4
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "tabDaily": {
+            "est": 4,
+            "reach": 1
+          },
+          "stopWorld": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopYou": {
+            "est": 1.5,
+            "reach": 1
+          }
+        }
+      },
+      "firstTime": 0,
+      "actives": 0,
+      "events": 0,
+      "bySurface": {},
+      "people": {
+        "sessions": 2,
+        "fading": 0,
+        "lensOpen": 1,
+        "feedBuckets": {
+          "f4": 1,
+          "f3": 0,
+          "f0": 0,
+          "f2": 0,
+          "f1": 0
+        },
+        "depthEnd": 0,
+        "dayparts": {
+          "d3": 1,
+          "d2": 0,
+          "d0": 1,
+          "d1": 0
+        },
+        "mirrorRead": 1,
+        "rollups": 1,
+        "quiet": 2,
+        "answers": 0,
+        "fgBuckets": {
+          "b2": 1,
+          "b1": 0,
+          "b3": 0,
+          "b0": 0,
+          "b4": 0
+        }
+      }
+    },
+    {
+      "firstTime": 0,
+      "people": {
+        "mirrorRead": 1,
+        "fgBuckets": {
+          "b1": 0,
+          "b2": 1,
+          "b4": 0,
+          "b0": 0,
+          "b3": 0
+        },
+        "quiet": 1,
+        "answers": 9,
+        "fading": 0,
+        "rollups": 1,
+        "feedBuckets": {
+          "f1": 0,
+          "f2": 0,
+          "f0": 0,
+          "f4": 1,
+          "f3": 0
+        },
+        "dayparts": {
+          "d1": 2,
+          "d0": 0,
+          "d2": 2,
+          "d3": 0
+        },
+        "sessions": 4,
+        "depthEnd": 0,
+        "lensOpen": 0
+      },
+      "actives": 1,
+      "bySurface": {
+        "feed": 7,
+        "test": 2,
+        "learn": 1
+      },
+      "attn": {
+        "s": {
+          "stopCircle": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "ansFeed": {
+            "est": 8,
+            "reach": 1
+          },
+          "tabMirror": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopGroups": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "ansTest": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "stopYou": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "overlays": {
+            "est": 1.5,
+            "reach": 1
+          },
+          "feedSeen": {
+            "reach": 1,
+            "est": 12
+          },
+          "edits": {
+            "reach": 1,
+            "est": 1.5
+          },
+          "opens": {
+            "est": 8,
+            "reach": 1
+          },
+          "tabDaily": {
+            "reach": 1,
+            "est": 1.5
+          }
+        },
+        "q": {
+          "test-political-01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f33": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f47": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-values-01": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f34": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f39": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f50": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f23": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f11": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n14": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-dl4": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f03": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lrn-con1": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f27": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-big5-01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "test-attachment-00": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f46": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f41": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-n13": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f25": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-fd1": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f17": {
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "feed-f53": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f10": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lq-risk-0": {
+            "a": {
+              "est": 1.5,
+              "reach": 1
+            },
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "pick-pk04": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "lq-moral-0": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f02": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "pick-pk11": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f16": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-sol10": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "feed-f28": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            },
+            "a": {
+              "reach": 1,
+              "est": 1.5
+            }
+          },
+          "lrn-evo7": {
+            "s": {
+              "est": 1.5,
+              "reach": 1
+            }
+          },
+          "test-attachment-01": {
+            "s": {
+              "reach": 1,
+              "est": 1.5
+            }
+          }
+        },
+        "devices": 1
+      },
+      "day": "2026-09-10",
+      "events": 11,
+      "streaksBroken": 0,
+      "returned": {
+        "d7": {
+          "of": 0,
+          "returned": 0
+        },
+        "d1": {
+          "of": 0,
+          "returned": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        }
+      },
+      "votes": 10,
+      "foldedAt": null
+    },
+    {
+      "actives": 1,
+      "firstTime": 0,
+      "bySurface": {
+        "feed": 30,
+        "learn": 4,
+        "test": 12
+      },
+      "votes": 46,
+      "foldedAt": null,
+      "day": "2026-09-11",
+      "streaksBroken": 0,
+      "events": 47,
+      "returned": {
+        "d1": {
+          "returned": 0,
+          "of": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        }
+      }
     }
   ]
 }
