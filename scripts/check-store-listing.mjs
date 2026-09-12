@@ -90,6 +90,42 @@ for (const [path, max] of Object.entries(LIMITS)) {
   if (typeof v === "string") console.log(`  ${String(v.length).padStart(4)} / ${String(max).padEnd(4)} ${path}`);
 }
 
+// THE RETIRED NAME, in text a shopper reads. D472 renamed the app to Doxa
+// and moved `apple.name`/`play.title` and this file's own header — and left
+// "Anyone using InSight can see what you answered" standing in BOTH store
+// descriptions, inside the blunt public-answers claim (D182 §3), which
+// `scripts/asc-push.mjs` transcribes straight to App Store Connect. So the
+// store's own disclosure named an app that no longer exists. Nothing caught
+// it: check:public-copy reads this file but only for the retired pre-D98
+// privacy vocabulary, and the rules above only measure length.
+//
+// Two things legitimately still say it and are exempt by path rather than
+// by pattern, so the exemption cannot quietly widen: `_comment`, which
+// records why the name moved (plain "InSight" was taken on the App Store),
+// and `apple.appStore.bundleId`, which is `com.cosaxo.insight` and must
+// never change — a new bundle id is a new app.
+const RETIRED_NAME = /\bInSight\b/;
+const NAME_EXEMPT = new Set(["_comment", "apple.appStore.bundleId"]);
+const named = [];
+function checkNames(obj, path) {
+  if (typeof obj === "string") {
+    const p = path.join(".");
+    if (!NAME_EXEMPT.has(p) && !NAME_EXEMPT.has(path[0]) && RETIRED_NAME.test(obj)) named.push(p);
+    return;
+  }
+  if (obj && typeof obj === "object") {
+    for (const [k, v] of Object.entries(obj)) checkNames(v, [...path, k]);
+  }
+}
+checkNames(listing, []);
+if (named.length) {
+  problems.push(
+    `these listing fields still name the retired app: ${named.join(", ")}\n`
+    + `  The app is Doxa since D472. asc-push.mjs sends this file to App Store\n`
+    + `  Connect verbatim, so a retired name here is what a shopper reads.`,
+  );
+}
+
 if (placeholders.length) {
   console.log(`\ncheck-store-listing: ${placeholders.length} owner-gated placeholder(s), same class as check:store-copy:`);
   for (const p of placeholders) console.log(`  - ${p}`);
