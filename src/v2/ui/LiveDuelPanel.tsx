@@ -1780,7 +1780,23 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
   // options are the question's own and cannot move, and for an answer
   // written before the snapshot existed. A member who has LEFT resolves to
   // no name, and "—" is the honest end of that: the person is gone.
-  const myPickName = myOpen?.pickUid ? (g.memberNames || {})[myOpen.pickUid] : undefined;
+  // …AND THE BALLOT'S OWN LABEL FOR THEM, not the raw name map. `duelQFor`
+  // labels a pick round's options `names[u] || "Member " + (i + 1)`,
+  // because a member can have no display name at all — the server writes
+  // an empty string when it cannot find one. Reading the map directly gave
+  // "" for such a member, which `??` does not catch (the wait block
+  // rendered an empty label) and which is falsy (the sealed line dropped
+  // its clause), or `undefined` for a member the map has no row for, which
+  // fell to the dash meaning "they are gone" while the ballot beside it
+  // said "Member 2". Off the ROSTER is the only real gone.
+  const pickLabel = (uid: string | null | undefined): string | undefined => {
+    if (!uid) return undefined;
+    const uids = (g.memberUids || []) as string[];
+    const i = uids.indexOf(uid);
+    if (i < 0) return undefined;
+    return ((g.memberNames || {}) as Record<string, string>)[uid] || `Member ${i + 1}`;
+  };
+  const myPickName = pickLabel(myOpen?.pickUid);
   const mineLabel = myPickName
     ?? (openQ && myOpen && myOpen.pickUid == null && openQ.options[myOpen.optionIdx] != null
       ? openQ.options[myOpen.optionIdx]
@@ -1852,7 +1868,7 @@ function LdCard({ g, vh, newest }: { g: LiveGroup; vh: number; newest: boolean }
           // Same rule as `mineLabel` above: the uid the answer snapshotted wins,
     // and a pick whose member has left is named by nobody rather than by
     // whoever inherited the index.
-    const callName = call?.pickUid ? (g.memberNames || {})[call.pickUid] : undefined;
+    const callName = pickLabel(call?.pickUid);
     if (callName) parts.push(`you: ${callName}`);
     else if (rq && call && call.pickUid == null && rq.options[call.optionIdx] != null) parts.push(`you: ${rq.options[call.optionIdx]}`);
           if (rq && call && call.guessIdx != null && themOpts(rq)[call.guessIdx] != null) parts.push(`called ${themOpts(rq)[call.guessIdx]}`);

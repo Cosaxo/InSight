@@ -396,9 +396,28 @@ describe("LiveDuelPanel · the group as a cast (D434)", () => {
     LIVE.social.myPickUid = "u_bo";
     render(<LiveDuelPanel mode="group" />);
     const text = document.body.textContent || "";
-    // either receipt — the wait block's "you named X" or the sealed
-    // list's "you: X" — names the member, and both read the same source
-    expect(text, "the sealed pick lost the member it named").toMatch(/you(?: named|:)\s*Bo/);
+    // THE SEALED LINE, named exactly — this fixture renders that receipt
+    // and not the wait block, so the looser "either receipt" regex it
+    // replaced could have been satisfied by the other one. Both receipts
+    // resolve their label through the same helper now (`pickLabel`), which
+    // is the structural half of the same guarantee.
+    expect(text, "the sealed line lost the member it named").toMatch(/you:\s*Bo/);
+  });
+
+  it("names an UNNAMED member the way the ballot does, not as nobody", () => {
+    // A member can have no display name at all — the server writes an
+    // empty string when it cannot find one — and the ballot labels them
+    // "Member 2". Reading the name map directly gave "" (an empty label,
+    // and a sealed line with its clause dropped) or, for a member with no
+    // row at all, the dash that is supposed to mean they have LEFT.
+    LIVE.social.groups = () => [{ ...CREW, memberNames: { u_me: "Me", u_ada: "", u_bo: "Bo" } }];
+    LIVE.social.roundQ = () => ({ ...ROLE, options: ["Me", "Member 2", "Bo"] });
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });
+    LIVE.social.myPickUid = "u_ada";
+    render(<LiveDuelPanel mode="group" />);
+    const text = document.body.textContent || "";
+    expect(text, "an unnamed member on the roster was named as nobody").not.toMatch(/you:\s*—/);
+    expect(text).toMatch(/you:\s*Member 2/);
   });
 
   it("says nobody rather than somebody else when the member you picked has left", () => {
