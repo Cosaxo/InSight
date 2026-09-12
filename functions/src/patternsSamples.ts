@@ -97,8 +97,11 @@ export const CITY_SAMPLE_PAIRS_PER_NIGHT = 30_000;
 export const PATTERNS_SEED_PER_RUN = 25;
 
 export interface SampleRow {
-  /** The option index picked. */
-  o: number;
+  /** The option index picked — absent on a catalogue pick's row. */
+  o?: number;
+  /** A catalogue pick's canonical entity key (D459) — the row's answer
+   * where `o` is a vote's. One of the two is present. */
+  e?: string;
   /** The answer's frozen anchors (D8) — `{}` for an entry that carried none. */
   a: Record<string, string>;
   /** The UTC day the answer was ledgered — the ordering key. */
@@ -129,7 +132,9 @@ export interface SampleDoc {
 
 export interface SampleAddition {
   uid: string;
-  optionIdx: number;
+  /** A vote's option index, or a pick's entity key (D459) — one of the two. */
+  optionIdx?: number;
+  entity?: string;
   anchors?: Record<string, string>;
   day: string;
   /** The person's stamp for the day, where an entry of theirs carried one.
@@ -173,8 +178,15 @@ export function sampleOrder(a: [string, SampleRow], b: [string, SampleRow]): num
 export function trimAdditions(adds: readonly SampleAddition[], cap: number = PATTERNS_SAMPLE_CAP): SampleAddition[] {
   const latest = new Map<string, SampleAddition>();
   for (const add of adds) {
-    if (!add.uid || !Number.isInteger(add.optionIdx) || add.optionIdx < 0) continue;
+    // A vote OR a catalogue pick (D459): one of the two is what the row
+    // carries, and an addition with neither is not an answer.
+    if (!add.uid) continue;
+    const vote = Number.isInteger(add.optionIdx) && (add.optionIdx as number) >= 0;
+    const pick = typeof add.entity === "string" && add.entity !== "";
+    if (!vote && !pick) continue;
     const cur = latest.get(add.uid);
+    // the newest day wins; within a day the later entry (the caller's
+    // order) wins, which is the edit
     if (cur && cur.day > add.day) continue;
     latest.set(add.uid, add);
   }
@@ -222,7 +234,10 @@ export function mergeSample(
     // An addition without a stamp is an edit's: the row keeps the name and
     // scores its create carried, and its chips move with the answer.
     const kept = cur && cur.n !== undefined ? { n: cur.n, s: cur.s ?? null, l: cur.l ?? null } : {};
-    rows[add.uid] = { o: add.optionIdx, a: add.anchors ?? {}, d: add.day, ...kept, ...(add.stamp ? stampFields(add.stamp) : {}) };
+    const answer = typeof add.entity === "string" && add.entity !== ""
+      ? { e: add.entity }
+      : { o: add.optionIdx as number };
+    rows[add.uid] = { ...answer, a: add.anchors ?? {}, d: add.day, ...kept, ...(add.stamp ? stampFields(add.stamp) : {}) };
   }
   // THE DAY'S STAMP REACHES THE DAY'S ROWS, AND NO OTHERS.
   //
@@ -342,20 +357,33 @@ export function seedSample(prev: SampleDoc | null, qid: string, rows: readonly S
 }
 
 /** The sample documents a day's entries touch, grouped by question, from
- * the compaction's own view of the day (qid → answers, per person), with
- * the person's stamp for the day attached where they have one. */
+ * the compaction's own view of the day (qid → answers and catalogue
+ * picks, per person), with the person's stamp for the day attached where
+ * they have one. */
 export function sampleAdditions(
   day: string,
   byUid: ReadonlyMap<string, AnswerMap>,
   anchorsByUid: ReadonlyMap<string, Record<string, Record<string, string>>>,
+  picksByUid: ReadonlyMap<string, Record<string, string>> = new Map(),
   stamps?: ReadonlyMap<string, ProfileStamp>,
 ): Map<string, SampleAddition[]> {
   const out = new Map<string, SampleAddition[]>();
-  for (const [uid, answers] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+  // Someone whose day was a catalogue pick alone still owes their sample a
+  // row, so the walk is over both maps' people, not the answer map's.
+  const uids = [...new Set([...byUid.keys(), ...picksByUid.keys()])].sort((a, b) => (a < b ? -1 : 1));
+  for (const uid of uids) {
     const stamp = stamps?.get(uid);
-    for (const [qid, optionIdx] of Object.entries(answers)) {
+    for (const [qid, optionIdx] of Object.entries(byUid.get(uid) ?? {})) {
       const list = out.get(qid) ?? [];
       list.push({ uid, optionIdx, anchors: anchorsByUid.get(uid)?.[qid], day, ...(stamp ? { stamp } : {}) });
+      out.set(qid, list);
+    }
+    // a catalogue question's sample is its picks (D459): the same rows the
+    // pair card would count, one person one row, the entity where a vote
+    // has its option
+    for (const [qid, entity] of Object.entries(picksByUid.get(uid) ?? {})) {
+      const list = out.get(qid) ?? [];
+      list.push({ uid, entity, anchors: anchorsByUid.get(uid)?.[qid], day });
       out.set(qid, list);
     }
   }

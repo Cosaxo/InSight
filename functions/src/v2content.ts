@@ -3014,6 +3014,45 @@ const BANK_0: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-142",
+  "surface": "daily",
+  "seq": 142,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A dish you loved as a kid: still delicious, or best left in memory?",
+  "options": [
+   "Still delicious",
+   "Leave it in memory"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Memory",
+  "tag": "Kid food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-143",
+  "surface": "daily",
+  "seq": 143,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Small steps beat big leaps.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Method",
+  "tag": "How you move",
+  "axis": "small steps",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -3978,7 +4017,9 @@ const BANK_0: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null
- },
+ }
+];
+const BANK_1: V2SeedQuestion[] = [
  {
   "id": "feed-s01",
   "surface": "feed",
@@ -4011,9 +4052,7 @@ const BANK_0: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "core": true
- }
-];
-const BANK_1: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-s03",
   "surface": "feed",
@@ -8140,7 +8179,9 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 12,
   "unit": "friends"
- },
+ }
+];
+const BANK_2: V2SeedQuestion[] = [
  {
   "id": "feed-dl35",
   "surface": "feed",
@@ -8196,9 +8237,7 @@ const BANK_1: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 60,
   "unit": "books"
- }
-];
-const BANK_2: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-dl37",
   "surface": "feed",
@@ -12517,7 +12556,9 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- },
+ }
+];
+const BANK_3: V2SeedQuestion[] = [
  {
   "id": "feed-f318",
   "surface": "feed",
@@ -12552,9 +12593,7 @@ const BANK_2: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "sub": "sub_creators"
- }
-];
-const BANK_3: V2SeedQuestion[] = [
+ },
  {
   "id": "feed-f320",
   "surface": "feed",
@@ -15233,6 +15272,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk04",
   "surface": "feed",
+  "core": true,
   "seq": 1000,
   "type": "catalog",
   "domain": "emoji",
@@ -15245,6 +15285,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk05",
   "surface": "feed",
+  "core": true,
   "seq": 1001,
   "type": "catalog",
   "domain": "emoji",
@@ -15257,6 +15298,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk08",
   "surface": "feed",
+  "core": true,
   "seq": 1002,
   "type": "catalog",
   "domain": "emoji",
@@ -15269,6 +15311,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk10",
   "surface": "feed",
+  "core": true,
   "seq": 1003,
   "type": "catalog",
   "domain": "emoji",
@@ -15281,6 +15324,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk11",
   "surface": "feed",
+  "core": true,
   "seq": 1004,
   "type": "catalog",
   "domain": "elements",
@@ -15293,6 +15337,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk12",
   "surface": "feed",
+  "core": true,
   "seq": 1005,
   "type": "catalog",
   "domain": "elements",
@@ -15305,6 +15350,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk13",
   "surface": "feed",
+  "core": true,
   "seq": 1006,
   "type": "catalog",
   "domain": "elements",
@@ -15317,6 +15363,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk14",
   "surface": "feed",
+  "core": true,
   "seq": 1007,
   "type": "catalog",
   "domain": "elements",
@@ -15329,6 +15376,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk15",
   "surface": "feed",
+  "core": true,
   "seq": 1008,
   "type": "catalog",
   "domain": "emoji",
@@ -15341,6 +15389,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk16",
   "surface": "feed",
+  "core": true,
   "seq": 1009,
   "type": "catalog",
   "domain": "countries",
@@ -15353,6 +15402,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk17",
   "surface": "feed",
+  "core": true,
   "seq": 1010,
   "type": "catalog",
   "domain": "dogs",
@@ -15365,6 +15415,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk18",
   "surface": "feed",
+  "core": true,
   "seq": 1011,
   "type": "catalog",
   "domain": "countries",
@@ -15377,6 +15428,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk19",
   "surface": "feed",
+  "core": true,
   "seq": 1012,
   "type": "catalog",
   "domain": "dogs",
@@ -15389,6 +15441,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk20",
   "surface": "feed",
+  "core": true,
   "seq": 1013,
   "type": "catalog",
   "domain": "countries",
@@ -15401,6 +15454,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk21",
   "surface": "feed",
+  "core": true,
   "seq": 1014,
   "type": "catalog",
   "domain": "dogs",
@@ -15413,6 +15467,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk22",
   "surface": "feed",
+  "core": true,
   "seq": 1015,
   "type": "catalog",
   "domain": "countries",
@@ -15425,6 +15480,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk23",
   "surface": "feed",
+  "core": true,
   "seq": 1016,
   "type": "catalog",
   "domain": "dogs",
@@ -15437,6 +15493,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk01",
   "surface": "feed",
+  "core": true,
   "seq": 1017,
   "type": "catalog",
   "domain": "pokemon",
@@ -15449,6 +15506,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk02",
   "surface": "feed",
+  "core": true,
   "seq": 1018,
   "type": "catalog",
   "domain": "pokemon",
@@ -15461,6 +15519,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk03",
   "surface": "feed",
+  "core": true,
   "seq": 1019,
   "type": "catalog",
   "domain": "pokemon",
@@ -15473,6 +15532,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk06",
   "surface": "feed",
+  "core": true,
   "seq": 1020,
   "type": "catalog",
   "domain": "pokemon",
@@ -15485,6 +15545,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk07",
   "surface": "feed",
+  "core": true,
   "seq": 1021,
   "type": "catalog",
   "domain": "pokemon",
@@ -15497,6 +15558,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk09",
   "surface": "feed",
+  "core": true,
   "seq": 1022,
   "type": "catalog",
   "domain": "pokemon",
@@ -15509,6 +15571,7 @@ const BANK_3: V2SeedQuestion[] = [
  {
   "id": "pick-pk28",
   "surface": "feed",
+  "core": true,
   "seq": 1023,
   "type": "catalog",
   "domain": "athletes",
@@ -16556,7 +16619,9 @@ const BANK_3: V2SeedQuestion[] = [
    "Gentle",
    "Brutal"
   ]
- },
+ }
+];
+const BANK_4: V2SeedQuestion[] = [
  {
   "id": "group-gs7",
   "surface": "group",
@@ -16600,9 +16665,7 @@ const BANK_3: V2SeedQuestion[] = [
    "One house",
    "Rooms apart"
   ]
- }
-];
-const BANK_4: V2SeedQuestion[] = [
+ },
  {
   "id": "group-gs9",
   "surface": "group",
@@ -20156,7 +20219,9 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "meaning",
   "test": "values"
- },
+ }
+];
+const BANK_5: V2SeedQuestion[] = [
  {
   "id": "test-values-07",
   "surface": "test",
@@ -20192,9 +20257,7 @@ const BANK_4: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "moral",
   "test": "values"
- }
-];
-const BANK_5: V2SeedQuestion[] = [
+ },
  {
   "id": "test-values-09",
   "surface": "test",
@@ -23912,7 +23975,9 @@ const BANK_5: V2SeedQuestion[] = [
   "axis": "C",
   "test": "big5",
   "facet": "orderliness"
- },
+ }
+];
+const BANK_6: V2SeedQuestion[] = [
  {
   "id": "test-big5-127",
   "surface": "test",
@@ -23952,9 +24017,7 @@ const BANK_5: V2SeedQuestion[] = [
   "test": "big5",
   "facet": "orderliness",
   "invert": true
- }
-];
-const BANK_6: V2SeedQuestion[] = [
+ },
  {
   "id": "test-big5-129",
   "surface": "test",
@@ -28082,7 +28145,9 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 55,
   "k": "Denim: de Nîmes",
   "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
- },
+ }
+];
+const BANK_7: V2SeedQuestion[] = [
  {
   "id": "learn-sol9",
   "surface": "learn",
@@ -28126,9 +28191,7 @@ const BANK_6: V2SeedQuestion[] = [
   "p": 62,
   "k": "Red Spot: Jupiter's storm",
   "w": "A storm wider than Earth that has been blowing for at least 200 years."
- }
-];
-const BANK_7: V2SeedQuestion[] = [
+ },
  {
   "id": "learn-sol11",
   "surface": "learn",

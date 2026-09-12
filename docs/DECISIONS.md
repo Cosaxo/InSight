@@ -50541,6 +50541,1032 @@ promising what it no longer does is the failure D183 exists to stop,
 pointed the other way. The page still loads no external script, which is
 what it was before D451 and what its one-inline-script design is for.
 
+## D457 · The Oracle starts from your own groups' split: a cohort prior on the device, with the world's guess sealed beside it as the shadow
+
+**2026-09-09.** **Status:** binding. Step 1 of `PATTERNS-PLAN.md` (§3),
+built on the owner's *"ok start building step 1"* the same day the plan
+was written. Device only: nothing new is read, nothing new is published,
+and no server code changes.
+
+### What changed
+
+The Oracle's guess used to start from the world's split of the question
+— `marginal + θ·L`, with θ solved from the viewer's answers as residuals
+against that same world split — so before a person's first answer the
+guess was the crowd's base rate, for everybody, whoever they were. Every
+question already publishes how each age band, gender, country and the
+rest split on it (`v2_question_aggs.by`, D8 for the shape, D98 for the
+exactness), the Mirror reads those cells today, and the device knows the
+viewer's own anchors. The seal now folds the two into a prior
+(`src/v2/data/cohortPrior.ts`): the viewer's groups' split is where the
+guess starts, and their evidence is centred by the same prior, so θ does
+not learn the demographics twice.
+
+The arithmetic, so it can be checked: each of the viewer's groups is a
+cell of per-option counts; a cell is shrunk toward the world's split by a
+pseudo-count of `PRIOR_SHRINK = 20` answers, so five unanimous answers
+are a lean of 0.6 and three hundred speak for themselves; the cells then
+combine as naïve Bayes in log space against the world's share. The dims
+are not independent and that bias is accepted, because the joint cell the
+exact form wants is one the cube does not publish; the one nesting that
+plainly double-counts is resolved — a city speaks when its cell holds at
+least twenty answers and its country is then skipped, else the country
+speaks. An opt-out value (*Prefer not to say*, *Other*) is not a group.
+Shares stay off 0 and 1 so the ratios are finite; the guess clamps again,
+wider, in `oracleGuess` as before. An ordinal row's world distribution
+comes off the aggregate's counts (the row publishes a mean and an sd,
+not a distribution); a pick's off its own one-hot rows.
+
+### The shadow, and why the verdict is a measurement
+
+The plan said this ships *if it beats the world marginal on the meter*,
+and there is no meter to read from a session — no device has records
+under it. So the seal computes BOTH: the world-centred guess exactly as
+before, and the cohort-centred one; `ORACLE_CENTRE` (one word,
+`patterns.ts`) says which is live, the other is stored on the record as
+`alt`, and `grade()` charges both with the same answer. Every record
+also stores the centre it was sealed under, the world marginal at seal
+time (`m0`) and the prior's (`mc`), and is graded against the base rate
+alone (`baseBits`). `PATTERNS.meter()` reads them side by side:
+`cohortBits` against `worldBits` over the records that carry both is the
+verdict on the prior for THIS viewer, and either against `baseBits` is
+the skill the fit publishes for the crowd, read off one person's record.
+Lower is better; a record sealed before this existed carries none of it,
+grades as it did, and stays out of the comparison.
+
+The live variant is the cohort one, on the axiom-power rule: the
+feature is the power, the shadow is how it is judged, and a flip is one
+constant with every record still correctly labelled. The verdict goes on
+`MEASUREMENT-NOTES.md` when a device has enough graded answers to give
+one.
+
+### What the working shows
+
+The Oracle's *Why?* panel lists the groups that carried the call beside
+the evidence answers — *Age 55–64 — how your group splits here · mostly
+pick Tea · 143 answers from that group* — read off the record rather
+than re-folded (they are what actually moved the seal), on the evidence
+rows' own two floors: twelve answers in the cell, a lean of 0.54 toward
+the called side. A group that spoke but did not lean is not a row, and
+the empty state says so in its own sentence rather than borrowing *the
+crowd's own lean*. The basis line under the working now names both
+sources; a claim moved, none was deleted (D146, COPY.md §3).
+
+### What it does not do
+
+- The People lens keeps the world centre for the viewer's own dot: the
+  crowd it places is centred by the world, and a viewer centred
+  differently would drift off their own crowd. `evidence()` defaults to
+  the world and the seal asks for the cohort by name.
+- The question choice is unchanged: `mostInformative` reads the
+  posterior precision, which no centre touches.
+- No profile leaves the phone, and nothing publishes: the anchors read
+  are the viewer's own, on their own device, against cells that are
+  public already. Not a D334 ask; it exposes nothing.
+- Step 2 of the plan — anchors as items in the fit — is the same knob
+  turned server-side; when it publishes, this prior reduces toward the
+  world again and the meter says which to keep.
+
+### Proof
+
+`src/v2/data/cohortPrior.test.ts` pins the arithmetic without a device
+(the shrink, the naïve-Bayes combination, the nesting rule, the clamp,
+three options); `src/v2/data/patterns.test.ts` pins the seal with its
+shadow, the evidence centring, the grade of all three, the meter, the
+working's rows and floors, and that a pre-D457 record still grades.
+`PatternsOracle.test.tsx` renders the panel unchanged. `tsc -b`, eslint,
+`check:globals`, `check:public-copy` and the unit suite were green at
+the commit.
+
+## D458 · Anchors as items in the fit: the candidate engine learns a vector per profile value, and every lens that solves a vector reads it
+
+**2026-09-09.** **Status:** binding. Step 2 of `PATTERNS-PLAN.md` (§4),
+built on the owner's *"ok build step 2"* the same day as step 1 (D457).
+The first half of the owner-list row that asks whether the fit may fold
+the anchors and whether the Map may draw them: the fold is this record,
+and the picture waits on the tick and on request 13.
+
+### What changed
+
+Every answer carries its frozen anchors (D8) and, since D397, so does
+its ledger entry. The compaction now keeps each person's NEWEST anchors
+on their state document beside the answer map — `an`, dim → value, only
+`BREAKDOWN_DIMS` keys and only values `breakdownBucket` would count, a
+snapshot replaced whole so a cleared dim clears. The candidate engine
+then treats each value enough people carry as an item of a fourth kind,
+`anc`: `anchor~gender~Woman` is a row like any pick's, +1 for a person
+whose anchors carry the value, −1 for one whose anchors carry the dim
+with another value, no observation for one who never filled the dim
+in. The items are compiled from the scanned PEOPLE, not from the bank —
+the values are data — floored at `ANCHOR_ITEM_FLOOR = PATTERNS_MIN_BASIS`
+people and capped per dim at `BREAKDOWN_MAX_BUCKETS`, biggest first and
+ties by label so every run compiles the same list; a value under the
+floor or past the cap is not an item, and a person carrying it still
+counts −1 on the dim's kept items, which is all the model can honestly
+say about them. `~` is outside the qid alphabet, so an anchor key can
+never name a bank question, and the device's pool join — which names
+rows by bank id — never draws one; `binRows` and the tab's mount gate
+never see one either.
+
+The fit reads them wherever it reads answers: one walk (`encodedOf`)
+feeds the item statistics, the person solves and the observations, and
+the scorecard solves a person from their anchors as well as their
+history — a newcomer's from the anchors on their first entries of the
+day, because the profile precedes the vote and is evidence one step
+ahead exactly as an earlier answer is. That is the property the tests
+pin: a crowd whose gender decides a question fits a gender row parallel
+to that question's, and a fresh crowd with nothing answered is scored
+above the marginal from their anchors alone.
+
+### What the device does with them
+
+- **The Oracle** encodes the viewer's own anchors against the rows as
+  evidence, under the WORLD centre only. There the demographics enter
+  through the model, as they do for everyone the People lens places;
+  under the cohort centre they already entered through D457's prior,
+  and twice is twice. So the two guesses sealed on every record are now
+  two clean answers to one question — the cells or the rows — and
+  `meter()` decides between them on each device's own record. Nothing
+  about which is live changed: `ORACLE_CENTRE` still says.
+- **The People lens** folds every stranger's frozen chips against the
+  rows (`PeopleFoldOpts.anchorRows`, `PATTERNS.anchorRows()`), so a dot
+  starts from the person's demographics as the viewer's does. Never
+  counted: `shared` and `agree` are answers, the placement floor is
+  answers, and the sentence beside a name stays an answer count.
+- **The Map** draws nothing new. An anchor drawn as a node changes what
+  the Map is a map OF, and that is the owner's row.
+
+### What it costs, and what it does not touch
+
+About a hundred rows at today's vocabularies — the short dims whole,
+job field's twenty, city and country at the cube's cap of 24 each — on
+the candidate's block of the loadings document, against the walls
+`PATTERNS-PLAN.md` §7.1 measures before step 3 adds the catalogue's.
+No new read anywhere: the anchors ride the ledger entries the pass
+already reads, and the rows ride the document the device already
+fetches. No new publication of anything about a person: the state
+document is readable by nobody as before, and a row on the loadings
+document is a summary of how a value predicts answers — the reading
+the Mirror's People and Compare lenses already give from the same
+splits (D98). Not a D334 ask. The rest row §4 of the plan sketched for
+city and country is not built: the cap bounds the rows without it, and
+a person outside the cap is already said by the −1s.
+
+### Proof
+
+`functions/src/patternsAls.test.ts` pins the compilation (floor, cap,
+validation, order, the index by dim), the fit (the gender row parallel
+to the trait it carries, a coin's row parallel to nothing, a person
+solved from anchors alone) and the scorecard (skill from anchors and
+nothing else); `functions/src/patterns.test.ts` pins the nightly pass
+(the newest snapshot on the state document with the non-dims dropped,
+the rows and metadata on the candidate's block, a value under the floor
+absent while its people count −1, and a second night scoring forty
+newcomers above the marginal from their anchors). On the device,
+`patterns.test.ts` pins the evidence under each centre and
+`anchorRows()`, and `peopleMap.test.ts` that a stranger's chips move
+their dot and never their counts. Both packages' suites, `tsc`, eslint
+and the check gates were green at the commit.
+
+## D459 · Catalogue picks as items in the fit: the pick rides the ledger, the compaction keeps it, and the popular entities are rows — on the owner's instruction, since the pick questions are tail by the bank's flag
+
+**2026-09-09.** **Status:** binding. Step 3 of `PATTERNS-PLAN.md` (§5),
+built on the owner's *"ok build step 3"* the same day as steps 1 and 2
+(D457, D458). The fold is this record; the picture — a dot with more
+than two answers on the Map — is request 13 and waits on its design.
+
+### The finding first: the pick questions are not core
+
+The plan assumed the catalogue questions were part of the fit's corpus.
+They are not, by the letter: all 24 are feed cards (`content/pick-questions.json`
+→ `type: "catalog"`, `surface: "feed"`), and none carries `core`. The
+generator emits `core` only for `feed-questions.json` rows and the
+quality gate's declaration rule runs over those rows, so the pick file
+was never classified at all — and D161's polarity reads an absent flag
+as TAIL, deliberately. The fit's header extended D161 to itself
+(*"the corpus is core only… a tail answer cannot enter either fold by
+any path"*). So a routine building §5 as written would either widen the
+corpus silently or ship the step dark.
+
+Neither. CLAUDE.md's axiom rule is that a limit does not block
+functionality on its own: the owner approved the plan and instructed
+this step, and that instruction is the decision that admits the
+catalogue picks to the FIT's corpus. The Mirror's corpus is untouched —
+`core` stays absent, `coreFeedAggregated()` does not change, nothing on
+the Mirror draws a pick — and the fit's rule for catalogue questions is
+now its own, stated in `patterns.ts` where the old sentence stood:
+`PICK_QIDS` is every `catalog` card in the bank, gated on the type and
+not on the flag. What D161's sample-bias argument says about it is
+recorded rather than argued away: a pick card is served under its topic
+by the feed's ordering, so who answers *Favourite Pokémon?* is
+interest-selected, and a pick item's basis is exactly *the people who
+answered that card* — which is what a one-hot item's row claims and no
+more. Whether the pick questions should be SERVED as core — to everyone,
+unpersonalized, which would retire the caveat and put them in the
+Mirror's corpus too — is the owner's, and is on `OWNER-LIST.md` with
+its cost.
+
+### What changed
+
+- **The ledger carries the pick.** `ledgerEntry` takes an `entity`
+  (the canonical key `catalogEntityKey` validated against the committed
+  catalogue — an unknown key never reached this line before and still
+  does not) and the catalogue arm passes it, with the answer's frozen
+  anchors, which that arm used to omit. `readLedgerDay` selects and
+  copies it; `ledger.test.ts` holds the projection to the interface as
+  before. Public like the answer (D98), same TTL, same erasure.
+- **The compaction keeps it.** The state document gains `p`, qid → key,
+  merged like `a` (a pick cannot be edited, so first is last). A person
+  with picks and no votes is still fitted.
+- **The entities are items.** `compilePickItems` compiles, from the
+  scanned people, one item of a fifth kind `pick` per entity at least
+  `PICK_ITEM_FLOOR` (the pool's basis, eight) people picked, the
+  most-picked first, at most `PICK_ITEM_CAP = CANON_TOP_N` per question
+  — the board's own size, moved into `pure.ts` so the fit and the
+  trigger share one number. Keyed `qid~entity`, which cannot collide
+  with a bank id (no `~` in the alphabet) nor with a choice's `qid~i`
+  (a catalogue question has no options). +1 picked it, −1 picked
+  another entity on that card, nothing for a card never answered. The
+  one walk `encodedOf` feeds the statistics, the fit and the
+  observations; the scorecard solves a person from their picks from
+  before the day (`PersonKnown`, which replaced D458's anchors-only
+  parameter). `binRows` and the mount gate never see one.
+- **The samples carry it.** A catalogue question's sample row is
+  `{e, a, d}` where a vote's is `{o, a, d}`; `fetchVoterSample` reads
+  either, a pick's row with `optionIdx −1` and `entity`, which every
+  fold that reads 0/1 skips as it skips any foreign index (pinned in
+  `votersSample.test.ts`). Kindred, the People lens and the pair card
+  fetch samples for two-option questions only, so nothing changes there
+  until request 13 asks for a pick's 2×2.
+- **The device reads its own pick.** The vote mirror already holds a
+  pick as the entity's digits under the card's id (`votePick`), so
+  `evidence()` encodes it against the pick rows under BOTH centres — a
+  pick is an answer, not a group. Its centre is the world's under
+  either: the cube's cells for a catalogue question are keyed by entity
+  and cut to the board, so no cohort prior can be folded off them
+  cheaply. A known gap, said in the store's header.
+
+### What it costs, and what it does not do
+
+At most ten rows per catalogue question, 240 for the 24 in the bank,
+against the walls §7.1 of the plan measures. No new read: the pick
+rides the ledger entry the pass already reads and the rows ride the
+document the device already fetches. The honesty the plan asked for
+holds by construction: a favourite spread over a thousand species
+names its popular picks and nothing else, and a person's rare pick is
+said only as *neither of these*. Not built, each with its reason: the
+*rest* row the plan sketched (the cap bounds the rows and the −1s
+already say the rest, D458's argument); strangers' picks in the People
+fold (their rows are not among the twelve lists the lens fetches, and
+displacing a two-option list would cost `shared` counts to buy a
+refinement); and any drawing (request 13).
+
+### Proof
+
+`functions/src/patternsAls.test.ts` pins the compilation (floor, the
+board's cap, order, the index by question), the fit (a pick row parallel
+to the trait it carries, a person solved from a pick alone, a rare pick
+as −1 on every kept row) and the scorecard (skill from a newcomer's
+picks); `functions/src/patterns.test.ts` pins `PICK_QIDS` against the
+bank, the nightly pass (the pick on the state document, the sample's
+`e` row, the items and their metadata, the rows absent from the
+engine's block, a pick that decides a vote loading with it) and a person
+fitted from picks alone across two nights. On the device,
+`patterns.test.ts` pins the evidence under both centres and the rare
+pick, and `votersSample.test.ts` the sample reader. Both packages'
+suites, `tsc`, eslint and the check gates were green at the commit.
+
+## D459 amendment (2026-09-11) · The items are compiled inside the streamed fit
+
+**Written on the merge that brought `main` under this branch, because the
+resolution changed code neither side wrote.**
+
+D458 and D459 compiled the anchor and pick items from `people` — the crowd
+the buffered `alsFit` already held in memory — and handed the fit an index
+that carried them. `main` replaced that driver the same week
+(DATA-EFFICIENCY-RUNBOOK 4.3, `alsFitStreamed`): the crowd is no longer
+resident, it is a SCAN the solve runs once per sweep, holding per-item
+sufficient statistics and nothing per person. The two are not compatible as
+written — the compilation needs counts over the whole population, and the
+only thing that sees the population is the scan.
+
+**The resolution.** The scan hands over the person, not the answer map
+(`PeopleScan`'s callback takes `{ a } & PersonKnown`), and the compilation
+moved into the streamed fit's own pass 0, which already walks everyone: the
+anchor and pick counts ride that pass, the items are compiled from them
+after it, and the index is extended before the sweeps.
+
+**Their statistics are derived, not re-scanned**, which is what keeps the
+read count where 4.3 left it (1 + `ALS_SWEEPS` scans). A person carrying a
+dim is one observation of EVERY kept item of that dim — +1 on their own
+value, −1 on the rest — so for an item with `c` carriers out of the dim's
+`n`: the basis is `n`, the sum is `2c − n`, and every encoded value is ±1,
+so the sum of squares is `n`. Picks are the same over the people who
+answered the catalogue card. This is exactly what `itemStats` counts from
+the people, and `patternsAls.test.ts` holds the streamed fit against the
+buffered one on a fixture that now carries anchors and picks.
+
+**What did not change.** `compileAnchorItems` and `compilePickItems` keep
+their people-shaped form for the callers that do have the crowd (the
+scorecard, the tests); the counts→specs half is split out rather than
+copied, so the floor, the cap and the tie order are written once. The
+floors, the caps, the keys, the device's reading and every published shape
+are D458's and D459's, untouched.
+
+## D460 · Calibration and the meter: the link's slope is swept beside the ridge, the record says skill against plain guessing, and the question rule learns first and then calls
+
+**2026-09-10.** **Status:** binding. Step 4 of `PATTERNS-PLAN.md` (§6),
+built on the owner's *"do the 2 last once"* — the last two steps of the
+plan, this and D461 — the day after steps 1–3.
+
+### The slope
+
+`oracleGuess` mapped the expected encoded answer to a probability by one
+fixed line and clamped it, so *sure* was never a measured share. The
+nightly scorecard already sweeps the device ridge and publishes the best
+as `lambdaU` (D395); it now sweeps the link's slope beside it —
+`ALS_TAUS = [0.5, 0.75, 1, 1.5, 2]`, the guess being `marginal + tau·θ·L`
+— over the same held-out days, on a (ridge, slope) grid, and publishes
+the best pair as `lambdaU` and `tau`, each with its sweep read at the
+other knob's best. The phone reads `tau` like the ridge and guesses with
+it; a document that predates the field is the shipped link, `tau = 1`,
+which `patternsMap.test.ts` pins as byte-identical to the old guess. The
+online engine's slope is the shipped 1 and is never swept: its scorecard
+is the fold's own arm. The two knobs are one knob for a person with few
+answers (θ ∝ 1/λ there) and two for a person with many (θ stops
+depending on λ; tau still scales it), which is why both are swept and
+neither derived — `ALGORITHM-REFLECTION.md` §5.1's posterior shrink was
+measured to help at one ridge and hurt at another for the same reason.
+
+### The meter
+
+Seal-time stores the base rate since D457 (`m0`), so every graded record
+has its surprisal under plain guessing. `meter()` now says `skill` —
+`1 − bits/baseBits` over the records that stored a base rate, the same
+figure the fit publishes for the crowd, read off one person's record —
+and the Oracle prints it where the record is, outside the field, with
+its basis: *23% better than plain guessing · 14 answers*, or *worse*, when
+the record holds at least `OR_SKILL_BASIS = 8` graded answers (the
+server scorecard's own floor, so a person's number is held to the same
+basis the crowd's is). Under it nothing is printed: two answers is a
+coin's run, not a reading. No percentage is printed IN the field
+(2026-09-06).
+
+### The schedule
+
+The information rule (D396, the owner's call) asks what the viewer's
+answers determine least, so the Oracle looks worst exactly while it
+learns fastest. `nextToAsk` keeps that rule while any open candidate's
+loading is still undetermined — `undeterminedShare`, the posterior
+variance along the loading against what no evidence would leave
+(`|L|²/λ`), above `ASK_LEARN_SHARE = 0.5`, which after n answers along a
+unit loading is λ/(n+λ), so "pinned" means the answers outweigh the
+prior — and once everything is pinned asks the surest call: the
+candidate the live guess leans hardest on, its distance from the crowd's
+base rate. Every `ASK_LEARN_EVERY = 4`th turn stays informative, counted
+off the record's own graded answers rather than a die, so it keeps
+learning while it shows what it knows; ties keep pool order, so the
+choice is deterministic. The plan had filed this as a word from the
+owner; the instruction to build the last two steps is that word, and the
+owner-list row says so.
+
+### Proof
+
+`patternsMap.test.ts` pins the slope (1 is the shipped guess, 0 is the
+base rate, the clamp holds), the share (1 with nothing answered, λ/(n+λ)
+after n), and the schedule (informative while open, the lean once
+pinned, informative every fourth turn); `patterns.test.ts` pins the
+document's `tau` on the seal, the schedule on the store, and the meter's
+skill; `patternsAls.test.ts` that the scorecard's tau 0 is the marginal
+exactly; `patterns.test.ts` (functions) that the publication carries the
+slope and its sweep beside the ridge. Both suites, `tsc`, eslint and the
+gates green at the commit.
+
+## D461 · The walls, measured and moved: the loadings document exempt from indexing, the ring the topic's own, the daily's lists first for the People map
+
+**2026-09-10.** **Status:** binding. Step 5 of `PATTERNS-PLAN.md` (§7),
+the second half of the owner's *"do the 2 last once"*.
+
+### The index-entry wall was closer than the plan guessed
+
+The plan estimated the loadings document at about 15,000 index entries
+against Firestore's 40,000, and marked the number unmeasured.
+`scripts/loadings-budget.mjs` (`npm run budget:loadings`) now computes
+it from the document's shape by the rules the docs give — two entries
+per scalar, one per array element, maps recursing; storage by the
+storage-size page — and the answer at today's shape (545 item rows, 100
+anchor rows, 240 pick rows, the benched engine's block, a scorecard per
+question) is about 31,700 entries: the second engine's block and the
+per-question scorecard were in the document and not in the estimate.
+Three thousand rows would have crossed the entry limit at a third of the
+byte ceiling. Nothing queries inside `v2_patterns` — the loadings
+document and the samples are read by id on the device and in functions,
+and erased by field — so `firestore.indexes.json` now carries the
+collection-group wildcard exemption (`fieldPath: "*"`, no indexes), and
+the budget's test holds two claims against the committed file: with the
+exemption the document costs no entries, and 1 MiB holds about 3,500
+rows of this shape, so the plan's shard trigger at 2,500 rows sits
+inside the wall. The exemption is the form the Firestore docs give for
+"index nothing here"; it has not been deployed from this session, which
+has no deploy access, so the first `firestore:indexes` deploy is where
+it is proved. `indexes.test.ts` pins it beside the composites.
+
+### The ring is the topic's own
+
+The topic chip dimmed the other topics and left every dot on the rim,
+which at a few hundred core questions is a rim of touching dots whatever
+is chosen. The ring now holds the chosen topic's questions alone; an
+*Answered* chip rings the viewer's own (a control on a surface that
+exists, so no request); and above `MAP_DOT_BUDGET = 300` each topic keeps
+its strongest hubs in proportion, the sentence under the field saying
+*300 of them drawn, each topic's strongest*. Selection, the beacon, the
+tie card and the idle sentence all index the ring they are on, and a
+change of topic drops the selection with it. The pool sentence's two
+numbers are both the ring's now, which the older test about one pool
+already asked for.
+
+### The People map's overlap
+
+`peopleFetchSet` asks for the daily's lists first, then the strongest
+basis: everyone answers the same daily, so those lists are where two
+people's answers overlap however large the feed grows, and
+`PEOPLE_MIN_SHARED` stays reachable. Each pool item carries which
+corpus it came from for that. The whole-world map — everyone placed from
+the fit's own person vectors instead of from samples — is the D334 ask
+on the owner list and is not built.
+
+### The gate counts answers
+
+D458 and D459 put the viewer's anchors and picks into the vector; the
+tab is earned by answers, and `patternsEligible` refuses a catalogue
+card and anything without two options by shape, which
+`patternsReady.test.ts` now pins so a tab earned by filling in a form
+stays the tab D265 refused.
+
+### Not done, with the reason
+
+Sharding the document by topic waits for the count that needs it — the
+budget prints how far off it is, and the reader already joins rows to
+the bank by id. The all-pairs pass is not a wall until thousands of rows
+(§7.3 of the plan).
+
+## D462 · The owner's five answers on the Patterns plan's rows: the You arc, the whole-world map ruled, the question rule kept, the pick cards core, and one rule for every kind of dot
+
+**2026-09-10.** **Status:** binding. The owner read the five rows the
+plan had filed (`OWNER-LIST.md`) and answered each in one line. This
+record is what each answer changed, and one correction to D459.
+
+### 1 · Profile values on the map — *"yes"*
+
+The anchor rows (D458) will be drawn: a *You* arc outside the topics,
+one bead per value the crowd carries, the viewer's own values solid,
+behind a toggle in the topic control that is off by default — the map
+is a map of questions until asked. It is part of request 13's plan
+rather than a build of its own, since a You bead is the same shape as
+every other dot under the rule that plan states.
+
+### 2 · The whole-world People map — *"i dont see why thats a privacy concern"*
+
+D334's ask, ruled: the owner sees no concern in publishing a derived
+position per person, and the owner decides. The ask is closed as ruled
+and the build is queued next: a rounded two-number position and the
+answer count per person, one nightly document per country in the
+samples' own family (uid-keyed rows, erased by field with the
+account), the People lens placing everyone from it and keeping the
+exact *agrees 9 of 12* rows from the samples it already fetches.
+`web/privacy.html` already discloses *an interest profile, derived
+from your answers*; a position is the same class and gets its sentence
+first (D183), and `check:policy-claims` holds it.
+
+### 3 · The question rule — *"sound good"*
+
+Kept as built at D460. The tick is the owner's.
+
+### 4 · The pick cards — *"i thought it already was served to everyone"*
+
+They were not, and D459's finding needs a correction. D459 read the
+absent `core` flag as the pick file having never been classified. The
+generator's own comment says otherwise: *"No `core` flag ever: an
+entity answer has no option share for a cohort fold to read, so a pick
+card is tail by construction."* Deliberate — and conflating the two
+things the flag means. `core` is D161's serving rule (shipped whole to
+every device at boot, unpersonalized) and the Mirror's corpus rule. The
+reason given was about the second: the Mirror cannot fold a pick, and
+still cannot, and nothing on the Mirror reads one — its readers walk
+the daily archive (`LIVE.aggregated()`, `coreCorpus`), and
+`coreFeedAggregated()` has one reader, the Patterns pool, which skips
+anything without two options. What the flag actually did to a pick
+card was the first thing: served as a page of the *fav* topic's tail
+per boot, sized by how interested the feed thought the person was —
+so who answered *Favourite Pokémon?* was interest-selected, the exact
+bias D161 names, and not every card reached every person.
+
+The owner's expectation is the intended state, so the generator emits
+`core: true` for every pick card: they ship at boot to every device
+with the rest of the core, the answerers stop being interest-selected,
+and the caveat D459 recorded retires. What does not change: the Mirror
+(nothing on it reads a pick), the fit's eligibility (`PICK_QIDS` is
+gated on the type; `itemEligible` still wants two options), the
+readiness gate, and the tail's paging. The cost is the 24 documents a
+fresh install now fetches with the core.
+
+### 5 · A dot with more than two answers — *"lets plan a way to include all types in a efficent and smart way"*
+
+Request 13 is planned (`VISUAL-REQUESTS.md` § Planned, the first row
+that section has held), on one rule: **a dot is an answer-axis, which
+is a row in the fit.** A two-option or scale question is one dot as
+today; a choice is a bead group, one bead per option; a catalogue card
+is a bead group of its popular picks; a profile value is a bead on the
+You arc. The chords are the cosines the Map already draws, over rows
+instead of questions; every card sentence is an exact count with its
+basis, from the samples the pair card already shares (the entity rides
+them since D459) or the cube's cells for a You bead; the dot budget
+trims a bead group as a group. Efficient because nothing new is read
+or computed beyond what the loadings document and the samples already
+hold; smart because one rule covers every kind, including the ones the
+fit will grow next. The draft on the canvas is the next step, then the
+owner refines it, then it is built.
+
+*Drafted the same day, after this record was written: the canvas is
+<https://claude.ai/code/artifact/e4f27851-16c6-4250-a6cf-ef82bfdb8523> (the plan's eight artboards, in its order), and item 13 sits
+under `VISUAL-REQUESTS.md` § Drafted — the first row that section has
+held — with what the draft chose where the plan left the choice to the
+canvas: the You arc inside the rim, pictures on the tapped card's chips
+and not on the rim, a trimmed group folded into a* +n *at its place,
+groups parted by a hairline tick. The owner refines it there.*
+
+## D463 · The whole-world People map is built: a rounded position per account, one document per country
+
+**Decided and built 2026-09-11**, on the owner's ruling of 2026-09-10
+(*"i dont see why thats a privacy concern"*, D462 §2) and their
+instruction to build it. The ask was `PEOPLE-MAP.md` §7's, filed as a
+D334 privacy ask on `OWNER-LIST.md`; this is the build.
+
+### What was true
+
+The People lens places a stranger from the answers **you and they have
+both given** — twelve bounded voter lists, and a floor of four shared
+answers. That is bounded by OVERLAP, which shrinks as the bank grows:
+1,536 questions today, unbounded by decision (`SCALE-PLAN.md`), so two
+random people share fewer and fewer and the crowd thins by construction.
+The fit has always held every person's vector (`v2_users/{uid}/patterns/
+state`), readable by nobody — the rules comment is *"a latent vector is a
+summary nobody signed up to be read AS"*.
+
+### What is published
+
+One row per account, in a family beside the samples: **two numbers
+rounded to 1/100 and the account's answer count**, keyed by uid.
+`people-{country}` (the two-letter anchor the cube counts) and
+`people-world`. Not the vector — the 8-number original is still published
+for nobody, and rounding is what makes the published number a position
+rather than the thing it came from (201 × 201 over the disc, ~1.5 px at
+the lens's own radius).
+
+- **Solved against the PUBLISHED rows**, in one extra scan after the
+  fit — so a dot and the viewer's own dot, which the phone solves from
+  those same rows, are in one space. A position solved in any other frame
+  is a dot in the wrong place.
+- **The rotation ground is answered by that same choice.** §7's fourth
+  reason to defer was that the fit's axes drift, so a published position
+  would reshuffle the world nightly. They drift no more than the ROWS do:
+  the ALS rows are rotated onto last night's before they publish, and the
+  online engine's move by a step size. Solving from the published rows
+  inherits that alignment exactly.
+- **Capped at 600 rows per document**, which is a drawing bound and not a
+  privacy one — a disc of 352 px holds a few hundred dots before it is
+  ink. `total` states the population the rows were drawn from and the
+  lens says *"600 of 18,400"*. The world document is a ROUND-ROBIN over
+  countries, not the global top: taking the 600 most-answered accounts
+  would draw whichever country signed up first and call it the world.
+- **A floor of 8 answers**, for `patternsReady`'s reason: below it the
+  solve is mostly the prior, and answers are counted rather than
+  observations so a filled-in profile cannot buy a dot (§7.5).
+
+### What it costs
+
+One scan of the fitted people per night on top of the fit's own
+1 + `ALS_SWEEPS` (DATA-EFFICIENCY-RUNBOOK 4.3), and one write per country
+plus one. The builder holds countries × cap rows at worst, never the
+population — the streamed fit exists for that reason and a buffered
+builder would put back what it bought. On the device: one read per
+population per session, cached like the loadings document, and a null
+answer (no fit yet, a demo build, a refused read) leaves the lens exactly
+as it was — the sample-placed crowd.
+
+### What the lens may say about a published dot
+
+Nothing it cannot count. A position is not evidence: a person drawn from
+one has `shared: 0`, no tie, the split ink, and a card that reads *"Placed
+by 31 answers — none of them yours"*. Where a person is in BOTH the
+samples and the document the samples win, because their rows carry the
+exact shared-answer counts the lens exists to state (D146); the published
+row still lends its answer count. The legend names both crowds.
+
+### The two things that had to move first
+
+`web/privacy.html` gained the bullet BEFORE the feature (D183), with
+three claims pinned in `check:policy-claims`: what is published, that it
+carries no answers, and that deleting the account removes it **at once**.
+`deleteAccount` phase 1a″ makes the third true rather than waiting for the
+next rebuild — the same field delete the voter samples take, over an id
+range (`people-` ≤ id < `people.`) rather than the account's own country
+chip, because a chip that changed would leave a row under the old one.
+The erasure e2e asserts the row is gone and the other person's stands.
+
+## D464 · A dot is a row: every kind of answer on the Map ring
+
+**Decided and built 2026-09-11**, on the owner's acceptance of request
+13's canvas (*"its fine how it is now"*) and their instruction to build
+it. The request is `VISUAL-REQUESTS.md` item 13, filed 2026-09-09 from
+`PATTERNS-PLAN.md` §5, planned 2026-09-10 on the owner's brief — *"lets
+plan a way to include all types in a efficent and smart way"* — drafted
+the same day, accepted and built the next. The accepted artboards are
+extracted at `design/map-ring-2026-09-11/`.
+
+### The rule
+
+**A dot is an answer-axis, which is a row in the fit.** Every row the
+nightly publishes is one direction people can lean in, with a vector, and
+the Map's chords have always been cosines between rows. The old ring drew
+one dot per two-option QUESTION, which happened to equal one dot per row —
+so keeping the equality and letting every kind of row be a dot costs no
+new arithmetic and no new read:
+
+| Kind | Rows | Dots | The dot means |
+| --- | --- | --- | --- |
+| two-option | one (`bin`) | one | the question; the chord's dash says which way |
+| scale · rating · dial | one (`ord`) | one | the question; low↔high is the axis |
+| choice (3–4) | one per option (`opt`) | a bead group | *picked this* |
+| catalogue card | one per popular pick (`pick`) | a bead group | *picked this entity* |
+| profile value | one per value (`anc`) | a bead on the You arc | *carries this* |
+
+Before this, half the core corpus and every catalogue pick was invisible
+on the Map: the fit folded them (D458, D459) and nothing drew them.
+
+### What it took
+
+`PATTERNS.rows()` beside `pool()` — the loadings' rows joined to the two
+corpora the fit folds, plus the anchor rows, which name no bank question
+at all. `pool()` is unchanged and still two-option, because the Oracle and
+the People lens are written in that shape. `coreFeedAggregated()` widened
+from two options to every shape the fit folds, which is what it always
+meant. The ring lays a question's beads contiguously with a hairline TICK
+between groups, and the budget now trims **a group as a group**: its
+strongest bead stays, the rest fold into a `+n` at its place, so a
+question never appears on the rim as two of its five options with nothing
+to say the others exist.
+
+### The counted sentence, generalised
+
+`say()` was a 2×2 over two questions' bounded voter samples. `sayRow()` is
+the same table between two ROWS, with three joins and an honest basis for
+each: two question rows intersect their samples (what `say` always did); a
+profile value and a question row are counted inside **that question's own
+sample**, cut by the frozen chips every row already carries (D8) — no
+second list exists and none is needed; two profile values are **not**
+counted at all, because any question's sample could be cross-tabbed for
+them and picking one would be picking the answer. The card says which
+population it counted over, which is D146 one step further than it had to
+go before.
+
+A catalogue bead's NAME is resolved on the tap, never for the rim: a bead
+is 3 px and carries no text, so the thousand-name list stays unfetched
+until a card wants to name something. `catalogs.ts` grew the typed
+resolver for it — the feed's `pickStore` was the only one and it is a
+method on a spec-layer component.
+
+### What the canvas decided
+
+The You arc sits **inside** the rim (the rim stays a ring of questions);
+pictures ride the tapped card's chips, never the rim; a trimmed group's
+rest folds into a `+n` at its place; groups are parted by a tick rather
+than a gap, because a gap is what parts topics and two silences of
+different sizes read as one hierarchy. **The You arc is off by default** —
+the owner said profile values MAY be drawn (D462 §1), and a reader who has
+not asked for their demographics on the picture should not find them
+there. A build whose fit folds no anchor rows shows no toggle at all.
+
+### One gate learned something on the way
+
+`check:figures` printed the tree's own bank figures on its OK line only.
+Its own test reads the bank count back out of that line — and the probe it
+writes to prove a nested `id` is not counted as a question ADDS BYTES,
+which moved the bank's wire size across a 0.1 KiB rounding boundary once
+main's questions pushed it near one. The gate then reported a drift and
+printed no figures, and the test failed with a message about the gate
+having "stopped printing its bank figures", which is not what had
+happened. The figures now print on a drift report too: the first question
+about a mismatch is what the tree actually holds, and a test that asks the
+gate for a number should not depend on every OTHER number agreeing.
+
+### The cost, measured
+
+No new read on the device: the rows are the loadings document's own, the
+metadata is what the fit already publishes so a phone can encode its
+answers (D395), and both corpora are in hand. The eager graph grew 64
+bytes — and that sentence, written this morning, was put to the test the
+same day by this branch's own CI, which refused the head.
+
+**What happened, recorded because the prediction was half right.** The
+eager graph came out 95 bytes over a ceiling set to main's exact
+measurement (main clears 552 KB by three bytes). Trimming came first, and
+one trim was real: teaching `data/voters`' sample parse to keep a
+catalogue pick's row cost 86 bytes in first paint for the benefit of one
+LAZY caller, so the Patterns tab now reads that document itself, in its
+own chunk — better placed as well as cheaper.
+
+**One trim was refused by another gate, and that is the part worth
+keeping.** Reading the feed's pool through `globalThis.WORLD_FEED_QS`
+would have saved 64 more — the pool is already published and already
+carries every field the join needs. `check:globals` rule 4 failed it:
+new cross-module coupling through global scope, on a count that only
+moves down. Two ratchets pulled opposite ways and the architectural one
+won. That is the right outcome, and the rule it leaves behind: bytes are
+recoverable, a convention going backwards is not.
+
+**What the 95 bytes buy**, since they stayed: `domain` on a live question
+and `coreFeedAggregated` no longer filtering to two options — the typed
+path by which a choice, a scale and a catalogue card reach the Map at all
+— plus one chunk name in the entry's preload manifest, because the card
+shows a bead's picture and that splits `data/catalogArt` out of the feed's
+chunk. Nothing new is fetched before paint. `MAX_EAGER_KB` went to 553
+with that arithmetic in `check-bundle.mjs`, and with what it concedes
+stated there: at the exact measurement the gate had stopped being a budget
+and become an alarm on every byte. The Firestore-SDK guarantee the
+constant actually defends is untouched at 553.
+
+**And one defect the trimming found, two files away.** With the branch's
+own test files in the suite, `vote.test.ts`'s "a wake while offline does
+not retry" failed about one run in three — and three in three on the
+head CI had just passed, while `main` was clean twice over. It was not
+scheduling: `worldPeople.test.ts` drove its demo case with
+`vi.spyOn(LIVE, "enabled", "get")`, and the suite runs `pool: "threads"`,
+so the store's module singleton is shared across a worker's files and a
+getter spy on it outlives its own `mockRestore`. `vite.config.ts` predicts
+this in words — *"a test that leaks a global leaks it further than it used
+to … if a strange cross-file failure ever appears, start here"* — and this
+is the first time anything has. The case now mocks `./live` per file, the
+way every other data test does, and the full suite is green three runs
+running.
+
+**The headroom is still owed, and where it is is measured**:
+`data/voters` is ~8 KB of the eager graph because `data/live.ts` imports
+it statically, while all ~30 of its uses are in methods that run long
+after first paint. Deferring it as D122's handles and invitations are
+deferred, one file over, is the next change to that graph — its own
+change, not a rider on a feature.
+
+
+## D465 · The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads
+
+**Found and fixed 2026-09-11**, from the owner's question about their own
+inbox — *"Should all these runs fail?"* — over four screenshots of
+`[Cosaxo/InSight] Run failed: .github/workflows/fireb…`. No. 33 of the 38
+failures in the window were one mistake, and the subject line was the
+whole diagnosis, unread: **a run named after a workflow's PATH is a run
+GitHub could not name**, because it could not parse the file that holds
+the name.
+
+### What broke
+
+D455's step (`0a8994a`, PR #498) wrote this as a shell comment inside its
+own `run:` body:
+
+```
+# THROUGH THE ENVIRONMENT, never through the run body: `${{ }}`
+# is a textual substitution GitHub performs before bash sees
+```
+
+The sentence is true, and being true is what made it fatal. GitHub
+substitutes `${{ … }}` textually across the whole file before anything
+runs, `run:` bodies included — where a `#` is shell, not YAML, and GitHub
+has no idea it is looking at a comment. So prose ABOUT an expression was
+an expression; `${{ }}` is empty; empty is not parsable; the file failed
+to **load**.
+
+The identical sentence sits in `auth-config.yml` and in
+`play-release.yml` and is harmless in both, because in both it is a YAML
+comment — stripped before GitHub sees anything. Where the text sits is
+the entire difference between documentation and an outage.
+
+### Why a load failure is worse than a failing job
+
+It is not a red job. It is a run with no jobs at all, and every channel
+that would normally tell you what happened is inside the file that did
+not parse:
+
+- **No log.** Nothing executed; the logs endpoint 404s.
+- **No name.** `name:` is in that file, so all 33 runs were titled
+  `.github/workflows/firebase-deploy.yml`.
+- **No `on:` filter.** `branches: [main]` is in that file too, so it was
+  never applied: every push to **every** branch produced a failed run —
+  `nightb-20260912` (11), `night-20260912` (8),
+  `claude/compassionate-sagan-uuenlz` (6), `main` (2),
+  `claude/category-images-voting-specificity-vm3olr` (2),
+  `claude/epic-fermi-p14ur0` (2), `claude/sharp-heisenberg-n7kuas` (1),
+  `claude/project-review-em3c5r` (1). Eight branches, none of which this
+  workflow is supposed to run on at all.
+- **No deploy.** The last one ran 2026-09-11T18:01Z. Both pushes to
+  `main` after the break deployed nothing — including, precisely, the
+  commit that broke it. **D455's buy door has never reached production**,
+  and the step written to configure it is the step that stopped it.
+
+The spread is the tell, and it is worth keeping: a mistake that reds one
+branch is a bug in a job; a mistake that reds *every* branch at once is a
+mistake in what GitHub reads before it reads anything else. It was
+visible for 31 hours — from 2026-09-10T14:28Z on a feature branch — and
+read as ordinary CI noise the whole time, because at a glance that is
+exactly what it looks like.
+
+### Why none of the 51 gates saw it
+
+Every gate reads the repository. None asked whether GitHub can load a
+workflow, and each tool that could have spoken was looking one layer off:
+
+- **`check:deploy-targets` reads this exact file** and went green
+  throughout — it validated the `--only` list of a workflow that never
+  ran. A correct answer about a dead file.
+- **YAML parsers accept it.** The file is valid YAML; `${{ }}` is a
+  plain string to YAML, and the fault is in GitHub's expression layer
+  *above* it. So "it parses" was true and useless.
+- **eslint parses no YAML**, the same blind spot D454 recorded for HTML.
+
+The class is the one D179 and D197 are about — a checker that cannot fail
+— pointed at the workflows instead of the scripts.
+
+### The fix, and the guard
+
+The sentence moved to YAML-comment level inside the step's `env:` block,
+where `auth-config.yml` has kept it safely all along. The `run:` body now
+holds no `${{` at all, which is the property `auth-config.yml`'s own
+comment names as the goal: *"the next input added here is then safe by the
+shape of the step rather than by someone remembering."*
+
+`check-deploy-targets.mjs` gained the prior question, ahead of everything
+it already asks: **does this file load?** Two refusals, on the raw text —
+
+1. `${{` inside a shell comment in a `run:` body. Fatal empty or not, and
+   a non-empty one is *worse* than this bug: `${{ secrets.X }}` written
+   as an aside pastes the secret into the script.
+2. An empty `${{ }}` anywhere GitHub actually reads it.
+
+It walks the file rather than grepping it, because where the text sits is
+the whole question — and the first cut of the check proved the point by
+failing on its own explanation, the same trap the comment-stripping
+directly beneath it exists to avoid. Note the inversion: that strip must
+*not* happen up here, because not stripping is precisely what GitHub does
+inside a block scalar.
+
+### Where it runs, which is the only interesting part
+
+The refusals live once, in `scripts/workflow-expressions.mjs`, and two
+gates ask them. One copy on purpose: D197 is the record of a bank parser
+living in three, where the copy with a `try/catch` reported an invented
+figure instead of failing, and a scanner whose whole subject is *prose
+that looks like code* is the last thing to keep three versions of.
+
+**`check:deploy-targets` asks it of `firebase-deploy.yml`, on the deploy
+path.** That path's rule is that nothing which cannot speak to whether a
+rules fix is safe may block one — and this one file clears that bar the
+short way rather than by exemption: a `firebase-deploy.yml` that cannot
+load has *already* blocked every deploy, so failing early only ever
+pre-empts a worse outcome and can never stop a deploy that would
+otherwise have worked.
+
+**`check:workflows` asks it of all 25, in ci only** — first in the lint
+job, because it is the only gate there whose subject is that job's own
+kind. The other 24 do **not** clear the bar above, and that is the whole
+reason for the split rather than a wider first gate: a prose mistake in
+`ios-release.yml` must never stand between an emergency rules fix and
+production, which is the trade CLAUDE.md names at length and refuses. The
+overlap on `firebase-deploy.yml` is deliberate and costs nothing — a gate
+that carved out the one file another gate happens to cover would be one
+reorganisation away from covering nothing.
+
+It is **not** a workflow linter, and should not grow into one. It asks the
+single question whose failure is silent. A wrong `runs-on` or a bad action
+SHA fails loudly, in a job, with a log; this class fails with no job, no
+log, and a run named after the file's own path on every branch at once.
+`check:workflows` also refuses an empty workflow directory, because a
+scanner that reads nothing and reports success is the D179/D197 shape and
+this gate's own glob is the thing that could go stale.
+
+Proved by running, both directions: the restored bug fails at
+`firebase-deploy.yml:246` naming the run body; the fixed file passes with
+46 exported functions matched. Two new suites pin thirteen cases between them
+(`check-deploy-targets.test.mjs`, `check-workflows.test.mjs`), and in both
+the discriminating case is the same sentence as a YAML comment, which must
+PASS. One of them earned its place immediately: moving the scanner into
+its own module broke all six of the first suite's cases at once, because
+the fixture copied the gate and not its new import — so the fixture now
+carries a named dependency list, and a missing one fails as an import
+error rather than as a refusal under test.
+
+`test:scripts` 86 files / 1435 tests, `test:unit` 217 files / 3205 tests,
+`check:figures`, `check:docs` (52 gates now), `check:globals`,
+`check:public-copy`, `check:policy-claims` and eslint all green, plus
+`actionlint` clean across all 25 workflows.
+
+### The other five failures, since the question was about all of them
+
+Two are real and neither is this:
+
+- **Pulse** was failing on a true tripwire, and it is fixed here rather
+  than deferred, because the diagnosis turned out to be the same one:
+  **nothing was on the clock.** The usage guard (D332) prices the
+  population out of `monitoring/engagement.json`, and that file only ever
+  moved when a person ran `npm run scorecard -- --fetch` by hand. Measured
+  on 2026-09-11: the committed trail's newest day was **2026-08-25**, 17
+  days old, so the guard's 7-day window was averaging days that had every
+  one left it — `pulse.mjs`'s own words, "a confident pass while measuring
+  nothing". The gate had been reporting it correctly every morning, naming
+  the fix, to an inbox with nobody in it.
+
+  So the fetch went on the clock beside the check that reads it, in
+  `pulse.yml`. Three things made that cheap and one made it safe:
+  `question-scorecard.mjs` is Node stdlib plus global `fetch`, so the job
+  keeps its no-`npm ci` property (which that file's comment calls
+  load-bearing, not a speed trick — a console that says the ground moved
+  must not be able to fail because a registry did); the only input is the
+  PUBLIC web API key, since `v2_engagement_daily` is world-readable
+  anonymous counts; and the step is `continue-on-error`, so a failed fetch
+  leaves the trail as it was and the gate reports the staleness it was
+  always going to report. The signal degrades to today's behaviour and
+  never inverts.
+
+  **It commits `engagement.json` and not `content/scorecard.json`**, which
+  the same fetch writes. That file is the question farm's, and the farm
+  lane moved it on 2026-09-11 without touching this trail — so the two
+  already travel separately, and this job drops the side effect rather
+  than racing for it. `pulse.yml`'s "WHAT IT COMMITS" contract moved with
+  the code: the trail qualifies under that paragraph's own stated reason,
+  being the one output that is fetched and so the one thing regenerating
+  cannot recover. For the same reason the fetched file is re-applied
+  *inside* the commit loop, because the reset-and-regenerate retry
+  destroys it rather than recomputing it.
+
+  **And an existing gate caught this change being wrong**, which is worth
+  more than the change. `workflow-pipefail.test.mjs` refused a
+  `continue-on-error` step with no `id:` that nothing reads: a failed
+  fetch would have left a green run and an unmoved trail — this bug
+  wearing a green tick. The step now has an id and a readback, and the
+  readback earns its place twice over, because it answers what
+  `pulse.mjs` structurally cannot: a stale guard has two causes, the fetch
+  not running or `digestEngagementV2` stopping, and from the tree they are
+  indistinguishable, which is why the message names both. From inside the
+  job it is decidable, and the annotation says which.
+
+  **The refresh is ON THE CLOCK ONLY, and that condition is a cost
+  decision with arithmetic.** `pulse.yml` also runs on every push to
+  main, and that is the dominant trigger by a wide margin: of its last
+  100 runs on main, 95 were pushes and 5 were the cron — 13 · 10 · 34 ·
+  14 · 13 · 15 runs a day over 09-06…09-11, ~17/day average. The fetch
+  pages the WHOLE `v2_question_aggs` collection (~1,536 documents at
+  pageSize 300), so firing it per push is ~26,000 billed reads a day —
+  about $0.50/month at $0.06–0.072 per 100k — to refresh a trail whose
+  newest row is a DAY old by construction. Once a day is the same signal
+  at 1/17th of the bill, and the guard's own window is 7 days
+  (`MEASURE_MAX_AGE_DAYS`), so nothing downstream can tell the
+  difference. `workflow_dispatch` is included because that is the
+  operator's "refresh it now" — the lever the gate's own message asks
+  for, hand-pulled rather than looping. The first draft of this change
+  had no condition, and the owner asking for the cost to be
+  double-checked is what found it: the measurement was the fix.
+
+  **And the arithmetic on the failures themselves, since the flood is
+  what prompted the question: they cost nothing.** The repository is
+  PUBLIC, and every `runs-on` in the tree is a standard label
+  (`ubuntu-latest` ×31, `macos-latest` ×3 — no larger runners, which are
+  the one thing a public repo still bills), so GitHub-hosted minutes are
+  free and unmetered however many runs go red. The path-named deploy
+  failures are stronger than that: each created ZERO jobs and ran zero
+  seconds (the logs endpoint 404s), so they would bill nothing even on a
+  private repo. A failing Pulse run is ~15 seconds of a free runner and
+  `pulse.mjs` makes no network call at all, so it reads nothing either.
+  And the broken deploy DEPLOYED NOTHING, so the outage's Firebase cost
+  is zero by construction — the bill did not move for 31 hours because
+  nothing ran, which is the same fact as the outage.
+
+  What is NOT claimed: this has not been observed fetching. The key is a
+  production variable and the trail's 8 days are contiguous up to the last
+  fetch (`2026-08-18`…`2026-08-25`, `fetchedOn: 2026-08-26`), which is
+  good evidence the digest was healthy and the fetch alone stopped — but
+  the first scheduled run on `main` is what proves it, and if the guard
+  stays stale after a successful refresh then the second cause is live and
+  `digestEngagementV2` is the place to look.
+- **CI** failed once on `main` (#1305, `1b2477308`, D453's sign-in wall)
+  on `vote.test.ts`'s "a wake while offline does not retry", 1 of 3160.
+  The two `main` commits after it passed, and the full suite is green
+  here. Worth naming rather than filing as noise: D464 found that same
+  test failing one run in three on the Patterns branch from a getter spy
+  leaking across a worker's files — a different cause, since
+  `worldPeople.test.ts` did not exist in `1b2477308`'s tree. So the
+  `main` occurrence is unexplained, not explained-and-fixed, and a second
+  sighting should be read as a real defect in the negative assertion
+  rather than as the leak D464 closed.
+
+The remaining CI failures are on other lanes' PR branches and are theirs.
 ## D466 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
 
 **2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK A.7, built on

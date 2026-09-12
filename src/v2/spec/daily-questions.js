@@ -501,6 +501,23 @@ export let DAILYQ;
       cat: ['Values', 'Loyalty'], alts: [['Morals', 'Lines'], ['Mind', 'Conviction']] },
     { type: 'choice', prompt: 'Your running temperature:', tag: 'Running temp', options: ['Always hot — windows open', 'Always cold — socks in July', 'Season-dependent', 'Whatever the room says'], tone: 'light',
       cat: ['Body', 'Thermostat'], alts: [['Home', 'The window war'], ['Travel', 'Climates']] },
+    // ── 2026-09-12 farm batch (levelling, one per thin topic) ──────────────
+    { type: 'binary', prompt: 'Falling asleep mid-film: cosy, or a crime against cinema?', tag: 'The doze', options: ['Cosy — part of it', 'A crime — rewind it'], tone: 'light',
+      cat: ['Film', 'The doze'], alts: [['Body', 'Sleep'], ['Home', 'The sofa']] },
+    { type: 'scale', prompt: 'Texture breaks more foods than taste does.', tag: 'The texture', axis: 'texture-led', tone: 'blend',
+      cat: ['Food', 'Texture'], alts: [['Body', 'The senses'], ['Mind', 'Particular']] },
+    { type: 'choice', prompt: 'Whose approval are you still chasing?', tag: 'The approval', options: ['A parent’s', 'An old teacher’s', 'My own', 'I stopped chasing'], tone: 'deep',
+      cat: ['Goals', 'The engine'], alts: [['Mind', 'Drives'], ['Story', 'Where you come from']] },
+    { type: 'choice', prompt: 'The hobby gear you bought and never used:', tag: 'The gear', options: ['A lesson learned', 'Still the plan, honest', 'Sold it on', 'What gear?'], tone: 'light',
+      cat: ['Interests', 'The graveyard'], alts: [['Goals', 'Follow-through'], ['Home', 'The cupboard']] },
+    { type: 'binary', prompt: 'Boredom: a problem to solve, or a door to leave open?', tag: 'Boredom', options: ['Solve it', 'Leave the door open'], tone: 'blend',
+      cat: ['Mind', 'Boredom'], alts: [['Interests', 'Where ideas start'], ['Body', 'Restlessness']] },
+    { type: 'scale', prompt: 'A secret told to one person is already loose.', tag: 'The secret', axis: 'already loose', tone: 'blend',
+      cat: ['Morals', 'Secrets'], alts: [['Values', 'Trust'], ['Mind', 'Discretion']] },
+    { type: 'binary', prompt: 'A new favourite song: play it to death, or ration it?', tag: 'On repeat', options: ['Play it to death', 'Ration it — make it last'], tone: 'light',
+      cat: ['Music', 'On repeat'], alts: [['Mind', 'Appetite'], ['Goals', 'Delayed joy']] },
+    { type: 'binary', prompt: 'Watching a beginner fumble what you do well: endless patience, or itching to take over?', tag: 'The takeover', options: ['Endless patience', 'Give it here'], tone: 'blend',
+      cat: ['Skills', 'Teaching'], alts: [['Mind', 'Patience'], ['Values', 'Generosity']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer

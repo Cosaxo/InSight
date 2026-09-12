@@ -94,6 +94,7 @@
     "check:bundle": "node scripts/check-bundle.mjs",
     "check:web-firebase": "node scripts/check-web-firebase.mjs",
     "check:web-headers": "node scripts/check-web-headers.mjs",
+    "check:workflows": "node scripts/check-workflows.mjs",
     "check:csp-hashes": "node scripts/check-csp-hashes.mjs",
     "check:fn-runtime": "node scripts/check-fn-runtime.mjs",
     "check:fn-types": "npm --prefix functions run typecheck:tests",
@@ -127,6 +128,7 @@
     "rebuild:agg": "node scripts/rebuild-aggregate.mjs",
     "mod:queue": "node scripts/mod-queue.mjs",
     "budget:mode": "node scripts/budget-mode.mjs",
+    "budget:loadings": "node scripts/loadings-budget.mjs",
     "budget:apply": "node scripts/apply-budget.mjs",
     "observe": "node scripts/observe.mjs"
   },

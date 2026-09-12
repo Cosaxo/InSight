@@ -24,6 +24,10 @@ import {
   surprisalBits,
   undetermined,
   type MapNode,
+  ASK_LEARN_EVERY,
+  ASK_LEARN_SHARE,
+  nextToAsk,
+  undeterminedShare,
 } from "./patternsMap";
 
 const K = 8;
@@ -198,5 +202,50 @@ describe("the ridge solve keeps its precision", () => {
     // left to learn about
     const after = ridgeSolve([{ L: vec(1, 0), r: 1 }, { L: vec(0, 1), r: 1 }, { L: vec(0, 1), r: -1 }, { L: vec(0, 1), r: 1 }], K, 0.5);
     expect(mostInformative(after.invA, cands)).toBe(0);
+  });
+});
+
+describe("the link's slope and the schedule (D460)", () => {
+  const e = (i: number): number[] => Array.from({ length: 8 }, (_, j) => (j === i ? 1 : 0));
+
+  it("tau 1 is the shipped guess; tau scales the lean and never the base rate", () => {
+    const theta = [0.5, 0, 0, 0, 0, 0, 0, 0];
+    expect(oracleGuess(theta, e(0), 0.2)).toEqual(oracleGuess(theta, e(0), 0.2, 1));
+    expect(oracleGuess(theta, e(0), 0.2, 1).p0).toBeCloseTo((1 + 0.2 + 0.5) / 2, 12);
+    expect(oracleGuess(theta, e(0), 0.2, 0.5).p0).toBeCloseTo((1 + 0.2 + 0.25) / 2, 12);
+    expect(oracleGuess(theta, e(0), 0.2, 0).p0).toBeCloseTo(0.6, 12);
+    expect(oracleGuess(theta, e(0), 0.2, 2).p0).toBe(0.95); // the clamp still holds
+  });
+
+  it("undeterminedShare is 1 with nothing answered and λ/(n+λ) after n answers along the loading", () => {
+    expect(undeterminedShare(ridgeSolve([], 8, 0.5).invA, e(0), 0.5)).toBeCloseTo(1, 9);
+    expect(undeterminedShare(ridgeSolve([{ L: e(0), r: 1 }], 8, 0.5).invA, e(0), 0.5)).toBeCloseTo(0.5 / 1.5, 9);
+    const three = [{ L: e(0), r: 1 }, { L: e(0), r: -1 }, { L: e(0), r: 1 }];
+    expect(undeterminedShare(ridgeSolve(three, 8, 2).invA, e(0), 2)).toBeCloseTo(2 / 5, 9);
+    // an answer along another direction pins nothing here
+    expect(undeterminedShare(ridgeSolve([{ L: e(1), r: 1 }], 8, 0.5).invA, e(0), 0.5)).toBeCloseTo(1, 9);
+    expect(undeterminedShare(ridgeSolve([], 8, 0.5).invA, [0, 0, 0, 0, 0, 0, 0, 0], 0.5)).toBe(0);
+  });
+
+  it("asks the informative question while undetermined, the surest once pinned, and stays informative every fourth turn", () => {
+    expect(ASK_LEARN_SHARE).toBe(0.5);
+    expect(ASK_LEARN_EVERY).toBe(4);
+    const cands = [{ L: e(0), lean: 0.8 }, { L: e(1), lean: 0.1 }];
+    // pinned along e0 only: e1 is still wide open, so the informative
+    // rule asks it, whatever the leans say
+    const pinned0 = ridgeSolve([{ L: e(0), r: 1 }, { L: e(0), r: 1 }, { L: e(0), r: 1 }], 8, 0.5).invA;
+    expect(nextToAsk(pinned0, cands, 0.5, 0)).toBe(1);
+    // both pinned past a half: the lean decides — the surest call
+    const both = ridgeSolve([
+      { L: e(0), r: 1 }, { L: e(0), r: 1 }, { L: e(0), r: 1 },
+      { L: e(1), r: 1 }, { L: e(1), r: -1 },
+    ], 8, 0.5).invA;
+    expect(nextToAsk(both, cands, 0.5, 0)).toBe(0);
+    expect(nextToAsk(both, cands, 0.5, 1)).toBe(0);
+    // …except every fourth turn, which learns: e1 has fewer answers, so
+    // it is the more undetermined of two pinned directions
+    expect(nextToAsk(both, cands, 0.5, 3)).toBe(1);
+    expect(nextToAsk(both, cands, 0.5, 7)).toBe(1);
+    expect(nextToAsk(both, [], 0.5, 0)).toBe(-1);
   });
 });
