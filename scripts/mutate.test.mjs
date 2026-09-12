@@ -8,6 +8,8 @@
 // obvious reason; it is exercised every night, and its first real run
 // found a live gap in typeMix.test.ts's scope coverage.
 import { describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { OPERATORS, applyMutant, hash, mutableLine, planRun, sitesIn } from "./mutate.mjs";
 
 describe("mutableLine", () => {
@@ -121,5 +123,52 @@ describe("hash and planRun", () => {
       readSource: () => "const x = a >= b;",
     });
     expect(new Set(plan.map((p) => p.source)).size).toBeGreaterThan(1);
+  });
+});
+
+// ── the entry path, which is where the lane actually lived ────────────
+//
+// The pure half above was correct all along and the lane was still doing
+// nothing: the scheduled workflow passes `--seed "${{ inputs.seed || '' }}"`
+// and a cron run has no inputs, so the seed arrived as an empty string,
+// fell through `arg`'s falsy check to the bare-flag branch, and came back
+// as the BOOLEAN true — stringified to "true" and used as the seed every
+// night. `planRun` is reproducible, which is exactly why that was
+// invisible: the same seed plans the same sample, forever, and the run
+// prints a clean "0 survivors" about four sites it has already proved.
+//
+// Driven as a subprocess because `arg` reads process.argv and the floors
+// live in the entry block — the thing that broke is the entry path, so
+// that is what these run.
+describe("the command line", () => {
+  const run = (args) => {
+    const r = spawnSync(process.execPath, [fileURLToPath(new URL("./mutate.mjs", import.meta.url)), ...args],
+      { encoding: "utf8", cwd: fileURLToPath(new URL("..", import.meta.url)) });
+    return { out: `${r.stdout}${r.stderr}`, code: r.status };
+  };
+
+  it("takes an EMPTY --seed as no seed at all, not as the word true", () => {
+    const { out, code } = run(["--dry", "--seed", "", "--count", "3"]);
+    expect(code, out).toBe(0);
+    expect(out, "the empty seed came back as a flag and became the literal seed \"true\"")
+      .not.toMatch(/seed true/);
+    // …and what it falls back to is the date, which is what makes the
+    // sample rotate. Matched as a shape rather than as today's value, so
+    // this case does not expire at midnight.
+    expect(out).toMatch(/seed \d{4}-\d{2}-\d{2}/);
+  });
+
+  it("still takes a seed that was given", () => {
+    const { out } = run(["--dry", "--seed", "2026-01-02", "--count", "3"]);
+    expect(out).toMatch(/seed 2026-01-02/);
+  });
+
+  it("refuses an empty plan rather than reporting a clean night", () => {
+    // The vacuity floor. A count of zero is the reachable shape of it;
+    // the other is a moved source root, which cannot be produced from
+    // here without moving one.
+    const { out, code } = run(["--dry", "--count", "0"]);
+    expect(code, "an empty plan exited 0, which reads as a night that found nothing wrong").toBe(2);
+    expect(out).toMatch(/REFUSES to run/);
   });
 });

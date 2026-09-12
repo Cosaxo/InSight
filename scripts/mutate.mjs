@@ -191,9 +191,21 @@ function isEntry() {
 
 function arg(name, fallback = null) {
   const i = process.argv.indexOf(`--${name}`);
-  return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith("--")
-    ? process.argv[i + 1]
-    : (process.argv.includes(`--${name}`) ? true : fallback);
+  if (i < 0) return fallback;
+  const next = process.argv[i + 1];
+  // AN EMPTY VALUE IS NOT A FLAG, and the whole lane turned on it. The
+  // scheduled workflow passes `--seed "${{ inputs.seed || '' }}"`, and a
+  // cron run has no inputs — so the seed arrived as `""`, which is falsy,
+  // which fell to the bare-flag branch and returned the BOOLEAN true. The
+  // caller then did `String(arg("seed", <today>))` and got the literal
+  // string "true": the same seed every night, so the "handful of mutants
+  // from a rotating pool, seeded by the date" that this file's header
+  // describes was one frozen sample of five sites out of the thousands
+  // the planner can see, re-run nightly for as long as the lane has
+  // existed, printing "0 survivors" about coverage it never touched.
+  // The date fallback had never once been reached.
+  if (next !== undefined && !next.startsWith("--")) return next === "" ? fallback : next;
+  return true;
 }
 
 function dirtyFiles() {
@@ -232,6 +244,34 @@ if (isEntry()) {
     targets, seed, count,
     readSource: (p) => readFileSync(join(root, p), "utf8"),
   });
+
+  // THE VACUITY FLOOR. This is the one instrument in the tree that can
+  // answer "do the suites fail when the code is wrong", and every way it
+  // can find nothing to do looks exactly like a clean run: a renamed
+  // SEARCH_DIRS entry, a planner that stops matching, a count of zero.
+  // It would print "mutate OK — 0 survivor(s)" and exit 0, which is the
+  // D179/D197/D275 class this repo has been bitten by three times, in a
+  // script written the same day as scripts/lib/compare.mjs, whose own
+  // header says "THE VACUITY FLOOR IS NOT OPTIONAL". The floors are the
+  // two the run cannot be honest without: something to mutate, and a
+  // plan to run.
+  if (!targets.length) {
+    console.error(
+      "mutate REFUSES to run: no suited source file found at all.\n"
+      + `  Searched ${SEARCH_DIRS.join(", ")} for a .ts/.tsx with a sibling suite.\n`
+      + "  A moved source root or a changed test-file convention reads exactly\n"
+      + "  like a clean night from here, which is what this refusal is for.",
+    );
+    process.exit(2);
+  }
+  if (!plan.length) {
+    console.error(
+      `mutate REFUSES to run: ${targets.length} suited file(s) and an EMPTY plan.\n`
+      + "  Either --count is zero or the planner found no mutable site. Both mean\n"
+      + "  this run would prove nothing and say so as a pass.",
+    );
+    process.exit(2);
+  }
 
   console.log(`mutate — seed ${seed}, ${plan.length} mutant(s) over ${targets.length} suited file(s)\n`);
 
