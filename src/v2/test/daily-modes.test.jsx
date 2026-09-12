@@ -2,7 +2,7 @@
 //
 // THE DAILY'S OTHER TWO MODES RENDERED IN NO TEST AT ALL.
 //
-// The daily tab is a three-stop axis — World · Circle · 1v1 (daily-split's
+// The daily tab is a three-stop axis — World · Groups · 1v1s (daily-split's
 // `modeAxis`) — and every mount suite stops at World. Nothing in
 // src/v2/test walks the ruler sideways, so `GroupDailyBody` (500 lines)
 // and `DuoBody` (448) were at 4% and 10% of statements, which is their
@@ -77,7 +77,7 @@ describe("a tapped invite link opens the screen that consumes it", () => {
     ).toBeGreaterThan(0);
     // …and the ruler agrees with it.
     expect(
-      within(dockRuler()).getByRole("tab", { name: "Circle" }).getAttribute("aria-selected"),
+      within(dockRuler()).getByRole("tab", { name: "Groups" }).getAttribute("aria-selected"),
       "the body moved to Circle and the ruler still says World — the two copies of the mode disagree",
     ).toBe("true");
     // PEEKED, not taken: the panel's own read is read-and-clear, so a
@@ -108,7 +108,7 @@ describe("a tapped invite link opens the screen that consumes it", () => {
     const expectNoBoundary = mountApp();
     await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
     expect(
-      within(dockRuler()).getByRole("tab", { name: "Circle" }).getAttribute("aria-selected"),
+      within(dockRuler()).getByRole("tab", { name: "Groups" }).getAttribute("aria-selected"),
       "a second, different invite did not land — the one-shot is keyed too broadly",
     ).toBe("true");
 
@@ -143,7 +143,7 @@ describe("a tapped invite link opens the screen that consumes it", () => {
 describe("the daily's Circle and 1v1 modes, in demo", () => {
   it("Circle draws the group rail and a revealed group verdict", async () => {
     const expectNoBoundary = mountApp();
-    await switchTo("Circle");
+    await switchTo("Groups");
     // The rail — the demo's seeded groups, by name. `getAllByText` because
     // the current group appears twice: once as a rail chip, once as the
     // card's own heading.
@@ -165,7 +165,7 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
 
   it("1v1 draws the partner rail and both halves of a reveal", async () => {
     const expectNoBoundary = mountApp();
-    await switchTo("1v1");
+    await switchTo("1v1s");
     expect(screen.getAllByText("Henrik").length, "the partner rail drew no partners").toBeGreaterThan(0);
     // The 1v1 card's whole point is the pair of readings, and they are
     // drawn as two runs on one axis (D437) — asserting on one would pass
@@ -198,7 +198,7 @@ describe("the daily's Circle and 1v1 modes, in demo", () => {
     delete window.DuoBody;
     try {
       const expectNoBoundary = mountApp();
-      await switchTo("1v1");
+      await switchTo("1v1s");
       expect(screen.getAllByText("Henrik").length,
         "the 1v1 body drew nothing without window.DuoBody — the empty-div frame").toBeGreaterThan(0);
       expect(document.body.textContent).toMatch(/Round \d+\s*·\s*revealed/);

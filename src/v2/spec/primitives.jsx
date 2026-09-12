@@ -277,3 +277,37 @@ export function Sheet({ onClose, closing, label, lift, children }) {
     </div>
   );
 }
+
+// ── overlays leave the way they came (2026-09-12, VISION-2026-09-12 §5.1) ─
+//
+// Keeps the last overlay element mounted `ms` after it closes and says
+// so, so the host can play the exit (`.ov-host.is-leaving .overlay`
+// runs ovLeave — 22px down, a fade) instead of cutting. The element is
+// the same React element the shell last rendered, so nothing remounts
+// and the overlay's own cleanup (focus back to its opener, the back
+// layer) runs when the hold lets go — 200ms later than it used to.
+//
+// Holds the overlay's STATE rather than its element (the standalone held
+// the element in a ref read during render, which react-hooks/refs
+// forbids for a reason): `state` is whatever names the open overlay —
+// app-shell's `{ ov, person, city }` — and `id` is its identity, null
+// when nothing is open. The shell rebuilds the element from the returned
+// state on every render, so every other prop it carries is read fresh,
+// and the held state is exactly the values that cannot change while an
+// overlay is open (a change would be a different id). Held in state,
+// replaced during render only when the id changes — the derived-state
+// pattern, not a setState per render.
+export function useLeaveHold(state, ms, id) {
+  const [held, setHeld] = React.useState(id ? { id, state } : null);
+  if (id && (!held || held.id !== id)) setHeld({ id, state });
+  const [leaving, setLeaving] = React.useState(false);
+  const timer = React.useRef(null);
+  React.useEffect(() => {
+    if (id) { clearTimeout(timer.current); setLeaving(false); return undefined; }
+    if (!held) return undefined;
+    setLeaving(true);
+    timer.current = setTimeout(() => { setHeld(null); setLeaving(false); }, ms);
+    return () => clearTimeout(timer.current);
+  }, [id, ms, held]);
+  return { state: id ? state : held ? held.state : null, leaving: !id && leaving && !!held };
+}

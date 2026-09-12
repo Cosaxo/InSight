@@ -42,8 +42,8 @@
 // keeps the unmeasurable pane it was written against; nothing in the other
 // five mount files changes meaning because this file exists.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
-import { awaitNode, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -180,5 +180,161 @@ describe("the Map draws its body once its pane can be measured", () => {
     } finally {
       measurable(true);
     }
+  });
+});
+
+// ── the wayfinding (VISION-2026-09-12 §3, D-2026-09-12a) ───────────────
+//
+// Every piece below reads data the Map already holds, so what these hold
+// is that the chrome draws and acts, on the measured pane the cases above
+// earned: the trail with its way back, Find lighting matches and listing
+// them, the root card's legend, the card's three sizes and its prev/next,
+// and the two coach hints shown once each and forgotten by the purge.
+async function openMap() {
+  const expectNoBoundary = mountApp();
+  fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+  const rail = await awaitNode(RAIL);
+  expect(rail, "the Map never drew its rail").toBeTruthy();
+  return expectNoBoundary;
+}
+const HINT_KEY = "insight.mapHints.v1";
+
+describe("the Map's trail, Find and card (2026-09-12)", () => {
+  it("says where you are: You at the top, ‹ You › group inside one, and the first crumb steps back out", async () => {
+    const expectNoBoundary = await openMap();
+    expect(document.querySelectorAll(".mmt-trail .mmt-crumb")).toHaveLength(1);
+    expect(document.querySelector(".mmt-trail")?.textContent).toBe("You");
+    // a group hub at the top level is a door
+    const hub = document.querySelector(".mmt-hub");
+    expect(hub, "no hub to open").toBeTruthy();
+    await act(async () => { fireEvent.click(hub); });
+    const deep = await awaitNode(".mmt-trail.is-deep");
+    expect(deep, "the trail never grew a second crumb").toBeTruthy();
+    const crumbs = deep.querySelectorAll(".mmt-crumb");
+    expect(crumbs).toHaveLength(2);
+    expect(crumbs[0].querySelector(".mmt-back"), "the first crumb lost its ‹").toBeTruthy();
+    expect(crumbs[1].className).toMatch(/is-last/);
+    expect(crumbs[1].className, "the open group's crumb does not wear its hue").toMatch(/is-hue/);
+    await act(async () => { fireEvent.click(crumbs[0]); });
+    expect(await awaitNode(".mmt-trail:not(.is-deep)"), "‹ You did not step back out").toBeTruthy();
+    expectNoBoundary("map trail");
+  });
+
+  it("Find turns the rail into a field, lights the matches and lists them; a row is a door", async () => {
+    const expectNoBoundary = await openMap();
+    fireEvent.click(screen.getByRole("button", { name: "Find on the map" }));
+    const field = await awaitNode(".mmt-find-field input");
+    expect(field, "the field never opened").toBeTruthy();
+    // idle: the count the root card prints, and no dot lit
+    expect(document.body.textContent).toMatch(/answers on the map/);
+    expect(document.querySelectorAll(".is-hit")).toHaveLength(0);
+    fireEvent.change(field, { target: { value: "e" } });
+    const hit = await awaitNode(".mmt-dotnode.is-hit");
+    expect(hit, "no match lit on the map").toBeTruthy();
+    expect(document.body.textContent).toMatch(/\d+ matches lit on the map/);
+    const rows = document.querySelectorAll(".mmt-frow");
+    expect(rows.length, "the card listed no matches").toBeGreaterThan(0);
+    expect(rows.length, "the list is not capped").toBeLessThanOrEqual(40);
+    // the toggles narrow, and say so
+    const rare = screen.getByRole("button", { name: "Rare takes" });
+    fireEvent.click(rare);
+    expect(rare.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(rare);
+    // nothing matches a word nobody used
+    fireEvent.change(field, { target: { value: "zqxjv" } });
+    await awaitText(/Nothing on the map matches that yet/);
+    expect(document.querySelectorAll(".is-hit")).toHaveLength(0);
+    // a row selects its answer — through the group it sits in
+    fireEvent.change(field, { target: { value: "e" } });
+    const row = await awaitNode(".mmt-frow");
+    await act(async () => { fireEvent.click(row); });
+    const sel = await awaitNode(".mmt-dotnode.is-sel");
+    expect(sel, "the row did not select its answer").toBeTruthy();
+    // ✕ on the field's card closes Find and clears the light
+    fireEvent.click(screen.getByRole("button", { name: "Close find" }));
+    expect(await awaitNode(".mmt-findbtn"), "the glass did not come back").toBeTruthy();
+    expect(document.querySelectorAll(".is-hit")).toHaveLength(0);
+    expectNoBoundary("map find");
+  });
+
+  it("the root card carries the legend — four dots drawn as the map draws them", async () => {
+    const expectNoBoundary = await openMap();
+    const centre = document.querySelector('.mmt-center');
+    expect(centre, "no centre node").toBeTruthy();
+    await act(async () => { fireEvent.click(centre); });
+    const legend = await awaitNode(".mmt-legend");
+    expect(legend, "the root card has no legend").toBeTruthy();
+    expect(legend.querySelectorAll(".mmt-leg")).toHaveLength(4);
+    expect(legend.textContent).toMatch(/with the crowd/);
+    expect(legend.textContent).toMatch(/a minority answer/);
+    expect(legend.querySelector(".mmt-legdot.is-rare"), "the hollow dot is missing").toBeTruthy();
+    expectNoBoundary("map legend");
+  });
+
+  it("the card resizes by grab and steps through siblings", async () => {
+    const expectNoBoundary = await openMap();
+    // into a group, then an answer — the card opens at half
+    await act(async () => { fireEvent.click(document.querySelector(".mmt-hub")); });
+    await awaitNode(".mmt-trail.is-deep");
+    const dot = document.querySelector(".mmt-dotnode:not(.is-leaf):not(.is-person)");
+    expect(dot, "no answer dot to select").toBeTruthy();
+    await act(async () => { fireEvent.click(dot); });
+    const card = await awaitNode(".mmt-card");
+    expect(card.className).toMatch(/is-half/);
+    const grab = card.querySelector(".mmt-grab");
+    expect(grab, "the card has no grab bar").toBeTruthy();
+    // a tap toggles half ↔ full; a drag of 28px steps
+    fireEvent.pointerDown(grab, { clientY: 300 });
+    fireEvent.pointerUp(grab, { clientY: 300 });
+    expect(card.className).toMatch(/is-full/);
+    fireEvent.pointerDown(grab, { clientY: 300 });
+    fireEvent.pointerUp(grab, { clientY: 340 });
+    expect(card.className).toMatch(/is-half/);
+    fireEvent.pointerDown(grab, { clientY: 300 });
+    fireEvent.pointerUp(grab, { clientY: 340 });
+    expect(card.className).toMatch(/is-peek/);
+    // prev / next, when the answer has siblings
+    const nav = card.querySelector(".mmt-cardnav");
+    if (nav) {
+      const before = document.querySelector(".mmt-dotnode.is-sel")?.getAttribute("aria-label");
+      const next = screen.getByRole("button", { name: "Next answer" });
+      const prev = screen.getByRole("button", { name: "Previous answer" });
+      const btn = next.disabled ? prev : next;
+      expect(btn.disabled, "both ends disabled with two or more siblings").toBe(false);
+      await act(async () => { fireEvent.click(btn); });
+      const after = document.querySelector(".mmt-dotnode.is-sel")?.getAttribute("aria-label");
+      expect(after, "next did not move the selection").not.toBe(before);
+      expect(nav.textContent).toMatch(/\d+ of \d+/);
+    }
+    expectNoBoundary("map card");
+  });
+
+  it("coaches once each — arrival, then the first group — and forgets on the purge", async () => {
+    localStorage.removeItem(HINT_KEY);
+    const expectNoBoundary = await openMap();
+    const first = await awaitNode(".mmt-coach");
+    expect(first, "no coach on first arrival").toBeTruthy();
+    expect(first.textContent).toMatch(/Pinch to zoom/);
+    await act(async () => { fireEvent.click(first); });
+    expect(document.querySelector(".mmt-coach")).toBeNull();
+    // the second, the first time a group opens
+    await act(async () => { fireEvent.click(document.querySelector(".mmt-hub")); });
+    const second = await awaitNode(".mmt-coach");
+    expect(second, "no coach on the first group").toBeTruthy();
+    expect(second.textContent).toMatch(/You in the trail steps back out/);
+    await act(async () => { fireEvent.click(second); });
+    expect(document.querySelector(".mmt-coach")).toBeNull();
+    expect(localStorage.getItem(HINT_KEY), "the hints were not remembered").toBe("1");
+    // back out: no coach again on the same device…
+    await act(async () => { fireEvent.click(document.querySelector(".mmt-trail .mmt-crumb")); });
+    await awaitNode(".mmt-trail:not(.is-deep)");
+    expect(document.querySelector(".mmt-coach")).toBeNull();
+    // …until the purge, which is the next account's first arrival (D51)
+    await act(async () => {
+      localStorage.removeItem(HINT_KEY);
+      window.dispatchEvent(new Event("insight:local-purge"));
+    });
+    expect(await awaitNode(".mmt-coach"), "the purge did not reset the coach").toBeTruthy();
+    expectNoBoundary("map coach");
   });
 });

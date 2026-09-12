@@ -23,7 +23,7 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { awaitNode } from "./mount-app.jsx";
 import { Sheet } from "../spec/primitives.jsx";
 import { UpdateRequiredBlocker } from "../spec/app-shell.jsx";
@@ -89,7 +89,11 @@ describe("overlays are modal dialogs", () => {
     const { container, dialog } = await openOverlay("profile");
     expect(container.querySelector('[role="dialog"]')).toBeTruthy();
     fireEvent.keyDown(dialog, { key: "Escape" });
-    expect(container.querySelector('[role="dialog"]'), "Escape did not close the overlay").toBeNull();
+    // Since 2026-09-12 an overlay leaves with a 200ms slide (app-shell's
+    // useLeaveHold), so the dialog is still in the DOM — inert, marked
+    // leaving — for that long. Escape's job is that it goes; wait for it.
+    expect(document.querySelector(".ov-host.is-leaving"), "the overlay did not start leaving").toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[role="dialog"]'), "Escape did not close the overlay").toBeNull());
   });
 
   it("returns focus to the control that opened it", async () => {
@@ -110,7 +114,9 @@ describe("overlays are modal dialogs", () => {
     // rather than dropping the caret at the top of the document.
     expect(dialog.contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(dialog, { key: "Escape" });
-    expect(document.activeElement, "focus was not restored to the opener").toBe(opener);
+    // …once the leave has played (useLeaveHold, 200ms): the restore runs
+    // in the overlay's own cleanup, which the hold delays with the unmount.
+    await waitFor(() => expect(document.activeElement, "focus was not restored to the opener").toBe(opener));
   });
 
   it("traps Tab inside the update blocker, which had no trap at all (D250)", () => {

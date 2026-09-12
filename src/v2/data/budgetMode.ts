@@ -53,6 +53,8 @@
 // being read as either.
 
 /** The level at which the D98 social reads pause. */
+import { brandName } from "./brand";
+
 export const BUDGET_MODE_SOCIAL = 1;
 
 /**
@@ -74,7 +76,7 @@ export function socialReadsPaused(mode: number): boolean {
  * instruction, one clause of why (docs/COPY.md).
  */
 export const BUDGET_PAUSED_BODY =
-  "This view is paused while we keep InSight’s costs in check.";
+  `This view is paused while we keep ${brandName()}’s costs in check.`;
 
 /** The head for surfaces whose empty state carries a title + line. */
 export const BUDGET_PAUSED_HEAD = "Paused for now";

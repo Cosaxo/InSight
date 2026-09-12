@@ -22,7 +22,7 @@ import { cwd } from "node:process";
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
-import { openHeaderOverlay,
+import { openHeaderOverlay, awaitText,
   expectOpened, mountApp, openVia, registerSmokeHooks, SMOKE_TIMEOUT_MS,
 } from "./mount-app.jsx";
 
@@ -35,6 +35,19 @@ describe("the overlays with no button — opened through the nav registry", () =
     await openVia("openOverlay", "relmap");
     expectOpened(/Relationship map/i, "relmap overlay");
     expectNoBoundary("relmap overlay");
+  });
+
+  it("opens your friends", async () => {
+    const expectNoBoundary = mountApp();
+    await openVia("openOverlay", "friends");
+    // A React.lazy chunk (2026-09-12): the open resolves before the module
+    // does, so wait for the copy the way the patterns tab's cases do.
+    await awaitText(/Your friends/);
+    expectOpened(/Your friends/, "friends overlay");
+    // the demo's seeded requests are on it, which is the store the overlay
+    // reads when LIVE is off — a live fold here would draw nobody
+    expectOpened(/Requests/, "friends overlay requests");
+    expectNoBoundary("friends overlay");
   });
 
   it("opens the logic test", async () => {

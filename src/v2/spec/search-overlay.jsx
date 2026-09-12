@@ -35,7 +35,11 @@ import NAV from '../data/nav';
 // this module is deferred behind loadOverlays(), so the chunk it pulls is
 // not first paint, and a real import is one less name resolved at render
 // time (check:globals rule 4).
-import LivePeopleSearch from '../ui/LivePeopleSearch.tsx';
+// ManageFriends (2026-09-12): the roster's door, drawn beside the demo's
+// "Friends" heading below and the live "Following" inside the section —
+// defined in the typed file so both builds draw one control and this
+// import stays one-directional.
+import LivePeopleSearch, { ManageFriends } from '../ui/LivePeopleSearch.tsx';
 import { WORLD_TOPICS } from './world-feed-data.js';
 
 const { useState: useSrchState, useEffect: useSrchEffect, useMemo: useSrchMemo, useRef: useSrchRef } = React;
@@ -397,7 +401,15 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
         ))}
 
         {samplePeople === false && <LivePeopleSearch query={q} onActive={setLivePeople} />}
-        {!!people.length && <div className="search-group">{query ? 'People' : 'Friends'}</div>}
+        {/* Manage → (2026-09-12): the friends overlay's door from search.
+            Beside the idle heading only — a query's hits are People, and
+            the door is for the roster, not the result. */}
+        {!!people.length && (
+          <div className="search-group" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            {query ? 'People' : 'Friends'}
+            {!query && <ManageFriends onClick={() => go(() => NAV.openOverlay('friends'))} />}
+          </div>
+        )}
         {/* the sub-line stopped stating distance (2026-08-24) — the same
             direction Near took: knowing how close a stranger is, is itself
             a leak, and role · since · match already carry the hit */}

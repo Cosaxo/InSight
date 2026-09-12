@@ -102,8 +102,10 @@ the directory carries — this bundle carries no hashes of its own, so
 the README says how the next one is diffed), with the plan and the
 three owner questions at
 [`docs/VISION-2026-09-12.md`](../docs/VISION-2026-09-12.md); it is the
-current vision (D-2026-09-12a), recorded and not yet built. Each
-directory README is its inventory; none re-points this file.
+current vision (D-2026-09-12a), built the same day once the owner picked
+the name and the labels — the amendment on that decision records what
+departed. Each directory README is its inventory; none re-points this
+file.
 
 **One directory here is not an app prototype at all**:
 `identity-2026-08-26/` is the owner's identity canvas — the iris mark,

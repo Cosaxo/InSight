@@ -9,8 +9,15 @@
 // city = Oslo, groups = your circles, world = everyone, people = close ties.
 // Values are plausible-but-synthetic; the user (Mira, 34, f) is marked where
 // the audience contains peers so age bands can show a "you" pin.
+// The name reaches the card titles through data/brand.ts (2026-09-12,
+// D-2026-09-12a): read once at module load, like the rest of this table —
+// the DEV radio's runtime pick shows here after a reload, which is what
+// the design's own `BRAND_NAME` read did too.
+import { brandName } from '../data/brand.ts';
+
 export let DEMOGRAPHICS;
 (function () {
+  const BR = brandName();
   const AGE_BANDS = ['<18', '18–24', '25–34', '35–44', '45–54', '55–64', '65+'];
 
   // gender keys + labels (shared)
@@ -30,7 +37,7 @@ export let DEMOGRAPHICS;
       age: [0, 22, 38, 19, 11, 7, 3],
       gender: { f: 49, m: 47, nb: 4 },
       // a third dimension unique to this audience
-      thirdLabel: 'TIME ON INSIGHT',
+      thirdLabel: 'TIME ON ' + BR.toUpperCase(),
       third: [
         { k: 'new · <3 mo', v: 31, hue: 24 },
         { k: 'regulars · 3 mo–2 yrs', v: 44, hue: 150 },
@@ -39,7 +46,7 @@ export let DEMOGRAPHICS;
       note: 'younger crowd — most joined in the last two years.',
     },
     city: {
-      title: 'Who’s on InSight in Oslo',
+      title: 'Who’s on ' + BR + ' in Oslo',
       sub: 'the members around your city',
       count: '31k', countLabel: 'members in Oslo',
       medianAge: 31,
@@ -54,7 +61,7 @@ export let DEMOGRAPHICS;
         { k: 'Gamle Oslo', v: 13, hue: 24 },
         { k: 'elsewhere', v: 34, hue: 110 },
       ],
-      note: 'where Oslo’s InSight members live — the inner east leads.',
+      note: 'where Oslo’s ' + BR + ' members live — the inner east leads.',
     },
     groups: {
       title: 'Who’s in your circles',
@@ -75,7 +82,7 @@ export let DEMOGRAPHICS;
       note: 'your interests skew a little older and more male than the city — chess tips it.',
     },
     country: {
-      title: 'Who’s on InSight in Norway',
+      title: 'Who’s on ' + BR + ' in Norway',
       sub: 'members across the country',
       count: '182k', countLabel: 'members in Norway',
       medianAge: 32,
@@ -90,10 +97,10 @@ export let DEMOGRAPHICS;
         { k: 'Stavanger', v: 11, hue: 38 },
         { k: 'elsewhere', v: 22, hue: 110 },
       ],
-      note: 'share of InSight members by city — Oslo leads, but most of Norway is elsewhere.',
+      note: 'share of ' + BR + ' members by city — Oslo leads, but most of Norway is elsewhere.',
     },
     world: {
-      title: 'Who’s on InSight worldwide',
+      title: 'Who’s on ' + BR + ' worldwide',
       sub: 'every member, everywhere',
       count: '2.4M', countLabel: 'members worldwide',
       medianAge: 29,

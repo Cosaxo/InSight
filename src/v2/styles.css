@@ -41,6 +41,25 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* ── The wordmark (2026-09-12) ─────────────────────────────────────────
+   DM Serif Display, for one word: the name. The owner's 2026-09-12 ruling
+   (D-2026-09-12a) is Doxa, drawn in a serif — the design's `wm-serif` —
+   and this face is SUBSETTED to the letters of the three names the shell
+   knows (D E S a d g h i n o t x: Doxa, Endoxa, inSight): 1.9 KB where
+   the Google-served latin face is 24.7 KB. check:bundle's font ceiling is
+   96 KB and the tree stood at 88, so the whole face would not have fit,
+   and a wordmark needs twelve glyphs. A future name with a letter outside
+   that set draws that letter in the system serif — re-subset the face
+   (`pyftsubset --text=<the names> --flavor=woff2`) rather than shipping
+   it whole. SIL Open Font License 1.1, like Spectral. */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/dm-serif-display-wordmark.woff2") format('woff2');
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Hanken Grotesk';
@@ -415,6 +434,13 @@
   transition: color 0.4s ease;
   font-weight: 800;
 }
+/* Doxa wordmark (2026-09-12, D-2026-09-12a) — the one serif in the chrome.
+   The x is the <em>, so it takes the tab accent (and the daily mode's
+   accent, set inline by app-shell) the way inSight's "Sight" did. The
+   class rides on .h-title because the iris and the word share that flex
+   row; only the text takes the face. */
+.app-header .h-title.wm-serif { font-family: 'DM Serif Display', var(--serif); font-weight: 400; font-size: 25px; letter-spacing: -0.01em; line-height: 1; padding-bottom: 2px; }
+.app-header .h-title.wm-serif em { font-weight: 400; }
 /* The horizontal lockup (D302): compact iris + wordmark. Scoped to
    .h-center rather than .h-title because overlay headers reuse .h-title
    for plain text titles, which need no flex and must not inherit a gap. */
@@ -1280,6 +1306,20 @@ button.card:active,
 /* 11 · The caret was the last browser-default colour left in the app. */
 .app input, .overlay input, .app textarea, .overlay textarea { caret-color: var(--accent-ink); }
 
+/* 11b · Form controls inherit the page face (2026-09-12). The ballot's two
+   answers, the feed's → and the map's ⌖ drew in the browser's button font
+   — Arial on Windows. Zero specificity, so every class rule and inline face
+   still wins; this only fills the default. */
+:where(.app, .overlay, .wf-sheet) :is(button, input, select, textarea) { font-family: inherit; }
+
+/* 11c · Overlays leave the way they came (2026-09-12; app-shell's
+   useLeaveHold keeps the last overlay mounted 200ms after it closes and
+   marks the host): a short slide-down and fade instead of a cut. */
+.ov-host { display: contents; }
+.ov-host.is-leaving .overlay { animation: ovLeave 0.2s ease both; pointer-events: none; }
+@keyframes ovLeave { to { transform: translateY(22px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ov-host.is-leaving .overlay { animation: none; opacity: 0; } }
+
 /* 12 · Touch targets. A handful of controls are drawn small on purpose — the
    ⓘ, the ⋯, the meter chip, the topic chips — and were 17–26px of real
    pressable area. .tap44 grows the *hit box* outward with a pseudo-element and
@@ -1293,6 +1333,15 @@ button.card:active,
    target, not better: a miss you can retry beats a hit on the wrong control.
    Height still 44; width tracks the pitch. */
 .tap44.is-tight::after { width: max(100%, 12px); }
+/* The fourth pass (2026-09-12, VISION-2026-09-12 §5.1): the docked header
+   stops and the map's chips and crumbs — 32–35px drawn — get their slack
+   from a ::before 44px tall, drawn size unchanged. ::before because
+   .h-dockstop spends ::after on its underline. The meter and topic chips
+   keep their own box (below): both sit in clipping scrollers where a pseudo
+   box is cut off. The crossroads' "Walk again" of the design's list retired
+   at D211, and the ballot's links carry .tap44 above. */
+.h-dockstop, .mmt-chipbtn, .mmt-crumb { position: relative; }
+.h-dockstop::before, .mmt-chipbtn::before, .mmt-crumb::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); border-radius: 999px; }
 /* The two chips live inside clipping scrollers (an edge mask, an overflow
    collapse), so a pseudo hit box gets cut off — they grow their own box
    instead. Both were also the odd height in their row: the meter chip stood
@@ -1781,6 +1830,54 @@ button.card:active,
 @keyframes mmtUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .mmt-card { animation: none; } .mmt-dbar-seg, .mmt-matchbar i, .mmt-astat-bar i, .mmt-ridge-col > i, .mmt-astat-them { animation: none; } }
 @keyframes mmtMark { from { opacity: 0; } }
+
+/* ── map wayfinding (2026-09-12, VISION-2026-09-12 §3, D-2026-09-12a): the
+   trail, Find, the card you resize, prev/next, the coach and the legend.
+   From design/standalone-2026-09-12/css/map-wayfinding.css; the rail wraps
+   the chip row above, so .mmt-chips loses its absolute placement inside it
+   and the ring-stage fade moves up to the rail. ─────────────────────────── */
+.mmt-rail { position: absolute; top: 10px; left: 0; right: 0; z-index: 6; display: flex; align-items: flex-start; pointer-events: none; transition: opacity 0.26s ease, transform 0.26s ease; }
+.mmt-rail .mmt-chips { position: relative; top: auto; left: auto; right: auto; flex: 1; min-width: 0; padding-right: 10px; }
+.mmt-root.is-ringstage .mmt-rail { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+/* the glass at the rail's end — 36 drawn, the pseudo-element grows the hit box */
+.mmt-findbtn {
+  flex: none; pointer-events: auto; position: relative; width: 36px; height: 36px; margin: 1px 12px 0 0; border-radius: 50%;
+  border: 1px solid var(--rule); background: color-mix(in oklch, var(--surface-2) 97%, transparent); color: var(--ink-2);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow-card);
+  transition: transform 0.15s var(--ease-spring), background 0.16s ease, color 0.16s ease;
+}
+.mmt-findbtn::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
+.mmt-findbtn:active { transform: scale(0.94); }
+/* the trail — where you are, and the way back, in one pill */
+.mmt-trail {
+  flex: none; display: flex; align-items: center; pointer-events: auto; border-radius: 999px;
+  border: 1px solid var(--rule); background: color-mix(in oklch, var(--surface-2) 97%, transparent);
+  box-shadow: var(--shadow-card); overflow: hidden;
+}
+.mmt-crumb {
+  display: flex; align-items: center; gap: 7px; padding: 8px 13px; border: none; background: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--ink-2); white-space: nowrap; border-radius: 999px;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.mmt-crumb + .mmt-crumb { padding-left: 6px; margin-left: -8px; }
+.mmt-crumb .mmt-back { font-size: 19px; line-height: 0.8; margin: -2px -1px 0 -3px; color: var(--ink-2); }
+.mmt-trail.is-deep .mmt-crumb:first-child { color: var(--ink-3); }
+.mmt-crumb-sep { color: var(--ink-3); font-size: 15px; line-height: 1; }
+.mmt-crumb.is-last { color: var(--ink); font-weight: 700; }
+.mmt-crumb.is-last.is-hue { color: oklch(0.42 0.09 var(--hue)); }
+.app.dark .mmt-crumb.is-last.is-hue { color: oklch(0.82 0.07 var(--hue)); }
+.mmt-crumb.is-here { color: var(--surface); background: var(--ink); }
+.mmt-crumb.is-here.is-hue { color: white; background: oklch(0.605 0.118 var(--hue)); }
+.mmt-crumb.is-here .mmt-crumb-sep { color: color-mix(in oklch, white, transparent 35%); }
+.app.dark .mmt-crumb.is-here.is-hue { background: oklch(0.62 0.12 var(--hue)); color: oklch(0.16 0.02 var(--hue)); }
+.app.dark .mmt-crumb.is-here.is-hue .mmt-crumb-sep { color: oklch(0.16 0.02 var(--hue) / 0.6); }
+/* The rest of the wayfinding — Find's field, the lit match, the card's
+   sizes, grab and prev/next, the Find rows, the legend, the coach, the
+   thumb-sized zoom controls and the hub badge — is map-wayfinding.css,
+   imported by map-tab.jsx and so loaded with the Map's own lazy chunk:
+   check:bundle's render-blocking sheet does not pay for a screen that is
+   not on first paint. The rail, the trail and the crumbs stay here because
+   person-mindmap.jsx draws the same row from the overlays chunk. */
 .mmt-card-x {
   position: absolute; top: 9px; right: 9px;
   width: 26px; height: 26px; border-radius: 50%;

@@ -16,6 +16,22 @@ import React from "react";
 import LIVE from "../data/live";
 import { circleMatches, usePeopleFinder } from "./peopleSearch";
 import PersonRow from "./PersonRow";
+import NAV from "../data/nav";
+
+// The roster's door (2026-09-12, VISION-2026-09-12 §2.3) — one control
+// drawn beside two headings, the live "Following" below and the demo's
+// "Friends" in search-overlay.jsx, so both builds offer the same thing in
+// the same place. Padding only, no drawn size: the hit box is .tap44's,
+// and the heading row it sits in is what gives the row its height.
+export function ManageFriends({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="press tap44" onClick={onClick} aria-label="Manage friends"
+      style={{ padding: "4px 0", background: "none", border: "none", cursor: "pointer", WebkitAppearance: "none", appearance: "none",
+        fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "none", color: "var(--accent-ink, var(--ink-2))" }}>
+      Manage →
+    </button>
+  );
+}
 
 function PsFollow({ uid }: { uid: string }) {
   const following = LIVE.isFollowing(uid);
@@ -76,7 +92,13 @@ export default function LivePeopleSearch({ query, onActive }: {
           knows whether it has a row. "Following" rather than the demo's
           "Friends": this list is the follow graph, and calling it
           friendship would be a claim about people the app cannot make. */}
-      <div className="search-group">{idle ? "Following" : "People"}</div>
+      {/* Manage → (2026-09-12): the friends overlay's door, beside the idle
+          heading only — the same control search-overlay draws beside the
+          demo's "Friends". The overlay's own open closes this one. */}
+      <div className="search-group" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        {idle ? "Following" : "People"}
+        {idle && <ManageFriends onClick={() => NAV.openOverlay("friends")} />}
+      </div>
       {idle
         ? follows.map((m) => (
           <PersonRow key={m.uid} uid={m.uid} name={m.name}>

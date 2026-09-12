@@ -60,6 +60,10 @@ import { namedBy, revealTally, roleTally, type RevealDocLike, type RoleTallyRow 
 import { castText } from "../data/deck";
 import { DuelAv, GroupMark, YouChip } from "./duelMarks";
 import { firstName, markHue } from "./marks";
+// The friends overlay's door from the 1v1 sheet (2026-09-12) — through
+// the registry, for data/nav.ts's reason: this panel is rendered by the
+// shell that owns the overlay state.
+import NAV from "../data/nav";
 // LAZY, and that is a measurement rather than a style (D152). This panel is
 // reached from the daily tab; a static import put the whole takes panel into
 // the graph for a thread that renders under a revealed duel, and
@@ -438,7 +442,7 @@ function LdOnboard({ mode }: { mode?: string }) {
     try {
       await S.inviteToGroup(gid, picked.map((p) => p.uid));
     } catch (e) {
-      setErr(`Circle made — the invitations did not send. ${errText(e).replace(/^.*?: */, "")}`);
+      setErr(`Group made — the invitations did not send. ${errText(e).replace(/^.*?: */, "")}`);
     }
     return out;
   };
@@ -476,6 +480,21 @@ function LdOnboard({ mode }: { mode?: string }) {
           legitimate thing to make, and the link is how you reach somebody
           who has no account to hold a handle. */}
       <LdPicker picked={picked} onChange={setPicked} cap={duo ? 1 : 31} busy={busy} />
+      {/* WHERE THE FRIENDS ARE (2026-09-12, VISION-2026-09-12 §2.3). The
+          picker above finds a person by name or handle, which presumes
+          you have one to name; a 1v1 is with a friend, so the sheet
+          points at the friends overlay — requests waiting, the people
+          your friends follow, and who else the Mirror already places
+          beside you. The group sheet has no such line: a room is made
+          and its people invited, and the picker is that. */}
+      {duo && (
+        <button className="press" onClick={() => NAV.openOverlay("friends")}
+          style={{ alignSelf: "flex-start", margin: "-4px 0 0", padding: "9px 0", background: "none",
+            border: "none", cursor: "pointer", WebkitAppearance: "none", appearance: "none",
+            fontFamily: "var(--sans)", fontSize: 13, fontWeight: 700, color: "var(--accent-ink, var(--ink-2))" }}>
+          Find more friends →
+        </button>
+      )}
       {/* NO CODE FIELD (D238). D122 demoted it to a fallback behind "Have
           an invite code?" and this is the rest of that move: a tapped
           invite link now lands as LdJoinPending, one button at the top of
@@ -749,7 +768,7 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
   };
 
   if (done) {
-    const where = done.name ? ` ${done.name}` : " the circle";
+    const where = done.name ? ` ${done.name}` : " the group";
     return (
       <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
         <span className="kicker" style={{ marginBottom: 0 }}>
@@ -1529,10 +1548,10 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
           <>
             <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
               {members.length <= 1
-                ? "You’re the last one — leaving deletes this circle and its history."
+                ? "You’re the last one — leaving deletes this group and its history."
                 : duo
                   ? "End this 1v1? Your history stays on your map."
-                  : "Leave this circle? Your history stays on your map."}
+                  : "Leave this group? Your history stays on your map."}
             </span>
             <button className="press" onClick={() => setConfirmLeave(false)}
               style={{ border: LD_LINE, background: "transparent", borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -1547,7 +1566,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
           <>
             <button className="press" onClick={() => setConfirmLeave(true)}
               style={{ border: "none", background: "transparent", padding: "2px 0", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700, color: "var(--ochre-ink, var(--ink-3))", WebkitAppearance: "none" }}>
-              {duo ? "End this 1v1" : "Leave circle"}
+              {duo ? "End this 1v1" : "Leave group"}
             </button>
             <button className="press" onClick={onClose}
               style={{ marginLeft: "auto", border: LD_LINE, background: "var(--surface-2)", borderRadius: 999, padding: "6px 13px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink)", WebkitAppearance: "none" }}>

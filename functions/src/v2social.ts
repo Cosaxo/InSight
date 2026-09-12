@@ -40,6 +40,9 @@ import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
 import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
+import { FIRESTORE_DB_ID } from "./db";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { BRAND_NAME } from "./brand";
 import {
   duelAggDelta,
   fcmBatches,
@@ -708,6 +711,49 @@ export async function notifyTurn(
     await sendPushToUids(db, uids, { title, body }, { kind: "turn", gid }, "turns", "turn");
   }
 }
+
+// ── a friend request notifies (D-2026-09-12a) ───────────────────
+//
+// The follow row IS the request (D101 read twice — VISION-2026-09-12 §2.2):
+// your row without theirs is *invited*, theirs without yours is
+// *requested*, both is *friends*. The client writes the row itself, as it
+// always has, so the server's whole part is that the other side learns —
+// the invitation's own delivery shape (D236), one push on the row's
+// create. Two bodies, decided by whether the row completes a pair: the
+// target already follows the writer, so this create is the acceptance.
+//
+// A Firestore trigger rather than a callable, on purpose: the write path
+// does not change (no new callable, no App Check row, no client await on a
+// function), follows are capped at fifty an account so the invocation
+// count is nil, and a push that fails is the fan-out's problem — this
+// never throws and never rolls a follow back. A DELETE fires nothing: *X
+// isn't told* is what the remove sheet promises.
+//
+// Light options, not HOT_TRIGGER: one document read and one getAll per
+// follow, a few times a day per account at most.
+export const onV2FollowCreated = onDocumentCreated(
+  { ...LIGHT_CALLABLE, region: REGION, database: FIRESTORE_DB_ID, document: "v2_users/{uid}/following/{targetUid}" },
+  async (event) => {
+    const uid = String(event.params.uid || "");
+    const target = String(event.params.targetUid || "");
+    if (!uid || !target || uid === target) return;
+    const db = firestore();
+    const [me, back] = await db.getAll(db.doc(`v2_users/${uid}`), db.doc(`v2_users/${target}/following/${uid}`));
+    const who = String((me.exists && me.get("displayName")) || "").trim() || "Someone";
+    const mutual = back.exists;
+    await sendPushToUids(
+      db,
+      [target],
+      {
+        title: BRAND_NAME,
+        body: mutual ? `${who} said yes — you're comparing answers now.` : `${who} wants to compare answers with you.`,
+      },
+      { kind: "friend", uid, mutual: mutual ? "1" : "0" },
+      "invites",
+      "friend",
+    );
+  },
+);
 
 // ── the reveal pipeline ─────────────────────────────────────────
 
@@ -1663,7 +1709,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
     db,
     invited,
     {
-      title: groupName || "InSight",
+      title: groupName || BRAND_NAME,
       body: mode === "duo" ? `${who} wants to play with you.` : `${who} invited you to join.`,
     },
     { kind: "invite", gid, mode },

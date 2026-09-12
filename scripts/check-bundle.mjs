@@ -1115,7 +1115,12 @@ const MAX_TOTAL_JS_KB = 2440;
 // whole complaint is that a ceiling pinned at the measurement makes every
 // merge a renegotiation — the one useful thing a later merge can add is
 // the number it actually measured, rather than another argument.
-const MAX_EAGER_KB = 555;
+// 555 → 557 on 2026-09-12: the name (data/brand.ts, read by the wordmark
+// on first paint — D-2026-09-12a's amendment) and the overlays' leave hold
+// (primitives.jsx's useLeaveHold, wired in app-shell). Both are first-paint
+// by nature; the same day's sub-tab swipe was kept OFF this graph
+// (spec/sub-swipe.js, the deferred profile's own import) for this reason.
+const MAX_EAGER_KB = 557;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
@@ -1162,7 +1167,13 @@ const MAX_EAGER_KB = 555;
 // total is the deliberate half; the number that guards first paint is the
 // new one, and it is tight on purpose.
 const MAX_BLOCKING_CSS_KB = 74;
-const MAX_CSS_KB = 88;
+// 88 → 95 on 2026-09-12: the Map's wayfinding (VISION-2026-09-12 §3 —
+// the trail, Find, the card's sizes and prev/next, the coach, the legend:
+// 36 classes the design added) plus the friends overlay's and the serif
+// wordmark's few rules. ~6 KB of it is map-wayfinding.css, a sheet the
+// Map's lazy chunk carries, so the BLOCKING number did not move for it;
+// the total is install weight and grew by what the screen needed.
+const MAX_CSS_KB = 95;
 const MAX_FONT_KB = 96;
 
 let files;

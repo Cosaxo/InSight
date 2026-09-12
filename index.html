@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>InSight — a journal of the people around you</title>
+    <title>Doxa — a journal of the people around you</title>
     <!--
       The boot state, inline on purpose — every part of that matters.
 
@@ -58,15 +58,21 @@
         position: fixed; inset: 0;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center; gap: 14px;
-        /* Hanken Grotesk ships with styles.css and is not here yet, so the
-           wordmark is set in the system stack rather than swapping font
-           mid-boot. */
         font-family: -apple-system, system-ui, sans-serif;
         color: rgba(255, 255, 255, 0.44);
       }
+      /* The name, in a serif: Doxa (2026-09-12, D-2026-09-12a). DM Serif
+         Display ships with styles.css and is not here yet, so this is the
+         system serif rather than a face that would swap mid-boot — the
+         same reason the dots are not the app's type. The shipped name is
+         written here rather than read from data/brand.ts: this block
+         paints before any module runs, and the DEV-only radio that can
+         change the name at runtime has no business on a boot screen. */
       #boot-mark {
-        font-size: 15px; font-weight: 700;
-        letter-spacing: 0.14em; text-transform: uppercase;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 30px; font-weight: 400;
+        letter-spacing: -0.01em;
+        color: rgba(255, 255, 255, 0.78);
       }
       #boot-dots { display: flex; gap: 5px; }
       #boot-dots i {
@@ -96,7 +102,7 @@
         while boot is still racing its timeout.
       -->
       <div id="boot">
-        <div id="boot-mark">InSight</div>
+        <div id="boot-mark">Doxa</div>
         <div id="boot-dots" role="status" aria-label="Loading"><i></i><i></i><i></i></div>
       </div>
     </div>

@@ -1514,9 +1514,9 @@ const listeners = new Set<() => void>();
 // carries the same note: derived on read rather than cached, so a
 // ranking cannot go stale against its own inputs. That reasoning is
 // right and it was being paid for on every render rather than on every
-// change. `kindredPeople()` walks every cached voter list and has 5
-// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2,
-// testNorms); each of those is inside a component that re-renders on
+// change. `kindredPeople()` walks every cached voter list and has 7
+// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2, testNorms,
+// friends + its overlay since 09-12); each of those is inside a component that re-renders on
 // every notify(), and none of them memoises. So one Mirror stop folded
 // the same voter cache four to six times per render — 14 ms a fold in
 // node at 120 cached questions × 200 voters, which is not 14 ms on a

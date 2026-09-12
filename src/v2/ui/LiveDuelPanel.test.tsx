@@ -1558,7 +1558,7 @@ describe("LiveDuelPanel · creating with people picked", () => {
     await pick("ada", "u_ada", "Ada Lovelace");
     fireEvent.change(screen.getByPlaceholderText(/Group name/i), { target: { value: "Book Club" } });
     fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
-    expect(await screen.findByText(/Circle made/i)).toBeTruthy();
+    expect(await screen.findByText(/Group made/i)).toBeTruthy();
   });
 });
 

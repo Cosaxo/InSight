@@ -41,9 +41,16 @@ it is moving toward.
   controls get 44 px of slack, the profile's sub-tabs swipe; four D182
   deletions; and the daily's modes read *Groups · 1v1s*. The duel family
   is byte-for-byte the 09-09 design.
-- **Built from it:** nothing yet. Steps 1–4 of the plan's §7 (friends on
-  D101, the Map, the person page, the shell) need no answer and are
-  worklist lines; the name and the labels wait on the owner's rows.
+- **Built from it:** the whole of the plan's §7, the same day, once the
+  owner picked *Doxa* ("for now") and *Groups · 1v1s* — the brand
+  module and the subset serif, the friends handshake on D101's rows
+  with its one push, the *Your friends* overlay and its four doors, the
+  Map's trail, Find, resizable card, sibling nav, coach hints and
+  legend, the person page's two leads, the profile's sub-tab swipe, the
+  overlays' leave, the tap slack, two of the copy deletions
+  (D-2026-09-12a's amendment). Not built: the outward-facing name (the
+  store, the shells, the web pages, the lockups — an owner row) and
+  the third question's line, which ships nowhere.
 - **Requests it closed:** none. The Friends overlay and the Map's
   wayfinding arrived designed by the owner's own upload — the second path
   of D361 — so neither had a request to close.

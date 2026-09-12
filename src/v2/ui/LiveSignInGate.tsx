@@ -53,6 +53,9 @@ import LIVE from "../data/live";
 // store surface for spec-layer JSX to find by name.
 import { appleSignIn, googleSignIn, type EmailFailure } from "../../lib/firebase";
 import { SITE_ORIGIN } from "../data/siteOrigin";
+import { brandName } from "../data/brand";
+// "an inSight history" / "a Doxa history": the article follows the name.
+const aBrandHistory = () => `${/^[aeiou]/i.test(brandName()) ? "an" : "a"} ${brandName()} history`;
 
 const GATE_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -426,7 +429,7 @@ function LiveSignInGate() {
       <GateShell>
         <GateTitle />
         <GateBody>
-          Can&rsquo;t reach InSight yet{LIVE.bootError ? ` \u2014 ${LIVE.bootError}` : ""}.
+          Can&rsquo;t reach {brandName()} yet{LIVE.bootError ? ` \u2014 ${LIVE.bootError}` : ""}.
           This build keeps your answers to a real account, so it waits for a
           connection rather than showing you sample questions.
         </GateBody>
@@ -503,7 +506,7 @@ function LiveSignInGate() {
           {inUse.known
             // Firebase already refused the link, so the other account is a
             // fact and the screen may name it.
-            ? <>That account already has an InSight history. Signing in to it leaves
+            ? <>That account already has {aBrandHistory()}. Signing in to it leaves
               this phone&rsquo;s answers behind &mdash; they are not merged.</>
             // Nothing has been asked yet at the email door, so the history
             // is the one thing this screen must not assert. What IS certain
@@ -607,7 +610,7 @@ function LiveSignInGate() {
         <>
           <p style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700,
             color: "var(--ink-2)", margin: "20px 0 0", textAlign: "center" }}>
-            Answers on InSight are public, yours included.
+            Answers on {brandName()} are public, yours included.
           </p>
           <p style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500,
             color: "var(--ink-3)", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
