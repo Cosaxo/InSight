@@ -450,7 +450,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
     voteLate: async () => {},
     myDuelVote: () => null,
-    myDuelCall: () => null,
+    myDuelCall: () => null as { optionIdx: number; guessIdx: number | null; pickUid: string | null } | null,
     revealFor: () => null,
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.
@@ -723,6 +723,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // "ready" — the loading and failed arms are driven per case.
     testAggsState: () => "ready" as "loading" | "ready" | "failed",
     kindredState: () => "ready" as "loading" | "ready" | "failed",
+    cityKindredState: () => "ready" as "loading" | "ready" | "failed",
     testFeedItems: () => [],
     myTestResults: () => ({
       big5: { title: "Big Five", dims: [
@@ -937,6 +938,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // `linked`: the mount suites build a walled build only by stubbing
     // VITE_REQUIRE_SIGNIN, and none of them does.
     wallPass: false,
+    // SETTLED: the mount suites are about what a screen draws once auth
+    // has spoken, not about the restore window. A case that wants the
+    // window flips this and leaves `linked` as it is — which is the
+    // combination the identity surfaces used to state as a fact.
+    authKnown: true,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).

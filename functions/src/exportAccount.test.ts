@@ -195,6 +195,12 @@ function seed() {
   set("v2_agg_events/evt_theirs", { qid: "daily-000", uid: OTHER });
   set("v2_patterns/sample-daily-000", { rows: { [ME]: { o: 1, d: DAY }, [OTHER]: { o: 0, d: DAY } }, n: 2 });
   set("v2_patterns/loadings", { q: {} });
+  // 1a‴ — the world map's published positions (D462): the world's document
+  // and this account's country, each with a control row for OTHER. These
+  // were erased and never exported.
+  set("v2_patterns/people-world", { rows: { [ME]: { x: 0.21, y: -0.4, n: 42 }, [OTHER]: { x: 0.1, y: 0.1, n: 9 } }, n: 2 });
+  set("v2_patterns/people-NO", { rows: { [ME]: { x: 0.19, y: -0.38, n: 42 } }, n: 1 });
+  set("v2_patterns/people-SE", { rows: { [OTHER]: { x: -0.5, y: 0.2, n: 11 } }, n: 1 });
   // THE PER-CITY FAMILY, which shares this collection and dwarfs it: one
   // document per (question, city) pair the nightly has seen, ~10,900
   // places wide. Seeded so the world-sample walk is asked to be a RANGE
@@ -354,6 +360,17 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
       Object.keys(b.voterSamples).some((k) => k.startsWith("city-") || k.includes("~")),
       "a per-city sample was read into the export — the walk is listing the collection again",
     ).toBe(false);
+    // 1a‴ — the world map's published positions. The most PUBLIC thing the
+    // app computes about a person — two coordinates and an answer count,
+    // readable by anyone under a display name — and the file that promises
+    // everything the account holds carried none of it: the scrub was
+    // folded under the samples' label, so `TWIN` could not see a family
+    // with an erasure arm and no export section. Keyed by population, and
+    // somebody else's row is not in it.
+    expect(b.worldMap).toEqual({
+      world: { x: 0.21, y: -0.4, n: 42 },
+      NO: { x: 0.19, y: -0.38, n: 42 },
+    });
     // …AND IT DID NOT ENUMERATE THE COLLECTION TO GET THERE. A listing and
     // a range scan return the same rows here, so the output cannot tell
     // them apart — cost is the only difference, and cost is the entire

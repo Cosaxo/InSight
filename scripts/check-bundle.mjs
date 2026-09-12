@@ -1016,7 +1016,62 @@ const MAX_TOTAL_JS_KB = 2440;
 // measuring exactly and defending nothing: a budget with no slack fails
 // whichever branch merges last, and says nothing about which one grew
 // the app. The deferral below is what turns it back into a budget.
-const MAX_EAGER_KB = 554;
+//
+// AND THESE TWO NOTES ARE TWO DIFFERENT RAISES THAT LANDED ON THE SAME
+// NUMBER. The block above is #501's, the block below is the night
+// review's, and each measured 554 against a tree without the other. The
+// merged figure is measured at the bottom of the review's block. That
+// makes it the FOURTH raise in a day by the count above, and the
+// strongest argument yet for the deferral it keeps naming: two branches
+// cannot both spend the same kilobyte, and a ceiling pinned at the
+// measurement makes every merge a renegotiation.
+// 553 -> 554 (2026-09-12): THE FIRST RAISE NEITHER CHANGE ASKED FOR. The
+// 2026-09-12 night review composed two shifts, and the eager graph on the
+// composed tree is bigger than on either branch alone -- measured, all
+// four on the same `VITE_V2_LIVE=true` build with a DSN:
+//
+//   main            552.22     A  552.96 (+0.74, passes with 0.04 to spare)
+//   composed        553.30     B  552.34 (+0.12)
+//
+// …then 553.79, because `main` moved again while the review ran (#497's
+// phase B and #502) and took another 0.49 KB. Then **554.17**, because
+// `main` moved a THIRD time (#501) and took 0.38 more — and #501 had
+// spent its own night raising this ceiling to 554 against a tree with
+// none of the above in it. That is what the joining note means by two
+// branches spending the same kilobyte.
+//
+// 554.17 is the figure this ceiling is finally set against. 555, which
+// is the measurement rounded up and nothing more: adding a comfort band
+// here would be quietly redefining a budget in a conflict resolution,
+// which is the one place it should never happen. The slack is not the
+// fix and was never going to be — the 8 KB below is, and after four
+// raises in one day it is no longer a nice-to-have that keeps getting
+// deferred to its own change. It IS the next change to this graph.
+//
+// The parts add up to +0.86 and the composition costs +1.08. The extra
+// 0.22 KB is the two shifts' edits meeting in the bundler, so no commit
+// on either branch owns it and neither shift could have measured it: A
+// spent main's headroom down to 0.04 KB and B's twelfth of a kilobyte
+// then tipped it. This is the class the night review exists to catch, in
+// the one gate that can only see it on a tree nobody built until morning.
+//
+// WHAT IT IS. +709 bytes of `data/live.ts` and +128 of the entry: six
+// boot-path defect fixes -- an offline answer counted twice after a
+// relaunch, a refused deck frozen for the session, two midnights serving
+// yesterday's question, a city whose every query failed reported as a
+// city nobody answers, a sealed pick naming whoever inherited the seat,
+// and an account panel telling a returning member their answers live on
+// this phone only. None of it is deferrable: `live.ts` IS the store the
+// app boots on, and `check:eager-content` is green, so no content entered
+// the graph -- which is the thing that warning is actually about.
+//
+// THE HEADROOM ABOVE IS NOW OVERDUE, not merely owed. `data/voters` is
+// still ~8 KB of this graph for uses that all run long after first paint,
+// and it is still its own change: nine value imports moved into the
+// methods that use them, in the boot store, is not a rider on a merge of
+// 63 commits either. It would return this constant to 546 and end the
+// every-byte alarm this block has now called out twice.
+const MAX_EAGER_KB = 555;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
@@ -1102,6 +1157,29 @@ const kbOf = (dir, re) => {
 };
 const cssKb = kbOf(ASSETS, /\.css$/);
 const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
+
+// ZERO FONTS IS NOT A PASS. `kbOf` answers 0 on any read failure — its
+// catch was written for "a demo build may not emit either", and that is
+// true of CSS and false of fonts: `public/fonts` is committed, so every
+// build copies the faces into dist/ and a total of zero can only mean
+// this budget measured nothing. Measured 2026-09-12: with dist/fonts
+// moved aside the gate printed "0 KB fonts (max 96)" and exited 0, which
+// is a budget reporting success about a directory it could not find.
+//
+// The two sibling budgets in this file already refuse exactly this — the
+// render-blocking CSS one exits 1 when index.html links no stylesheet
+// ("the emit shape changed and this budget is measuring nothing"), and
+// the eager one exits 1 on a name with no file rather than counting it as
+// 0. This is that guard, for the third.
+if (fontKb === 0) {
+  console.error(
+    "check-bundle: dist/ contains no font files at all.\n"
+    + "public/fonts is committed, so every build copies them — a zero here\n"
+    + "means this budget is measuring nothing rather than that the bundle\n"
+    + "carries no faces. Check that the build ran and that dist/ is whole.",
+  );
+  process.exit(1);
+}
 
 // ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
 //

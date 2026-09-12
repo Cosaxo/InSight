@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import {
-  DOC_BYTES_LIMIT, INDEX_ENTRIES_LIMIT, TODAY_ROWS,
+  DOC_BYTES_LIMIT, INDEX_ENTRIES_LIMIT, TODAY_ROWS, SHARD_AT,
   documentBytes, exemptionsOf, indexEntries, publicationOf, report, rowsAt, valueBytes,
 } from "./loadings-budget.mjs";
 
@@ -41,22 +41,36 @@ describe("the two claims", () => {
     const doc = publicationOf({ rows: TODAY_ROWS });
     expect(indexEntries(doc, exempt)).toBe(0);
     const indexed = indexEntries(doc);
-    // the wall was real and it was closer than the byte ceiling: a few
-    // thousand rows of this shape would have crossed 40,000 entries while
-    // the same rows sit far under 1 MiB
-    expect(indexed).toBeGreaterThan(10_000);
-    expect(indexed).toBeLessThan(INDEX_ENTRIES_LIMIT);
-    expect(indexEntries(publicationOf({ rows: 3000 }))).toBeGreaterThan(INDEX_ENTRIES_LIMIT);
-    expect(documentBytes("v2_patterns/loadings", publicationOf({ rows: 3000 }))).toBeLessThan(DOC_BYTES_LIMIT);
+    // THE WALL IS NOT AHEAD OF US, IT IS BEHIND: against the document the
+    // nightly really writes — both candidates carrying the full corpus —
+    // today's shape costs about 47,700 entries, which is ALREADY past the
+    // 40,000 limit. The exemption is not headroom bought for later; it is
+    // the only reason tonight's write is legal. This read `< 40,000` while
+    // the model benched the candidate at 113 rows.
+    expect(indexed).toBeGreaterThan(INDEX_ENTRIES_LIMIT);
+    // …and the byte ceiling is the one still ahead: the same rows sit at
+    // about 40% of 1 MiB.
+    expect(documentBytes("v2_patterns/loadings", doc)).toBeLessThan(DOC_BYTES_LIMIT / 2);
   });
 
-  it("1 MiB holds more rows than the shard trigger the plan names, so sharding at 2,500 is inside the wall", { timeout: 30_000 }, () => {
+  it("holds the shard trigger UNDER the measured limit, against the document the nightly really writes", { timeout: 30_000 }, () => {
+    // THE FIXTURE WAS THE FINDING. `publicationOf` benched the candidate
+    // engine at a fixed 113 rows while `functions/src/patterns.ts` gives
+    // both candidates the full row set, so the modelled document was about
+    // 40% light: 2,500 rows measure 1,176,530 bytes — past the ceiling —
+    // and the old trigger of 2,500 sat OUTSIDE the wall while this suite
+    // asserted, in its own name, that it was inside. That is the failure
+    // PATTERNS-PLAN §7.1 predicted in words and this instrument existed to
+    // catch.
     const n = rowsAt();
-    expect(n).toBeGreaterThanOrEqual(2500);
+    expect(n).toBeGreaterThan(SHARD_AT);
     expect(documentBytes("v2_patterns/loadings", publicationOf({ rows: n }))).toBeLessThanOrEqual(DOC_BYTES_LIMIT);
     expect(documentBytes("v2_patterns/loadings", publicationOf({ rows: n + 1 }))).toBeGreaterThan(DOC_BYTES_LIMIT);
+    // and the candidate really is modelled at the corpus, not at a constant
+    expect(documentBytes("v2_patterns/loadings", publicationOf({ rows: 2500 })))
+      .toBeGreaterThan(DOC_BYTES_LIMIT);
     const r = report(cfg);
     expect(r.rowsAt1MiB).toBe(n);
-    expect(r.lines.map((l) => l.rows)).toEqual([545, TODAY_ROWS, 2500, n]);
+    expect(r.lines.map((l) => l.rows)).toEqual([545, TODAY_ROWS, SHARD_AT, n]);
   });
 });

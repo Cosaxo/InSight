@@ -5,7 +5,7 @@
 // (D3) with Google linking, and the Firestore instance accessor. The
 // v2 data layer itself is src/v2/data/live.ts.
 
-import { initializeApp, type FirebaseApp } from "firebase/app";
+import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
@@ -122,7 +122,40 @@ const useEmulator = import.meta.env.VITE_USE_EMULATOR === "true";
 const EMULATOR_HOST = "127.0.0.1";
 
 export function init(config: FirebaseConfig): void {
-  if (app) return;
+  // IDEMPOTENT ON SUCCESS, not on "an app object exists".
+  //
+  // This read `if (app) return`, and `app` is set by the FIRST line of the
+  // build. Every line after it can throw — the auth instance, the
+  // persistent cache, an emulator connect — and firebase.ts's `impl()`
+  // catch exists precisely so that a throw here is retryable: it clears
+  // its memo before rethrowing so the next caller calls this again. That
+  // retry then hit `if (app) return` and reported SUCCESS on a module with
+  // no auth and no db, so every later use died with "Firebase not
+  // initialised" for the life of the page, with nothing left that could
+  // repair it. The comment at firebase.ts:76-81 says the retry "is cheap
+  // when the failure was in `init` rather than the fetch"; it was not
+  // cheap, it was inert.
+  //
+  // So: return early only when the module is WHOLE, and on any throw leave
+  // nothing behind. `deleteApp` is what makes the retry possible at all —
+  // `initializeApp` refuses a second call under the same name
+  // (app/duplicate-app), so without the teardown a rebuild could not even
+  // start.
+  if (app && authInstance && dbInstance) return;
+  try {
+    initInner(config);
+  } catch (err) {
+    const half = app;
+    app = null; authInstance = null; dbInstance = null;
+    // Best effort, and deliberately not awaited: the caller's retry must
+    // not wait on a teardown, and a teardown that fails must not replace
+    // the error that caused it.
+    if (half) void deleteApp(half).catch(() => {});
+    throw err;
+  }
+}
+
+function initInner(config: FirebaseConfig): void {
   app = initializeApp(config);
   // NATIVE MUST NOT USE getAuth(), and the symptom is a hang rather than an
   // error. getAuth() installs the browser popupRedirectResolver, which

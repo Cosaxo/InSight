@@ -1908,7 +1908,20 @@ class WorldFeed extends React.Component {
     const leader = c.top[0] || null;
     const myIdx = c.top.findIndex((r) => r.entity === v.entity);
     const myRow = myIdx >= 0 ? c.top[myIdx] : null;
-    const agree = !!leader && v.entity === leader.entity;
+    // A BOARD OF ONE IS NOT A CROWD, and this card had no floor at all.
+    // `pickCanon` joins the reader's own unfolded pick into the board, so
+    // the first person to answer a catalogue question met their own vote
+    // labelled "you and the crowd", ranked "#1 on the board", at "100.0%"
+    // — three claims about a population of themselves. It stays true after
+    // the fold lands: the board is still one row.
+    //
+    // `wfNoCrowd` is the predicate every other live surface uses here and
+    // it cannot serve this one: a pick card carries no `options`, so its
+    // `every(o => !o.count)` arm is vacuously true and the card would be
+    // floored forever. The board's own total is the honest test, and it is
+    // `renderMeta`'s `alone = total <= 1` one method over.
+    const alone = c.total <= 1;
+    const agree = !alone && !!leader && v.entity === leader.entity;
     const notListed = store && v.entity === store.NOT_LISTED;
     const shareOf = (count) => (c.total ? ((count / c.total) * 100).toFixed(1) + '%' : '');
     // The tail is real and the copy says why it is hidden — without naming
@@ -1933,7 +1946,7 @@ class WorldFeed extends React.Component {
     // and said why (COPY.md §3); the tile was not moved with it, so one
     // card said both things about the same pick.
     const TOPN = PK.TOP_N;
-    const tile = (ent, nm, label, strong, count, rank) => (
+    const tile = (ent, nm, label, strong, count, rank, absent) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
         {/* 92 px tall until 2026-09-11, which was the right height for a
@@ -1947,7 +1960,7 @@ class WorldFeed extends React.Component {
           <PickArt domain={q.domain} id={ent} />
         </span>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{nm || '\u2026'}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (q.live ? 'not on the board' : 'below the floor')}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (absent || (q.live ? 'not on the board' : 'below the floor'))}</span>
       </div>
     );
     const chip = (label, active, onTap) => (
@@ -1957,10 +1970,12 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {!seg && leader && !notListed && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 4 }}>
-            {agree
-              ? tile(v.entity, mineName, 'you and the crowd', true, myRow && myRow.count, myIdx + 1)
-              : tile(v.entity, mineName, 'your pick', true, myRow && myRow.count, myRow ? myIdx + 1 : 0)}
-            {!agree && tile(leader.entity, this.pickName(leader.entity, q.domain), 'the crowd', false, leader.count, 1)}
+            {alone
+              ? tile(v.entity, mineName, 'your pick', true, null, 0, 'first — nobody else yet')
+              : agree
+                ? tile(v.entity, mineName, 'you and the crowd', true, myRow && myRow.count, myIdx + 1)
+                : tile(v.entity, mineName, 'your pick', true, myRow && myRow.count, myRow ? myIdx + 1 : 0)}
+            {!alone && !agree && tile(leader.entity, this.pickName(leader.entity, q.domain), 'the crowd', false, leader.count, 1)}
           </div>
         )}
         {/* the credits, under the two faces that may carry a picture */}
@@ -3659,7 +3674,15 @@ class WorldFeed extends React.Component {
     // The imported binding, not the window surface — same reason
     // renderKnowInsight gives below, and check:globals rule 4 refuses new
     // coupling either way.
-    const live = LIVE.enabled;
+    //
+    // AND `demoInProd` WITH IT, because `enabled` alone answers the wrong
+    // question. It is false for two different reasons — a demo build, and
+    // a LIVE build whose boot has not attached yet — so on every cold
+    // start with a weak signal this took the demo arm and drew the rows
+    // the paragraph above refuses, at a real person. `renderEngage` in
+    // this same file already guards the pair correctly; this is that
+    // guard, here. Either half means "not the demo".
+    const live = LIVE.enabled || LIVE.demoInProd;
     const dim = live ? 'friends' : (WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends');
     const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
     const rate = LEARN_RATE(card);
@@ -3751,7 +3774,13 @@ class WorldFeed extends React.Component {
     // aggregate exists to rank. The imported LIVE, not the window surface:
     // a test driving this branch stubs the module the way
     // LiveCohortBody.test does, not through the window stand-in.
-    if (LIVE.enabled) return null;
+    // `demoInProd` with it: `enabled` is false both for a demo build and
+    // for a live build that has not attached, and only the first of those
+    // should see the demo arm. Without it, every cold start on a weak
+    // signal headlined an invented per-cohort rate at a real user for the
+    // length of the boot — the case this refusal exists for, reached the
+    // one way it was not checked.
+    if (LIVE.enabled || LIVE.demoInProd) return null;
     const card = LEARN.card(q.learn);
     if (!card) return null;
     const p = card.p;

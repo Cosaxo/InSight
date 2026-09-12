@@ -116,6 +116,7 @@ import {
   type PatternsUserState,
 } from "./patternsFit";
 import {
+  CITY_SAMPLE_PAIRS_PER_NIGHT,
   PATTERNS_SAMPLE_CAP,
   PATTERNS_SEED_PER_RUN,
   citySampleAdditions,
@@ -138,7 +139,6 @@ import {
   alsScoreDay,
   anchorSpecsOf,
   observationsOf,
-  ridgeTheta,
   binRows,
   pickSpecsOf,
   candidateWon,
@@ -302,6 +302,11 @@ export interface PatternsStore {
    *  world's own, keyed by document id. A set, like the samples — the
    *  document is rebuilt whole every night. */
   putWorldMaps(docs: Map<string, WorldMapDoc>): Promise<void>;
+  /** Every world-map document id standing right now. Bounded by the
+   *  country catalogue plus the world's own, and read so that a country
+   *  which produced NOBODY tonight can be rewritten empty rather than left
+   *  drawing last night's people as current. */
+  listWorldMapIds(): Promise<string[]>;
   /** The newest PATTERNS_SAMPLE_CAP world answers to one question, as
    * sample additions — the who-voted sheet's own query, run once per
    * question ever, to seed its sample (D442). Up to the cap in billed
@@ -313,6 +318,7 @@ import {
   WORLD_MAP_MIN_ANSWERS,
   WorldMapBuilder,
   positionModel,
+  positionTheta,
   roundPos,
   type WorldMapDoc,
 } from "./patternsWorld";
@@ -406,6 +412,11 @@ export async function runPatternsFit(
   nowMs: number,
   eligible: ReadonlySet<string> = PATTERNS_QIDS,
   items: readonly ItemSpec[] = PATTERNS_ITEMS,
+  /** The per-RUN city-pair budget. Injectable for the same reason
+   * `eligible` and `items` are: the real bound is 30,000 pairs, and a
+   * test that had to build 30,001 of them would spend a minute of CI
+   * proving arithmetic. */
+  cityPairsPerRun: number = CITY_SAMPLE_PAIRS_PER_NIGHT,
 ): Promise<PatternsRunSummary> {
   const yesterday = utcDay(nowMs, -1);
   const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
@@ -466,6 +477,19 @@ export async function runPatternsFit(
   // to PATTERNS_CATCHUP_DAYS days in one invocation, and the bound exists
   // to cap what one invocation reads.
   let seedsLeft = PATTERNS_SEED_PER_RUN;
+  // AND THE CITY-PAIR BUDGET IS PER RUN TOO, for the identical reason —
+  // which it was not, three lines of reasoning above notwithstanding.
+  // `citySampleAdditions` takes CITY_SAMPLE_PAIRS_PER_NIGHT as a DEFAULT
+  // argument, and the call site is inside the day loop, so every owed day
+  // started the budget again.
+  //
+  // Measured: two owed days produced 60,000 city-sample reads and writes
+  // in one invocation, exactly 2× the constant. At PATTERNS_CATCHUP_DAYS
+  // that is ~210,000 each way — 7-14 minutes against a 480 s deadline,
+  // and the run that would hit it is the one that must not die, because
+  // nothing advances `lastDay` until the end. A pass that times out here
+  // re-owes the same days tomorrow and spends the same 7x again.
+  let cityPairsLeft = cityPairsPerRun;
   let seeded = 0;
   const today = utcDay(nowMs, 0);
   const touched = new Set<string>();
@@ -726,7 +750,8 @@ export async function runPatternsFit(
       // the corpus, this one by the product of two catalogues, and
       // holding every merged city document until the end is the memory
       // shape the pass is already short of.
-      const pairs = citySampleAdditions(adds);
+      const pairs = citySampleAdditions(adds, cityPairsLeft);
+      cityPairsLeft -= pairs.length;
       for (let i = 0; i < pairs.length; i += 300) {
         const chunk = pairs.slice(i, i + 300);
         const ids = chunk.map((p) => citySampleId(p.qid, p.city));
@@ -1042,7 +1067,10 @@ export async function runPatternsFit(
       ...(st.p ? { p: st.p } : {}),
     }, posIndex);
     if (!obs.length) return;
-    const theta = ridgeTheta(obs, k, posLambda * obs.length + 0.5);
+    // The device's ridge, through the one function that owns the
+    // convention — see `positionTheta`, which says what the scaled form
+    // was and why the two solves have to agree.
+    const theta = positionTheta(obs, k, posLambda);
     let norm = 0;
     for (const x of theta) norm += x * x;
     norm = Math.sqrt(norm);
@@ -1057,6 +1085,24 @@ export async function runPatternsFit(
     });
   });
   const worldDocs = world.docs(yesterday);
+  // A COUNTRY THAT EMPTIED OUT IS STILL PUBLISHED. `docs()` emits one
+  // document per country with somebody in it tonight, and the write is a
+  // `set` per emitted id — so a country whose last placed account moved
+  // its chip, fell under the answer floor, or deleted itself keeps
+  // yesterday's document, and the lens draws those people as that
+  // country's crowd with no way to know better. The world's own document
+  // is rewritten every night and cannot go stale this way, which is why
+  // this was only ever true of the small ones.
+  //
+  // Rewritten EMPTY rather than deleted: the reader states "N of M" off
+  // this document, and a document that says nobody is here is a different
+  // thing from a document that is not there yet. Bounded by the country
+  // catalogue — one range query, ~245 documents at the very most, the
+  // same range the erasure arm walks.
+  for (const id of await store.listWorldMapIds()) {
+    if (worldDocs.has(id)) continue;
+    worldDocs.set(id, { id, rows: {}, n: 0, total: 0, day: yesterday });
+  }
   await store.putWorldMaps(worldDocs);
 
   await store.putModel(pub);
@@ -1274,6 +1320,17 @@ export function firestorePatternsStore(
         });
       }
       return out;
+    },
+    async listWorldMapIds() {
+      // The same id range `deleteAccount`'s world-map arm walks, and for
+      // the same reason it gives: the family is bounded by the country
+      // catalogue plus one ('.' follows '-'), so this is one query.
+      const snap = await db.collection("v2_patterns")
+        .where(FieldPath.documentId(), ">=", "people-")
+        .where(FieldPath.documentId(), "<", "people.")
+        .select()
+        .get();
+      return snap.docs.map((d) => d.id);
     },
     async putWorldMaps(docs) {
       // `v2_patterns/{docId}` again: signed-in reads, nobody writes — the

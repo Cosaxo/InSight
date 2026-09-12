@@ -17,7 +17,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LIVE_MARKERS, missingLiveMarkers } from "./live-build-markers.mjs";
+import { EMULATOR_MARKERS, LIVE_MARKERS, emulatorMarkersIn, missingLiveMarkers } from "./live-build-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...p) => readFileSync(join(root, ...p), "utf8");
@@ -84,6 +84,40 @@ describe("the shipping-bundle markers", () => {
         expect(src.includes(m), `${gate} names "${m}" itself instead of asking the`
           + " module — the point of the module is that there is one list").toBe(false);
       }
+    }
+  });
+});
+
+// ── the other direction: an EMULATOR bundle must never ship ────────────
+//
+// check-web-firebase refused `VITE_USE_EMULATOR=true` by reading
+// `process.env` — the environment of the process running the CHECK, not of
+// the one that ran the BUILD — while its own header says that is not
+// enough. Vite reads `.env` and `process.env` does not, and the documented
+// local flow is `cp .env.emulator .env`, so the gap needs no mistake to
+// reach: a build made that way printed "live config inlined" and exited 0.
+describe("emulatorMarkersIn — was this bundle built against the emulator", () => {
+  it("finds nothing in a bundle that carries none of them", () => {
+    expect(emulatorMarkersIn("const a=1;initializeApp(cfg);getAuth(app);")).toEqual([]);
+  });
+
+  it("refuses on ANY one of them, not all — the opposite quantifier to the live markers", () => {
+    // The direction that must not happen is an emulator bundle on a phone,
+    // so one survivor is enough to refuse. `missingLiveMarkers` requires
+    // all three for the opposite reason, and the two must not be confused.
+    for (const m of EMULATOR_MARKERS) {
+      expect(emulatorMarkersIn(`x;${m};y`), `${m} did not refuse on its own`).toEqual([m]);
+    }
+  });
+
+  it("names only strings a real emulator build actually writes", () => {
+    // The same vacuity check the live markers get above: a marker nothing
+    // emits refuses nothing. These three are reached only from the
+    // `useEmulator` branch in src/lib/firebaseImpl.ts, which is a
+    // build-time constant, so an ordinary build folds them away entirely.
+    const impl = readFileSync(resolve(root, "src", "lib", "firebaseImpl.ts"), "utf8");
+    for (const m of EMULATOR_MARKERS) {
+      expect(impl.includes(m), `nothing in firebaseImpl.ts writes "${m}" — this marker refuses nothing`).toBe(true);
     }
   });
 });

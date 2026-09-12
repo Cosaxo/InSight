@@ -52067,3 +52067,265 @@ closest pair 0.429), `check:taxonomy`, `check:seed-fields`,
 documents, the political-consent corpus, the circle cap's answerable
 count, and the bank's wire size), `test:scripts` (82 / 1,386),
 `test:unit`.
+## D470 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes
+
+**2026-09-12.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+sixty-three commits are kept as written; nothing was reverted. What this
+review adds is the composition — two conflicts between the shifts and six
+more against a `main` that moved while it ran — plus one security fix,
+one regression fix and two corrections for things no shift could see
+alone. The security fix is the one to read: a hole that existed in
+neither shift's work and neither `main`'s, only in their sum. The owner's
+instruction was *"review tonight night shifts and merge the parts you
+approve"*: every part is approved, and this record says which parts the
+composition had to change to say so.
+
+### What arrived
+
+| Branch | Commits | Against main | |
+| --- | ---: | --- | --- |
+| `night-20260912` | 33 | 4 behind (it merged main mid-shift) | shift A, Claude 2's, 21:21–05:27 UTC |
+| `nightb-20260912` | 30 | 40 behind | shift B, Claude 1's, 20:12–04:11 UTC |
+
+`main` took twenty-three commits during the night: console and pulse
+rows, and the farm lane's own merge (#503, self-merging on green under
+D212). No decision number moved. Neither shift claimed one; the tree sat
+at D464. This record is D470. `main` took D465–D467 while this review ran (#502,
+#497) and then D468–D469 (#501) while it was writing this line up, so the
+number moved twice under D299's collision rule — which is itself the
+finding one section down, in a second gate.
+
+**FOURTEEN FILES WERE TOUCHED BY BOTH** — against thirteen the night
+before (D450), nine the night before that (D449) and zero at D430. **Two
+of them conflicted**, where last night five did. The thing worth
+recording is that the drop is not a quieter night: **only three documents
+were touched all night** (`docs/COST-REDUCTION.md` and
+`docs/PATTERNS-PLAN.md` by A, `docs/OWNER-LIST.md` by B) **and none by
+both**, so D449's and D450's dominant class — prose one shift made false
+in a file the other never opened — had almost no surface this night. What
+replaced it was arithmetic, which is the harder kind to see.
+
+### The two conflicts
+
+**1 · `firebase.json`'s CSP hash — and NEITHER shift's hash was the
+tree's.** Both shifts edited `web/ask.html`, which is pinned by a
+`script-src 'sha256-…'` in the hosting headers, and each repinned the
+hash for its own version of the page. A measured
+`tuLXQHtlvQOZmDseBJTaqq/Z0YlPwfAbjBo7t6xFk8g=`, B measured
+`u0WRqAC21HYFI9zXIWEzaLpIxEGXL9Zqi3YPEMpT9IA=`; the composed page —
+which is the only page that ships — is
+`SJGjSTcfF1fV/xBeXNTo5SKFHMuUgCu1NUWsXic/ZZY=`. Taking either side is a
+CSP that refuses the ask page's own script, on the page that takes the
+money, with no error anyone would see until a buyer met a dead page.
+Measured with the gate's own `cspHash(inlineScripts(…))` rather than
+chosen; `check:csp-hashes` then passes on both pinned pages. Same shape
+as D450's conflict 3 — the fix is to MEASURE, never to pick a side — and
+this is the second consecutive night that shape has appeared.
+
+**2 · `functions/src/index.ts`'s `deleteAccount` voter-sample scrub —
+two different fixes at one line.** B replaced the whole-family `.get()`
+with a `WORLD_SAMPLE_PAGE` loop (233 MiB retained at the 2026-09-11
+corpus); A added a new erasure phase below it for the world map's
+published positions (D462). Both are kept: B's paged loop resolves the
+conflict, A's new phase merged clean underneath it.
+
+### And six more against `main`, which moved under the review
+
+`main` took #502 and #497 while this was running — D465, D466 and D467,
+which is why this record is D468. Bringing them in conflicted six times;
+four were mechanical and two were not:
+
+- **`scripts/pulse.test.mjs`'s read count — the third "neither number was
+  the tree's" of the night.** The test counts the documents
+  `onV2AnswerCreated` reads. Phase B took 13 → 15 (the vote arm reads two
+  ways now); shift B took 13 → 14 (the rank arm gained the author's
+  profile read, the last create arm without one). The composed tree is
+  **16**, recounted off the file rather than added up: one `tx.get(` and
+  fifteen batched arguments. `TRIGGER_READS` does not move for either,
+  for the reason the constant's own comment gives.
+- **`src/v2/data/live.ts`'s pending restore** — A's `unaggregatedFrom`
+  (so `countsFor` can take an edited vote out of the option the published
+  counts still hold it in) and phase B's `noteAggBase(aid, false)` landed
+  on the same line. Independent: different fields, different consumers,
+  and `aggHoldsMark` short-circuits on a null base before it would read
+  `from`. Both kept.
+
+The other four — `firebase.json`, the deploy workflow, `DECISIONS.md` and
+its generated index — were a hash to re-measure, two comment blocks that
+both belonged, and a renumber.
+
+### What the composition broke, and what it only revealed
+
+**THE ONE THAT MATTERS: phase B's sharded edit lane carried a cohort
+hole the same night the hot path lost it.** Night shift B found that
+`onV2AnswerUpdated` retargeted the -old/+new delta using the anchors on
+its own EVENT PAYLOAD, when the CREATE trigger's D410 correction is what
+makes those anchors honest — so a free anonymous account could claim a
+stranger's band, answer, and edit immediately, and the move landed in the
+claimed band, taking a cell belonging to someone else with it. B measured
+it on the emulator and replaced the payload read with a re-read of the
+answer document.
+
+`main` took #497 the same night, and phase B (D467) gave that arm a
+SECOND copy — the sharded lane, for a question the daily bank names —
+written on the old shape, with `after.get("anchors")` in its ledger
+entry, its log row and its shard increments. Compose the two and the hot
+path is fixed while the sharded path is holed, **and the sharded path is
+the reachable one**: the daily bank is exactly what shards, and the daily
+is the one question everyone answers. Neither side is at fault and
+neither could have seen it — B's branch has no sharded lane, #497's
+branch has no re-read, and only the composed tree has both.
+
+The lane now reads the answer alongside its ledger mark (`tx.getAll(
+eventRef, answerRef)` — the same round trip) and uses the honest anchors
+in all three places, with B's own fallback for an answer that is gone.
+The create lane needed nothing: it reads the author's profile on both
+paths already, so D410's correction applies there. A new case in
+`idempotence.test.ts` pins it, red-first — restoring the payload read
+fails it on *"the edit did not land in the author's real band"* — and it
+had to be a new case, because the hot path's own case cannot enter this
+branch: its qid is deliberately not a daily id.
+
+This is the review's whole justification in one defect. Both halves were
+correct, both were merged by their own gates, and the hole existed only
+in their sum.
+
+**`check:bundle` — the eager graph is bigger than either shift built
+it.** Measured on all four trees, same `VITE_V2_LIVE=true` build with a
+DSN, because this gate reads the build output and refuses any other:
+
+| tree | eager graph | against the 553 KB ceiling |
+| --- | ---: | --- |
+| `main` | 552.22 KB | 0.78 KB spare |
+| shift A | 552.96 KB | 0.04 KB spare — passes |
+| shift B | 552.34 KB | passes against main's ceiling |
+| **composed** | **553.30 KB** | **over** |
+| + `main` again (#497, #502) | 553.79 KB | |
+| + `main` a third time (#501) | **554.17 KB** | the ceiling ends at **555** |
+
+The parts add to +0.86 KB and the composition costs +1.08. The extra
+0.22 KB is the two shifts' edits meeting in the bundler, so **no commit
+on either branch owns it** and neither shift could have measured it: A
+spent main's headroom down to four hundredths of a kilobyte and B's
+twelfth of a kilobyte tipped it. This is the clearest instance yet of the
+class this review exists to catch — a gate that can only go red on a tree
+nobody builds until morning.
+
+Raised with the arithmetic recorded in the script, which is what the
+gate's own failure text licenses — but the raise had to be made three
+times, because `main` moved three times under this review and #501 spent
+its own night raising this same ceiling to 554 against a tree with none
+of this in it. Two branches cannot both spend the same kilobyte, and by
+the script's own count that makes **four raises in one day** (552 → 553 →
+554 → 555). The final number is the measurement rounded up and nothing
+more: a comfort band added during a conflict resolution would be quietly
+redefining a budget in the one place that should never happen.
+
+**So the structural finding is not the kilobyte, it is the ratchet.** A
+ceiling pinned at the measurement stops being a budget and becomes an
+alarm that fires on whichever branch merges last, saying nothing about
+which one grew the app — #501 reached that conclusion independently the
+same day, in the same file. The ~8 KB the block has owed since it last
+moved (`data/voters`, statically imported by `live.ts` for uses that all
+run long after first paint) has been deferred as "its own change" by
+three separate branches now. After four raises it is not a nice-to-have
+being deferred; it is the next change to this graph. What grew is +709 bytes of
+`data/live.ts` and +128 of the entry chunk: six boot-path defect fixes,
+none of them deferrable, because `live.ts` IS the store the app boots on.
+`check:eager-content` is green — no question content entered the graph,
+which is what that warning is actually about. **The ~8 KB this block has
+owed since it last moved** (`data/voters`, statically imported by
+`live.ts` for uses that all run long after first paint) **is recorded as
+overdue rather than owed.** It stays its own change: nine value imports
+moved inside the boot store is not a rider on a merge of 63 commits, and
+it would return the constant to 546 and end the every-byte alarm the
+block has now called out twice.
+
+**B's shift is red on `check:bundle` on its own branch, and that is not
+B's defect.** B measures 552.34 against a ceiling of **552**, because B
+is forty commits behind a `main` that raised it to 553. The merge takes
+main's ceiling and the number is fine. Recorded because a branch failing
+a ratchet it is merely behind on reads exactly like a branch that broke
+it.
+
+**`check:fn-types` was red on shift A and the merge did not cause it.**
+`runPatternsFit(store, nowMs: number)` is handed
+`new Date(Date.parse(…) + 26 * 3600 * 1000)` by A's case proving a
+country's map is emptied when its last member leaves. It passes under
+vitest — a Date coerces to its own epoch milliseconds in every arithmetic
+context the fit puts `nowMs` through, so the case exercises exactly the
+instant it means to — and only the typechecker can see it. `main` is
+green on the gate, so this is the shift's own regression, fixed here
+because this is the first tree the gate was run against. It is the fifth
+runner's trap one layer out, and the third night running that something
+has been found in a script or gate that runs in CI's **lint** job rather
+than beside the suites (CLAUDE.md § *the fifth one hides*).
+
+**`docs/OWNER-LIST.md` — the one ask whose cost the composition
+changed.** B's entry on the ask page's civic block gives the owner three
+ways out and prices (a) — delete the block — as *"one sentence of copy
+goes with it"*. True on B's branch. On the composed tree it is not: A
+spent the same night making that same sentence the fallback a SERVER
+decline falls back to when the booking carries no `note` (the page reads
+`note` now, and overrides the sentence only when there is one), so
+deleting it with the block leaves a noteless decline showing an empty
+reason. Option (a) is now priced as the block **plus a replacement
+fallback**. Nothing in code is wrong and both halves are correct — but
+the ask is the thing the owner ACTS on, D334 says what to bring when you
+ask, and no gate reads a cost clause. This is D449's and D450's class
+surviving in the one document where it still had surface.
+
+### What was checked and left alone
+
+Five things looked like the same class and are not, each verified rather
+than assumed:
+
+- **A's new erasure phase reads a family whole one block under B's fix
+  for reading a family whole, and the bound is real.** A enumerates
+  `people-` … `people.` with a plain `.get()`. The `sample-` family B
+  paged grows with the question bank; the `people-` family is one
+  document per country plus the world — ~246 at the very most, a ceiling
+  the country catalogue fixes — and each is capped at `WORLD_MAP_CAP`
+  600 rows of `{x, y, n}`. `patternsWorld.ts`'s own note prices an
+  UNCAPPED world document at "a megabyte" for 18,400 accounts, which puts
+  a capped one near 34 KiB and the whole family under 9 MiB. Left as
+  written; it is the same shape and not the same arithmetic.
+- **A's new phase is correctly outside B's deferral.** B made the v2
+  subtree wipe conditional on the sample scrub, because the answers are
+  that scrub's index. A's phase reads by ID range and not from the
+  account's answers, so it needs no such guard — and its label reaches
+  phase 5, which aborts the auth delete on `failed.length > 0`. The
+  export twin is paired (`worldMapPositions: "worldMap"`), which is the
+  contract A's own commit says a new family arrives without.
+- **B's price fix is what makes A's price promise true.** A's
+  `quoteForCheckout` prices an unquoted booking at the first press of Pay
+  and says the door's promise — *"the price you were quoted is the price
+  you pay"* — holds either way. On A's branch alone it does not:
+  `budgetEur` was null until a chip was tapped, and `priceQuote` reads
+  null as the card's CAP, so the buyer shown €5 was still charged €50. B
+  made the wire send what the page displayed. The claim is true on the
+  composed tree and on neither branch.
+- **Neither shift repeated the trap that has been breaking every deploy
+  run since #498.** Both added lines to `.github/workflows/firebase-deploy.yml`;
+  both new expressions sit in an `env:` block, which is the placement
+  that survives. The invalid empty expression itself was `main`'s, and
+  #502 merged the fix while this review was running: the comment carrying
+  it moved out of the `run:` body up to YAML-comment level, where YAML
+  strips it before GitHub reads a character. So this branch inherits a
+  repaired file rather than a broken one, and #504 — which proposes the
+  same move — is now superseded and can be closed rather than merged.
+- **The rules ratchets survived the composition untouched**, which D450
+  named the likeliest casualty. Measured on the composed tree: 7 of 381
+  atomic predicates never evaluate false against a baseline of 7, and all
+  fifteen expression-budget probes sit at their pins. Nothing to change.
+
+### The battery, on the composed tree
+
+`test:unit` 3,240 in 221 files · `test --prefix functions` 1,026 in 48 ·
+`test:scripts` 1,445 in 84 · `test:rules` 225 plus both ratchets ·
+`test:e2e:all` all three suites on one boot · `tsc -b` · `eslint` ·
+**49 of 51 `check:*` gates.** The two that do not pass fail identically
+on `main` and for reasons outside the tree: `check:web-firebase` wants
+the release `VITE_FIREBASE_*` secrets, and `check:store-copy` wants the
+Play signing SHA-256, which is a placeholder because Play is deferred
+(D42). Both were run against a `main` worktree to confirm it.

@@ -119,6 +119,15 @@ describe("--verdict", () => {
     const patch = seen.find((s) => s.method === "PATCH");
     expect(JSON.parse(patch.body).fields.status.stringValue).toBe("approved");
     expect(out).toContain("can now pay");
+    // WHERE THE PRICE COMES FROM. This note told the reviewer the buyer is
+    // charged "the quote on the doc"; a booking in this queue has none —
+    // the quote is written by the verdict transaction of the review path
+    // that did not run, which is why the booking is here at all — and
+    // checkout prices it off the committed card instead.
+    expect(out, "the note promises a quote this booking does not carry")
+      .not.toContain("quote on the doc");
+    expect(out).toContain("no quote");
+    expect(out).toContain("set at checkout");
   });
 
   it("records WHO ruled, so a routine verdict is not mistaken for the model's", async () => {

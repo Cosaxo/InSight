@@ -69,6 +69,11 @@ const h = vi.hoisted(() => ({
   createdAccounts: [] as Array<Record<string, unknown>>,
   emailSignIns: [] as Array<Record<string, unknown>>,
   verifyMails: 0,
+  appsMade: 0,
+  appsDeleted: [] as unknown[],
+  // Set to make `initializeFirestore` throw once — the shape of a build
+  // that gets past `initializeApp` and dies after it.
+  firestoreThrowsOnce: false,
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -76,7 +81,11 @@ vi.mock("@capacitor/core", () => ({
 }));
 
 vi.mock("firebase/app", () => ({
-  initializeApp: () => ({ __app: true }),
+  initializeApp: () => { h.appsMade += 1; return { __app: true, n: h.appsMade }; },
+  // The teardown a half-built init owes. `initializeApp` refuses a second
+  // call under the same name, so without this a retry after a partial
+  // failure could not even start.
+  deleteApp: async (a: unknown) => { h.appsDeleted.push(a); },
 }));
 
 vi.mock("firebase/auth", () => ({
@@ -148,6 +157,7 @@ vi.mock("firebase/auth", () => ({
 
 vi.mock("firebase/firestore", () => ({
   initializeFirestore: (_app: unknown, settings: Record<string, unknown>, dbId: unknown) => {
+    if (h.firestoreThrowsOnce) { h.firestoreThrowsOnce = false; throw new Error("firestore boom"); }
     h.firestoreCalls.push({ settings, dbId });
     return { __db: true };
   },
@@ -201,6 +211,9 @@ beforeEach(() => {
   h.linkCredentials.length = 0;
   h.currentUser = null;
   h.firestoreCalls.length = 0;
+  h.appsMade = 0;
+  h.appsDeleted.length = 0;
+  h.firestoreThrowsOnce = false;
   h.emailCredentials.length = 0;
   h.createdAccounts.length = 0;
   h.emailSignIns.length = 0;
@@ -210,6 +223,42 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("a build that dies half-way is rebuilt, not reported as done", () => {
+  it("a retry after a partial failure builds the module again", async () => {
+    // `impl()` in firebase.ts clears its memo before rethrowing so the
+    // next caller calls `init` again — its own comment says the retry "is
+    // cheap when the failure was in `init` rather than the fetch". It was
+    // not cheap, it was inert: `init` opened with `if (app) return`, and
+    // `app` is set by the FIRST line of the build. So a throw anywhere
+    // after it left auth and db null, and the retry returned immediately
+    // reporting success on a module that had neither.
+    const m = await import("./firebaseImpl");
+
+    h.firestoreThrowsOnce = true;
+    expect(() => m.init(CONFIG), "the failure did not reach the caller").toThrow(/firestore boom/);
+    expect(h.appsMade, "the first attempt never got as far as the app").toBe(1);
+    // Nothing half-built left behind, and the app torn down so a second
+    // `initializeApp` is legal at all.
+    expect(h.appsDeleted, "the failed attempt kept its app — a rebuild cannot start").toHaveLength(1);
+
+    // The retry: a whole build this time.
+    m.init(CONFIG);
+    expect(h.appsMade, "the retry returned early on the dead app").toBe(2);
+    expect(h.firestoreCalls, "the retry did not rebuild the database handle").toHaveLength(1);
+    expect(() => m.getDbInstance(), "the module still reports itself uninitialised").not.toThrow();
+  });
+
+  it("a second init on a WHOLE module still does nothing", async () => {
+    // The property the old guard had and this must keep: init is called
+    // on every `impl()` and must not rebuild a working module.
+    const m = await import("./firebaseImpl");
+    m.init(CONFIG);
+    m.init(CONFIG);
+    expect(h.appsMade, "a healthy module was rebuilt").toBe(1);
+    expect(h.firestoreCalls).toHaveLength(1);
+  });
 });
 
 describe("Auth construction", () => {
