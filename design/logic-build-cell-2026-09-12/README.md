@@ -101,14 +101,43 @@ has no reason to know a third-party bank's internal numbering, and the
 request did not give it to them — that omission is the record's, and it
 is fixed here.
 
-## Open for the owner
+## Answered by the owner, 2026-09-12: twenty-five items at ninety seconds
 
-**30 seconds an item, against the bank's own 90.** The artboard runs 12
-items at 30 s (`ITEM_MS = 30000`, `N_ITEMS = 12`); OMIB's published
-reference implementation ships 90 s, and this app's generator path
-allows 90 s (`LOGIC_ITEM_CAP_MS`). Twelve items is defensible on its own
-— 220 calibrated items make a short adaptive form realistic — but the
-per-item limit is not only a pacing choice: administer under a tighter
-clock than the calibration sample had and the published difficulties
-stop transferring cleanly, which is the entire reason this bank was
-chosen. On `OWNER-LIST.md`.
+The artboard ran 12 items at 30 s (`ITEM_MS = 30000`, `N_ITEMS = 12`).
+The owner's call — *"why not just do it like the normal test with 25 and
+90 seconds?"* — is **25 × 90 s**, and it is the right one for three
+reasons, none of them taste:
+
+- **90 s is what the bank itself administers.** OMIB's published
+  reference ships `timelimit = 90`. Administer under a tighter clock than
+  the calibration sample had and the 220 difficulty values stop
+  transferring cleanly, which is the entire reason this bank was chosen
+  over the generator (D451). (Stated honestly: the reference's 90 is a
+  default in the bank's own demo code. Whether the calibration study used
+  exactly that is in the paper, which no session here has been able to
+  reach — `www.mdpi.com` and `pmc.ncbi.nlm.nih.gov` are both blocked by
+  this environment's egress. Matching the number the authors ship is the
+  best available answer, not a confirmed one.)
+- **More items measure better**, and 25 is what the instrument already
+  uses — a shorter form is a noisier one, and the noise lands hardest at
+  the ends of the scale where the reading is most interesting.
+- **Nothing in the tree moves.** `LOGIC_ITEMS = 25` and
+  `LOGIC_ITEM_CAP_MS = 90_000` are already the constants
+  (`functions/src/logic.ts`), so the era stamp, the deadline and the
+  norms all keep meaning what they mean. A count change would have been
+  a fresh era under D61's rule, discarding the histogram.
+
+**Two consequences the design should see.** The progress strip was drawn
+for twelve: at 402 px with 18 px gutters and 4 px gaps that is 26.8 px a
+segment, and twenty-five segments are **10.8 px** each — drawable, but
+thin enough that it stops reading as a row of items and starts reading as
+a hairline. Worth a look before it is built; a two-row strip or a plain
+`n of 25` are both cheaper than squinting.
+
+And the sitting is longer: 25 × 90 s is **38 minutes worst case**,
+against the artboard's 6. That is a CAP, not the expected time — most
+items are answered well inside it, and the whole-test deadline already
+exists (`LOGIC_DEADLINE_MS`). But the screen was composed around a short
+session, and a test someone abandons at item 14 measures nothing, so the
+mid-test exit is worth a thought the artboard did not have to give it.
+Neither of these reopens the decision.
