@@ -40,7 +40,7 @@ produced.
 | List | Open | Ticked |
 | --- | ---: | ---: |
 | [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 155 | 3 |
-| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 12 | 0 |
+| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 13 | 0 |
 | [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 39 |
 
 A tick is the mechanism the program runs on (`PROGRAM-PLAN.md` §2.4), so
