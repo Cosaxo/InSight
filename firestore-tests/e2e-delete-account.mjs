@@ -815,6 +815,30 @@ if (!Array.isArray(exp.omitted) || !exp.omitted.some((o) => o.what === "logicAtt
   fail("the export does not say what it leaves out");
 ok(`the export carries every phase's documents (${exp.bytes} bytes) and nothing of anyone else's`);
 
+// PUBLISH THE TALLY FIRST, the way a running deployment does. The daily
+// lane's aggregate is SHARDED since phase B (D467): the trigger writes
+// blind increments to `v2_agg_shards/{qid}-{s}` and the published
+// `v2_question_aggs/{qid}` is written only by the compactor, on a
+// schedule. A scheduled function does not fire in the emulator, so from
+// the day that landed this file's answer to daily-000 produced shards and
+// no published document — and the assertion far below, that erasure
+// removes the ATTRIBUTION and leaves the TALLY (1b's standing decision),
+// failed on a document that had never been written rather than on one
+// erasure had taken. The suite went red on main, on the path
+// backend-checks.yml guards for production.
+//
+// The operator lever is what the loop e2e already uses and what this
+// one's absence was: `compactAggShardsNowV2`'s own docstring names "the
+// e2e, which cannot wait a minute for the schedule". Called HERE rather
+// than after the erasure, because that is the real order — in production
+// the tally is published within a minute of the answer and is standing
+// when the account is deleted, which is precisely the state the
+// assertion is about.
+await httpsCallable(fns, "compactAggShardsNowV2")({ qid: "daily-000" });
+if (!(await exists("v2_question_aggs/daily-000")))
+  fail("the compactor published nothing for daily-000 — the tally assertion below would pass or fail on an absence");
+ok("the daily tally is published, as it would be a minute after the answer");
+
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
 if (!res.data?.ok) fail("deleteAccount did not report ok: " + JSON.stringify(res.data));
