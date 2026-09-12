@@ -36,7 +36,11 @@ async function feedData() {
 describe("the always-on channel set, per build (D96)", () => {
   it("demo: formats only — subjects arrive through communities", async () => {
     const { channels } = await feedData();
-    expect(channels).toEqual(["dilemma", "event", "people", "bigq", "places", "fav"]);
+    // `pulse` joined the formats on 2026-09-12, when the pulses stopped
+    // stacking above the feed and became members of it. Always-on in the
+    // demo room for the reason the other two formats are: a format has no
+    // community pointing at it, so a channel is the only door it has.
+    expect(channels).toEqual(["dilemma", "event", "people", "bigq", "places", "fav", "pulse"]);
   });
 
   it("live: every subject runs always-on; only the stockless format stays out", async () => {

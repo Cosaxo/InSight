@@ -125,3 +125,77 @@ describe("doors multiply reach, never copies", () => {
     expect(mixed.map((q) => q.id)).toEqual(["a", "c", "b"]);
   });
 });
+
+describe("wfStreamMix's rotation — what makes a new sitting feel fresh", () => {
+  // The sitting counter (data/feedSitting.ts) is this function's second
+  // argument and its only new input. What the cases below hold is the
+  // pair of properties everything downstream rests on: the order MOVES,
+  // and the list is otherwise untouched.
+  //
+  // The second one is not a formality. The answered partition, the
+  // weave's cadences and the paid places all count this list, so a
+  // rotation that dropped or doubled a card would move a sponsor's
+  // density — which is the unit of sale (D195, D377), and the one
+  // property the feed's order was load-bearing for before this change.
+  const QS = [
+    { id: "s1", cat: "sport" }, { id: "s2", cat: "sport" }, { id: "s3", cat: "sport" },
+    { id: "t1", cat: "tech" }, { id: "t2", cat: "tech" },
+    { id: "f1", cat: "food" },
+  ];
+
+  it("is the identity at 0, which is the order a fresh install opens on", () => {
+    // The counter starts at 0 on a device with nothing stored, so the
+    // first feed anybody ever sees is the bank's own order — the one the
+    // content lanes wrote. Every ordering case in this tree is written
+    // against it, so this is also what keeps them meaningful.
+    expect(wfStreamMix(QS, 0).map((q) => q.id)).toEqual(wfStreamMix(QS).map((q) => q.id));
+  });
+
+  it("opens on a different card at a different sitting", () => {
+    // The owner's report is about meeting the same cards, so what has to
+    // move is the HEAD, not merely the arrangement.
+    const heads = new Set([0, 1, 2, 3].map((n) => wfStreamMix(QS, n)[0].id));
+    expect(heads.size, "four sittings and the feed opened the same way").toBeGreaterThan(1);
+  });
+
+  it("rotates within a stream as well as between them", () => {
+    // One rotation is not enough to change what you MEET: rotating only
+    // the stream order deals the same three head cards in three orders.
+    // With the leading stream also rotated, the leading TOPIC leads with
+    // a different question.
+    const firstSport = (n) => wfStreamMix(QS, n).find((q) => q.cat === "sport").id;
+    expect(new Set([0, 1, 2].map(firstSport)).size,
+      "the sport stream led with the same question at every sitting").toBeGreaterThan(1);
+  });
+
+  it("is a permutation at every rotation — nothing dropped, nothing doubled", () => {
+    // Checked across more rotations than there are streams or cards, so a
+    // modulo that went wrong at a wrap fails here rather than on an
+    // invoice.
+    for (let n = 0; n < 12; n++) {
+      const ids = wfStreamMix(QS, n).map((q) => q.id);
+      expect(ids, `rotation ${n} changed the list length`).toHaveLength(QS.length);
+      expect(new Set(ids).size, `rotation ${n} dropped or doubled a card`).toBe(QS.length);
+    }
+  });
+
+  it("still interleaves at every rotation, rather than serving blocks", () => {
+    // The property the function existed for in the first place, held
+    // across the new argument: a rotation that accidentally concatenated
+    // the streams would satisfy every case above.
+    for (let n = 0; n < 6; n++) {
+      const cats = wfStreamMix(QS, n).map((q) => q.cat);
+      expect(cats.slice(0, 3).length, `rotation ${n}`).toBe(3);
+      expect(new Set(cats.slice(0, 3)).size, `rotation ${n} opened on one stream in a block`).toBe(3);
+    }
+  });
+
+  it("survives an empty pool and a junk rotation rather than throwing", () => {
+    // `rot` comes from a persisted counter, and a store is a thing that
+    // can hold anything. A feed that threw here would be a blank tab.
+    expect(wfStreamMix([], 3)).toEqual([]);
+    expect(wfStreamMix(QS, -4).map((q) => q.id)).toEqual(wfStreamMix(QS, 0).map((q) => q.id));
+    expect(wfStreamMix(QS, 1.7).map((q) => q.id)).toEqual(wfStreamMix(QS, 1).map((q) => q.id));
+    expect(wfStreamMix(QS, NaN).map((q) => q.id)).toEqual(wfStreamMix(QS, 0).map((q) => q.id));
+  });
+});

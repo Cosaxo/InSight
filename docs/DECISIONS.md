@@ -52511,3 +52511,175 @@ one.
 Supersedes the *"recorded as available, not built"* line in `COSTS.md`
 § control 1 and the owner row it pointed at; amends nothing about D332's
 breaker, which stands as the first line the same wire crosses.
+
+## D472 · Nothing leads the feed but a pin the reader set: the continuum pin is gone, the pulses ride the stream, and a sitting is what refreshes
+
+**2026-09-12.** **Status:** binding. Amends D139/D203's placement of the
+pulses and retires their cadence whole. Closes the blocking bullet in
+`QUESTION-FARM.md` § "A pulse lane, very slow" — by the opposite route to
+the one written there. D341's ruling, one type family over and then two.
+
+> *"the dial ... and the double axis question should not be pinned to the
+> top, they should appear like any other question, only exception is if
+> you have pinned [it] ... also the feed should refresh when you navigate
+> somewhere else for long enough or close the app"*
+
+> *"they should all be on everyday and new ones should be made but at a
+> lower pace than other questions and they can be pinned that means that
+> the user wants to track that so it shows up somewhere near the top of
+> the feed"*
+
+Two screenshots, a day apart. In one the feed opens on a DIAL ("Browser
+tabs open right now?"); in the other on a double-axis FIELD ("AI
+assistants, today — place them"). Not the bank's order — ten lines in
+`world-feed.jsx` that moved one continuum card to index 1 of `hot` on
+every build:
+
+```js
+// keep one continuum question (dial/field) pinned near the top of hot
+const cq = sorted.find((q) => isCont(q) && this.state.votes[q.id] == null)
+  || sorted.find(isCont);
+if (ci > 1) { const [cq] = sorted.splice(ci, 1); sorted.splice(1, 0, cq); }
+```
+
+The comment justified the pin by the thing the pin itself caused — *"so
+the card doesn't jump away mid-read"* — and a card nobody moves cannot
+jump. **D341 already ruled on this shape**, for Crossroads: *"crossroad is
+a type of question ... like any other question in the feed"*. A dial and a
+field are types too. The block is deleted.
+
+### 1 · The pulses were the same mistake, one surface up
+
+`daily-split.jsx` rendered `PULSE.dueToday()` as a STACK ABOVE the feed —
+D139's placement, grown to five at D203, each with a cadence (daily ·
+often · weekly · off) set on its own card. On the shipped defaults that is
+one card most days and three on a Sunday, and **two of the five were
+invisible until somebody found the picker**. The owner's correction is
+that a pulse is a question: it rides the feed, and every one of them asks
+every day.
+
+So the cadence is gone, not narrowed:
+
+- **`data/pulse.ts`** drops `Cadence`, `CADENCES`, `CADENCE_LABEL`,
+  `cadence`, `setCadence` and `dueOn`. `dueToday()` returns the roster.
+- **`PulseCard`** swaps the four-chip disclosure for one button — `track`
+  / `tracking`. Binary state, so the fold buys nothing (D182:
+  `visual > word > sentence`), and the old control spent a tap before it
+  said anything.
+- **`world-feed.jsx`** carries a `pulse` arm at its three dispatch sites,
+  beside `ad` and `path`, and `feedPool()` joins the roster to the bank's
+  pool. The join is at the READER, not in `WORLD_FEED_QS`: five other
+  consumers read that array and `buildFeedGlobals` replaces it wholesale
+  on boot, so a pulse written into it would be clobbered by the live boot
+  and would reach readers that assume an options list.
+- **`pulse` is a fourteenth WORLD_TOPIC**, a FORMAT like `fav` and
+  `places` — its questions come from the pulse bank lane, which
+  `splitBanks` keeps out of the feed bank, so the feed mapper cannot emit
+  one either. That is what makes "like any other question" literally
+  true: a chip in the rail, a place in the mix, and a mute. Hue 333 is
+  `hueFor`'s, not a judgement.
+- **`answered` means answered TODAY for a pulse** (`PULSE.mineToday`). A
+  pulse answer is keyed `{qid}_{day}`, so the plain qid is in nobody's
+  vote map and the generic read would report every pulse unanswered
+  forever. The learn stream already carries this exemption.
+
+**What the pin is, and what it is not.** It is a READING PLACEMENT: at
+most **three** (`PIN_MAX` — a head that is all pins is not a feed), device
+state in `insight.pulsePins.v1`, oldest first because the head of a feed
+is a queue. It gates nothing — an unpinned pulse is asked every day and is
+exactly as writable — which is what makes it a reading choice rather than
+a permission, and what let it replace a control that could reach the
+schedule gate (D244's bug had no other trigger).
+
+The difference from the pin this record deletes is the whole ruling: that
+one was a constant choosing a card for everybody off its TYPE, forever.
+This one holds what a person tapped, and **empties when they untap**.
+Nothing leads the feed for a reader who has pinned nothing, which is the
+default.
+
+### 2 · The sitting: the mount was the wrong clock
+
+The refresh half was two problems pointing opposite ways.
+
+`app-shell.jsx` keys `.tab-swap` by tab, so a hop to Mirror and back
+unmounts the whole daily tab. Every per-mount field in the feed reset on a
+two-second round trip — including `_sunk`, the answered snapshot whose
+entire job is keeping a card you just voted on in place while you read its
+reveal. Meanwhile the order is a pure function of a stable pool, so the
+rebuild dealt the same cards in the same order and `scroll-memory.js` put
+you back at the same offset. **It rebuilt when it should not have, and
+produced nothing new when it should have.**
+
+`data/feedSitting.ts` is the clock that survives the hop. Away under
+**60 s** (`AWAY_MS`, borrowed from `live.ts`'s `IDLE_DETACH_MS` rather
+than invented) → same sitting, nothing moves. Over it, or a cold launch →
+a new sitting: answered cards leave the stream, the mix rotates, the
+remembered offset is dropped. `leave()` stamps and `enter()` decides,
+because being away is what ends a sitting and only the way back can
+measure it.
+
+The rotation is `wfStreamMix(qs, rot)` — the streams rotate *and* each
+rotates within itself, because rotating only the stream order deals the
+same head cards in a different sequence and the report is about meeting
+the same cards. Three properties hold it: it is the identity at 0 (so a
+fresh install opens on the bank's own order, and every ordering test in
+the tree stays meaningful), it is a permutation at every rotation, and it
+still interleaves.
+
+**It does not touch the sale.** The paid places are re-inserted *after*
+this ordering, one per `SPONSOR_EVERY` cards, so the slot count is
+`floor(n / SPONSOR_EVERY)` in every rotation — the density is the unit of
+sale (D195, D377) and the rotation cannot move it. The counter is
+CLOCK-derived, never behaviour-derived: nothing reads what you answered,
+skipped or dwelled on, nothing is recorded and nothing is sent, which is
+the line `MONITORING.md` draws at per-user content selection.
+
+### 3 · What the gates caught, and one measurement
+
+- **`feed-closing-ring`** failed the hour pulses joined the pool: the
+  invented closing ring can land on any `clockable` card, and PulseCard
+  would no more draw it than PathsCard would. `q.type !== 'pulse'` joins
+  the story's exclusion. The only way this class is ever found — a
+  missing ring looks like a feed that did not draw one.
+- **`feed-fresh-head`** failed on an INVISIBLE card: a pulse takes one of
+  `interleaveFeed`'s world positions but carries no `.wf-card`, so the
+  suite read the side card as arriving after one world card when three
+  world cards and two pulses preceded it.
+- **First paint got 14 KB lighter.** `PulseCard` and the pulse store were
+  static imports in the landing tab's own chunk; their only importer now
+  is `world-feed.jsx`, in the deferred feed group. Measured: the eager
+  graph goes **554 KB → 540 KB** (43 → 41 modulepreloads), against a
+  ceiling of 555 — it was one kilobyte from failing.
+
+### 4 · What is deferred, and what the next lane owes
+
+**The slow pulse-creation lane is NOT built here.** The owner asked for it
+twice — 2026-08-22, recorded in `QUESTION-FARM.md` as a note, and again
+now — and the blocking bullet in that note is closed by this change rather
+than by the fix it proposed: the objection was that a new pulse would
+arrive as another card stacked on the daily tab, and pulses do not stack
+on the daily tab any more. What the lane still needs is its own gates and
+a store-forms conversation about authoring new health-adjacent questions,
+which is slower and more careful work than the app change and should not
+hold it.
+
+What shipped for it, unused and on purpose: **`asksOn(pid, date)` and
+`QuestionDoc.since`**. `asksOn` is the fourth honesty rule's gate — *a day
+the pulse was not scheduled is absent, never a miss* — and the cadence was
+only ever its first instance. The second is a day BEFORE THE PULSE
+EXISTED, which is what the lane's first run produces. Inlining `true` and
+deleting the gate would have deleted the rule with the cadence that
+happened to be its first instance. `since` is carried end to end —
+`pulseQs` → `roster()` → `asksOn` — rather than read off the bank document
+at the gate, because `roster()` rebuilds each entry field by field and a
+field it does not name is dropped in silence: that is D280's failure
+exactly, a read resolving to undefined on every build with every gate
+green. **The lane's first run must write `since`**; `pulse.test.ts` pins
+what happens when it does.
+
+Also deferred, and named so it is a decision rather than drift: **a pulse
+in the feed is not in the attention tally**. `.wf-card` and its `_wfQid`
+are renderCard's, so a pulse is counted neither seen nor answered by
+R2/D270's device tallies — the same state `path` and `ad` cards are
+already in. Correcting it is one shared marker across three card shapes,
+and it touches the engagement rollup rather than this change.

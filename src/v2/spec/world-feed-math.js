@@ -184,7 +184,7 @@ export function wfVotesOf(q, catalogPicks = 0) {
  * itself and assert on its own copy, which passes for any source. It runs
  * this now, so breaking the rule in the component breaks the case.
  */
-export function wfStreamMix(qs) {
+export function wfStreamMix(qs, rot = 0) {
   const byKey = {};
   const keys = [];
   for (const q of qs) {
@@ -192,7 +192,27 @@ export function wfStreamMix(qs) {
     if (!byKey[k]) { byKey[k] = []; keys.push(k); }
     byKey[k].push(q);
   }
-  const lists = keys.map((k) => byKey[k]);
+  // THE ROTATION (2026-09-12) — what makes a new sitting read as a refresh
+  // rather than as the same feed minus what you answered. `rot` is the
+  // sitting counter (data/feedSitting.ts); at 0 this function is exactly
+  // what it was, which is the shape every existing caller and the whole of
+  // feed-interleave's arithmetic still meet.
+  //
+  // TWO ROTATIONS, because one is not enough to change what you MEET. The
+  // streams rotate, so a different topic leads; and each stream rotates
+  // within itself, so the leading topic leads with a different question.
+  // Rotating only the streams would deal the same thirteen head cards in
+  // thirteen orders, and the owner's report is about meeting the same
+  // cards, not about meeting them in the same order.
+  //
+  // BOTH ARE PERMUTATIONS — `slice(k)` then `slice(0, k)` is every element
+  // exactly once — and that is the property everything downstream rests
+  // on. The answered partition, the weave's cadences and the paid places
+  // all count the list; a rotation that dropped or doubled one card would
+  // move a sponsor's density, which is the unit of sale (D195, D377).
+  const spin = (l, k) => (k % l.length === 0 ? l : [...l.slice(k % l.length), ...l.slice(0, k % l.length)]);
+  const n = Math.max(0, Math.trunc(rot));
+  const lists = spin(keys, n).map((k) => (n ? spin(byKey[k], n) : byKey[k]));
   const mixed = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) {
     for (const l of lists) if (i < l.length) mixed.push(l[i]);

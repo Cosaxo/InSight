@@ -202,11 +202,16 @@ Four of those are worth knowing *why*, because each looks tickable:
   any signed-in user can read — a pulse answer is as public as a feed
   answer, and filing it as unlinked would be the more flattering lie.
   No HealthKit API is touched and nothing medical is inferred.
-  *What is NOT collected:* the **cadence**. How often someone wants to be
-  asked how they slept is arguably the more revealing half, and it never
-  leaves the device — `insight.pulseCadence.v1` in localStorage, swept by
-  the D51 purge, with no field, no rules arm and no server representation
-  to file. That is a design choice made partly for this row.
+  *What is NOT collected:* which pulses someone is **tracking**. Which
+  wellbeing question a person cares enough about to keep at the top of
+  their feed is arguably the more revealing half, and it never leaves the
+  device — `insight.pulsePins.v1` in localStorage, swept by the D51 purge,
+  with no field, no rules arm and no server representation to file. That
+  is a design choice made partly for this row. It replaced the **cadence**
+  (`insight.pulseCadence.v1`), which was withheld on exactly the same
+  terms: every pulse asks every day since 2026-09-12, so there is no
+  rhythm left to declare, and the pin took its place as the one per-person
+  fact about a pulse — device-only, like the thing it replaced.
 - **Device ID — No.** Device binding (D29) receives 2–3 bits from Apple
   DeviceCheck meaning "an account was activated from this device
   recently". The server stores **no device identifier**; the platforms

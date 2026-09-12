@@ -49,4 +49,19 @@ export const WORLD_TOPICS = [
   // 'movies' has no scene pointing at it, so a film question filed under it can
   // never reach the feed.
   { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
+  // Pulses (2026-09-12) — a FORMAT, like `fav` and `places` and for the
+  // same reason: "how did you sleep" is not a subject you can be into,
+  // it is a shape of question you answer again tomorrow. The channel is
+  // what makes the owner's ruling — *"daily pulses should show up in the
+  // feed like any other question"* — literally true: a pulse gets a chip
+  // in the rail, a place in the mix, and a mute, which is the whole of
+  // what "like any other" means on this surface. It replaces the rhythm
+  // picker's `off` (data/pulse.ts): saying "less of this" is the feed's
+  // job now, not a per-card cadence's.
+  //
+  // Hue 333 is not a judgement — it is `hueFor` (scripts/topic-budget.mjs)
+  // run over the twelve above, which splits the widest arc on the ring
+  // (310 -> 355). D231 picked 115 by hand the same way and wrote the
+  // method down; this is the method.
+  { id: 'pulse',   label: 'Pulses',         color: 'oklch(0.52 0.14 333)' },
 ];

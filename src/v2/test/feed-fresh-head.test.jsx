@@ -18,7 +18,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, render } from "@testing-library/react";
 import { installLive } from "./live-fixture";
-import { growUntil } from "./mount-app";
+import { growUntil, resetSitting } from "./mount-app";
 import { TEST_EVERY } from "../data/feed-interleave";
 
 vi.setConfig({ testTimeout: 15000 });
@@ -37,6 +37,9 @@ beforeAll(async () => {
 
 afterEach(() => {
   cleanup();
+  // The feed's answered snapshot lives in module scope so it can outlive a
+  // tab swap, which means it outlives a case too. See mount-app's note.
+  resetSitting();
   live?.restore();
   live = undefined;
   localStorage.removeItem(WF_LS);
@@ -46,8 +49,25 @@ afterEach(() => {
 // attention tally (R4/D271) — setup-dom's observer stub keeps that path live
 // in jsdom. Only renderCard's cards carry it, which is every card this case
 // reasons about: the fixture's world cards and the woven side streams.
-const renderedIds = () => [...document.querySelectorAll(".wf-card")].map((el) => el._wfQid);
-const isWorld = (id) => typeof id === "string" && id.startsWith("feed-fixture-");
+//
+// PULSE CARDS COUNT AS WORLD CARDS HERE, and they have to (2026-09-12).
+// A pulse is a member of the feed pool now, so it occupies one of the
+// cadence positions `interleaveFeed` walks — and the fixture serves two.
+// They draw through PulseCard rather than renderCard, so they carry no
+// `.wf-card` and no `_wfQid`, and a selector that misses them reports the
+// side card arriving after ONE world card when three world cards and two
+// pulses preceded it. That is the case failing on an invisible card, not
+// on the property it is about: what D348 fixed is side cards leading the
+// feed, and a pulse is not a side card.
+const FEED_CARDS = '.wf-card, [data-screen-label="Daily pulse"]';
+const renderedIds = () => [...document.querySelectorAll(FEED_CARDS)]
+  .map((el) => el._wfQid ?? "pulse");
+const isFixture = (id) => typeof id === "string" && id.startsWith("feed-fixture-");
+// The cadence's unit: anything that takes one of `interleaveFeed`'s world
+// positions. The second case below wants the narrower question — has the
+// fixture's own bank run out — and asks `isFixture` for it, because a
+// pulse running out is not what "the topics run out" means.
+const isWorld = (id) => id === "pulse" || isFixture(id);
 
 describe("a returning device opens on fresh topics, not on the side streams (D348)", () => {
   it("puts the first side card after the cadence's worth of fresh world cards, not in front of the first one", async () => {
@@ -91,6 +111,9 @@ describe("a returning device opens on fresh topics, not on the side streams (D34
 
     render(<WorldFeed cats={{}} onToggle={() => {}} beats={false} />);
     await growUntil(() => renderedIds().includes("test-political-99"), "the bank's test item");
-    expect(renderedIds().filter(isWorld)).toEqual([]);
+    // The fixture's bank, not the pulses: a pulse is unanswered here (the
+    // fixture seeds no pulse vote) and therefore still fresh, which is the
+    // pulse working rather than a topic that failed to sink.
+    expect(renderedIds().filter(isFixture)).toEqual([]);
   });
 });
