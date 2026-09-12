@@ -52969,3 +52969,106 @@ three other watched files main grew (`world-feed.jsx` +31,
 `vote.test.ts` +191, `rules.test.ts` +151). A raise is allowed; a silent
 one is not.
 
+
+## D-2026-09-12a · The 2026-09-12 design arrives — a name, a friends list, and a Map with a trail — recorded, measured, planned, and nothing built
+
+**Decided:** 2026-09-12 · **Status:** binding as a record; every ruling it
+touches stands until the owner answers. The owner's `InSight_19.html`
+upload, titled *Doxa*, with one line — *"new visuals and functionality
+plan how to add the new features and visuals"* — extracted to
+[`design/standalone-2026-09-12/`](../design/standalone-2026-09-12/README.md)
+and planned in [`VISION-2026-09-12.md`](VISION-2026-09-12.md). Made the
+current vision by D361's standing rule (an owner upload is a vision
+without a request). Nothing is built in this record's PR, on purpose:
+the largest thing in it is a name, and a name is the owner's.
+
+### What arrived, and how it was measured
+
+The nineteenth numbered standalone, in a new bundle shape — a core of 94
+modules and a *late* bundle of 18 deferred past first paint, which is
+the split the tree already makes — with **112 modules**: the 09-09
+record's 110 plus `friends-overlay.jsx` and `map-find.jsx`. The 09-09
+record's per-module hashes were the previous bundle's own and this
+bundle carries none, so the moved set was measured by comparing the
+AST of every module with its latest whole record — comments and literal
+spellings stripped, regenerated, compared line for line; JSX-source
+records compiled first with the 09-02 recipe. **38 moved, 2 are new, 29
+are identical to a later record** (the whole duel family to 09-09, the
+Patterns lenses and the result card to 09-06), **43 identical to v18.**
+The record's README has the table and the recipe, and it records the
+limit the 09-08 README recorded: the v18-plus-patches baselines of the
+five largest modules could not be rebuilt byte-exact today (a fresh
+compile of v18 no longer takes the 08-26 patches), so those five are
+diffed against v18 and read against the recorded hunks by hand.
+
+### What the design says
+
+Four things, in order of what they cost. **A name**: *Doxa*, in DM
+Serif Display, with *Endoxa* and *inSight* behind a Tweaks radio — the
+wordmark, the boot splash and the demographics cards follow the pick.
+**A friends list with a handshake**: request · accept · ignore ·
+dismiss · invited · unfriend on the demo store, a *Your friends* overlay
+(Requests · Suggested with reasons · Invited · Friends · a remove sheet
+whose claim is that the 1v1 ends), and four doors to it (the New-1v1
+sheet, search, the profile header with a pending dot, *Accept request*
+on the person page). **A Map you can find your way around**: a trail
+with the way back, Find with *This week* and *Rare takes* and matches
+lit on the map, a results card, a card you resize, prev/next through
+siblings, two coach hints, a legend, hub badges. **Smaller things**: the
+person page's receipts lead with a tappable tail and a Match lead
+sentence, overlays that leave with a slide, tap-target slack on six
+small controls, the profile's sub-tabs on a swipe, four D182 deletions,
+and the daily's modes labelled *Groups · 1v1s*.
+
+### What the mapping found
+
+- **The handshake is D101 read twice.** D101 made a follow a bookmark —
+  no request, no acceptance, no consent, because answers are public
+  (D98) and a follow grants nothing — and called a mutual follow *a
+  reading, not a state*. The design's four states are exactly that
+  reading: *invited* is your row without theirs, *requested* theirs
+  without yours, *friends* both. No new collection, no rules change;
+  what the design adds is that the other side learns, which is one
+  trigger sending through D236's fan-out, and a followers query
+  `circle.ts` already runs. The tree's `spec/follows.js` on a live build
+  is an empty demo store that the person page's *Add friend* writes to —
+  the plan's step 1 is one `FRIENDS` over the real rows for both builds.
+- **One suggestion reason is a deny.** *a few streets away* would draw
+  the presence cell — the physical-safety deny that survived D98, and
+  Near is presence-only since D111. On live the reason is *in Oslo now*,
+  the fact Near already shows; recorded as a departure, and not an ask
+  under D334, which names the three denies as outside it.
+- **A claim the demo makes that live cannot.** *some of it stays private
+  until you are friends* beside a person's map — in the record since
+  09-09 — describes invented locked nodes; live locks nothing. The tree
+  has never drawn the line. D334 says the owner decides rather than a
+  routine defaulting, so it is one of the three questions, with the
+  recommendation that it ships nowhere.
+- **The Map's wayfinding reads nothing new.** Every piece of it — the
+  trail, Find and its two filters, the results, the card modes, the
+  sibling nav, the hints, the legend — folds from the answers the Map
+  already holds and lands in the lazy Map chunk; 36 of the 40 stylesheet
+  classes new since every recorded stylesheet are its.
+- **The design caught up with the tree.** The *Asked for Oslo* rows,
+  *+ Author a metric*, the header's ask door and the paid overlays are
+  gone from the bundle, as D288 and D368 took them from the app.
+- **The daily's labels are the owner's word twice.** *Groups · 1v1s*
+  where the tree says *Circle · 1v1* — the collision ROUNDS-PLAN §9
+  recorded from the owner's own sentence (*"circle is something else in
+  the app"*). Asked once so the rename is a ruling.
+
+### What is decided, and what is not
+
+- The record and the plan; the vision moved; the build order (§7 there)
+  with what needs no answer first: friends on D101, the Map's trail and
+  Find, the person page, the shell.
+- **Three questions on `OWNER-LIST.md`**, each with a recommendation so
+  one word answers it: which name (and if not *inSight*, a visual
+  request for the lockups follows — D302's canvas is the old name's);
+  *Groups · 1v1s*; whether anything stays private until you are friends
+  (recommended: no).
+- **The name is not built ahead of the answer**: the module is cheap,
+  the store listing, the web pages and the identity canvas are not, and
+  a name that goes on a store needs a search the plan does not do.
+- The standing rows from earlier visions are unchanged by this one and
+  listed in the plan's §8 so the next reader does not re-file them.

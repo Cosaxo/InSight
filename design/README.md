@@ -88,8 +88,21 @@ casts per axis, votes per seat — and the person page a Together tab;
 extracted to `standalone-2026-09-09/` (the ten modules the bundle's own
 hashes say moved, the first extraction measured that way), with the
 plan and the questions at
-[`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it is the
-current vision (D436), recorded and not yet built. Each
+[`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it was the
+current vision (D436) and was built the same day (D437); and the
+**2026-09-12** upload (`InSight_19`, titled *Doxa*) names the app —
+*Doxa* in a serif wordmark, *Endoxa* and *inSight* behind a Tweaks
+radio — gives friends a handshake and a *Your friends* overlay with
+four doors to it, puts a trail, Find and a resizable card on the You
+stop's Map, adds two lead sentences to the person page and a leave
+animation to every overlay, and labels the daily's modes *Groups ·
+1v1s*; extracted to `standalone-2026-09-12/` (the 38 modules that
+moved against every whole record, measured on the AST with a recipe
+the directory carries — this bundle carries no hashes of its own, so
+the README says how the next one is diffed), with the plan and the
+three owner questions at
+[`docs/VISION-2026-09-12.md`](../docs/VISION-2026-09-12.md); it is the
+current vision (D-2026-09-12a), recorded and not yet built. Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

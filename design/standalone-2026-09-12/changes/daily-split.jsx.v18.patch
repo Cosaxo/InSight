@@ -1,0 +1,632 @@
+--- v18/daily-split.jsx (compiled, normalised)
++++ 2026-09-12/daily-split.jsx (normalised)
+@@ -34,6 +34,13 @@
+     idx: 0,
+     idxG: 0,
+     votes: {},
++    anon: function () {
++      try {
++        return JSON.parse(localStorage.getItem("insight.feedAnon.v1") || "{}") || {};
++      } catch (e) {
++        return {};
++      }
++    }(),
+     tab: null,
+     filter: "all",
+     dim: "friends",
+@@ -241,10 +248,10 @@
+       label: "World"
+     }, {
+       id: "group",
+-      label: "Circle"
++      label: "Groups"
+     }, {
+       id: "duo",
+-      label: "1v1"
++      label: "1v1s"
+     }];
+     const n = STOPS.length;
+     const idx = Math.max(0, STOPS.findIndex(s => s.id === mode));
+@@ -326,11 +333,11 @@
+           textAlign: "center",
+           whiteSpace: "nowrap",
+           fontFamily: "var(--sans)",
+-          fontSize: on ? 15 : 13.5,
+-          fontWeight: on ? 800 : 600,
+-          letterSpacing: "-0.02em",
++          fontSize: 13.5,
++          fontWeight: on ? 700 : 500,
++          letterSpacing: "-0.01em",
+           color: on ? "var(--ink)" : "var(--ink-3)",
+-          transition: "color .2s, font-size .2s"
++          transition: "color .2s"
+         }
+       }, s.label));
+     })));
+@@ -364,7 +371,7 @@
+     }, 160);
+   }
+   get modeAccent() {
+-    return this.state.mode === "world" && this.state.testOpen ? "var(--ochre)" : {
++    return this.state.mode === "world" && this.state.testOpen ? "var(--test)" : {
+       world: "var(--c-around)",
+       group: "var(--c-likeness)",
+       duo: "var(--c-people)"
+@@ -383,7 +390,7 @@
+     const s = DAILYSPLIT_DQ_SYNC[S.id];
+     if (!s || !window.DAILYQ) return;
+     const q = window.DAILYQ.questions.find(x => x.prompt === s.prompt);
+-    if (q && s.map[optId] != null) window.DAILYQ.answer(q.id, s.map[optId]);
++    if (q && s.map[optId] != null) window.DAILYQ.answer(q.id, s.map[optId], !!this.state.anon[S.id]);
+   }
+   mapBranch(S) {
+     const s = DAILYSPLIT_DQ_SYNC[S.id];
+@@ -420,6 +427,91 @@
+       return {};
+     }
+   }
++  toggleAnon(id) {
++    this.setState(s => {
++      const anon = {
++        ...s.anon,
++        [id]: !s.anon[id]
++      };
++      if (!anon[id]) delete anon[id];
++      try {
++        localStorage.setItem("insight.feedAnon.v1", JSON.stringify(anon));
++      } catch (e) {}
++      return {
++        anon
++      };
++    });
++  }
++  anonNode(id, answered) {
++    const h = React.createElement;
++    const on = !!this.state.anon[id];
++    const glyph = h("svg", {
++      viewBox: "0 0 24 24",
++      width: 12,
++      height: 12,
++      fill: "none",
++      stroke: "currentColor",
++      strokeWidth: 2.2,
++      strokeLinecap: "round",
++      strokeLinejoin: "round",
++      "aria-hidden": true
++    }, h("path", {
++      d: "M4.5 12.5h15"
++    }), h("path", {
++      d: "M7.5 12.5l1.3-5a1.8 1.8 0 0 1 1.75-1.35h2.9a1.8 1.8 0 0 1 1.75 1.35l1.3 5"
++    }), h("circle", {
++      cx: 8.6,
++      cy: 16.7,
++      r: 2.1
++    }), h("circle", {
++      cx: 15.4,
++      cy: 16.7,
++      r: 2.1
++    }), h("path", {
++      d: "M10.7 16.7h2.6"
++    }));
++    if (answered) {
++      if (!on) return null;
++      return h("span", {
++        title: "Answered anonymously — hidden when others view your map",
++        "aria-label": "Answered anonymously — hidden when others view your map",
++        style: {
++          flexShrink: 0,
++          width: 20,
++          height: 20,
++          borderRadius: "50%",
++          background: "color-mix(in oklch, var(--ink) 9%, transparent)",
++          color: "var(--ink-2)",
++          display: "inline-flex",
++          alignItems: "center",
++          justifyContent: "center"
++        }
++      }, glyph);
++    }
++    return h("button", {
++      className: "press tap44",
++      onClick: () => this.toggleAnon(id),
++      "aria-pressed": on ? "true" : "false",
++      "aria-label": on ? "Anonymous is on — this answer won’t show when others view your map" : "Vote anonymously",
++      title: on ? "Anonymous — hidden when others view your map" : "Vote anonymously — it won’t show on your map to others",
++      style: {
++        flexShrink: 0,
++        width: 20,
++        height: 20,
++        borderRadius: "50%",
++        border: on ? "none" : "0.5px solid var(--rule)",
++        background: on ? "var(--ink)" : "transparent",
++        color: on ? "var(--surface)" : "var(--ink-3)",
++        display: "inline-flex",
++        alignItems: "center",
++        justifyContent: "center",
++        cursor: "pointer",
++        WebkitAppearance: "none",
++        padding: 0,
++        transition: "background .15s ease, color .15s ease"
++      }
++    }, glyph);
++  }
+   reportRow(k) {
+     if (this.state.reportFor !== k) return null;
+     const R = window.WF_REPORT;
+@@ -436,7 +528,7 @@
+       style: {
+         fontFamily: "var(--sans)",
+         fontWeight: 800,
+-        fontSize: 11.5,
++        fontSize: 12,
+         color: "var(--ink-3)"
+       }
+     }, "Report this take"), h("div", {
+@@ -598,6 +690,10 @@
+         return;
+       }
+       if (ni < 0) {
++        if ((this.props.hideSwitcher || this.props.ruler) && window.goNav) {
++          window.goNav("patterns");
++          return;
++        }
+         spring();
+         return;
+       }
+@@ -639,8 +735,13 @@
+       dx = 0,
+       horiz = null,
+       dragging = false;
++    const SKIP = "svg, canvas, .h-scroll, .mmt-swipe, .cb-rail, [data-nopan], input, textarea";
+     scroller.addEventListener("touchstart", e => {
+       const t = e.touches[0];
++      if (e.target.closest && e.target.closest(SKIP)) {
++        dragging = false;
++        return;
++      }
+       sx = t.clientX;
+       sy = t.clientY;
+       dx = 0;
+@@ -677,6 +778,7 @@
+     scroller.addEventListener("touchcancel", end);
+     let wheelLock = false;
+     scroller.addEventListener("wheel", e => {
++      if (e.target.closest && e.target.closest(SKIP)) return;
+       if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) {
+         e.preventDefault();
+         if (wheelLock || Math.abs(e.deltaX) < 24) return;
+@@ -1326,6 +1428,10 @@
+     const dayNames = ["Today", "Yesterday", "Tue", "Mon", "Sun", "Sat", "Fri"];
+     const wIdx = Math.min(st.idx, DATA.length - 1),
+       S = DATA[wIdx];
++    window.WORLD_TODAY = {
++      prompt: DATA[0].text,
++      options: DATA[0].options.map(o => o.label)
++    };
+     const myVote = st.votes[S.id],
+       voted = !!myVote;
+     const blind = this.props.blindVoting ?? true,
+@@ -1506,7 +1612,7 @@
+       }
+     }, ch.label))), h("div", {
+       style: {
+-        fontSize: 11.5,
++        fontSize: 12,
+         fontWeight: 600,
+         color: "var(--ink-3)"
+       }
+@@ -1637,7 +1743,7 @@
+         style: {
+           background: c.optObj.color,
+           color: c.optObj.textColor || "#fff",
+-          fontSize: 10.5,
++          fontSize: 12,
+           fontWeight: 800,
+           padding: "2px 8px",
+           borderRadius: 999,
+@@ -1645,7 +1751,7 @@
+         }
+       }, c.optObj.label), h("span", {
+         style: {
+-          fontSize: 11,
++          fontSize: 12,
+           fontWeight: 600,
+           color: "var(--ink-3)"
+         }
+@@ -1672,7 +1778,7 @@
+           cursor: "pointer",
+           fontFamily: "var(--sans)",
+           fontWeight: 800,
+-          fontSize: 11,
++          fontSize: 12,
+           color: replying ? INK : "var(--ink-3)",
+           WebkitAppearance: "none"
+         }
+@@ -1710,7 +1816,7 @@
+           gap: 1,
+           cursor: "pointer",
+           fontWeight: 800,
+-          fontSize: 11,
++          fontSize: 12,
+           background: st.ups[c.key] ? INK : "var(--surface-2)",
+           color: st.ups[c.key] ? PAPER : INK,
+           flexShrink: 0,
+@@ -1727,7 +1833,7 @@
+           alignItems: "center",
+           gap: 1,
+           fontWeight: 800,
+-          fontSize: 11,
++          fontSize: 12,
+           color: "var(--ink-3)",
+           flexShrink: 0,
+           cursor: "not-allowed"
+@@ -1758,7 +1864,7 @@
+         style: {
+           background: S.options[myIdx].color,
+           color: S.options[myIdx].textColor || "#fff",
+-          fontSize: 10.5,
++          fontSize: 12,
+           fontWeight: 800,
+           padding: "2px 8px",
+           borderRadius: 999,
+@@ -1766,7 +1872,7 @@
+         }
+       }, S.options[myIdx].label), h("span", {
+         style: {
+-          fontSize: 11,
++          fontSize: 12,
+           fontWeight: 600,
+           color: "var(--ink-3)"
+         }
+@@ -1990,7 +2096,7 @@
+             borderRadius: 999,
+             padding: "4px 11px",
+             fontWeight: on ? 800 : 600,
+-            fontSize: 11.5,
++            fontSize: 12,
+             cursor: "pointer",
+             whiteSpace: "nowrap",
+             background: on ? "var(--surface-3)" : "transparent",
+@@ -2060,7 +2166,7 @@
+         style: {
+           background: f.chipColor,
+           color: f.textColor || "#fff",
+-          fontSize: 11,
++          fontSize: 12,
+           fontWeight: 800,
+           padding: "4px 10px",
+           borderRadius: 999
+@@ -2252,7 +2358,7 @@
+       style: {
+         ...col(14),
+         position: "relative",
+-        padding: "4px 1px 20px"
++        padding: "4px 1px 6px"
+       }
+     }, h("div", {
+       style: {
+@@ -2298,53 +2404,29 @@
+       style: {
+         flex: 1
+       }
+-    }), h("button", {
+-      className: "press",
+-      onClick: () => {
+-        clearTimeout(this._sheetT);
+-        this.setState({
+-          tab: "ctx",
+-          sheetClosing: false
+-        });
+-      },
+-      "aria-label": "About this question",
+-      style: {
+-        flexShrink: 0,
+-        width: 20,
+-        height: 20,
+-        borderRadius: "50%",
+-        border: "0.5px solid var(--rule)",
+-        background: "transparent",
+-        color: "var(--ink-3)",
+-        fontFamily: BRIC,
+-        fontSize: 11.5,
+-        fontWeight: 800,
+-        lineHeight: 1,
+-        cursor: "pointer",
+-        WebkitAppearance: "none",
+-        padding: 0
+-      }
+-    }, "i"), window.PassiveTag ? h(window.PassiveTag, {
++    }), window.PassiveTag ? h(window.PassiveTag, {
+       q: S,
+       answered: voted
+     }) : null), chipRow, h("div", {
+       style: {
+-        fontFamily: BRIC,
+-        fontWeight: 800,
+-        fontSize: hier ? 37 : 31,
+-        lineHeight: 1.06,
+-        letterSpacing: hier ? -1.1 : -0.8,
++        fontFamily: "var(--serif)",
++        fontWeight: 500,
++        fontSize: hier ? 31 : 27,
++        lineHeight: 1.14,
++        letterSpacing: "-0.01em",
+         textWrap: "balance"
+       }
+     }, S.text), !voted ? h("div", {
+-      style: {
+-        display: "flex",
+-        flexDirection: "column",
+-        gap: 8
++      className: "ds-ballot",
++      style: {
++        display: "grid",
++        gridTemplateColumns: S.options.length === 2 ? "1fr 1fr" : "1fr",
++        borderTop: LINE,
++        borderBottom: LINE
+       }
+     }, S.options.map((o, i) => h("button", {
+       key: o.id,
+-      className: "press sd-opt",
++      className: "press ds-half",
+       onClick: () => {
+         this.syncToMap(S, o.id);
+         this.showMapToast(S.id);
+@@ -2358,36 +2440,28 @@
+         }));
+       },
+       style: {
+-        "--opt": o.color,
+-        minHeight: 56,
+-        background: "color-mix(in oklch, " + o.color + " 11%, var(--surface-2))",
+-        border: "1px solid color-mix(in oklch, " + o.color + " 32%, var(--rule))",
+-        borderRadius: 15,
+-        padding: "13px 18px",
++        "--oc": o.color,
++        minHeight: "var(--field-size)",
++        background: "transparent",
++        border: "none",
++        borderLeft: S.options.length === 2 && i === 1 ? LINE : "none",
++        borderTop: S.options.length > 2 && i > 0 ? LINE : "none",
++        borderRadius: 0,
++        padding: "0 14px",
+         display: "flex",
+         alignItems: "center",
+-        gap: 13,
++        justifyContent: "center",
+         cursor: "pointer",
+-        textAlign: "left",
++        textAlign: "center",
+         WebkitAppearance: "none",
+-        boxShadow: "none",
+-        transition: "background .16s ease, border-color .16s ease"
++        boxShadow: "none"
+       }
+     }, h("span", {
+-      "aria-hidden": true,
+-      style: {
+-        width: 9,
+-        height: 9,
+-        borderRadius: "50%",
+-        background: o.color,
+-        flexShrink: 0
+-      }
+-    }), h("span", {
+-      style: {
+-        fontWeight: 800,
+-        fontSize: 21,
++      style: {
++        fontWeight: 700,
++        fontSize: 18,
+         color: "var(--ink)",
+-        letterSpacing: "-0.025em",
++        letterSpacing: "-0.015em",
+         textWrap: "pretty"
+       }
+     }, o.label)))) : st.beat === S.id && window.ConsequenceBeat ? h(window.ConsequenceBeat, {
+@@ -2408,11 +2482,12 @@
+     }, h("div", {
+       style: {
+         display: "flex",
+-        flexDirection: "column",
++        flexDirection: S.options.length === 2 ? "row" : "column",
+         gap: 7,
+-        height: 244
++        height: S.options.length === 2 ? 128 : 244
+       }
+     }, S.options.map((o, i) => {
++      const two = S.options.length === 2;
+       const mineRow = myVote === o.id;
+       const lpEnd = () => {
+         clearTimeout(this._lpT);
+@@ -2460,7 +2535,16 @@
+           cursor: mineRow && canChange ? "pointer" : "default"
+         }
+       }, h("div", {
+-        style: {
++        style: two ? {
++          position: "relative",
++          height: "100%",
++          display: "flex",
++          flexDirection: "column-reverse",
++          alignItems: "flex-start",
++          justifyContent: "center",
++          padding: "0 16px",
++          gap: 4
++        } : {
+           position: "relative",
+           height: "100%",
+           display: "flex",
+@@ -2474,23 +2558,29 @@
+           alignItems: "center",
+           gap: 9,
+           minWidth: 0,
+-          flex: 1
++          flex: two ? "none" : 1,
++          flexWrap: "wrap"
+         }
+       }, h("span", {
+         style: {
++          fontWeight: 600,
++          fontSize: two ? 16 : 18,
++          letterSpacing: "-0.01em"
++        }
++      }, o.label), myVote === o.id && h("span", {
++        style: {
++          fontSize: 12,
+           fontWeight: 800,
+-          fontSize: 19,
+-          letterSpacing: "-0.02em"
+-        }
+-      }, o.label), myVote === o.id && h("span", {
+-        style: {
+-          fontSize: 12,
+-          fontWeight: 700,
+-          color: "var(--ink-2)",
++          letterSpacing: ".08em",
++          textTransform: "uppercase",
++          padding: "2px 7px",
++          borderRadius: 999,
++          background: INK,
++          color: PAPER,
+           whiteSpace: "nowrap",
+           animation: "chipPop .35s var(--ease-spring) var(--rv-2) both"
+         }
+-      }, "· you"), S.friends && S.friends.some(f => f.opt === o.id) && h("button", {
++      }, "you"), S.friends && S.friends.some(f => f.opt === o.id) && h("button", {
+         onClick: () => this.setState({
+           tab: "stats",
+           dim: "friends",
+@@ -2562,7 +2652,61 @@
+       }
+     }, "added to " + this.mapBranch(S), h("span", {
+       "aria-hidden": true
+-    }, "→")))), voted && st.beat !== S.id && h("div", {
++    }, "→")))), st.beat !== S.id && h("div", {
++      style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 18,
++        marginTop: -2
++      }
++    }, h("button", {
++      className: "press ballot-link",
++      onClick: () => {
++        clearTimeout(this._sheetT);
++        this.setState({
++          tab: "ctx",
++          sheetClosing: false
++        });
++      },
++      style: {
++        border: "none",
++        background: "none",
++        padding: "4px 0",
++        cursor: "pointer",
++        fontFamily: BRIC,
++        fontSize: 12,
++        fontWeight: 600,
++        color: "var(--ink-3)",
++        textDecoration: "underline",
++        textDecorationColor: "color-mix(in oklch, var(--rule), var(--ink) 10%)",
++        textUnderlineOffset: 3,
++        WebkitAppearance: "none"
++      }
++    }, "why this question"), !voted ? h("button", {
++      className: "press ballot-link",
++      onClick: () => this.toggleAnon(S.id),
++      "aria-pressed": st.anon[S.id] ? "true" : "false",
++      style: {
++        border: "none",
++        background: "none",
++        padding: "4px 0",
++        cursor: "pointer",
++        fontFamily: BRIC,
++        fontSize: 12,
++        fontWeight: st.anon[S.id] ? 800 : 600,
++        color: st.anon[S.id] ? "var(--ink)" : "var(--ink-3)",
++        textDecoration: "underline",
++        textDecorationColor: st.anon[S.id] ? "var(--accent)" : "color-mix(in oklch, var(--rule), var(--ink) 10%)",
++        textUnderlineOffset: 3,
++        WebkitAppearance: "none"
++      }
++    }, st.anon[S.id] ? "anonymous · on" : "answer anonymously") : st.anon[S.id] ? h("span", {
++      style: {
++        fontSize: 12,
++        fontWeight: 600,
++        color: "var(--ink-3)"
++      }
++    }, "answered anonymously") : null), voted && st.beat !== S.id && h("div", {
+       style: {
+         display: "flex",
+         gap: 10,
+@@ -2671,13 +2815,15 @@
+       }
+     })))), dailyCard, sheetNode, feedNode);
+     const groupBody = h(window.GroupDailyBody || "div", {
+-      key: "group-daily"
++      key: "group-daily",
++      start: this.props.start
+     });
+     const duoBody = h(window.DuoBody || "div", {
+-      key: "duo-daily"
++      key: "duo-daily",
++      start: this.props.start
+     });
+     const testBody = (() => {
+-      const OCHRE = "var(--ochre-ink)";
++      const OCHRE = "var(--test-ink)";
+       const defs = this.testDefs;
+       if (st.testJustDone && defs[st.testJustDone]) {
+         const k = st.testJustDone,
+@@ -2714,7 +2860,7 @@
+           }
+         }, T.title + " complete")), top && h("div", null, h("div", {
+           style: {
+-            fontSize: 11,
++            fontSize: 12,
+             fontWeight: 800,
+             letterSpacing: "0.08em",
+             textTransform: "uppercase",
+@@ -2831,11 +2977,11 @@
+         }
+       }, h("span", {
+         style: {
+-          background: "color-mix(in oklch, var(--ochre) 9%, transparent)",
+-          border: "1px solid color-mix(in oklch, var(--ochre) 42%, transparent)",
++          background: "color-mix(in oklch, var(--test) 9%, transparent)",
++          border: "1px solid color-mix(in oklch, var(--test) 42%, transparent)",
+           color: OCHRE,
+           fontWeight: 800,
+-          fontSize: 11.5,
++          fontSize: 12,
+           letterSpacing: "0.08em",
+           textTransform: "uppercase",
+           padding: "5px 11px",
+@@ -2987,25 +3133,7 @@
+           flex: 1,
+           willChange: "transform"
+         }
+-      }, body), h("button", {
+-        onClick: () => window.openSuggestions && window.openSuggestions(),
+-        style: {
+-          alignSelf: "center",
+-          marginTop: 4,
+-          padding: "8px 14px",
+-          border: "none",
+-          background: "none",
+-          cursor: "pointer",
+-          fontFamily: "var(--sans)",
+-          fontSize: 13,
+-          fontWeight: 600,
+-          color: "var(--ink-3)"
+-        }
+-      }, "Have a question in mind? ", h("span", {
+-        style: {
+-          color: "var(--accent)"
+-        }
+-      }, "Suggest one →")))
++      }, body))
+     };
+   }
+   render() {

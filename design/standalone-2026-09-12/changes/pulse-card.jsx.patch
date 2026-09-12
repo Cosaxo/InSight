@@ -1,0 +1,649 @@
+--- standalone-v28/pulse-card.jsx (compiled, normalised)
++++ 2026-09-12/pulse-card.jsx (normalised)
+@@ -3,6 +3,7 @@
+ }) {
+   const P = window.PULSE;
+   if (!P) return null;
++  const h = React.createElement;
+   const [, bump] = React.useState(0);
+   React.useEffect(() => P.subscribe(() => bump(x => x + 1)), []);
+   const [scopeId, setScopeId] = React.useState(() => {
+@@ -12,17 +13,21 @@
+     } catch (e) {}
+     return "world";
+   });
+-  const pickScope = id => {
+-    setScopeId(id);
++  const [cadOpen, setCadOpen] = React.useState(false);
++  const pickScope = sid => {
++    setScopeId(sid);
+     try {
+-      localStorage.setItem("insight.pulse.scope", id);
++      localStorage.setItem("insight.pulse.scope", sid);
+     } catch (e) {}
+     if (window.HAPTIC) window.HAPTIC.tick();
+   };
+   const id = pid || P.active().id;
+   const Q = P.pulse(id);
+   const HUE = P.colour(id);
++  const INK = P.inkColour(id);
+   const wash = pct => "color-mix(in oklab, " + HUE + " " + pct + "%, var(--surface-2))";
++  const LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
++  const SANS = "var(--sans)";
+   const mine = P.mineToday(id);
+   const st = P.streak(id);
+   const sc = P.scope(scopeId, id);
+@@ -30,120 +35,113 @@
+   const bins = P.bins(scopeId, id);
+   const maxBin = Math.max(...bins);
+   const scheduled = P.dueToday().includes(id);
+-  const strip = React.createElement("span", {
+-    "aria-label": "Your last 14 days" + (st.run ? " — " + st.run + " in a row" : ""),
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      gap: 8,
+-      padding: "2px 0"
+-    }
+-  }, st.run >= 3 && React.createElement("span", {
+-    style: {
+-      fontFamily: "var(--sans)",
++  const steps = P.stepsFor(id);
++  const long = steps.some(s => s.label.length > 7);
++  const cad = P.cadence(id);
++  const kicker = h("div", {
++    style: {
++      display: "flex",
++      alignItems: "center",
++      gap: 8
++    }
++  }, h("span", {
++    style: {
++      display: "inline-flex",
++      alignItems: "center",
++      gap: 7,
++      fontFamily: SANS,
++      fontSize: 10.5,
+       fontWeight: 800,
+-      fontSize: 13,
+-      letterSpacing: "-0.02em",
+-      color: HUE
+-    }
+-  }, st.run), React.createElement("span", {
++      letterSpacing: ".09em",
++      textTransform: "uppercase",
++      color: INK,
++      whiteSpace: "nowrap"
++    }
++  }, h("span", {
+     "aria-hidden": "true",
+     style: {
+-      display: "flex",
+-      alignItems: "flex-end",
+-      gap: 2.5
+-    }
+-  }, st.ticks.map(d => React.createElement("span", {
+-    key: d.key,
+-    style: {
+-      width: 3,
+-      height: d.today ? 13 : 11,
+-      borderRadius: 2,
+-      background: d.v != null ? HUE : "color-mix(in oklch, var(--ink) 12%, var(--surface-2))",
+-      boxShadow: d.today && d.v == null ? "inset 0 0 0 1px " + wash(55) : "none"
+-    }
+-  }))));
+-  const ask = React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      flexDirection: "column",
+-      gap: 7
+-    }
+-  }, React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      gap: 6
+-    }
+-  }, P.stepsFor(id).map((s, i) => React.createElement("button", {
++      width: 6,
++      height: 6,
++      borderRadius: "50%",
++      background: HUE,
++      flexShrink: 0
++    }
++  }), Q.kicker, h("span", {
++    style: {
++      color: "var(--ink-3)"
++    }
++  }, "· check-in")));
++  const prompt = h("div", {
++    style: {
++      fontFamily: "var(--serif)",
++      fontWeight: 500,
++      fontSize: 26,
++      lineHeight: 1.18,
++      letterSpacing: "-0.01em",
++      textWrap: "balance"
++    }
++  }, Q.text);
++  const ask = h("div", {
++    role: "radiogroup",
++    "aria-label": Q.text,
++    style: {
++      display: "grid",
++      gridTemplateColumns: "repeat(" + steps.length + ", minmax(0,1fr))",
++      gap: 2,
++      height: "var(--field-size)",
++      borderRadius: 20,
++      overflow: "hidden",
++      background: "var(--rule)",
++      border: LINE
++    }
++  }, steps.map((s, i) => h("button", {
+     key: s.v,
+     className: "press",
++    role: "radio",
++    "aria-checked": "false",
+     onClick: () => P.answer(s.v, id),
+-    "aria-label": s.label,
+-    style: {
+-      flex: 1,
+-      height: "var(--field-size)",
+-      border: "1px solid " + wash(24),
+-      borderRadius: 13,
+-      background: wash(7),
+-      display: "flex",
++    style: {
++      minWidth: 0,
++      border: "none",
++      borderRadius: 0,
++      background: "var(--surface-2)",
++      boxShadow: "none",
++      padding: "0 4px",
++      display: "flex",
++      flexDirection: "column",
+       alignItems: "center",
+       justifyContent: "center",
++      gap: 6,
+       cursor: "pointer",
+-      WebkitAppearance: "none",
+-      padding: 0
+-    }
+-  }, React.createElement("span", {
++      fontFamily: SANS,
++      fontWeight: 700,
++      fontSize: long ? 12.5 : 14,
++      letterSpacing: "-0.01em",
++      color: "var(--ink)",
++      WebkitAppearance: "none"
++    }
++  }, h("span", {
+     "aria-hidden": "true",
+     style: {
+-      width: 9 + i * 4,
+-      height: 9 + i * 4,
++      height: 11,
++      display: "flex",
++      alignItems: "center"
++    }
++  }, h("span", {
++    style: {
++      width: 5 + i * 1.5,
++      height: 5 + i * 1.5,
+       borderRadius: "50%",
+       background: HUE
+     }
+-  })))), React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      justifyContent: "space-between",
+-      gap: 10,
+-      fontFamily: "var(--sans)",
+-      fontSize: 11.5,
+-      fontWeight: 600,
+-      color: "var(--ink-3)"
+-    }
+-  }, React.createElement("span", null, Q.ends[0]), strip, React.createElement("span", null, Q.ends[1])));
+-  const scopeRow = React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      gap: 4
+-    },
+-    role: "tablist",
+-    "aria-label": "Which crowd"
+-  }, P.SCOPES.map(id => {
+-    const on = id === scopeId;
+-    return React.createElement("button", {
+-      key: id,
+-      role: "tab",
+-      "aria-selected": on,
+-      className: "press",
+-      onClick: () => pickScope(id),
+-      style: {
+-        flex: 1,
+-        minWidth: 0,
+-        height: 26,
+-        borderRadius: 999,
+-        cursor: "pointer",
+-        WebkitAppearance: "none",
+-        fontFamily: "var(--sans)",
+-        fontSize: 11.5,
+-        fontWeight: on ? 800 : 650,
+-        letterSpacing: "-0.01em",
+-        color: on ? "var(--ink)" : "var(--ink-3)",
+-        background: on ? wash(11) : "transparent",
+-        border: "1px solid " + (on ? wash(30) : "color-mix(in oklch, var(--rule), transparent 45%)")
+-      }
+-    }, P.scope(id).label);
+-  }));
++  })), h("span", {
++    style: {
++      maxWidth: "100%",
++      overflow: "hidden",
++      textOverflow: "ellipsis",
++      whiteSpace: "nowrap"
++    }
++  }, s.label))));
+   const W = 300,
+     H = 96,
+     TOP = 9,
+@@ -187,27 +185,20 @@
+   const path = pts => pts.map((p, k) => (k ? "L" : "M") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+   const lastRun = runs.length ? runs[runs.length - 1] : null;
+   const last = lastRun ? lastRun[lastRun.length - 1] : null;
+-  const reveal = React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      flexDirection: "column",
+-      gap: 9,
+-      animation: "popIn .35s cubic-bezier(0.2,0.8,0.2,1)"
+-    }
+-  }, React.createElement("div", {
++  const chart = h("div", {
+     "aria-label": "Your pulse over " + P.DAYS + " days, and today’s crowd.",
+     style: {
+       display: "block",
+       width: "100%"
+     }
+-  }, React.createElement("svg", {
++  }, h("svg", {
+     viewBox: `0 0 ${W} ${H}`,
+     style: {
+       display: "block",
+       width: "100%"
+     },
+     "aria-hidden": "true"
+-  }, [1, 2, 3, 4, 5].map(v => React.createElement("line", {
++  }, [1, 2, 3, 4, 5].map(v => h("line", {
+     key: v,
+     x1: "0",
+     y1: yOf(v),
+@@ -216,7 +207,7 @@
+     stroke: "var(--rule)",
+     strokeWidth: "1",
+     opacity: v === 3 ? 0.55 : 0.28
+-  })), cRuns.map((r, k) => React.createElement("path", {
++  })), cRuns.map((r, k) => h("path", {
+     key: "c" + k,
+     d: path(r),
+     fill: "none",
+@@ -225,7 +216,7 @@
+     strokeLinecap: "round",
+     strokeLinejoin: "round",
+     opacity: "0.34"
+-  })), runs.map((r, k) => React.createElement("path", {
++  })), runs.map((r, k) => h("path", {
+     key: "y" + k,
+     d: path(r),
+     fill: "none",
+@@ -233,13 +224,13 @@
+     strokeWidth: "2.2",
+     strokeLinecap: "round",
+     strokeLinejoin: "round"
+-  })), runs.flat().map(p => React.createElement("circle", {
++  })), runs.flat().map(p => h("circle", {
+     key: p.i,
+     cx: p.x,
+     cy: p.y,
+     r: p.today ? 4.6 : 2.2,
+     fill: HUE
+-  })), last && last.today && React.createElement("circle", {
++  })), last && last.today && h("circle", {
+     cx: last.x,
+     cy: last.y,
+     r: "8",
+@@ -247,12 +238,12 @@
+     stroke: HUE,
+     strokeWidth: "1.4",
+     opacity: "0.4"
+-  }), React.createElement("g", {
++  }), h("g", {
+     transform: `translate(${PLOT + GAP} 0)`
+-  }, P.stepsFor(id).map((s, i) => {
++  }, steps.map((s, i) => {
+     const on = s.v === mine,
+       hh = 9;
+-    return React.createElement("rect", {
++    return h("rect", {
+       key: s.v,
+       x: "0",
+       y: yOf(s.v) - hh / 2,
+@@ -261,151 +252,201 @@
+       rx: hh / 2,
+       fill: on ? HUE : wash(26)
+     });
+-  })))), React.createElement("div", {
++  }))));
++  const chip = (on, extra) => ({
++    border: "0.5px solid " + (on ? "color-mix(in oklch, " + HUE + " 45%, var(--rule))" : "color-mix(in oklch, var(--ink) 22%, var(--rule))"),
++    background: on ? wash(13) : "var(--surface-2)",
++    color: on ? INK : "var(--ink)",
++    fontFamily: SANS,
++    fontWeight: 700,
++    fontSize: 12,
++    padding: "5px 11px",
++    borderRadius: 999,
++    cursor: "pointer",
++    WebkitAppearance: "none",
++    whiteSpace: "nowrap",
++    ...extra
++  });
++  const scopeRow = h("div", {
++    role: "tablist",
++    "aria-label": "Which crowd",
++    style: {
++      display: "flex",
++      gap: 6,
++      flexWrap: "wrap"
++    }
++  }, P.SCOPES.map(sid => {
++    const on = sid === scopeId;
++    return h("button", {
++      key: sid,
++      role: "tab",
++      "aria-selected": on,
++      className: "wf-chip",
++      onClick: () => pickScope(sid),
++      style: chip(on, {
++        maxWidth: 170,
++        overflow: "hidden",
++        textOverflow: "ellipsis"
++      })
++    }, P.scope(sid, id).label);
++  }));
++  const reveal = h("div", {
++    style: {
++      display: "flex",
++      flexDirection: "column",
++      gap: 12,
++      animation: "popIn .35s cubic-bezier(0.2,0.8,0.2,1)"
++    }
++  }, chart, h("div", {
+     style: {
+       display: "flex",
+       alignItems: "baseline",
+       justifyContent: "space-between",
+       gap: 10
+     }
+-  }, React.createElement("span", {
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      gap: 6,
+-      fontFamily: "var(--sans)",
++  }, h("span", {
++    style: {
++      display: "flex",
++      alignItems: "center",
++      gap: 7,
++      fontFamily: SANS,
+       fontWeight: 800,
+-      fontSize: 14,
++      fontSize: 15,
+       letterSpacing: "-0.02em",
+       minWidth: 0,
+       overflow: "hidden",
+       whiteSpace: "nowrap"
+     }
+-  }, React.createElement("span", {
++  }, h("span", {
+     "aria-hidden": "true",
+     style: {
+       width: 8,
+       height: 8,
+       borderRadius: "50%",
+-      background: HUE
+-    }
+-  }), "you · ", P.word(mine, id)), React.createElement("span", {
+-    style: {
+-      fontFamily: "var(--sans)",
+-      fontSize: 12,
++      background: HUE,
++      flexShrink: 0
++    }
++  }), "you · ", P.word(mine, id)), h("span", {
++    style: {
++      fontFamily: SANS,
++      fontSize: 12.5,
+       fontWeight: 600,
+       color: "var(--ink-3)",
+       whiteSpace: "nowrap",
+       flex: "none"
+     }
+   }, bins[mine - 1], "% of ", P.fmtN(nToday))), scopeRow);
+-  const cad = P.cadence(id);
+-  const rhythm = React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      gap: 9,
+-      borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 40%)",
+-      paddingTop: 10
+-    }
+-  }, React.createElement("span", {
+-    style: {
+-      fontFamily: "var(--sans)",
+-      fontSize: 11.5,
+-      fontWeight: 650,
+-      color: "var(--ink-3)",
+-      flex: "none"
+-    }
+-  }, "ask me"), React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      gap: 4,
+-      flex: 1,
+-      minWidth: 0
+-    },
+-    role: "tablist",
+-    "aria-label": "How often to ask this pulse"
+-  }, P.CADENCES.map(c => {
+-    const on = c === cad;
+-    return React.createElement("button", {
+-      key: c,
+-      role: "tab",
+-      "aria-selected": on,
+-      className: "press",
+-      onClick: () => P.setCadence(id, c),
+-      style: {
+-        flex: 1,
+-        minWidth: 0,
+-        height: 28,
+-        borderRadius: 999,
+-        cursor: "pointer",
+-        WebkitAppearance: "none",
+-        fontFamily: "var(--sans)",
+-        fontSize: 11.5,
+-        fontWeight: on ? 800 : 650,
+-        letterSpacing: "-0.01em",
+-        color: on ? "#fff" : "var(--ink-2)",
+-        background: on ? P.inkColour(id) : wash(7),
+-        border: "1px solid " + (on ? "transparent" : wash(20))
+-      }
+-    }, c);
+-  })));
+-  return React.createElement("div", {
+-    className: "card",
+-    "data-screen-label": Q.kicker,
+-    style: {
+-      display: "flex",
+-      flexDirection: "column",
+-      gap: 11,
+-      padding: "13px 14px 12px"
+-    }
+-  }, React.createElement("div", {
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      justifyContent: "space-between",
+-      gap: 10
+-    }
+-  }, React.createElement("span", {
+-    style: {
+-      display: "flex",
+-      alignItems: "center",
+-      gap: 7
+-    }
+-  }, React.createElement("span", {
+-    "aria-hidden": "true",
+-    style: {
+-      width: 6,
+-      height: 6,
+-      borderRadius: "50%",
+-      background: HUE
+-    }
+-  }), React.createElement("span", {
+-    className: "kicker",
+-    style: {
+-      marginBottom: 0
+-    }
+-  }, Q.kicker))), React.createElement("div", {
+-    style: {
+-      fontFamily: "var(--sans)",
+-      fontWeight: 800,
+-      fontSize: 21,
+-      lineHeight: 1.12,
+-      letterSpacing: "-0.03em",
+-      textWrap: "balance"
+-    }
+-  }, Q.text), mine != null ? reveal : scheduled ? ask : React.createElement("div", {
+-    style: {
+-      fontFamily: "var(--sans)",
+-      fontSize: 13,
+-      fontWeight: 600,
+-      color: "var(--ink-3)",
++  const idle = h("div", {
++    style: {
++      fontFamily: SANS,
++      fontSize: 13.5,
++      fontWeight: 500,
++      color: "var(--ink-2)",
+       lineHeight: 1.45
+     }
+   }, (() => {
+     const n = P.nextDue(id);
+     return n ? "Next " + n.label + "." : "Not asked — no line drawn.";
+-  })()), rhythm);
++  })());
++  const cadLabel = cad === "off" ? "paused" : "asked " + cad;
++  const streak = mine != null && st.run >= 2 && h("span", {
++    "aria-label": st.run + " days in a row",
++    style: {
++      display: "flex",
++      alignItems: "center",
++      gap: 8,
++      fontFamily: SANS,
++      fontSize: 12,
++      fontWeight: 600,
++      color: "var(--ink-3)",
++      whiteSpace: "nowrap"
++    }
++  }, h("span", {
++    "aria-hidden": "true",
++    style: {
++      display: "flex",
++      alignItems: "flex-end",
++      gap: 2.5
++    }
++  }, st.ticks.map(d => h("span", {
++    key: d.key,
++    style: {
++      width: 3,
++      height: d.today ? 12 : 10,
++      borderRadius: 2,
++      background: d.v != null ? HUE : "color-mix(in oklch, var(--ink) 12%, var(--surface-2))"
++    }
++  }))), st.run + " in a row");
++  const footer = h("div", {
++    style: {
++      display: "flex",
++      alignItems: "center",
++      justifyContent: "space-between",
++      gap: 18,
++      minHeight: 22
++    }
++  }, h("button", {
++    className: "press ballot-link",
++    "aria-expanded": cadOpen,
++    onClick: () => setCadOpen(o => !o),
++    style: {
++      border: "none",
++      background: "none",
++      padding: "4px 0",
++      cursor: "pointer",
++      fontFamily: SANS,
++      fontSize: 12,
++      fontWeight: cadOpen ? 800 : 600,
++      color: cadOpen ? "var(--ink)" : "var(--ink-3)",
++      textDecoration: "underline",
++      textDecorationColor: cadOpen ? HUE : "color-mix(in oklch, var(--rule), var(--ink) 10%)",
++      textUnderlineOffset: 3,
++      WebkitAppearance: "none",
++      whiteSpace: "nowrap"
++    }
++  }, cadLabel), streak || null);
++  const chooser = cadOpen && h("div", {
++    role: "radiogroup",
++    "aria-label": "How often to ask this pulse",
++    style: {
++      display: "flex",
++      alignItems: "center",
++      gap: 6,
++      flexWrap: "wrap",
++      animation: "popIn .28s cubic-bezier(0.2,0.8,0.2,1)"
++    }
++  }, h("span", {
++    style: {
++      fontFamily: SANS,
++      fontSize: 12,
++      fontWeight: 600,
++      color: "var(--ink-3)",
++      marginRight: 4
++    }
++  }, "ask me"), P.CADENCES.map(c => {
++    const on = c === cad;
++    return h("button", {
++      key: c,
++      role: "radio",
++      "aria-checked": on,
++      className: "wf-chip",
++      onClick: () => {
++        P.setCadence(id, c);
++        setCadOpen(false);
++      },
++      style: chip(on)
++    }, c);
++  }));
++  return h("div", {
++    "data-screen-label": Q.kicker,
++    style: {
++      display: "flex",
++      flexDirection: "column",
++      gap: 12,
++      borderTop: LINE,
++      padding: "22px 1px 26px"
++    }
++  }, kicker, prompt, mine != null ? reveal : scheduled ? ask : idle, footer, chooser || null);
+ }
+ Object.assign(window, {
+   PulseCard

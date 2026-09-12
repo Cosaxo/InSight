@@ -10,7 +10,45 @@ compares the tree against until a full sync moves it (that file's own
 rule). The reference is what the tree matches today; the vision is what
 it is moving toward.
 
-## The current vision — the 2026-09-09 standalone: how 1v1s and Groups work now
+## The current vision — the 2026-09-12 standalone: a name, a friends list, and a Map with a trail
+
+- **Source:** the owner's `InSight_19.html` upload of 2026-09-12 — the
+  nineteenth numbered standalone, titled *Doxa* — delivered with one
+  line (*"new visuals and functionality plan how to add the new features
+  and visuals"*) and extracted to `design/standalone-2026-09-12/` (its
+  README is the readable half: the 38 modules that moved against every
+  whole record and the two that are new, measured on the AST with a
+  recipe the directory carries, the stylesheet's new classes, and where
+  the tree departs).
+- **The plan built on it:** `VISION-2026-09-12.md` — every item
+  measured, and the three things only the owner can decide put as
+  questions (§6): which name, *Groups · 1v1s* for the daily's modes, and
+  whether anything stays private until you are friends.
+  D-2026-09-12a records the arrival.
+- **What it changed over the 2026-09-09 standalone:** the app is called
+  **Doxa** in DM Serif Display, with *Endoxa* and *inSight* behind a
+  Tweaks radio and the splash, the title and the demographics cards
+  following the pick; friends get a **handshake** (request · accept ·
+  ignore · dismiss · invited · unfriend) and a **Your friends** overlay —
+  Requests, Suggested with reasons, Invited, Friends, a remove sheet —
+  opened from the New-1v1 sheet, search, the profile header (with a
+  pending dot) and the person page's *Accept request*; the You stop's
+  **Map gets a trail** with the way back, **Find** with *This week* and
+  *Rare takes* and matches lit on the map, a results card, a card you
+  resize, prev/next through siblings, two coach hints, a legend and hub
+  badges; the person page's receipts lead gains a tappable tail and the
+  Match slides a lead sentence; overlays leave with a slide, six small
+  controls get 44 px of slack, the profile's sub-tabs swipe; four D182
+  deletions; and the daily's modes read *Groups · 1v1s*. The duel family
+  is byte-for-byte the 09-09 design.
+- **Built from it:** nothing yet. Steps 1–4 of the plan's §7 (friends on
+  D101, the Map, the person page, the shell) need no answer and are
+  worklist lines; the name and the labels wait on the owner's rows.
+- **Requests it closed:** none. The Friends overlay and the Map's
+  wayfinding arrived designed by the owner's own upload — the second path
+  of D361 — so neither had a request to close.
+
+## The one before — the 2026-09-09 standalone: how 1v1s and Groups work now
 
 - **Source:** the owner's `InSight_15.html` upload of 2026-09-09 — the
   fifteenth numbered standalone — delivered with a brief (*"the plan
@@ -45,7 +83,7 @@ it is moving toward.
   not this brief's).
 - **Requests it closed:** 5 and 6 built; 12 redrawn to the brief.
 
-## The one before — the 2026-09-08 standalone: the group as a cast
+## Before that — the 2026-09-08 standalone: the group as a cast
 
 - **Source:** the owner's `InSight_12.html` upload of 2026-09-08 — the
   twelfth numbered standalone, delivered with a ruling on the world
@@ -161,7 +199,8 @@ it is moving toward.
 | 2026-09-07 | `design/standalone-2026-09-07/` | the two instruments' second level, Circle and 1v1's first day, the person overlay boxless — the one before, above | `VISION-2026-09-07.md`, D415 |
 | 2026-09-08 | `design/rounds-card-2026-09-08/` | the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
 | 2026-09-08 | `design/standalone-2026-09-08/` | the group as a cast: role votes in packs, a rating every fourth round, the crown and the contested pair | `VISION-2026-09-08.md`, D434 |
-| **2026-09-09** | `design/standalone-2026-09-09/` | **the current vision** — how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab | `VISION-2026-09-09.md`, D436 |
+| 2026-09-09 | `design/standalone-2026-09-09/` | how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab — the one before, above | `VISION-2026-09-09.md`, D436, built at D437 |
+| **2026-09-12** | `design/standalone-2026-09-12/` | **the current vision** — a name (*Doxa*), the friends handshake and the *Your friends* overlay, the Map's trail and Find, the person page's leads, the shell's leave and slack | `VISION-2026-09-12.md`, D-2026-09-12a |
 
 ## How the next one arrives
 

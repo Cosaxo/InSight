@@ -1,0 +1,11 @@
+--- v18/TestVizCard.js (compiled, normalised)
++++ 2026-09-12/test-viz.jsx (normalised)
+@@ -1,7 +1,7 @@
+ const {
+   useState: useStateTV
+ } = React;
+-const BLOOM_PAL = ["oklch(0.64 0.135 40)", "oklch(0.70 0.130 72)", "oklch(0.74 0.125 98)", "oklch(0.66 0.110 145)", "oklch(0.62 0.095 205)", "oklch(0.56 0.115 258)", "oklch(0.58 0.130 305)", "oklch(0.62 0.140 14)"];
++const BLOOM_PAL = ["oklch(0.64 0.135 40)", "oklch(0.70 0.130 72)", "oklch(0.74 0.125 98)", "oklch(0.60 0.125 358)", "oklch(0.62 0.095 205)", "oklch(0.56 0.115 258)", "oklch(0.58 0.130 305)", "oklch(0.62 0.140 14)"];
+ const bloomColor = i => BLOOM_PAL[i % BLOOM_PAL.length];
+ function bloomPalette(dims) {
+   const m = {};

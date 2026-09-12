@@ -1,0 +1,227 @@
+--- v18/relationship-map-core.js (compiled, normalised)
++++ 2026-09-12/relationship-map.jsx (normalised)
+@@ -47,7 +47,9 @@
+         adding: false,
+         newLabel: "",
+         editing: false,
+-        dropGroup: null
++        dropGroup: null,
++        dragId: null,
++        dragPt: null
+       };
+       this.setSvg = el => {
+         this.svgEl = el;
+@@ -217,22 +219,51 @@
+       const n = this.ensureGraph().byId[nodeId];
+       return !!n && !n.isHub;
+     }
+-    nearestHub(x, y) {
++    groupTargets() {
+       const g = this._g;
+-      if (!g) return null;
+-      const P0 = this.state.positions;
++      if (!g) return [];
++      const acc = {};
++      g.nodes.forEach(n => {
++        if (n.id === 0 || !n.group) return;
++        const a = acc[n.group] || (acc[n.group] = {
++          key: n.group,
++          sx: 0,
++          sy: 0,
++          k: 0,
++          hub: null
++        });
++        if (n.isHub) {
++          a.hub = n;
++          return;
++        }
++        a.sx += n.cx;
++        a.sy += n.cy;
++        a.k++;
++      });
++      return Object.values(acc).map(a => {
++        const hx = a.hub ? a.hub.cx : null,
++          hy = a.hub ? a.hub.cy : null;
++        const cx = a.k ? a.sx / a.k : hx,
++          cy = a.k ? a.sy / a.k : hy;
++        return {
++          key: a.key,
++          x: hx == null ? cx : (hx + cx) / 2,
++          y: hy == null ? cy : (hy + cy) / 2,
++          hubId: a.hub ? a.hub.id : null
++        };
++      });
++    }
++    nearestGroup(x, y) {
+       let best = null,
+         bd = Infinity;
+-      g.nodes.forEach(n => {
+-        if (n.id === 0) return;
+-        const p = P0[n.id] || n;
+-        const d = Math.hypot(p.x - x, p.y - y) - (n.isHub ? (n.r || 0) + 40 : (n.r || 0) + 10);
++      this.groupTargets().forEach(t => {
++        const d = Math.hypot(t.x - x, t.y - y);
+         if (d < bd) {
+           bd = d;
+-          best = n;
+-        }
+-      });
+-      return best || null;
++          best = t;
++        }
++      });
++      return best;
+     }
+     setRelation(nodeId, key) {
+       const node = this.ensureGraph().byId[nodeId];
+@@ -252,6 +283,8 @@
+         people,
+         positions: {},
+         dropGroup: null,
++        dragId: null,
++        dragPt: null,
+         selectedId: null,
+         hoveredLegend: null
+       });
+@@ -379,19 +412,16 @@
+           } = this.state;
+           const lx = (u.x - panX) / zoom,
+             ly = (u.y - panY) / zoom;
+-          const positions = {
+-            ...this.state.positions,
+-            [d.nodeId]: {
++          const t = this.nearestGroup(lx, ly);
++          const key = t ? t.key : null;
++          d.dropKey = key;
++          const patch = {
++            dragPt: {
+               x: lx,
+               y: ly
+             }
+           };
+-          const patch = {
+-            positions
+-          };
+-          const hub = this.nearestHub(lx, ly);
+-          const key = hub ? hub.group : null;
+-          d.dropKey = key;
++          if (this.state.dragId !== d.nodeId) patch.dragId = d.nodeId;
+           if (this.state.dropGroup !== key) patch.dropGroup = key;
+           this.setState(patch);
+         }
+@@ -419,17 +449,10 @@
+           return;
+         }
+       }
+-      if (d.nodeId != null && d.moved >= 5 && this.state.positions[d.nodeId]) {
+-        const positions = {
+-          ...this.state.positions
+-        };
+-        delete positions[d.nodeId];
+-        this.setState({
+-          positions,
+-          dropGroup: null
+-        });
+-      } else if (this.state.dropGroup) this.setState({
+-        dropGroup: null
++      if (this.state.dropGroup || this.state.dragId != null) this.setState({
++        dropGroup: null,
++        dragId: null,
++        dragPt: null
+       });
+       if (d.moved < 5) {
+         if (d.nodeId != null) {
+@@ -661,9 +684,10 @@
+           }
+         });
+       }
+-      const activeId = hoveredId != null ? hoveredId : selectedId;
++      const inHand = st.dragId != null;
++      const activeId = inHand ? st.dragId : hoveredId != null ? hoveredId : selectedId;
+       let focus = null;
+-      if (matchSet) focus = matchSet;else if (activeId != null) focus = g.adj[activeId];else if (hoveredLegend != null) focus = legendSets[hoveredLegend];else if (st.focusGroup && g.groupHubId[st.focusGroup] != null) focus = new Set([0, g.groupHubId[st.focusGroup], ...g.groupMembers[st.focusGroup]]);
++      if (inHand) focus = null;else if (matchSet) focus = matchSet;else if (activeId != null) focus = g.adj[activeId];else if (hoveredLegend != null) focus = legendSets[hoveredLegend];else if (st.focusGroup && g.groupHubId[st.focusGroup] != null) focus = new Set([0, g.groupHubId[st.focusGroup], ...g.groupMembers[st.focusGroup]]);
+       const dimmed = focus != null;
+       const lightEdge = P.rule;
+       const nodes = g.nodes.map(n => {
+@@ -1022,23 +1046,49 @@
+           pointerEvents: "none",
+           transition: "opacity 0.25s ease"
+         }
+-      }, n.initials)))), this.state.dropGroup && this.drag ? (() => {
+-        const hub = (this._g.nodes || []).find(x => x.isHub && x.group === st.dropGroup);
+-        const vn = hub ? v.nodes.find(x => x.id === hub.id) : null;
+-        if (!vn) return null;
+-        return React.createElement("circle", {
+-          cx: vn.cx,
+-          cy: vn.cy,
+-          r: vn.r + 30,
+-          fill: "none",
+-          stroke: vn.color,
+-          strokeWidth: "2.5",
+-          strokeDasharray: "6 6",
+-          opacity: "0.95",
++      }, n.initials)))), this.state.dropGroup && this.state.dragId != null ? (() => {
++        const t = this.groupTargets().find(x => x.key === this.state.dropGroup);
++        const vn = t && t.hubId != null ? v.nodes.find(x => x.id === t.hubId) : null;
++        const src = v.nodes.find(x => x.id === this.state.dragId);
++        const col = vn ? vn.color : P.ink2;
++        const pt = this.state.dragPt;
++        return React.createElement("g", {
+           style: {
+             pointerEvents: "none"
+           }
+-        });
++        }, vn && React.createElement("circle", {
++          cx: vn.cx,
++          cy: vn.cy,
++          r: vn.r + 34,
++          fill: "none",
++          stroke: col,
++          strokeWidth: "2.5",
++          strokeDasharray: "6 6",
++          opacity: "0.95"
++        }), src && pt && React.createElement("line", {
++          x1: src.cx,
++          y1: src.cy,
++          x2: pt.x,
++          y2: pt.y,
++          stroke: col,
++          strokeWidth: "1.5",
++          strokeDasharray: "3 4",
++          opacity: "0.65"
++        }), src && React.createElement("circle", {
++          cx: src.cx,
++          cy: src.cy,
++          r: src.r + 5,
++          fill: "none",
++          stroke: col,
++          strokeWidth: "2",
++          opacity: "0.9"
++        }), pt && React.createElement("circle", {
++          cx: pt.x,
++          cy: pt.y,
++          r: "5",
++          fill: col,
++          opacity: "0.9"
++        }));
+       })() : null, React.createElement("g", {
+         style: {
+           pointerEvents: "none"
+@@ -1170,7 +1220,6 @@
+       const v = this.computeVals();
+       const st = this.state;
+       const SANS = "'Hanken Grotesk', sans-serif";
+-      const SERIF = "'Hanken Grotesk', sans-serif";
+       const inputStyle = {
+         border: "1px solid " + P.rule,
+         outline: "none",
+@@ -1255,7 +1304,7 @@
+         }
+       }, "Relationship map"), React.createElement("h1", {
+         style: {
+-          fontFamily: SERIF,
++          fontFamily: SANS,
+           fontWeight: 700,
+           fontSize: "clamp(22px, 5vw, 30px)",
+           lineHeight: 1,

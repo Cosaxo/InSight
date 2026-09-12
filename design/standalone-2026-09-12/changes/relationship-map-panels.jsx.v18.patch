@@ -1,0 +1,28 @@
+--- v18/RMPersonPanel.js (compiled, normalised)
++++ 2026-09-12/relationship-map-panels.jsx (normalised)
+@@ -3,7 +3,6 @@
+     P
+   } = window.RMCore;
+   const SANS = "'Hanken Grotesk', sans-serif";
+-  const SERIF = SANS;
+   const upLabel = {
+     fontFamily: SANS,
+     fontSize: 11,
+@@ -123,7 +122,7 @@
+       }
+     }, s.initials), React.createElement("div", null, React.createElement("h2", {
+       style: {
+-        fontFamily: SERIF,
++        fontFamily: SANS,
+         fontWeight: 700,
+         fontSize: 23,
+         lineHeight: 1.05,
+@@ -532,7 +531,7 @@
+       }
+     }, h.count), React.createElement("div", null, React.createElement("h2", {
+       style: {
+-        fontFamily: SERIF,
++        fontFamily: SANS,
+         fontWeight: 700,
+         fontSize: 23,
+         lineHeight: 1.05,

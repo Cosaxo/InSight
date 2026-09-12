@@ -1,0 +1,122 @@
+--- v18/PersonMindMap.js (compiled, normalised)
++++ 2026-09-12/person-mind-map.jsx (normalised)
+@@ -159,7 +159,8 @@
+     p,
+     following,
+     centerName,
+-    still
++    still,
++    own
+   }) {
+     const built = useMemo(() => pmmBuild(p), [p && p.id, following]);
+     const allCats = built.CATS,
+@@ -694,7 +695,7 @@
+         });
+       });
+       const cands = [];
+-      if (still) return keep;
++      if (still) return new Set();
+       nodes.forEach(n => {
+         const pt = pos[n.id];
+         if (!pt || hidden(n) || n.quiet) return;
+@@ -905,18 +906,20 @@
+       if (!pt) return null;
+       const cat = catOf(n);
+       const isHid = hidden(n);
+-      const sz = n.sub ? 9 : n.daily ? still ? 15 : 12.5 : 11 + pmmHash(seed + n.id) * 3;
++      if (isHid && still && own) return null;
++      const cmp = still && !own;
++      const sz = n.sub ? 9 : n.daily ? cmp ? 15 : 12.5 : 11 + pmmHash(seed + n.id) * 3;
+       const showLab = !still && !n.quiet && labKeep.has(n.id);
+       const labL = pt.x * view.z + view.x > (ref.current ? ref.current.clientWidth : 480) / 2;
+       const dim = !inHl(n);
+       return React.createElement("div", {
+         key: n.id,
+-        className: "mmt-node mmt-dotnode" + (n.sub ? " is-leaf" : "") + (sel === n.id ? " is-sel" : "") + (showLab ? " is-showlab" : "") + (dim ? " is-dim" : "") + (labL ? " is-labL" : "") + (!still && n.daily && !n.maj ? " is-rare" : "") + (still && n.same === false ? " is-differ" : ""),
++        className: "mmt-node mmt-dotnode" + (n.sub ? " is-leaf" : "") + (sel === n.id ? " is-sel" : "") + (showLab ? " is-showlab" : "") + (dim ? " is-dim" : "") + (labL ? " is-labL" : "") + (!still && n.daily && !n.maj ? " is-rare" : "") + (cmp && n.same === false ? " is-differ" : ""),
+         style: {
+           "--hue": cat ? cat.hue : 250,
+           width: sz,
+           height: sz,
+-          opacity: isHid ? 0.22 : still && !n.sub && n.same == null ? 0.3 : undefined,
++          opacity: isHid ? 0.22 : cmp && !n.sub && n.same == null ? 0.3 : undefined,
+           pointerEvents: isHid ? "none" : undefined,
+           transform: `translate(${pt.x}px, ${pt.y}px) translate(-50%, -50%) scale(${itemScale})`
+         },
+@@ -1001,19 +1004,22 @@
+       onClick: clearSel,
+       "aria-label": "Close"
+     }, "✕"), React.createElement("div", {
+-      className: "mmt-kicker"
+-    }, selCat.label, " · their map"), React.createElement("div", {
+-      className: "mmt-chiprow",
+-      style: {
+-        marginTop: 8
+-      }
+-    }, underCat(selCat.id).filter(n => !n.sub && !hidden(n)).map(n => React.createElement("button", {
+-      key: n.id,
+-      className: "mmt-mini",
+-      onClick: () => selectNode(n)
++      className: "mmt-slim"
+     }, React.createElement("span", {
+       className: "mmt-dot"
+-    }), n.tag || n.label))), underCat(selCat.id).some(hidden) ? React.createElement("div", {
++    }), React.createElement("span", {
++      className: "mmt-slim-name"
++    }, selCat.label), React.createElement("span", {
++      className: "mmt-slim-ct"
++    }, underCat(selCat.id).filter(n => !n.sub && !hidden(n)).length)), React.createElement(window.MTSwipeRow, {
++      items: underCat(selCat.id).filter(n => !n.sub && !hidden(n)).map(n => ({
++        id: n.id,
++        q: n.prompt || n.label,
++        ans: n.ans || n.tag || n.label,
++        hue: cardHue
++      })),
++      onPick: id => selectNode(byId[id])
++    }), underCat(selCat.id).some(hidden) ? React.createElement("div", {
+       className: "mmt-meta"
+     }, underCat(selCat.id).filter(hidden).length, " more once you're friends") : null) : selNode && selNode.sub ? React.createElement("div", {
+       className: "mmt-card mmt-ui",
+@@ -1025,19 +1031,22 @@
+       onClick: clearSel,
+       "aria-label": "Close"
+     }, "✕"), React.createElement("div", {
+-      className: "mmt-kicker"
+-    }, selNodeCat ? selNodeCat.label : "", " · ", selNode.label), React.createElement("div", {
+-      className: "mmt-chiprow",
+-      style: {
+-        marginTop: 8
+-      }
+-    }, (byParent[selNode.id] || []).filter(n => !hidden(n)).map(n => React.createElement("button", {
+-      key: n.id,
+-      className: "mmt-mini",
+-      onClick: () => selectNode(n)
++      className: "mmt-slim"
+     }, React.createElement("span", {
+       className: "mmt-dot"
+-    }), n.tag || n.label))), (byParent[selNode.id] || []).some(hidden) ? React.createElement("div", {
++    }), React.createElement("span", {
++      className: "mmt-slim-name"
++    }, selNode.label), React.createElement("span", {
++      className: "mmt-slim-ct"
++    }, (byParent[selNode.id] || []).filter(n => !hidden(n)).length)), React.createElement(window.MTSwipeRow, {
++      items: (byParent[selNode.id] || []).filter(n => !hidden(n)).map(n => ({
++        id: n.id,
++        q: n.prompt || n.label,
++        ans: n.ans || n.tag || n.label,
++        hue: cardHue
++      })),
++      onPick: id => selectNode(byId[id])
++    }), (byParent[selNode.id] || []).some(hidden) ? React.createElement("div", {
+       className: "mmt-meta"
+     }, (byParent[selNode.id] || []).filter(hidden).length, " more once you're friends") : null) : selNode ? React.createElement("div", {
+       className: "mmt-card mmt-ui",
+@@ -1051,7 +1060,7 @@
+     }, "✕"), React.createElement("div", {
+       className: "mmt-kicker"
+     }, selNodeCat ? selNodeCat.label : "", " · their map"), React.createElement("div", {
+-      className: "mmt-title mmt-title-serif"
++      className: "mmt-title"
+     }, selNode.label), selNode.daily && selNode.prompt ? React.createElement("div", {
+       className: "mmt-note"
+     }, selNode.prompt) : selNode.note ? React.createElement("div", {

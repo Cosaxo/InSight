@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 509 lines instead of
-52,972. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 510 lines instead of
+53,075. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -115,11 +115,11 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D425 (+6) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D469 (+13) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D-2026-09-09b (+99) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D-2026-09-12a (+100) | 9129 |
 |  | ↳ *amendment 2026-09-09* — [Exact, and never more than a poll behind](DECISIONS.md#d98-amendment-2026-09-09--exact-and-never-more-than-a-poll-behind) | — | 9251 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9270 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D334 (+5) | 9413 |
-| **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D426 (+11) | 9514 |
+| **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D-2026-09-12a (+12) | 9514 |
 | **D102** | [The D98 surfaces get their bounds, their index, and their bill](DECISIONS.md#d102--the-d98-surfaces-get-their-bounds-their-index-and-their-bill) | D397 (+7) | 9619 |
 | **D103** | [Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice](DECISIONS.md#d103--four-device-readings-a-retired-test-a-rail-the-topics-d96-left-dark-and-one-notch-paid-for-twice) | D156 (+3) | 9736 |
 | **D104** | [Test users: a second real account, and what it is allowed to fake](DECISIONS.md#d104--test-users-a-second-real-account-and-what-it-is-allowed-to-fake) | — | 9836 |
@@ -129,7 +129,7 @@ detect it.
 | **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D354 (+8) | 10253 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10394 |
 | **D110** | [The bundle gets the number that decides first paint, and it immediately finds 327 KB](DECISIONS.md#d110--the-bundle-gets-the-number-that-decides-first-paint-and-it-immediately-finds-327-kb) | D355 (+4) | 10546 |
-| **D111** | [Near and City are two stops again: presence is not a place](DECISIONS.md#d111--near-and-city-are-two-stops-again-presence-is-not-a-place) | D393 (+6) | 10678 |
+| **D111** | [Near and City are two stops again: presence is not a place](DECISIONS.md#d111--near-and-city-are-two-stops-again-presence-is-not-a-place) | D-2026-09-12a (+7) | 10678 |
 | **D112** | [The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on](DECISIONS.md#d112--the-similarity-surfaces-place-score-profiles-and-kindred-ranked-by-scores--live-exact-default-on) | D425 (+16) | 10716 |
 | **D113** | [Two continuum forms in the feed, a lane that writes them, and the compare rose redrawn (a partial v20 sync)](DECISIONS.md#d113--two-continuum-forms-in-the-feed-a-lane-that-writes-them-and-the-compare-rose-redrawn-a-partial-v20-sync) | D390 (+4) | 10823 |
 | **D114** | [The continuum forms go live: bucketed answers under the existing fold](DECISIONS.md#d114--the-continuum-forms-go-live-bucketed-answers-under-the-existing-fold) | D358 (+3) | 10953 |
@@ -201,7 +201,7 @@ detect it.
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D-2026-09-09c (+11) | 17795 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17883 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18113 |
-| **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18218 |
+| **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D-2026-09-12a (+6) | 18218 |
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D463 (+22) | 18316 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18475 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18626 |
@@ -255,7 +255,7 @@ detect it.
 | **D233** | [Rank questions live: an answer carries an order, and the exclusion retires](DECISIONS.md#d233--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires) | D290 (+3) | 23792 |
 | **D234** | [The seed transports the doc shape the schema promises](DECISIONS.md#d234--the-seed-transports-the-doc-shape-the-schema-promises) | D434 (+4) | 23888 |
 | **D235** | [No tragedies: this app does not put suffering to a vote](DECISIONS.md#d235--no-tragedies-this-app-does-not-put-suffering-to-a-vote) | D351 (+2) | 23954 |
-| **D236** | [An invitation that notifies: the pick is the delivery](DECISIONS.md#d236--an-invitation-that-notifies-the-pick-is-the-delivery) | D415 (+5) | 24053 |
+| **D236** | [An invitation that notifies: the pick is the delivery](DECISIONS.md#d236--an-invitation-that-notifies-the-pick-is-the-delivery) | D-2026-09-12a (+6) | 24053 |
 | **D237** | [Search finds people, by the address they gave you](DECISIONS.md#d237--search-finds-people-by-the-address-they-gave-you) | D239 | 24200 |
 | **D238** | [The invite code stops being something a person reads](DECISIONS.md#d238--the-invite-code-stops-being-something-a-person-reads) | D253 (+1) | 24296 |
 | **D239** | [Found by name, not only by the address you memorised](DECISIONS.md#d239--found-by-name-not-only-by-the-address-you-memorised) | D254 | 24422 |
@@ -308,7 +308,7 @@ detect it.
 | **D285** | [The seed's whitelist, held to the generator — after the third time](DECISIONS.md#d285--the-seeds-whitelist-held-to-the-generator--after-the-third-time) | D328 | 28926 |
 | **D286** | [An account switch cannot delete the outgoing account's presence cell](DECISIONS.md#d286--an-account-switch-cannot-delete-the-outgoing-accounts-presence-cell) | D326 | 29021 |
 | **D287** | [The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners](DECISIONS.md#d287--the-2026-08-24-visual-passes-ship-the-paid-door-and-the-two-crowd-scorecards-wait-on-their-owners) | D437 (+3) | 29084 |
-| **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D405 (+4) | 29166 |
+| **D288** | [The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand](DECISIONS.md#d288--the-board-retires-the-crowds-get-honest-labels-and-the-paid-mechanism-builds-ahead-of-demand) | D-2026-09-12a (+5) | 29166 |
 | **D289** | [Axes, Axiom Theory, and the program between them](DECISIONS.md#d289--axes-axiom-theory-and-the-program-between-them) | D417 (+17) | 29221 |
 | **D290** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d290--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D451 (+8) | 29289 |
 |  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d290-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 29506 |
@@ -324,7 +324,7 @@ detect it.
 | **D299** | [Decision numbers get a gate, because three renumbers in two days is a process and not an accident](DECISIONS.md#d299--decision-numbers-get-a-gate-because-three-renumbers-in-two-days-is-a-process-and-not-an-accident) | D-2026-09-09e (+4) | 30620 |
 | **D300** | [The first look at production, and the two things it said that the repo had wrong](DECISIONS.md#d300--the-first-look-at-production-and-the-two-things-it-said-that-the-repo-had-wrong) | D471 (+5) | 30688 |
 | **D301** | [Twenty-one strays, three provenances, and one of them runs on every account deletion](DECISIONS.md#d301--twenty-one-strays-three-provenances-and-one-of-them-runs-on-every-account-deletion) | D333 | 30782 |
-| **D302** | [The iris mark: the identity stops being a first pass](DECISIONS.md#d302--the-iris-mark-the-identity-stops-being-a-first-pass) | D393 (+2) | 30908 |
+| **D302** | [The iris mark: the identity stops being a first pass](DECISIONS.md#d302--the-iris-mark-the-identity-stops-being-a-first-pass) | D-2026-09-12a (+3) | 30908 |
 | **D303** | [The applier could not apply, for the same reason the observer could not observe](DECISIONS.md#d303--the-applier-could-not-apply-for-the-same-reason-the-observer-could-not-observe) | D471 (+3) | 30986 |
 | **D304** | [The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading](DECISIONS.md#d304--the-breakdown-gets-its-scale-back-every-canonical-bucket-in-vocabulary-order-on-top-of-the-cohort-reading) | D308 (+3) | 31203 |
 | **D305** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d305--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | D307 (+1) | 31269 |
@@ -358,7 +358,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D-2026-09-09f (+4) | 33547 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33712 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D399 (+2) | 33741 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D-2026-09-09c (+39) | 33897 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D-2026-09-12a (+40) | 33897 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D387 (+1) | 34012 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D387 (+4) | 34181 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D455 (+5) | 34312 |
@@ -389,14 +389,14 @@ detect it.
 | **D358** | [Fourteen dials get the range they should have shipped with, by retirement and replacement](DECISIONS.md#d358--fourteen-dials-get-the-range-they-should-have-shipped-with-by-retirement-and-replacement) | D413 | 37178 |
 | **D359** | [The routine bill is context times turns: four sessions, not thirty-nine firings, were the spend](DECISIONS.md#d359--the-routine-bill-is-context-times-turns-four-sessions-not-thirty-nine-firings-were-the-spend) | D403 | 37276 |
 | **D360** | [Two night shifts merged as one tree — 60 commits kept, and the sweep they both branched before is the whole story](DECISIONS.md#d360--two-night-shifts-merged-as-one-tree--60-commits-kept-and-the-sweep-they-both-branched-before-is-the-whole-story) | D387 (+1) | 37421 |
-| **D361** | [The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward](DECISIONS.md#d361--the-owners-own-upload-moves-the-vision-the-2026-09-02-standalone-is-what-the-tree-is-built-toward) | D415 (+2) | 37609 |
+| **D361** | [The owner's own upload moves the vision: the 2026-09-02 standalone is what the tree is built toward](DECISIONS.md#d361--the-owners-own-upload-moves-the-vision-the-2026-09-02-standalone-is-what-the-tree-is-built-toward) | D-2026-09-12a (+3) | 37609 |
 | **D362** | [The 2026-09-02 design is built: one instrument for the three lenses, a voice for the questions, and the split ballot](DECISIONS.md#d362--the-2026-09-02-design-is-built-one-instrument-for-the-three-lenses-a-voice-for-the-questions-and-the-split-ballot) | D393 (+1) | 37689 |
 | **D363** | [The 2026-09-04 night review: two shifts merged as one tree — 45 commits kept, one comment corrected, and the night that had nothing to collide with](DECISIONS.md#d363--the-2026-09-04-night-review-two-shifts-merged-as-one-tree--45-commits-kept-one-comment-corrected-and-the-night-that-had-nothing-to-collide-with) | D387 (+2) | 37778 |
 | **D364** | [A component defined inside a render is a remount per render: the profile's result panels, and the loop that shook the rose until the app died](DECISIONS.md#d364--a-component-defined-inside-a-render-is-a-remount-per-render-the-profiles-result-panels-and-the-loop-that-shook-the-rose-until-the-app-died) | D381 (+1) | 37912 |
 | **D365** | [The 2026-09-05 night review: two shifts merged as one tree — 50 commits kept, one defect the composition created, and the kilobyte that finally tripped](DECISIONS.md#d365--the-2026-09-05-night-review-two-shifts-merged-as-one-tree--50-commits-kept-one-defect-the-composition-created-and-the-kilobyte-that-finally-tripped) | D387 (+2) | 37994 |
 | **D366** | [Nothing the theory lanes wrote is axiom theory, and the ladder is why — the potential half, the salvage, and the gate that holds the line](DECISIONS.md#d366--nothing-the-theory-lanes-wrote-is-axiom-theory-and-the-ladder-is-why--the-potential-half-the-salvage-and-the-gate-that-holds-the-line) | — | 38197 |
 | **D367** | [Four launch documents said things that had stopped being true, and the one step that needs no Apple account demanded an Apple key](DECISIONS.md#d367--four-launch-documents-said-things-that-had-stopped-being-true-and-the-one-step-that-needs-no-apple-account-demanded-an-apple-key) | D454 (+1) | 38308 |
-| **D368** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d368--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | D455 (+6) | 38675 |
+| **D368** | [Shape A adopted: the paid door leaves the app, and buying moves to the web](DECISIONS.md#d368--shape-a-adopted-the-paid-door-leaves-the-app-and-buying-moves-to-the-web) | D-2026-09-12a (+7) | 38675 |
 |  | ↳ *amendment 2026-09-05* — [The legacy free-suggestion rows go with the overlay](DECISIONS.md#d368-amendment-2026-09-05--the-legacy-free-suggestion-rows-go-with-the-overlay) | — | 38763 |
 |  | ↳ *amendment 2026-09-05* — [The account is required at the pay tap, and the requirement is an identity rather than Google](DECISIONS.md#d368-amendment-2026-09-05--the-account-is-required-at-the-pay-tap-and-the-requirement-is-an-identity-rather-than-google) | — | 38785 |
 |  | ↳ *amendment 2026-09-05* — [The door is out of the binary, and it had five entry points rather than one](DECISIONS.md#d368-amendment-2026-09-05--the-door-is-out-of-the-binary-and-it-had-five-entry-points-rather-than-one) | — | 38831 |
@@ -523,3 +523,4 @@ detect it.
 | **D-2026-09-09f** | [The cost alarm learns about the other bill](DECISIONS.md#d-2026-09-09f--the-cost-alarm-learns-about-the-other-bill) | — | 52823 |
 | **D-2026-09-09g** | [One generated page that says where the project is](DECISIONS.md#d-2026-09-09g--one-generated-page-that-says-where-the-project-is) | — | 52871 |
 | **D-2026-09-09h** | [The first slice leaves live.ts, and a meter goes on the file](DECISIONS.md#d-2026-09-09h--the-first-slice-leaves-livets-and-a-meter-goes-on-the-file) | — | 52908 |
+| **D-2026-09-12a** | [The 2026-09-12 design arrives — a name, a friends list, and a Map with a trail — recorded, measured, planned, and nothing built](DECISIONS.md#d-2026-09-12a--the-2026-09-12-design-arrives--a-name-a-friends-list-and-a-map-with-a-trail--recorded-measured-planned-and-nothing-built) | — | 52973 |

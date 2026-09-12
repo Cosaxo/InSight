@@ -1,0 +1,180 @@
+--- v18/IS_DATA.js (compiled, normalised)
++++ 2026-09-12/sample-data.js (normalised)
+@@ -1925,6 +1925,177 @@
+       films: ["Stalker"],
+       books: ["A Field Guide to Getting Lost"],
+       music: ["Mount Eerie"]
++    }
++  }, {
++    id: "f8",
++    name: "Kari Moen",
++    init: "KM",
++    rel: "swim group",
++    category: "friends",
++    since: "2019",
++    match: 74,
++    hue: 195,
++    last: "Sun",
++    note: "Sunday 7am, whatever the water says.",
++    degrees: 1,
++    favorite: false,
++    interests: ["outdoor", "fitness", "food"],
++    faves: {
++      films: ["My Life as a Dog"],
++      books: ["Waterlog"],
++      music: ["Susanne Sundfør"]
++    }
++  }, {
++    id: "f9",
++    name: "Olav Rist",
++    init: "OR",
++    rel: "chess partner",
++    category: "friends",
++    since: "2021",
++    match: 69,
++    hue: 85,
++    last: "Wed",
++    note: "Loses gracefully, wins loudly.",
++    degrees: 1,
++    favorite: false,
++    interests: ["games", "thought", "music"],
++    faves: {
++      films: ["The Seventh Seal"],
++      books: ["The Luzhin Defense"],
++      music: ["Keith Jarrett"]
++    }
++  }, {
++    id: "f10",
++    name: "Nadia Berg",
++    init: "NB",
++    rel: "editor, other desk",
++    category: "colleagues",
++    since: "2020",
++    match: 71,
++    hue: 330,
++    last: "yesterday",
++    note: "Reads your drafts before you send them.",
++    degrees: 1,
++    favorite: false,
++    interests: ["literary", "civic", "art"],
++    faves: {
++      films: ["Petite Maman"],
++      books: ["The Argonauts"],
++      music: ["Arooj Aftab"]
++    }
++  }, {
++    id: "f11",
++    name: "Sam Iversen",
++    init: "SI",
++    rel: "downstairs neighbour",
++    category: "neighbors",
++    since: "2022",
++    match: 61,
++    hue: 120,
++    last: "2 wk",
++    note: "Knows when the radiator will fail.",
++    degrees: 1,
++    favorite: false,
++    interests: ["food", "music", "home"],
++    faves: {
++      films: ["Paddington 2"],
++      books: ["Salt Fat Acid Heat"],
++      music: ["Bill Evans"]
++    }
++  }, {
++    id: "f12",
++    name: "Tor Aasen",
++    init: "TA",
++    rel: "brother",
++    category: "family",
++    since: "birth",
++    match: 70,
++    hue: 20,
++    last: "Thu",
++    note: "Sends one photo a week, no caption.",
++    degrees: 1,
++    favorite: true,
++    interests: ["family", "sport", "outdoor"],
++    faves: {
++      films: ["Free Solo"],
++      books: ["Into Thin Air"],
++      music: ["Kings of Convenience"]
++    }
++  }, {
++    id: "f13",
++    name: "Åse Lund",
++    init: "ÅL",
++    rel: "old flatmate",
++    category: "friends",
++    since: "2013",
++    match: 77,
++    hue: 260,
++    last: "3 wk",
++    note: "Still owes you a saucepan.",
++    degrees: 1,
++    favorite: false,
++    interests: ["art", "film", "food"],
++    faves: {
++      films: ["Cléo from 5 to 7"],
++      books: ["Just Kids"],
++      music: ["Jenny Hval"]
++    }
++  }, {
++    id: "f14",
++    name: "Emil Strand",
++    init: "ES",
++    rel: "Petra's partner",
++    category: "acquaintances",
++    since: "2023",
++    match: 63,
++    hue: 45,
++    last: "Mon",
++    note: "Through Petra. Bakes on Sundays.",
++    degrees: 2,
++    favorite: false,
++    interests: ["food", "craft", "outdoor"],
++    faves: {
++      films: ["Tampopo"],
++      books: ["Tartine"],
++      music: ["Nick Drake"]
++    }
++  }, {
++    id: "f15",
++    name: "Hedda Nyquist",
++    init: "HN",
++    rel: "from the writing course",
++    category: "acquaintances",
++    since: "2024",
++    match: 72,
++    hue: 300,
++    last: "Tue",
++    note: "Sat two seats over, same notebook.",
++    degrees: 2,
++    favorite: false,
++    interests: ["literary", "thought", "art"],
++    faves: {
++      films: ["Drive My Car"],
++      books: ["The Years"],
++      music: ["Anna von Hausswolff"]
++    }
++  }, {
++    id: "f16",
++    name: "Ravi Dahl",
++    init: "RD",
++    rel: "Marcus's colleague",
++    category: "acquaintances",
++    since: "2025",
++    match: 66,
++    hue: 170,
++    last: "1 wk",
++    note: "Through Marcus. Argues in footnotes.",
++    degrees: 2,
++    favorite: false,
++    interests: ["tech", "thought", "games"],
++    faves: {
++      films: ["Arrival"],
++      books: ["Gödel, Escher, Bach"],
++      music: ["Four Tet"]
+     }
+   }],
+   dailyReports: [{
