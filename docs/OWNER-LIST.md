@@ -212,7 +212,7 @@ A `set` over an existing document makes Firestore evaluate `allow create` AND `a
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
 
 <!-- console:begin -->
-- [ ] 13 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-12).
+- [ ] 12 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-12).
 <!-- console:end -->
 
 ## Store and legal
@@ -227,9 +227,10 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 `web/.well-known/assetlinks.json` keeps `check:store-copy` red on
 `main` until the Play Console issues it (D345).
 
+
+- [ ] **Does GPLv3 artwork inside a closed app create a source obligation? — and the archive ships no licence file.** OMIB's 220 items are licensed GPLv3 — a SOFTWARE licence carried on pictures. Commercial use is unambiguous and is the whole reason the bank cleared the sweep where MaRs-IB, ICAR, Sandia and UCMRT did not (D473's table). What is not a session's to answer is whether shipping the items inside the app reaches the app's own source. The likely reading is mere aggregation — the items are data the app displays, not code linked into it — but *likely* is not the standard for a thing that ships. This is in the class `CLAUDE.md` keeps outside D334's ask: a licence is met by complying with it, never by deciding it away. Needs a real answer before any OMIB item ships, plus wherever the attribution has to be visible. **Sharpened 2026-09-11 by reading the archive:** its six files include no LICENSE — the GPLv3 statement lives in the paper, not in the bank — which is weaker than a licence in the tree and stronger than Sandia's nothing. So the answer wants the paper's exact wording quoted where the bank is committed; `content/omib.json` and `content/omib-key.json` carry the attribution and this caveat in their headers meanwhile. *Source:* D473 and its amendment.
+
 <!-- console:begin -->
-- [ ] **0.3 Put the protection rules on the `production` environment
-      (D87)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **1.1b [UN-PARKED — D345] Register the ENK and apply for the D-U-N-S** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **2.6 [UN-PARKED — D345] Android signing** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 - [ ] **3.1 [UN-PARKED — D345] Upload a signed AAB to a Play testing track** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
@@ -257,7 +258,5 @@ read-only observer (D292). The Play signing SHA-256 placeholder in
 - [ ] **6.1b App Review Information — a demo account is now MANDATORY
       (D414)** — *Source:* `docs/LAUNCH-RUNBOOK.md`.
 <!-- console:end -->
-
-- [ ] **Does GPLv3 artwork inside a closed app create a source obligation? — and the archive ships no licence file.** OMIB's 220 items are licensed GPLv3 — a SOFTWARE licence carried on pictures. Commercial use is unambiguous and is the whole reason the bank cleared the sweep where MaRs-IB, ICAR, Sandia and UCMRT did not (D473's table). What is not a session's to answer is whether shipping the items inside the app reaches the app's own source. The likely reading is mere aggregation — the items are data the app displays, not code linked into it — but *likely* is not the standard for a thing that ships. This is in the class `CLAUDE.md` keeps outside D334's ask: a licence is met by complying with it, never by deciding it away. Needs a real answer before any OMIB item ships, plus wherever the attribution has to be visible. **Sharpened 2026-09-11 by reading the archive:** its six files include no LICENSE — the GPLv3 statement lives in the paper, not in the bank — which is weaker than a licence in the tree and stronger than Sandia's nothing. So the answer wants the paper's exact wording quoted where the bank is committed; `content/omib.json` and `content/omib-key.json` carry the attribution and this caveat in their headers meanwhile. *Source:* D473 and its amendment.
 
 ## Done
