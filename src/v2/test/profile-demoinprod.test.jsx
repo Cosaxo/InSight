@@ -79,17 +79,51 @@ describe("the demo's progress stagger", () => {
   });
 });
 
-// THE RESULT CARD'S TWO HALVES ARE NOT PINNED HERE, and saying so is the
-// point rather than an omission. A render case was written and then
-// DELETED, because its own control caught it testing nothing: with the
-// props a test can supply easily, the demo card draws neither the
-// invented rarity nor the invented contacts, so "the live build drew
-// neither" passed on an empty card. Making the demo draw them needs a
-// real archetype match, which needs `ownResult` to yield dims, which
-// needs the exact stored shape `parseTestResults` accepts — a fixture
-// worth building, and not worth guessing at 22:30.
-//
-// The two guards are on the night's list for that render pin. What is
-// measured here is the third read of the same flag in the same family, in
-// the same commit, which is what makes the other two a reading rather
-// than a hope.
+describe("the result card's two invented halves", () => {
+  it("draws neither on a live build whose boot has not landed", async () => {
+    const { ResultProfileCard } = await import("../spec/result-card.jsx");
+    const draw = () => {
+      const { container } = render(
+        React.createElement(ResultProfileCard, { testKey: "big5", archetype: null, tagline: "" }),
+      );
+      const t = container.textContent || "";
+      cleanup();
+      return t;
+    };
+
+    // THE CONTROL FIRST, and it is what the first version of this case
+    // got wrong: written against strings the card does not render, it
+    // passed on a card drawing nothing and pinned nothing at all. These
+    // two are read off what the demo card actually draws.
+    //
+    //   · the invented RARITY — `IS_profileRarity`'s label, "74 in 100";
+    //   · the invented CONTACTS — up to four demo people as avatars in
+    //     the emblem, whose initials render BEFORE the card's title.
+    demo();
+    const shown = draw();
+    expect(shown, "the demo card drew no rarity — this case cannot see the guard").toMatch(/\d+ in 100/);
+    expect(
+      shown.indexOf("Personality"),
+      "the demo card drew no same-type contacts before its title — this case cannot see the guard",
+    ).toBeGreaterThan(0);
+
+    // …and on a live build mid-boot, neither.
+    midBoot();
+    const live = draw();
+    expect(
+      live,
+      "a live build mid-boot printed an invented rarity as a fact about the reader",
+    ).not.toMatch(/\d+ in 100/);
+    expect(
+      live.indexOf("Personality"),
+      "a live build mid-boot drew demo people as the reader's own same-type contacts (D1)",
+    ).toBe(0);
+
+    // …and the attached live build, which was never in doubt.
+    attached();
+    const real = draw();
+    expect(real).not.toMatch(/\d+ in 100/);
+    expect(real.indexOf("Personality")).toBe(0);
+    demo();
+  });
+});
