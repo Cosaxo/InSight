@@ -355,8 +355,12 @@ describe("the lists on this tree", () => {
     // item 13 — because OMIB's taker BUILDS the missing cell out of twenty
     // elements instead of tapping one of six tiles, which is an interaction
     // and not a control, so D352 sends it here before it is built.
-    expect(v.requested.length).toBe(9);
-    expect(v.designed.length).toBe(0);
+    // Requested 8 and Designed 1 since 2026-09-12: the owner's Build the Cell
+    // upload answered 13 the next day and it moved under Designed, the section
+    // being the status; its extraction and the two build notes measured off the
+    // artboard are design/logic-build-cell-2026-09-12/README.md.
+    expect(v.requested.length).toBe(8);
+    expect(v.designed.length).toBe(1);
     expect(v.built.length).toBe(6);
     const p = parsePermissions(read("docs/PERMISSIONS.md"));
     expect(p.open.length).toBeGreaterThan(5);

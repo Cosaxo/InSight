@@ -1,0 +1,114 @@
+# Build the missing cell — the logic test's answer screen (2026-09-12)
+
+The owner's `InSight_Logic_Test_-_Build_the_Cell.html` upload of
+2026-09-12, answering **visual request 13** (D451): the Open Matrices
+Item Bank is answered by CONSTRUCTING the missing cell out of twenty
+shapes, not by tapping one of six finished tiles, so the item screen is
+a new interaction rather than a new control. The upload is ephemeral;
+this directory is the durable record, per `design/README.md`'s standing
+rule. Like every sibling it does **not** re-point
+`design/InSight_standalone_18.html`.
+
+This is the first **Claude Design canvas** filed here rather than an
+InSight standalone, so the extraction differs from the numbered series
+— see below.
+
+## What the upload holds
+
+A `__bundler` page whose manifest carries nine gzip+base64 assets. Four
+are vendor (React 18.3.1, ReactDOM, Babel, two Hanken Grotesk faces) and
+are not kept. The three that are the design:
+
+| File | What it is |
+| --- | --- |
+| `LogicPhone.dc.html` | The artboard — one 402 × 874 phone screen, driven by props, with the twenty shapes, three real puzzles and both themes inline. This is the design. |
+| `ios-frame.jsx` | The device frame the artboard mounts inside. |
+| `support.js` | The canvas runtime that resolves `{{ }}`, `<sc-if>`, `<sc-for>` and `<x-import>`. Kept so the artboard renders from this directory. |
+
+Two byte-different copies of the artboard were in the manifest; they
+differ by one inlined `@font-face` line and the complete one is kept.
+
+## What it decides
+
+Everything the request left open, and it left the hard parts open on
+purpose:
+
+- **Tap to toggle, not drag.** Tap a palette tile and the shape springs
+  into the cell (scale 0.5 → 1, 300 ms); tap the lit tile again and it
+  shrinks out in 180 ms. **Clear** appears at the cell's right edge only
+  once something is placed. Haptics are graded — place light, remove
+  softer, Done medium, and a time-out commit gives **none**, because "it
+  should not feel like a tap you made".
+- **The palette is the alphabet, laid out as one.** Five columns, one
+  per family, the four members down each column, every tile drawn in the
+  same frame the grid cells use. Palette and cell share the one accent,
+  so the link between what you tapped and what appeared needs no arrow.
+- **Complete is never inferred.** *"The screen cannot tell complete from
+  partial, so it never pretends to"* — the cell keeps its building frame
+  until Done is pressed, and nothing auto-advances. On a time-out the
+  cell commits as it stands: a partial build is the answer, an empty one
+  is a miss.
+- **Two clocks, one home.** A per-item segment drains in the progress
+  strip; the whole-test remainder is a small figure in the header.
+  Neither is bigger than a shape.
+- **Both themes**, as tokens rather than as a second drawing — light ink
+  `oklch(0.216 0.011 70)` on `oklch(0.994 0.0025 80)`, accent
+  `oklch(0.52 0.14 195)`; dark lifts the accent to
+  `oklch(0.74 0.11 195)` and sits cells one step above the ground.
+- **The worked example is the same screen with two substitutions**: the
+  kicker replaces the strip, Start replaces Done and is always live, and
+  there is no clock. That is request 8 answered in the same pass, which
+  is what kept it from teaching a screen that no longer exists.
+
+## Two things the BUILD must fix, both measured rather than noticed
+
+The artboard redraws the twenty shapes in the app's own 72 × 72 frame —
+which is a gift, because it means the port is already done. But its
+shape ARRAY INDEX is not OMIB's element id, and a build that assumes it
+is would render every item wrong while looking entirely plausible.
+
+**1 · The order differs in twelve of twenty places.** Compared
+geometrically (centroid, and apex direction for the triangles) rather
+than by eye:
+
+| Family | OMIB's ids 0→3 | The artboard's array 0→3 |
+| --- | --- | --- |
+| corner | TL · BL · BR · TR | TL · TR · BL · BR |
+| line | upper-left · lower-left · lower-right · upper-right | UL · UR · LL · LR |
+| box | top · left · bottom · right | top · left · right · bottom |
+| centre | filled sq · outline sq · filled circle · outline circle | identical ✓ |
+| arrow | top · left · bottom · right | top · left · right · bottom |
+
+**OMIB numbers every family counter-clockwise, and that is load-bearing
+rather than arbitrary**: `Rotation` is one of the bank's six rules, and
+it works by stepping an element through its family's four ids. Under the
+artboard's reading order those four are no longer a rotation, so a
+rotation item rendered on an identity mapping would show
+top → left → right → bottom and be unsolvable — while every gate stayed
+green, because nothing downstream can see a picture. The fix is a
+mapping table at the render site, not a design change.
+
+**2 · The arrows point the wrong way.** OMIB's arrows point OUTWARD (the
+one at the top points up); the artboard's point inward. Position is
+right, direction is inverted, in all four. Unlike the ordering this is
+not a build-side rename: it changes what the solver sees, and the 220
+difficulty values were measured on people looking at the outward ones.
+Small, but it wants either four redrawn paths or a decision to accept
+the difference.
+
+Neither is a defect in the design. A designer laying out twenty shapes
+has no reason to know a third-party bank's internal numbering, and the
+request did not give it to them — that omission is the record's, and it
+is fixed here.
+
+## Open for the owner
+
+**30 seconds an item, against the bank's own 90.** The artboard runs 12
+items at 30 s (`ITEM_MS = 30000`, `N_ITEMS = 12`); OMIB's published
+reference implementation ships 90 s, and this app's generator path
+allows 90 s (`LOGIC_ITEM_CAP_MS`). Twelve items is defensible on its own
+— 220 calibrated items make a short adaptive form realistic — but the
+per-item limit is not only a pacing choice: administer under a tighter
+clock than the calibration sample had and the published difficulties
+stop transferring cleanly, which is the entire reason this bank was
+chosen. On `OWNER-LIST.md`.
