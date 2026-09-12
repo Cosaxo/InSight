@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expressionFaults } from "./workflow-expressions.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -73,6 +74,34 @@ if (!exported.length) {
 }
 
 const workflow = readFileSync(resolve(root, WORKFLOW), "utf8");
+
+// BEFORE ANYTHING ELSE: does the file GitHub Actions LOADS at all?
+//
+// Everything below asks whether the deploy list is right. This asks the
+// prior question, which nothing asked until it had already cost a night:
+// whether this workflow parses. The scanner is shared with
+// check:workflows, which runs the same refusals over all 25 workflow files
+// in ci — see workflow-expressions.mjs for what they are and why prose
+// about an expression IS an expression.
+//
+// REPEATED HERE, on the deploy path, rather than left to that ci gate:
+// this is the file whose failure to load stops every deploy, and it stops
+// it silently. check:deploy-targets runs on the deploy path, where
+// CLAUDE.md's rule is that nothing which cannot speak to whether a rules
+// fix is safe may block one — and this clears that bar the short way
+// rather than by exemption. A firebase-deploy.yml that cannot load has
+// already blocked every deploy, so failing here only ever pre-empts a
+// worse outcome and can never stop a deploy that would otherwise have
+// worked. The 24 other workflows do not clear it, which is exactly why
+// their copy of this check is ci-only.
+const exprFaults = expressionFaults(workflow, WORKFLOW);
+if (exprFaults.length) {
+  console.error(
+    `check-deploy-targets: ${WORKFLOW} would not load.\n`
+    + exprFaults.map((f) => `    ${f}`).join("\n"),
+  );
+  process.exit(1);
+}
 // COMMENTS OFF FIRST, and every match rather than the first.
 //
 // Two bugs, one shape. This read the file raw and took `.match`, which is
