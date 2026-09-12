@@ -51928,6 +51928,7 @@ DSN, because this gate reads the build output and refuses any other:
 | shift A | 552.96 KB | 0.04 KB spare — passes |
 | shift B | 552.34 KB | passes against main's ceiling |
 | **composed** | **553.30 KB** | **over** |
+| the tree that merged | 553.79 KB | 0.21 KB under the new 554 |
 
 The parts add to +0.86 KB and the composition costs +1.08. The extra
 0.22 KB is the two shifts' edits meeting in the bundler, so **no commit
@@ -51938,7 +51939,10 @@ class this review exists to catch — a gate that can only go red on a tree
 nobody builds until morning.
 
 Raised to 554 with the arithmetic recorded in the script, which is what
-the gate's own failure text licenses. What grew is +709 bytes of
+the gate's own failure text licenses. The last row is `main` moving again
+under the review — #497 and #502 took another 0.49 KB — so the tree that
+merges sits 0.21 KB under the new ceiling, which is thin on purpose: the
+way out is the 8 KB below, not another raise. What grew is +709 bytes of
 `data/live.ts` and +128 of the entry chunk: six boot-path defect fixes,
 none of them deferrable, because `live.ts` IS the store the app boots on.
 `check:eager-content` is green — no question content entered the graph,

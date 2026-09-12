@@ -974,6 +974,13 @@ const MAX_TOTAL_JS_KB = 2440;
 //   main            552.22     A  552.96 (+0.74, passes with 0.04 to spare)
 //   composed        553.30     B  552.34 (+0.12)
 //
+// …and 553.79 on the tree that actually merges, because `main` moved
+// again while the review ran (#497's phase B and #502) and took another
+// 0.49 KB with it. That is the figure this ceiling is set against, with
+// 0.21 KB to spare — which is thin, and is the same every-byte alarm
+// this block complains about two paragraphs down. It is left thin
+// deliberately: the way out is the 8 KB below, not another raise.
+//
 // The parts add up to +0.86 and the composition costs +1.08. The extra
 // 0.22 KB is the two shifts' edits meeting in the bundler, so no commit
 // on either branch owns it and neither shift could have measured it: A
