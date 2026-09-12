@@ -710,6 +710,33 @@ describe("the sharded lane: a daily answer never touches the published document"
     expect((store.get("v2_users/u1/public/answers")?.a as Doc)[DAILY]).toBe(0);
   });
 
+  it("retargets an EDIT into the profile's cohort here too, not the one the event carries", async () => {
+    // THE HOT PATH'S HOLE, ONE LANE OVER — and this lane is the reachable
+    // one, because the daily bank is exactly what shards. The create arm
+    // corrects an invented cohort and rewrites the answer row (D410); this
+    // lane then moved -old/+new using the anchors on its own EVENT
+    // PAYLOAD, a snapshot from before that correction. The hot path's own
+    // case cannot see it: that describe's qid is deliberately NOT a daily
+    // id, so it never enters this branch. Found composing the 2026-09-12
+    // night shifts — the fix landed on the hot path the same night phase B
+    // gave this lane a second copy of the line.
+    //
+    // The row is seeded as the create's correction leaves it — honest —
+    // while the edit's payload still carries the claim, which is the whole
+    // difference the re-read makes. Only the edit is delivered, as the
+    // case above does, because the fake store merges one level deep and a
+    // create's own cells would be replaced rather than added to.
+    store.set(`v2_users/u1/answers/${DAILY}`, { anchors: { ageBand: "25-34", country: "NO" } });
+    await deliverDailyEdit("evt-s5", 0, 1, { ageBand: "55-64", country: "JP" });
+    const by = store.get(SHARD)!.by as Doc;
+    expect(inc(((by.ageBand as Doc)["25-34"] as Doc)?.["1"], 1),
+      "the edit did not land in the author's real band").toBe(true);
+    expect((by.ageBand as Doc)["55-64"],
+      "the claimed band took a cell on the shard").toBeUndefined();
+    expect((by.country as Doc).JP,
+      "the claimed country took a cell on the shard").toBeUndefined();
+  });
+
   it("the hot path is untouched for a question the daily bank does not name — the control", async () => {
     await deliver("evt-s4", vote);
     expect(store.get(AGG)?.total).toBe(1);
