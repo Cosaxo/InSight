@@ -726,7 +726,15 @@ operationally:
   `erased`, `passes` — a warning when `missing` is not zero, because a
   reconciled row is a live append that failed; `passes` is the DELETE
   statements the night ran, one per 500 pending accounts, each a pass
-  over the table), `log_erasure_deferred` (an account whose rows were
+  over the table), `log_shadow` (the nightly shadow of the folds phase
+  D will move, runbook A.7 — `clean` when the ledger day's rows all match
+  their table rows by id and the three fold queries agree with the
+  folds; otherwise a warning carrying `missing`, `mismatched`, `seam`
+  (rows the log files under another day than the ledger's — the two
+  clocks, read the fold diffs against it), `logEntries` and
+  `logActives` beside `entries` and `actives`, and `differing` of
+  `questions` with a few of their ids; seven `clean` nights in a row is
+  what licenses phase D), `log_erasure_deferred` (an account whose rows were
   not deleted at once — the streaming buffer refused, or the table is
   past `LOG_ERASE_NOW_MAX_BYTES`, a gibibyte; the marker in
   `v2_log_erasures` is taken by the next night's one statement). The same `gcloud logging
@@ -833,7 +841,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (ten policies, eight log-based metrics)
+## Alerting (eleven policies, nine log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -1034,6 +1042,37 @@ is that the tail is live for that question — a reader whose city is in it
 pays a shard read per such question at the City stop — and the runbook's
 first response is to move `B.tailShare` in the cost model from its honest
 zero, not to raise the threshold.
+
+### The compactor's heartbeat: the daily's counts stopping (phase B, D467)
+
+Since phase B the daily question's published document —
+`v2_question_aggs/{qid}`, what every client polls — is written by
+`compactAggShardsV2`, a minutely schedule summing the counter shards
+the answer trigger increments (`functions/src/aggShards.ts`), and by
+nothing else on the hot path. A compactor that stops is a count that
+stops moving for everyone while every answer still lands, and nothing
+raises an error: the failure is an absence, the shape the two silence
+policies above exist for. `monitoring/compactAggShardsV2-silent.json`
+watches the log-based metric `agg_compact`, emitted on EVERY run (an
+idle minute beats too — only a missing minute is a missing run), summed
+over a trailing ten minutes and fired when five pass with none. Both
+the metric and the policy are put in place by `npm run
+monitoring:apply` with the rest.
+
+**Reading it:** `agg_compact` carries `qids`, `shards`, `published`,
+`migrated` (a question met for the first time, its published document
+moved into a base shard), `negatives` (a cell that summed below zero and
+was dropped — an edit whose create never folded, or a rebuild racing a
+fold; a warning), `capped` (more than `COMPACT_DIRTY_CAP` shard documents
+were dirty; the rest wait a minute) and `stopped` (the clock ended the
+run with questions unpublished — they are still dirty for the next one).
+`clean` is none of the last two. **First response** to a fire: Cloud
+Scheduler for the job's last execution, then the function's logs; and
+`compactAggShardsNowV2` (operator callable, `{ qid }` for one question or
+nothing for everything dirtied in a day) publishes the current sums the
+moment the cause is found, whatever it was. Nothing is lost while it is
+red — the shards hold every answer — but D447's amendment of D98 (exact,
+and never more than a poll behind) is not being kept.
 
 ## Running a deploy manually
 

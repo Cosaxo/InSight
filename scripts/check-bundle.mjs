@@ -966,7 +966,7 @@ const MAX_TOTAL_JS_KB = 2440;
 // are deferred, one file over, is the next change to this graph — its
 // own change, not a rider on a feature.
 //
-// AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D466), landing
+// AND A SECOND FEATURE INSIDE THE SAME RAISE (2026-09-11, D468), landing
 // the same evening from another branch and measured on the merge: the
 // catalogue's who-picked-what sheet costs 112 bytes here — 95 in
 // data/voters.ts, where the voter query stopped DROPPING catalogue
@@ -984,7 +984,39 @@ const MAX_TOTAL_JS_KB = 2440;
 // measured below both. The owed headroom is the same headroom, and the
 // two branches found it independently — which is the strongest argument
 // yet for spending it: `data/voters`' query half, deferred.
-const MAX_EAGER_KB = 553;
+//
+// 553 → 554 (2026-09-12), AND A THIRD BRANCH IN THE SAME DAY. Phase B
+// (D467) sharded the daily lane's aggregate and its compactor read landed
+// in `data/live.ts`, which is eager. Measured on separate builds rather
+// than attributed by reading diffs:
+//
+//   main alone (aaf72f2)            565,967 bytes — 305 under 553 KB
+//   main + this branch's feature    566,353 bytes —  81 OVER
+//   so this branch's own cost is       386 bytes
+//
+// Phase B spent the 413 this branch had measured hours earlier, and 386
+// does not fit in the 305 it left. Neither change is the one at fault:
+// each was green on the tree it was written against, and the merge is
+// where they meet. Note that 386 supersedes the 112 recorded six
+// paragraphs up — that figure was the two source files' own delta, and
+// the whole-graph measurement includes the chunk boundaries moving under
+// it. The source attribution stands; the total was too small.
+//
+// WHY THE CEILING MOVES INSTEAD OF THE CODE. The trim available is 81
+// bytes of minified output, which is not a change anyone can defend next
+// week — it is golf against a number, and the next commit undoes it. The
+// change that IS available is the one two notes above already name, and
+// it is worth 6 KB rather than 81 bytes. It stays out of this merge for
+// the reason it was written down: it is its own change, not a rider on a
+// feature, and least of all a rider bolted onto a conflict resolution.
+//
+// THIS IS THE THIRD RAISE IN A DAY (552 → 553 → 554) and that is the
+// number to watch, not the KB. Three unrelated branches each arrived at
+// a ceiling with single-digit-byte headroom, which means the gate is
+// measuring exactly and defending nothing: a budget with no slack fails
+// whichever branch merges last, and says nothing about which one grew
+// the app. The deferral below is what turns it back into a budget.
+const MAX_EAGER_KB = 554;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

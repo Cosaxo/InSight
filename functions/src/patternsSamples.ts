@@ -162,6 +162,39 @@ export function sampleOrder(a: [string, SampleRow], b: [string, SampleRow]): num
   return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 }
 
+/**
+ * The half of `mergeSample` that decides WHO a day contributes: one
+ * addition per person (the newest day wins; within a day the later entry,
+ * the caller's order, wins — which is the edit), then the cap in the
+ * sample's own order — newest day first, then uid. An addition dropped
+ * here is older than `cap` additions that all outrank it in the final
+ * sort, so it could never have survived that sort either.
+ *
+ * Exported for the answer log's shadow (logShadow.ts, LOG-FIRST-RUNBOOK
+ * A.7), which folds the same ledger day through this same function and
+ * asks BigQuery for the same list — so what the shadow compares against
+ * the SQL is the fold's own arithmetic, not a second copy of it.
+ */
+export function trimAdditions(adds: readonly SampleAddition[], cap: number = PATTERNS_SAMPLE_CAP): SampleAddition[] {
+  const latest = new Map<string, SampleAddition>();
+  for (const add of adds) {
+    // A vote OR a catalogue pick (D459): one of the two is what the row
+    // carries, and an addition with neither is not an answer.
+    if (!add.uid) continue;
+    const vote = Number.isInteger(add.optionIdx) && (add.optionIdx as number) >= 0;
+    const pick = typeof add.entity === "string" && add.entity !== "";
+    if (!vote && !pick) continue;
+    const cur = latest.get(add.uid);
+    // the newest day wins; within a day the later entry (the caller's
+    // order) wins, which is the edit
+    if (cur && cur.day > add.day) continue;
+    latest.set(add.uid, add);
+  }
+  return [...latest.values()]
+    .sort((x, y) => (x.day !== y.day ? (x.day < y.day ? 1 : -1) : x.uid < y.uid ? -1 : x.uid > y.uid ? 1 : 0))
+    .slice(0, cap);
+}
+
 const stampFields = (stamp: ProfileStamp): Pick<SampleRow, "n" | "s" | "l"> => ({ n: stamp.n, s: stamp.s, l: stamp.l });
 
 /**
@@ -193,23 +226,7 @@ export function mergeSample(
   stamps?: ReadonlyMap<string, ProfileStamp>,
   city?: string,
 ): SampleDoc {
-  const latest = new Map<string, SampleAddition>();
-  for (const add of adds) {
-    // A vote OR a catalogue pick (D459): one of the two is what the row
-    // carries, and an addition with neither is not an answer.
-    if (!add.uid) continue;
-    const vote = Number.isInteger(add.optionIdx) && (add.optionIdx as number) >= 0;
-    const pick = typeof add.entity === "string" && add.entity !== "";
-    if (!vote && !pick) continue;
-    const cur = latest.get(add.uid);
-    // the newest day wins; within a day the later entry (the caller's
-    // order) wins, which is the edit
-    if (cur && cur.day > add.day) continue;
-    latest.set(add.uid, add);
-  }
-  const trimmed = [...latest.values()]
-    .sort((x, y) => (x.day !== y.day ? (x.day < y.day ? 1 : -1) : x.uid < y.uid ? -1 : x.uid > y.uid ? 1 : 0))
-    .slice(0, cap);
+  const trimmed = trimAdditions(adds, cap);
   const rows: Record<string, SampleRow> = { ...(prev?.rows ?? {}) };
   for (const add of trimmed) {
     const cur = rows[add.uid];

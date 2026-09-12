@@ -295,6 +295,27 @@ one shard per question, and only for a question whose hot map is at the
 cap and lacks its own city or country (src/v2/data/overflow.ts); the
 client computes the same hash, pinned on both sides.
 
+v2_agg_shards/{qid}-{s}            the DAILY lane's COUNTER SHARDS (phase B, D467),
+  { qid, s, counts, total,         s = FNV-1a(uid) mod AGG_SHARDS (16), plus
+    by, edits, dirtyAt }           {qid}-base. For a question the daily bank
+                                   names the answer trigger never reads or
+                                   rewrites v2_question_aggs: it writes
+                                   blind increments here — the option, the
+                                   total, one cell per frozen chip, the
+                                   edit-flow crossing — in the same
+                                   transaction as the ledger mark. `by` is
+                                   UNCAPPED; compactAggShardsV2 sums every
+                                   shard of a question dirtied in the last
+                                   fifteen minutes, once a minute, and
+                                   writes v2_question_aggs in its own shape
+                                   with the union re-capped into the tail.
+                                   The base is the published document as
+                                   it stood when sharding shipped, migrated
+                                   once; rebuildAggregateV2 rewrites it and
+                                   deletes the rest
+read: NOBODY · write: NOBODY — working state, not a reading; the reading is
+the aggregate the compactor writes from it (functions/src/aggShards.ts).
+
 v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
   advertiser, headline, body       text only. No image, no logo, no brand
                                    colour, no link — check:content refuses
