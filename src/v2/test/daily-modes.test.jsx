@@ -125,6 +125,47 @@ describe("a tapped invite link opens the screen that consumes it", () => {
     sessionStorage.removeItem("insight.pendingJoin");
   });
 
+  it("lands AGAIN when the same invite is tapped after the panel read it", async () => {
+    // THE OTHER HALF OF THE ONE-SHOT. The case above proves the note holds
+    // while the code is unread. This one proves it lets go once the code
+    // has been read — because the panel consumes read-and-clear, and a
+    // note kept past that made the same link tapped a second time do
+    // nothing: the reader stays on World with a fresh invite sitting
+    // unread, which is the swallow the peek exists to prevent.
+    //
+    // A THIRD code, because `landedForCode` is module state that outlives
+    // each mount — the cases above rely on that too, and reusing one of
+    // their codes here would pass for the wrong reason.
+    sessionStorage.setItem("insight.pendingJoin", "PQRS3456");
+    const expectNoBoundary = mountApp();
+    await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+    expect(
+      within(dockRuler()).getByRole("tab", { name: "Groups" }).getAttribute("aria-selected"),
+      "the first landing never happened, so the second cannot be what is measured",
+    ).toBe("true");
+
+    // The panel's read-and-clear, which no demo mount performs for itself.
+    sessionStorage.removeItem("insight.pendingJoin");
+    await switchTo("World");
+
+    // The same link, tapped again from the same chat message — through
+    // `stashJoinCode`, because that IS the tap: it is what announces an
+    // arrival, and writing session storage by hand would be the one part
+    // of a real tap this case is about.
+    const { stashJoinCode } = await import("../data/links");
+    await act(async () => {
+      stashJoinCode("PQRS3456");
+      window.dispatchEvent(new Event("insight-live-update"));
+      await new Promise((r) => setTimeout(r, 400));
+    });
+    expect(
+      within(dockRuler()).getByRole("tab", { name: "Groups" }).getAttribute("aria-selected"),
+      "the same invite tapped a second time left the reader on World with the code unread",
+    ).toBe("true");
+    expectNoBoundary("daily · circle via a re-tapped invite");
+    sessionStorage.removeItem("insight.pendingJoin");
+  });
+
   it("leaves the daily on World when no code is waiting", async () => {
     // The control. Without it the case above passes on a daily that
     // always opens on Circle.

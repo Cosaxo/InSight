@@ -96,7 +96,7 @@ import { Sheet } from './primitives.jsx';
 // because the surface pin in data/vote.test.ts holds every one of those
 // methods on the store's literal.
 import LIVE from '../data/live';
-import { peekJoinCode } from '../data/links';
+import { peekJoinCode, subscribeJoinCode } from '../data/links';
 // D354's sweep. WORLD_TOPICS was a module-scope `window.` read with a
 // five-entry fallback — the fragility src/v2/README.md's feed paragraph
 // names ("deferring world-feed-data swaps the real topic set for the
@@ -229,6 +229,19 @@ const modeOfGroup = (gid) => {
 // Which invite code the daily has already taken the reader to. See
 // consumePendingJoin: the peek does not clear, so this is what keeps one
 // invite from landing twice.
+//
+// IT IS ABOUT ONE ARRIVAL, not about the code forever. The panel this
+// lands on consumes read-and-clear (LdJoinPending, D238), so after the
+// first landing the stash is empty and this note is the only thing left
+// holding the code — which made the SAME link tapped a second time do
+// nothing at all: the peek returns it, it matches, and the reader is left
+// standing on World while a fresh invite sits unread in session storage
+// until something else happens to mount the panel. That is exactly the
+// swallow the peek exists to prevent, one tap later. So the note is
+// cleared by the next ARRIVAL (subscribeJoinCode fires on every stash,
+// before the store tick that runs consumePending), which leaves the
+// one-shot covering precisely the window it was written for: between one
+// tap and the next, however many store ticks fall in it.
 let landedForCode = null;
 
 export class DailySplit extends React.Component {
@@ -307,6 +320,11 @@ export class DailySplit extends React.Component {
     // invitation target (D236)
     this._pendingHandler = () => this.consumePending();
     window.addEventListener('insight-live-update', this._pendingHandler);
+    // A tapped invite is a new arrival even when it carries a code this
+    // daily has already landed on — see `landedForCode`. This fires
+    // before the store tick that follows the stash, so the landing below
+    // sees a cleared note.
+    this._unsubJoin = subscribeJoinCode(() => { landedForCode = null; });
     this.consumePending();
     // Reconcile (not just repaint) on live-store changes: rolled-back
     // votes must un-vote the UI, and a late live boot (timeout path)
@@ -481,7 +499,7 @@ export class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); this._duelsGone = true; if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); this._duelsGone = true; if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._unsubJoin) this._unsubJoin(); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
 
   // one axis, three stops. Which axis depends on how the app is navigating:
   // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
