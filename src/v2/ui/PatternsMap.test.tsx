@@ -542,3 +542,56 @@ describe("the You arc (D464)", () => {
     expect(container.querySelector(".qm-you"), "a control for something that is not there").toBeNull();
   });
 });
+
+// ── "you said …" is the reader's own answer, or it is not said ─────────
+//
+// `mine` means a different thing per row kind, and the card read all five
+// through `mineIdx(q) ?? 0` — which turns "this row cannot tell me which
+// option" into "option 0". Since D458 four of the five kinds land there:
+// an `ord` carries the option INDEX, an `opt` carries ±1 and still has
+// options, and `pick`/`anc` have no options at all, so the expression
+// fell through to THIS bead's own name — which those two carry −1 for
+// precisely when the bead is NOT the reader's. The tab whose claim is
+// that it can read your answers was telling you what you had answered,
+// wrongly, on four kinds out of five.
+describe("the card's reading of your own answer", () => {
+  /** A scale row — `mine` is the option index itself. */
+  const ord = (qid: string, L: number[], mine: number | null): MapRow =>
+    ({
+      key: qid, kind: "ord", qid, title: `Q ${qid}`, label: "", cat: "sport",
+      options: [0, 1, 2].map((i) => ({ id: `${qid}:${i}`, label: `${qid}-${i}` })),
+      L, n: 60, marginal: 0, mine,
+    }) as MapRow;
+
+  it("says nothing at all about a bead the reader did not choose", () => {
+    // Every row here is one the reader answered ELSEWHERE: −1 on an
+    // option bead and on a profile bucket both mean "not this one".
+    const items = [
+      bead("mc", 0, vec(1, 0), -1),
+      bead("mc", 1, vec(0.95, 0.05), -1),
+      anc("age", "25-34", vec(0.1, 0.95), -1),
+    ];
+    const { container } = render(<PatternsMap items={items} version={1} topic="all" />);
+    for (const d of dots(container)) {
+      fireEvent.click(d);
+      expect(document.body.textContent, "the card named a bead the reader had not picked as their answer")
+        .not.toMatch(/you said/);
+    }
+  });
+
+  it("names the step a scale was actually answered at, not its first option", () => {
+    const { container } = render(<PatternsMap items={[ord("qo", vec(1, 0), 2), ord("qp", vec(0.9, 0.1), 0)]} version={1} topic="all" />);
+    fireEvent.click(dots(container)[0]!);
+    const said = document.body.textContent || "";
+    expect(said, "the scale's answer was read off the wrong end").toMatch(/you said qo-2|you said qp-0/);
+    expect(said).not.toMatch(/you said qo-0/);
+  });
+
+  it("still names the option on a bead that IS the reader's", () => {
+    // The control in the other direction: the fix must not silence the
+    // sentence where the row genuinely knows the answer.
+    const { container } = render(<PatternsMap items={[bead("mc", 1, vec(1, 0), 1), bead("mc", 0, vec(0.9, 0.1), -1)]} version={1} topic="all" />);
+    fireEvent.click(dots(container)[0]!);
+    expect(document.body.textContent, "the reader's own pick lost its sentence").toMatch(/you said mc-[01]/);
+  });
+});

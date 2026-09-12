@@ -250,6 +250,39 @@ const chordD = (A: RimPoint, B: RimPoint): { d: string; qx: number; qy: number }
 const mineIdx = (p: MapRow | undefined): 0 | 1 | null =>
   !p || p.kind !== "bin" || p.mine == null ? null : p.mine === 1 ? 0 : 1;
 
+/**
+ * What the viewer actually answered, WHERE THIS ROW CAN NAME IT — and
+ * null where it cannot, which is the whole point.
+ *
+ * `mine` means a different thing per kind (data/patterns.ts), and the
+ * card used to read all five through `mineIdx(q) ?? 0`. That `?? 0` turns
+ * "this row cannot tell me which option" into "option 0", and since D458
+ * four of the five kinds land there:
+ *
+ *   · `ord` carries the option INDEX, so a scale answered at step 4 read
+ *     "you said <first option>";
+ *   · `opt` carries ±1 against THIS bead and still has `options`, so it
+ *     read "you said <first option>" whatever you picked;
+ *   · `pick` and `anc` have no options, so it fell through to this bead's
+ *     own name — and those two carry −1 precisely when you did NOT pick
+ *     that entity or do NOT carry that bucket. Tapping the Ditto bead of
+ *     a question you answered with something else printed "you said
+ *     Ditto"; tapping the 25-34 bead of the You ring at 45 printed "you
+ *     said 25-34".
+ *
+ * So: `ord` is named from its index, `bin` from the encoded side, and the
+ * three ±1 kinds are named only when the answer IS this bead (+1). At −1
+ * the row knows the bead is not yours and does not know what is, and the
+ * card says nothing rather than guessing — this is the tab whose whole
+ * claim is that it can draw what your answers mean.
+ */
+const mineLabel = (p: MapRow): string | null => {
+  if (p.mine == null) return null;
+  if (p.kind === "bin") { const i = mineIdx(p); return i == null ? null : p.options?.[i]?.label ?? null; }
+  if (p.kind === "ord") return p.options?.[p.mine]?.label ?? null;
+  return p.mine === 1 ? beadLabel(p) : null;
+};
+
 /** A word for one side of a counted sentence. A catalogue side arrives as
  * its entity KEY — the count never needed the name — so the name is
  * resolved here, from the list the card has already kicked; until it
@@ -692,8 +725,8 @@ export default function PatternsMap({ items, version, topic, guide = false }: {
             <span className="pt-cat" style={{ background: WPAL.wash(`oklch(0.56 0.11 ${selHue})`, 16) as string, color: inkCol(selHue) }}>
               {catLabel(q.cat)}
             </span>
-            {q.mine != null && (
-              <span className="qm-yours">you said {q.options?.[mineIdx(q) ?? 0]?.label ?? beadLabel(q)}</span>
+            {mineLabel(q) && (
+              <span className="qm-yours">you said {mineLabel(q)}</span>
             )}
           </div>
           <div className="qm-prompt">{q.title}</div>
