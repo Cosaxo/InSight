@@ -184,7 +184,21 @@ export function pickTilts(
   return pickMix(by, dim)
     .map((cell) => pickTilt(cell, overall, minN))
     .filter((t): t is PickTilt => !!t)
-    .sort((a, b) => (a.rank === 0 ? -1 : b.rank === 0 ? 1 : b.rank - a.rank) || b.n - a.n);
+    // RANK FIRST, THEN SIZE — and the old spelling of this could not
+    // reach the size half. It read
+    //   (a.rank === 0 ? -1 : b.rank === 0 ? 1 : b.rank - a.rank) || b.n - a.n
+    // where `-1` is truthy, so the moment either side was rank 0 the `||`
+    // short-circuited and `b.n - a.n` never ran. Two off-board cohorts —
+    // the ORDINARY case, since a catalogue of hundreds puts most picks off
+    // a top-ten board — therefore came back in whatever order the map
+    // yielded them, not biggest first as the doc comment above promises.
+    // It was not even a valid comparator: `compare(a, b)` and
+    // `compare(b, a)` both returned -1 for two rank-0 rows.
+    .sort((a, b) => {
+      const az = a.rank === 0, bz = b.rank === 0;
+      if (az !== bz) return az ? -1 : 1;   // off the board is the strongest
+      return (az ? 0 : b.rank - a.rank) || b.n - a.n;
+    });
 }
 
 /**
@@ -207,7 +221,14 @@ export function bestPickTilt(
     if (!top) continue;
     if (!best) { best = { dim, tilt: top }; continue; }
     const b = best.tilt;
-    const better = top.rank === 0 ? b.rank !== 0
+    // The same key as the sort above, and it had the same hole: with both
+    // sides rank 0 this read `b.rank !== 0` → false, so the FIRST dim in
+    // COHORT_DIMS won whatever its size. Measured at the production floor
+    // before the fix: a three-person age band was named over a
+    // ninety-nine-person gender cohort, and the card's sentence and the
+    // sheet it opens both followed it.
+    const better = top.rank === 0
+      ? (b.rank !== 0 || top.n > b.n)
       : b.rank === 0 ? false
         : top.rank > b.rank || (top.rank === b.rank && top.n > b.n);
     if (better) best = { dim, tilt: top };

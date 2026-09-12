@@ -126,4 +126,58 @@ describe("what a cohort puts first, and where everyone puts it", () => {
     // — the door must never open on "Women also say Ditto".
     expect(bestPickTilt(BY, ["gender"], OVERALL)).toBeNull();
   });
+
+  // ── two OFF-BOARD cohorts, which is the ordinary case ──────────────
+  //
+  // Everything above is decided while at least one side is on the
+  // published board. A catalogue runs to hundreds and the board is a top
+  // ten, so most picks are off it — and with both sides at rank 0 the
+  // ordering was decided by nothing at all. `pickTilts` short-circuited
+  // its own `|| b.n - a.n` (`-1` is truthy), and `bestPickTilt` read
+  // `b.rank !== 0` → false, so the first dim in COHORT_DIMS won whatever
+  // its size.
+  //
+  // THE FIXTURE ABOVE CANNOT REACH THIS, which is why it stood: its
+  // gender cohort agrees with the room, so it yields no tilt, so
+  // `bestPickTilt` never has two candidates to compare. Measured: with
+  // the comparison replaced by `const better = true` — take the LAST dim
+  // always, the exact opposite rule — every case in this file and all
+  // 119 in smoke-live stayed green.
+  const OFF: ByMap = {
+    ageBand: { "18-24": { "700": 3 } },   // three people, off the board
+    gender: { Woman: { "701": 99 } },     // ninety-nine, also off the board
+  };
+
+  it("between two off-board cohorts the BIGGER one is the finding", () => {
+    const best = bestPickTilt(OFF, ["ageBand", "gender"], OVERALL);
+    expect(best?.dim, "the first dim won on position rather than on size").toBe("gender");
+    expect(best?.tilt.n).toBe(99);
+    // …and the other way round, so this is about size and not about the
+    // order the dims happen to be listed in.
+    const flipped = bestPickTilt(OFF, ["gender", "ageBand"], OVERALL);
+    expect(flipped?.dim).toBe("gender");
+  });
+
+  it("and within one dim they sort biggest first", () => {
+    const many: ByMap = {
+      ageBand: {
+        "18-24": { "700": 3 },
+        "25-34": { "701": 40 },
+        "35-44": { "702": 12 },
+      },
+    };
+    expect(pickTilts(many, "ageBand", OVERALL).map((t) => [t.bucket, t.n]))
+      .toEqual([["25-34", 40], ["35-44", 12], ["18-24", 3]]);
+  });
+
+  it("the comparator is antisymmetric — it was not", () => {
+    // `compare(a, b)` and `compare(b, a)` both returned -1 for two rank-0
+    // rows, which is not an ordering at all and leaves the result at the
+    // mercy of the sort implementation.
+    const two: ByMap = { ageBand: { A: { "700": 5 }, B: { "701": 5 } } };
+    const fwd = pickTilts(two, "ageBand", OVERALL).map((t) => t.bucket);
+    const rev = pickTilts({ ageBand: { B: { "701": 5 }, A: { "700": 5 } } }, "ageBand", OVERALL)
+      .map((t) => t.bucket);
+    expect(fwd, "equal cohorts ordered differently depending on input order").toEqual(rev);
+  });
 });
