@@ -965,7 +965,39 @@ const MAX_TOTAL_JS_KB = 2440;
 // after first paint. Deferring it the way D122's handles and invitations
 // are deferred, one file over, is the next change to this graph — its
 // own change, not a rider on a feature.
-const MAX_EAGER_KB = 553;
+//
+// 553 -> 554 (2026-09-12): THE FIRST RAISE NEITHER CHANGE ASKED FOR. The
+// 2026-09-12 night review composed two shifts, and the eager graph on the
+// composed tree is bigger than on either branch alone -- measured, all
+// four on the same `VITE_V2_LIVE=true` build with a DSN:
+//
+//   main            552.22     A  552.96 (+0.74, passes with 0.04 to spare)
+//   composed        553.30     B  552.34 (+0.12)
+//
+// The parts add up to +0.86 and the composition costs +1.08. The extra
+// 0.22 KB is the two shifts' edits meeting in the bundler, so no commit
+// on either branch owns it and neither shift could have measured it: A
+// spent main's headroom down to 0.04 KB and B's twelfth of a kilobyte
+// then tipped it. This is the class the night review exists to catch, in
+// the one gate that can only see it on a tree nobody built until morning.
+//
+// WHAT IT IS. +709 bytes of `data/live.ts` and +128 of the entry: six
+// boot-path defect fixes -- an offline answer counted twice after a
+// relaunch, a refused deck frozen for the session, two midnights serving
+// yesterday's question, a city whose every query failed reported as a
+// city nobody answers, a sealed pick naming whoever inherited the seat,
+// and an account panel telling a returning member their answers live on
+// this phone only. None of it is deferrable: `live.ts` IS the store the
+// app boots on, and `check:eager-content` is green, so no content entered
+// the graph -- which is the thing that warning is actually about.
+//
+// THE HEADROOM ABOVE IS NOW OVERDUE, not merely owed. `data/voters` is
+// still ~8 KB of this graph for uses that all run long after first paint,
+// and it is still its own change: nine value imports moved into the
+// methods that use them, in the boot store, is not a rider on a merge of
+// 63 commits either. It would return this constant to 546 and end the
+// every-byte alarm this block has now called out twice.
+const MAX_EAGER_KB = 554;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
