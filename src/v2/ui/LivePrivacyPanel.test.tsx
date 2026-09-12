@@ -296,6 +296,29 @@ describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", (
     expect(openLine, "the public-answers line stopped being open on arrival").toBeTruthy();
   });
 
+  // D-2026-09-12c: the root joins the two legal links. It is the one route out of
+  // the binary that store rules leave alone — a website link, labelled as
+  // one — and since D-2026-09-12b the page it opens carries the door. Pinned with
+  // its neighbours so a tidy-up that trims the line to "Privacy · Terms"
+  // fails here rather than in a buyer's hands.
+  it("links the site root beside the policy and the terms, labelled as a website and nothing more", () => {
+    render(<LivePrivacyPanel />);
+    const links = screen.getAllByRole("link");
+    const byText = (t: string) => links.find((a) => a.textContent === t) as HTMLAnchorElement | undefined;
+    const site = byText("Website");
+    expect(site, "no Website link").toBeTruthy();
+    expect(site!.getAttribute("href")).toBe("https://prvfire33.web.app/");
+    expect(site!.getAttribute("target")).toBe("_blank");
+    expect(site!.getAttribute("rel")).toContain("noopener");
+    expect(byText("Privacy policy")?.getAttribute("href")).toBe("https://prvfire33.web.app/privacy.html");
+    expect(byText("Terms")?.getAttribute("href")).toBe("https://prvfire33.web.app/terms.html");
+    // The iOS build must carry no purchase call to action (D368): this
+    // panel names the site, never the door. smoke-live pins the same
+    // property across the whole app.
+    expect(screen.queryByRole("link", { name: /ask/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /ask a question/i })).toBeNull();
+  });
+
   it("states no disclosure it no longer owns", () => {
     render(<LivePrivacyPanel />);
     // The negative half, and the reason it is worth a case: a bullet

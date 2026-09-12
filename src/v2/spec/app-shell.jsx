@@ -37,9 +37,11 @@ import { FEEDREAD } from './feed-read.js';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
+import { askDoorOffered } from '../data/askDoor';
 // The buyer's room (PAID-PLAN §7, D288) — its own lazy chunk, not part of
 // the spec overlay group: typed, and nothing on first paint pays for it.
 const AskedByYouLazy = React.lazy(() => import('../ui/AskedByYouOverlay'));
+const AskDoorLazy = React.lazy(() => import('../ui/AskDoorButton'));
 // R2/D270: the anonymous feature tally — a no-op until initLive arms it,
 // so every demo mount and jsdom suite stays silent without a test flag.
 import * as engagement from '../data/engagement';
@@ -745,11 +747,30 @@ export function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             <PassiveMeter />
-            {/* The ask-a-question door was here until D368. Shape A moved
-                buying to the web, so the app carries no purchase call to
-                action at all — that is the whole point of the decision,
-                and a "+" one tap from anywhere was the most exposed of
-                its five entry points. */}
+            {/* The ask-a-question door — back, on Android only (D-2026-09-12c).
+                D368 took it out of the binary because a purchase call to
+                action inside an app is what Apple's anti-steering rule
+                polices, and a "+" one tap from anywhere was the most
+                exposed of its five entry points. Play does not police
+                ad-type spend the same way, so the Android build gets the
+                "+" back and it opens the WEB door in the system browser —
+                no composer, no billing, no product in the app. The iOS
+                build asks the platform and draws nothing; data/askDoor.ts
+                is the rule and ask-door-platform.test.jsx mounts the App
+                as iOS to prove it. Same class and glyph weight as Search,
+                because it is a peer of it, not a promotion. */}
+            {/* The body is a lazy chunk (ui/AskDoorButton.tsx): the eager
+                graph sat 484 bytes under check:bundle's ceiling and the
+                door was 619 (askDoor.ts's header has the arithmetic). The
+                fallback is null, not a same-size slot — the slot cost 75
+                eager bytes of a 38-byte deficit, and on native Capacitor
+                serves the chunk from the app's own bundle, so the import
+                resolves within a tick and there is no gap to hold. */}
+            {askDoorOffered() && (
+              <React.Suspense fallback={null}>
+                <AskDoorLazy />
+              </React.Suspense>
+            )}
             <button className="icon-btn" aria-label="Search" onClick={() => openDeferred(() => { closeAll(); setOv('search'); })}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
             </button>

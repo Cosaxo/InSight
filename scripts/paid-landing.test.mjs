@@ -19,8 +19,16 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PAID = readFileSync(join(root, "functions", "src", "paid.ts"), "utf8");
 
-/** Every checkout landing url in paid.ts, as its `web/` filename. */
-const landingPages = () => [...PAID.matchAll(/https:\/\/[a-z0-9.-]+\/(paid-[a-z-]+\.html)/g)]
+/** Every checkout landing url in paid.ts, as its `web/` filename.
+ *
+ * TWO FORMS since 2026-09-12. The urls used to spell the host out; they
+ * are now built from ops.ts's SITE_ORIGIN, because spelling it out was
+ * the counter-example to siteOrigin.ts's "single edit" claim — a custom
+ * domain would have moved every link in the app and still returned a
+ * paying buyer to the old .web.app host. This pattern reads both, so it
+ * keeps working whichever way a future edit writes them, and the
+ * hardcoded half is refused outright below. */
+const landingPages = () => [...PAID.matchAll(/(?:https:\/\/[a-z0-9.-]+|\$\{SITE_ORIGIN\})\/(paid-[a-z-]+\.html)/g)]
   .map((m) => m[1]);
 
 describe("the checkout's landing pages", () => {
@@ -30,6 +38,15 @@ describe("the checkout's landing pages", () => {
     expect(pages.length, "no landing urls found — the regex or the urls moved").toBeGreaterThanOrEqual(2);
     expect(pages).toContain("paid-done.html");
     expect(pages).toContain("paid-cancel.html");
+  });
+
+  // The claim siteOrigin.ts makes about itself, held where it can break:
+  // a landing url that spells the host out is a domain change that half
+  // happens. The typed side is pinned in functions/src/paid.test.ts; this
+  // is the half that can see a NEW literal appearing anywhere in the file.
+  it("builds them from the origin constant rather than spelling the host out", () => {
+    const literal = [...PAID.matchAll(/https:\/\/[a-z0-9.-]+\/paid-[a-z-]+\.html/g)].map((m) => m[0]);
+    expect(literal, `paid.ts hardcodes a landing host: ${literal.join(", ")} — build it from SITE_ORIGIN (ops.ts)`).toEqual([]);
   });
 
   it("ships every page it sends a paying buyer to", () => {
