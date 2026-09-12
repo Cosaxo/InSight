@@ -1067,7 +1067,7 @@ describe("the concreteness warning", () => {
   });
 });
 
-describe("the pulse lane's rules (D480)", () => {
+describe("the pulse lane's rules (D481)", () => {
   // The lane writes one pulse a week into a bank whose entries are
   // PERMANENT — D52 freezes a shipped option set and `active: false` is a
   // whole-series kill, not a rotation. So the gate runs ahead of the

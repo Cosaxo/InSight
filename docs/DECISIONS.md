@@ -54555,8 +54555,152 @@ are renderCard's, so a pulse is counted neither seen nor answered by
 R2/D270's device tallies — the same state `path` and `ad` cards are
 already in. Correcting it is one shared marker across three card shapes,
 and it touches the engagement rollup rather than this change.
+## D480 · Build 36's pre-flight: three deliveries went unrecorded, build 32 never existed, and the bump that skipped it landed between a dry run and its upload
 
-## D480 · The pulse lane is adopted — one a week, propose-only, to a ceiling that had to be built before it could be argued
+**2026-09-12.** **Status:** binding as a RELEASE RECORD and a PRE-FLIGHT
+VERDICT. **No number moved and no code changed** — this is the release
+prep for build 36, and the comparison it exists to make came out *run
+as-is*. What it found instead is behind it: three builds delivered and
+never written down, and a build number skipped in a way the file's
+existing note about build 2 does not cover.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect — and D159's,
+because `appBuild` is read at each run's **own `head_sha`** rather than at
+any commit someone merged:
+
+| Run | id | dispatched | archived | `appBuild` there | step 17 |
+| --- | --- | --- | --- | --- | --- |
+| 55 | `34134486530` | 2026-09-07 14:43:09Z | `39a26f0` | 32 | `skipped` — the dry run, 6m 37s |
+| 56 | `34144580184` | 2026-09-07 16:43:38Z | `a59c40e` | 33 | **`success`** 16:50:19Z → 16:51:59Z, 1m 40s |
+| 57 | `34151966927` | 2026-09-07 18:31:20Z | `9069f62` | 34 | **`success`** 18:35:32Z → 18:36:53Z, 1m 21s |
+| 58 | `34347218645` | 2026-09-09 11:45:27Z | `d646394` | 34 | `skipped` — the dry run, 5m 54s |
+| 59 | `34382457066` | 2026-09-09 17:21:58Z | `2d286f8` | 35 | **`success`** 17:28:08Z → 17:29:42Z, 1m 34s |
+
+Build 35: `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`03304021-9ec1-4fad-bcf1-b1efb4695025`, 6,257,676 bytes.
+
+Run 59 is the highest run, 59 of 59, its step 17 `success`, and `appBuild`
+at `2d286f8` is **35** against a tree reading **36**. 36 is greater than
+35, so the verdict is **run as-is**. Seventh pre-flight to come out that
+way (D153, D158, D191, D324, build 31's), against six that opened on a
+spent number — and it came out that way because build 35's bump was made
+off step 17 while the step list was on screen.
+
+### Build 32 never existed, and the shape is new
+
+Run 55 dry-ran the tree at 32; `b5cb845a` — *"Build 33: the first build
+that carries the account wall"* — bumped 32 → 33 in the two hours before
+run 56 uploaded. Nothing was ever delivered at 32.
+
+That it is harmless is the same arithmetic as build 2 on 2026-08-08:
+Apple wants monotonic, not contiguous, so a skipped integer costs an
+integer. **What is not the same is where the bump landed.** Build 2's was
+made against a number nobody had spent. This one was made **between a dry
+run and its upload**, which is D159's trap moving the build number itself
+rather than a pulse row — and every previous worked example of that trap
+(runs 22, 32/33, 37/38, 41/42, 51/52, 53/54) had the same `appBuild` at
+both heads, which is exactly why each was recorded as costing nothing.
+
+The 32 → 33 diff is 47 files: the account wall's three doors (D414),
+`ios-release.yml`'s own env block, 526 lines of feed questions and
+`web/privacy.html`. So D229's finding holds at full size — **a dry run
+derisks the signing, and the gates on the release path derisk the
+bundle** (D274). The second half did its job: run 56 ran `check:bundle`
+and `check:web-firebase` against its own `dist/` before archiving
+anything. The first half is what nobody had: no dry run has ever archived
+a walled build.
+
+### The record, and the remedy that has still never fired
+
+`docs/IOS-RELEASE.md` named none of runs 55–59 — the D184 shape for the
+sixth time after 25/26, 29–31 (D198), 39/40 (D273), 45/46 (D339) and
+49/50 (D381). `LAUNCH-RUNBOOK.md` 5.6 had caught builds 34 and 35, which
+is the only reason two of the three numbers were recoverable without the
+run list; it named neither build 33 nor the skipped 32. **Three
+deliveries reconstructed at once is the most any one pre-flight has had
+to recover.**
+
+Step 18, *Fire the release recorder*, printed `release recorder not
+wired` on run 59 — read out of the run's own log, not inferred:
+`ROUTINE_URL` and `ROUTINE_TOKEN` are both empty in the step's env block
+and the notice is its whole output. Builds 29, 30, 31, 33, 34 and 35 have
+now all shipped with it inert. D381 priced the click at one unrecorded
+delivery; this release prices it at three.
+
+**The bump tally moves both ways.** `72336dea` held after run 56 (33 → 34,
+inside the hour); nothing moved 34 after run 57, so run 58 dry-ran a spent
+number two days later — with `upload = true` that dispatch would have
+transferred ~6 MB and been refused. Run 59's bump to 36 held. Thirteen
+that held (20, 21, 22, 28, 33, 36, 42, 44, 48, 52, 54, 56, 59) against ten
+skipped (18, 19, 24, 26, 31, 38, 40, 46, 50, 57).
+
+### What build 36 carries, and what it does not move
+
+171 commits ride in the 35 → 36 gap over three days — the second widest
+after build 26's 193. **The app is renamed inside it**: D472 made it Doxa
+and moved none of the identifiers underneath, so `com.cosaxo.insight` is
+untouched and the provisioning it resolves is unchanged; what moved is
+`CFBundleDisplayName`, now `Doxa`. No store form moves — nothing in the
+gap changes what the app collects, and `check:store-forms`,
+`check:policy-claims` and `check:store-listing` all agree.
+
+**Build 33 stays unsubmittable** and 6.2's block quote stands: D419's
+sign-in defect leaves anyone who signs in with Google staring at the gate
+until they force-quit. Build 34 is the first submittable build.
+
+**Records moved.** `docs/IOS-RELEASE.md` (runs 55–59 and build 36's
+verdict); `docs/LAUNCH-RUNBOOK.md` 5.6 (build 33, the struck 32, the
+pre-flight); `docs/OWNER-LIST.md` § Clicks (the recorder's price, one
+delivery → six releases and three deliveries).
+
+## D480 amendment (2026-09-12, the same session) · Build 36 is delivered, and the gap was closed on purpose
+
+**2026-09-12, the same session.** The verdict above was *run as-is*, and
+the release it was made for went out that evening.
+
+Run 60 (`34714326335`, 19:29:42Z) archived `b1548dfb` with step 17
+`skipped` — the dry run, 5m 34s, both silent-failure gates green (the
+archive's Firebase config and APNs entitlement at step 13, the exported
+`.ipa`'s `production` entitlement at step 15). `main` was then re-read and
+confirmed unmoved, and run 61 (`34714631127`, 19:35:51Z) archived **the
+same commit** with step 17 **`success`**, 19:40:57Z → 19:42:19Z, 1m 22s of
+transfer. Fifteenth dry-run/upload pair, and the third where D159's gap
+was closed deliberately rather than luckily (after runs 43/44 and 47/48).
+
+**`appBuild` went 36 → 37** with `check:versions --fix`, read off step
+17's conclusion while the run's step list was on screen — the only
+arrangement that has ever made the bump stick (D186, D198, D273).
+Fourteen that held against ten skipped. `LAUNCH-RUNBOOK.md` 5.6's lockstep
+sentence moved with it, because `check:figures` owns that number.
+
+**What the rename did not break.** Build 36 is the first build carrying
+D472. The archive, the cloud-signed export and both entitlement gates
+passed unchanged, which is the outcome the bundle identifier predicts:
+`com.cosaxo.insight` is untouched, so the App ID, the distribution
+certificate and the profile resolve as before. `CFBundleDisplayName` is
+`Doxa` and the store listing already agreed.
+
+**The delivery UUID is not recorded, and the reason is worth keeping.**
+`altool`'s `UPLOAD SUCCEEDED` block sits outside the log window this
+session's reader could fetch, and the blob host the raw log redirects to
+is refused by the sandbox's egress policy. D158's rule already says the
+step's own conclusion is the record, so nothing turns on it — but this is
+the first entry in the series without a UUID, and the gap is the reader's
+rather than the release's.
+
+**Step 18 printed `release recorder not wired` for the seventh release
+running.** The click on `OWNER-LIST.md` § Clicks is still unmade.
+
+**Nothing was submitted to App Store review.** 6.2 is unticked, and
+`asc-review.mjs` touches no `reviewSubmission` resource on any path with a
+test pinning that it does not. Build 36 is in App Store Connect and
+reaches TestFlight after processing; putting it in front of Apple is a
+separate, deliberate act.
+
+
+## D481 · The pulse lane is adopted — one a week, propose-only, to a ceiling that had to be built before it could be argued
 
 **2026-09-12.** **Status:** binding. Adopts the 2026-08-22 owner note
 `QUESTION-FARM.md` carried as "not adopted" for three weeks, re-asked at
@@ -54569,7 +54713,7 @@ argument rather than its records.
 ### 1 · What the lane is
 
 One pulse a week, into `content/pulse-questions.json`, on a Routine
-(`trig_01NsFZGXqdFTFi8JACy81gNL`, Mondays 12:00 UTC, the seventh row of
+(`trig_01FL5JjeS8y3re3Eq5MdoEKy`, Mondays 12:00 UTC, the seventh row of
 the farm's inventory and the hourly stagger's next hour). The regulator
 is `scripts/pulse-budget.mjs`; the contract is `QUESTION-FARM.md` § The
 pulse lane; the gates are `check:quality`'s pulse surface.

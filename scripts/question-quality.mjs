@@ -447,7 +447,7 @@ const PERSON_CLASS = /^(a|an|some|someone|the)\s+(famous\s+)?(scientist|musician
 
 /** The options that name a class where this app could name the thing. */
 /**
- * The subject territory a new pulse may sit in (D166 §3, gated at D480).
+ * The subject territory a new pulse may sit in (D166 §3, gated at D481).
  *
  * NOT A TOPIC LIST. It is the shape of the app's STORE DECLARATIONS
  * written down: `docs/STORE-FORMS.md` answers Apple's Health row YES and
@@ -1243,7 +1243,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (q.type !== "pulse") err("type-shape", `pulse questions carry type "pulse", not ${JSON.stringify(q.type)}`);
     if ((q.options || []).length !== 5) err("type-shape", "a pulse question carries exactly five steps");
 
-    // ── the rules the lane needs, added with it (D480) ──
+    // ── the rules the lane needs, added with it (D481) ──
     //
     // THE ID CARRIES THE DAY SEPARATOR. A pulse answer is written at
     // `{qid}_{YYYY-MM-DD}` and `firestore.rules` parses the day back off
@@ -1795,7 +1795,7 @@ if (invokedDirectly) {
       return {
         surface: "pulse", type: "pulse",
         id: raw.id, prompt: raw.prompt, options: raw.options,
-        // The two the lane owes and the corpus does not (D479/D480):
+        // The two the lane owes and the corpus does not (D479/D481):
         // dropping either here would make the rule that asks for it fire
         // on every candidate that did declare it.
         since: raw.since, territory: raw.territory,

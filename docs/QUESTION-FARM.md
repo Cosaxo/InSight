@@ -1512,7 +1512,7 @@ a served question. Rules, each load-bearing:
   none is open), never generated activity, never a flag flipped, never
   a shipped question's options edited.
 
-## The pulse lane (D480 — one a week, propose-only, and a ceiling)
+## The pulse lane (D481 — one a week, propose-only, and a ceiling)
 
 Pulses live in `content/pulse-questions.json`. A pulse is a short question
 answered once a day on a five-step scale and drawn as a LINE — your own
@@ -1547,7 +1547,7 @@ Rules for a pulse run:
   pulses; it is an owner call, on `docs/OWNER-LIST.md` with that
   arithmetic, never a lane's.
 
-  *(Until D480 this was a cliff rather than a price: `fetchAggs` issued one
+  *(Until D481 this was a cliff rather than a price: `fetchAggs` issued one
   un-chunked query, so at thirty-one pulses the read failed outright and
   every pulse card in the feed lost its crowd for every user. This lane
   would have reached it in about six months. It chunks now — which is the
@@ -1953,7 +1953,7 @@ approval. (A note may also arrive already pointing at a **Proposed**
 record, as the duel lane does — the same rule seen from the other side:
 Proposed binds nothing until the owner adopts it.)
 
-### A pulse lane, very slow — **ADOPTED at D480**, see § The pulse lane
+### A pulse lane, very slow — **ADOPTED at D481**, see § The pulse lane
 
 The owner asked for this on 2026-08-22 and it sat here as a note for three
 weeks, then again on 2026-09-12 (*"new ones should be made but at a lower
@@ -2157,10 +2157,10 @@ re-paced, or retired.
 | InSight feed lane | `trig_01MXbzJvRuKgYpD1Hea9XE8o` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212, D350) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * *` — daily 10:00 since 2026-09-08, for the bank burst; `0 10 * * 3` — weekly, Wednesday 10:00 (D213) — before it and again once the pools are at target (the paragraph below the table) | § The duel lane |
 | InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D351) | § The now lane |
-| InSight pulse lane | `trig_01NsFZGXqdFTFi8JACy81gNL` | `0 12 * * 1` — **weekly**, Monday 12:00 (D480; first fire 2026-09-14) | § The pulse lane — **propose-only, never self-merges** |
+| InSight pulse lane | `trig_01FL5JjeS8y3re3Eq5MdoEKy` | `0 12 * * 1` — **weekly**, Monday 12:00 (D481; first fire 2026-09-14) | § The pulse lane — **propose-only, never self-merges** |
 
 **The pulse lane is the seventh row and the first that does not
-self-merge** (D480, 2026-09-12). It is weekly where the other six are
+self-merge** (D481, 2026-09-12). It is weekly where the other six are
 daily, and 12:00 continues the hourly stagger off 07:00 — the reason
 that stagger exists is that all seven share one bound session and a lane
 finding the tree dirty is supposed to stash, not race. Its canonical
@@ -2229,13 +2229,13 @@ issue #31 come from the bound session. The ids are recorded because
 `update_trigger`/`delete_trigger` need them and they otherwise live only
 in a tool response.
 
-The lanes are staggered hourly off 07:00 (seven of them since D480, the
+The lanes are staggered hourly off 07:00 (seven of them since D481, the
 last weekly rather than daily) so no two runs are writing to the same
 checkout at once — they share one bound session, and a lane
 that finds the tree dirty is supposed to stash or use a worktree, not
 race. Six lanes with no per-item reviewer is the load this inventory
 now represents (D212, D351) — the seventh, the pulse lane, HAS a
-per-item reviewer by construction and is the exception D480 argues for
+per-item reviewer by construction and is the exception D481 argues for
 rather than a gap; each lane's regulator still bounds its own open
 batch (a PR sitting open means a gate refused it, and every lane stops
 rather than stacking on top of one), so the arithmetic that keeps the
@@ -2669,13 +2669,13 @@ lane's branch and return to the session's previous branch afterwards;
 if the tree is dirty, stash or use a separate git worktree.
 ```
 
-The pulse lane's canonical prompt (D480; the same rule as every block
+The pulse lane's canonical prompt (D481; the same rule as every block
 above — update BOTH this and § The pulse lane in any future change).
 Its one structural difference from the six is in the third paragraph and
 in step 6, and it is the whole reason the lane exists in this shape:
 
 ```
-You are running InSight's PULSE lane — the WEEKLY scheduled job (D480). It
+You are running InSight's PULSE lane — the WEEKLY scheduled job (D481). It
 fires into this ongoing session because fresh Routine-spawned sessions get
 read-only git access and no GitHub API tools (issue #31); this session has
 both. Read docs/QUESTION-FARM.md § The pulse lane on origin/main and follow

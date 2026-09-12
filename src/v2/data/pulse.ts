@@ -531,7 +531,7 @@ const IN_CAP = 30;
 
 /**
  * CHUNKED, and it was not until the pulse lane went looking for a roster
- * ceiling (D480).
+ * ceiling (D481).
  *
  * This issued ONE `where(documentId(), "in", ids)` for however many ids
  * it was handed. That is correct for both of today's callers by accident

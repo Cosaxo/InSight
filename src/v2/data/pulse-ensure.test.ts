@@ -385,7 +385,7 @@ describe("scope() — the day series joins your unfolded answer, today only", ()
   });
 });
 
-describe("the roster past Firestore's `in` cap (D480)", () => {
+describe("the roster past Firestore's `in` cap (D481)", () => {
   // WHY THIS EXISTS. `fetchAggs` issued ONE `where(documentId(), "in",
   // ids)` for however many ids it was handed, and that was correct for
   // both callers by accident: `ensureTrend` asks for a fixed 21 and

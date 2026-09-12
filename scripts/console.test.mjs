@@ -468,7 +468,7 @@ Nobody has written this block.
     // was invisible in every fixture written for it: §2 declares its own
     // count in prose, and that is the one number here a parser cannot
     // fake. Twelve since 2026-09-12, when the pulse lane was created
-    // (D480) — the count is a fact about the account, so it moves with
+    // (D481) — the count is a fact about the account, so it moves with
     // the account and this case is what makes the register move with it.
     const rows = parseRegister(read("docs/ROUTINES.md"));
     const byAccount = {};

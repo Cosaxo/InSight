@@ -1,4 +1,4 @@
-// pulse-budget.test.mjs — the pulse lane's regulator (D480).
+// pulse-budget.test.mjs — the pulse lane's regulator (D481).
 //
 // WHY A REGULATOR NEEDS A TEST AT ALL, stated because this repo has been
 // bitten by the alternative three times (D179, D197, D275): a script that

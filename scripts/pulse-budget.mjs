@@ -1,5 +1,5 @@
 // pulse-budget.mjs — the pulse lane's generation budget as arithmetic
-// (D480), adopting the 2026-08-22 owner note QUESTION-FARM.md carried for
+// (D481), adopting the 2026-08-22 owner note QUESTION-FARM.md carried for
 // three weeks as "not adopted".
 //
 // WHY THIS LANE IS THE ODD ONE. Every other content lane writes something
@@ -27,11 +27,11 @@
 //   roster 31-60  → two
 //   roster 61-90  → three …
 //
-// Until D480 that was not a slope at all but a CLIFF: `fetchAggs` issued
+// Until D481 that was not a slope at all but a CLIFF: `fetchAggs` issued
 // one un-chunked query, so at thirty-one pulses the read was rejected
 // outright and every pulse card in the feed said it could not reach the
 // crowd, for every user, permanently. This lane would have walked off it
-// in about six months. D480 chunks the fetch, which is what turns the
+// in about six months. D481 chunks the fetch, which is what turns the
 // limit back into a price — and a price is something a ceiling can be
 // argued from.
 //
