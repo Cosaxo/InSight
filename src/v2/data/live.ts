@@ -531,6 +531,14 @@ const state = {
   // kindredPeople() unions the two; nothing else reads this.
   cityVoters: {} as Record<string, Voter[]>,
   cityVotersAt: "",
+  // The city pass's own failure flag, and it needs one for the same
+  // reason the world pass does: each per-question failure is swallowed so
+  // eleven survive one, and a pass where ALL twelve threw is
+  // indistinguishable downstream from a city nobody has answered in. The
+  // City field then said "Nobody from {city} yet" about a crowd nothing
+  // managed to look at — the exact sentence the world pass's flag exists
+  // to prevent, one pool over.
+  cityKindredFailed: false,
   // The nightly voter SAMPLES (D397): the same rows the live lists hold,
   // published by the fit one document per question, read by every fold
   // that only counts — Kindred's world pass, the People lens, the pair
@@ -6067,7 +6075,15 @@ const LIVE = {
         }
       }
       state.cityVoters = next;
-      state.cityVotersAt = city;
+      // EVERY question threw, or some did. A pass that landed nothing is a
+      // failure and must not be cached as an answer: stamping the city
+      // here made the guard at the top refuse every retry for the rest of
+      // the session, so a transient rate-limit on twelve sequential
+      // collection-group queries became a permanent empty stop. Zero asked
+      // is not a failure — that is a device with no votes yet, and it has
+      // no crowd to fail to read (the world pass draws the same line).
+      state.cityKindredFailed = qids.length > 0 && Object.keys(next).length === 0;
+      if (!state.cityKindredFailed) state.cityVotersAt = city;
       saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadCityKindred" });
@@ -6352,6 +6368,15 @@ const LIVE = {
   kindredState(): "loading" | "ready" | "failed" {
     if (state.kindredLoading || state.cityKindredLoading) return "loading";
     return state.kindredFailed ? "failed" : "ready";
+  },
+  /** The same reading for a CITY-scoped surface, which has a second pass
+   *  behind it. Kept apart from `kindredState()` rather than folded into
+   *  it: the Circle and World lenses read that one, and a city fan-out
+   *  that failed says nothing about the world pool — reporting it there
+   *  would trade one false sentence for another. */
+  cityKindredState(): "loading" | "ready" | "failed" {
+    if (state.kindredLoading || state.cityKindredLoading) return "loading";
+    return state.kindredFailed || state.cityKindredFailed ? "failed" : "ready";
   },
 
   // ── Similarity: you against people and places, by scores (D112) ──
@@ -8470,6 +8495,7 @@ function resetForNewUid(uid: string): void {
   state.kindredLoading = false;
   state.kindredAt = 0;
   state.kindredFailed = false;
+  state.cityKindredFailed = false;
   state.cityVoters = {};
   state.cityVotersAt = "";
   state.cityKindredLoading = false;
