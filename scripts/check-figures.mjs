@@ -795,6 +795,64 @@ const contentCounts = (() => {
 // sweep that removed the surface, while the file's own cases used 300 KB
 // and 200 KB against the real rule. Exactly this table's class: a number
 // beside a thing that moved.
+// THE TWO PRESENCE PROMISES, held to the constants that make them true.
+//
+// `check:policy-claims` pins both sentences as page TEXT — "~200-metre grid
+// square" and "three hours after you close the app" — and nothing joined
+// either to the number it describes. Measured 2026-09-12: doubling the
+// linger to 360 in pure.ts, firestore.rules and live.ts together left
+// check:policy-claims, check:figures, check:public-copy,
+// check:data-inventory and the linger suite ALL green while the page went
+// on promising three hours. That is D174's failure verbatim — a promise
+// left behind by a change three commits away — inside the gate written
+// after it.
+//
+// Both readers refuse rather than default, the way storageCapKb does: a
+// constant that has moved or changed shape must break this reader loudly,
+// never quietly answer zero.
+const presenceLingerHours = (() => {
+  const src = readFileSync(join(root, "functions/src/pure.ts"), "utf8");
+  const m = /export const PRESENCE_LINGER_MIN\s*=\s*(\d+)/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `export const PRESENCE_LINGER_MIN = N` in functions/src/pure.ts — "
+      + "the linger moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  const mins = Number(m[1]);
+  if (mins % 60 !== 0) {
+    throw new Error(
+      `check-figures: PRESENCE_LINGER_MIN is ${mins}, which is not whole hours — `
+      + "the page's sentence says hours, so decide what it should say before this can hold it.",
+    );
+  }
+  return mins / 60;
+})();
+
+// The square's side, in metres, from the grid's degree step. Latitude is
+// the honest axis to convert on: a degree of longitude shrinks with the
+// cosine of the latitude, so a cell is ~223 m tall everywhere and narrower
+// the further north you stand — the page's "~200-metre" is the round
+// number under the tall side, which is the claim that stays true.
+//
+// Rounded to the nearest hundred, which is the convention the sentence
+// already uses. 0.002° is 222.6 m and the page says ~200.
+const presenceCellM = (() => {
+  const src = readFileSync(join(root, "functions/src/pure.ts"), "utf8");
+  const m = /const PRESENCE_CELL_DEG\s*=\s*([\d.]+)/.exec(src);
+  if (!m) {
+    throw new Error(
+      "check-figures: no `const PRESENCE_CELL_DEG = N` in functions/src/pure.ts — "
+      + "the grid moved or changed shape; fix this reader, do not delete the entry.",
+    );
+  }
+  const deg = Number(m[1]);
+  if (!(deg > 0)) {
+    throw new Error(`check-figures: PRESENCE_CELL_DEG parsed as ${m[1]}, which is not a step.`);
+  }
+  return Math.round((deg * 111320) / 100) * 100;
+})();
+
 const storageCapKb = (() => {
   const src = readFileSync(join(root, "storage.rules"), "utf8");
   const m = /request\.resource\.size\s*<\s*(\d+)\s*\*\s*1024/.exec(src);
@@ -1000,6 +1058,20 @@ const FIGURES = [
     re: /only used for the (\w+) notifications this app/,
     actual: word(pushKinds),
     fix: (n) => `"only used for the ${n} notifications this app sends"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "the presence square's side, from the grid's degree step",
+    re: /~(\d+)-metre grid square/,
+    actual: String(presenceCellM),
+    fix: (n) => `"~${n}-metre grid square"`,
+  },
+  {
+    file: "web/privacy.html",
+    what: "how long presence outlives the app, from PRESENCE_LINGER_MIN",
+    re: /(\w+) hours after you close the app/,
+    actual: word(presenceLingerHours),
+    fix: (n) => `"${n} hours after you close the app"`,
   },
   {
     file: "firestore-tests/storage.rules.test.ts",
