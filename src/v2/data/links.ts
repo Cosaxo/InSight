@@ -97,17 +97,23 @@ export function parseJoinCode(url: string): string | null {
 const joinSubs = new Set<() => void>();
 
 /**
- * Is one waiting? READ-ONLY, deliberately — the daily's mode switch needs
- * to know a code is there, and the panel it switches to is what consumes
- * it. A peek that cleared would take the invite away from the screen it
- * was navigating to.
+ * Which code is waiting, if any. READ-ONLY, deliberately — the daily's
+ * mode switch needs to know a code is there, and the panel it switches to
+ * is what consumes it. A peek that cleared would take the invite away from
+ * the screen it was navigating to.
+ *
+ * The CODE and not a boolean, because the caller has to be able to tell
+ * one invite from the next: it lands on the join form once per code, and a
+ * `true` it could only compare to another `true` would either land once
+ * ever or land again on every store tick. The second is what shipped for
+ * an hour and what the closing review caught.
  */
-export function hasJoinCode(): boolean {
+export function peekJoinCode(): string | null {
   try {
     const c = sessionStorage.getItem(PENDING_KEY);
-    return !!c && CODE_RE.test(c);
+    return c && CODE_RE.test(c) ? c : null;
   } catch {
-    return false;
+    return null;
   }
 }
 

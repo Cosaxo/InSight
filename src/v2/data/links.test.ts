@@ -212,7 +212,7 @@ describe("initDeepLinks · the navigation outlives the boot", () => {
     // The shell is NOT up yet — this is the cold start, and the whole
     // point: nothing has navigated, and the code is stashed.
     expect(goTab, "it navigated before the shell existed").not.toHaveBeenCalled();
-    expect(links.hasJoinCode(), "the code was not stashed at all").toBe(true);
+    expect(links.peekJoinCode(), "the code was not stashed at all").toBe("ABCD2345");
 
     // …the shell mounts, the way it does a tick later.
     const off = nav.registerNav({ goTab });
@@ -221,7 +221,7 @@ describe("initDeepLinks · the navigation outlives the boot", () => {
     expect(goTab, "it navigated more than once").toHaveBeenCalledTimes(1);
     // …and peeking did not take the code away from the screen it just
     // navigated to.
-    expect(links.hasJoinCode(), "the peek consumed the invite").toBe(true);
+    expect(links.peekJoinCode(), "the peek consumed the invite").toBe("ABCD2345");
 
     off();
     vi.useRealTimers();

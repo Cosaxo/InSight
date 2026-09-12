@@ -96,7 +96,7 @@ import { Sheet } from './primitives.jsx';
 // because the surface pin in data/vote.test.ts holds every one of those
 // methods on the store's literal.
 import LIVE from '../data/live';
-import { hasJoinCode } from '../data/links';
+import { peekJoinCode } from '../data/links';
 // D354's sweep. WORLD_TOPICS was a module-scope `window.` read with a
 // five-entry fallback — the fragility src/v2/README.md's feed paragraph
 // names ("deferring world-feed-data swaps the real topic set for the
@@ -219,6 +219,11 @@ const modeOfGroup = (gid) => {
   const g = LIVE.social.groups().find((x) => x.id === gid);
   return g ? (g.mode === 'duo' ? 'duo' : 'group') : null;
 };
+
+// Which invite code the daily has already taken the reader to. See
+// consumePendingJoin: the peek does not clear, so this is what keeps one
+// invite from landing twice.
+let landedForCode = null;
 
 export class DailySplit extends React.Component {
   state = {
@@ -370,7 +375,20 @@ export class DailySplit extends React.Component {
   // consuming it here would navigate to a screen with nothing waiting on
   // it, which is the invite swallowed one step later than before.
   consumePendingJoin() {
-    if (!hasJoinCode()) return false;
+    const code = peekJoinCode();
+    if (!code || code === landedForCode) return false;
+    // ONCE PER CODE. `consumePending` runs on mount AND on every live-store
+    // change, and the peek above deliberately does not clear — the panel
+    // this lands on is what consumes it. Without this line the two
+    // together drag the reader back: measured in a demo mount, a user who
+    // walked from Circle to World was returned to Circle by the next store
+    // tick, for as long as the code sat unread. In a demo build nothing
+    // ever reads it, so that was forever.
+    //
+    // Module-level rather than instance state, because the daily unmounts
+    // whenever the Mirror is opened and an instance flag would forget on
+    // the way back. Keyed by the CODE so a second invite still lands.
+    landedForCode = code;
     this.landOn('group');
     return true;
   }
