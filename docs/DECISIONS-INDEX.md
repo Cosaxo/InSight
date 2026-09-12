@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 498 lines instead of
-51,979. Do not hand-edit; `npm run check:docs` fails when this
+52,038. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -444,7 +444,7 @@ detect it.
 | **D407** | [Three behaviour signals get a reader: whether the Mirror is READ, not only answered into](DECISIONS.md#d407--three-behaviour-signals-get-a-reader-whether-the-mirror-is-read-not-only-answered-into) | D408 | 43273 |
 | **D408** | [A decision-number hole is reported, not refused — merge order stops being a gate](DECISIONS.md#d408--a-decision-number-hole-is-reported-not-refused--merge-order-stops-being-a-gate) | D466 (+5) | 43349 |
 | **D409** | [The answer rules are NOT at Firestore's expression ceiling — measuring the failure instead of the success](DECISIONS.md#d409--the-answer-rules-are-not-at-firestores-expression-ceiling--measuring-the-failure-instead-of-the-success) | D426 (+1) | 43468 |
-| **D410** | [You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist](DECISIONS.md#d410--you-may-withhold-an-anchor-you-may-not-invent-one--and-why-the-rule-that-would-say-so-cannot-exist) | D467 (+2) | 43565 |
+| **D410** | [You may withhold an anchor; you may not invent one — and why the rule that would say so cannot exist](DECISIONS.md#d410--you-may-withhold-an-anchor-you-may-not-invent-one--and-why-the-rule-that-would-say-so-cannot-exist) | D468 (+3) | 43565 |
 | **D411** | [`main`'s e2e flake: the aggregate was always there, and the client could not see it](DECISIONS.md#d411--mains-e2e-flake-the-aggregate-was-always-there-and-the-client-could-not-see-it) | — | 43652 |
 | **D412** | [Ad-network tracking is deferred with a trigger, not refused — and counting was never the thing being deferred](DECISIONS.md#d412--ad-network-tracking-is-deferred-with-a-trigger-not-refused--and-counting-was-never-the-thing-being-deferred) | — | 43735 |
 | **D413** | [The first two Crossroads stories are retired, and four take their place](DECISIONS.md#d413--the-first-two-crossroads-stories-are-retired-and-four-take-their-place) | — | 43835 |
@@ -511,4 +511,4 @@ detect it.
 | **D465** | [The workflow GitHub could not read: a sentence about `${{ }}` inside a `run:` body, and the gate that now asks whether the file loads](DECISIONS.md#d465--the-workflow-github-could-not-read-a-sentence-about---inside-a-run-body-and-the-gate-that-now-asks-whether-the-file-loads) | D468 | 51321 |
 | **D466** | [The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make](DECISIONS.md#d466--the-answer-logs-shadow-the-folds-phase-d-will-move-checked-nightly-by-id-and-by-query--and-the-seam-the-two-clocks-make) | D468 | 51570 |
 | **D467** | [Phase B: the daily lane's aggregate is sharded and a compactor publishes it — on Firestore, with Redis as the swap and not the start](DECISIONS.md#d467--phase-b-the-daily-lanes-aggregate-is-sharded-and-a-compactor-publishes-it--on-firestore-with-redis-as-the-swap-and-not-the-start) | D468 | 51672 |
-| **D468** | [The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, two conflicts, and a gate that can only fail on a tree nobody built](DECISIONS.md#d468--the-2026-09-12-night-review-two-shifts-merged-as-one-tree--63-commits-kept-two-conflicts-and-a-gate-that-can-only-fail-on-a-tree-nobody-built) | — | 51799 |
+| **D468** | [The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes](DECISIONS.md#d468--the-2026-09-12-night-review-two-shifts-merged-as-one-tree--63-commits-kept-and-a-security-hole-that-existed-only-in-the-sum-of-two-correct-changes) | — | 51799 |

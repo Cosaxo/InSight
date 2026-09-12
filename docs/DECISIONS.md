@@ -51796,7 +51796,7 @@ contention alert — the feed lane still folds on the hot path and a shard
 can contend at sixteen times the rate. Sharding any surface but the
 daily: the feed spreads its answers across the bank, and a shard costs
 the compactor a query's worth of reads a minute per dirty question.
-## D468 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, two conflicts, and a gate that can only fail on a tree nobody built
+## D468 · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes
 
 **2026-09-12.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
 sixty-three commits are kept as written; nothing was reverted. What this
@@ -51854,7 +51854,66 @@ corpus); A added a new erasure phase below it for the world map's
 published positions (D462). Both are kept: B's paged loop resolves the
 conflict, A's new phase merged clean underneath it.
 
+### And six more against `main`, which moved under the review
+
+`main` took #502 and #497 while this was running — D465, D466 and D467,
+which is why this record is D468. Bringing them in conflicted six times;
+four were mechanical and two were not:
+
+- **`scripts/pulse.test.mjs`'s read count — the third "neither number was
+  the tree's" of the night.** The test counts the documents
+  `onV2AnswerCreated` reads. Phase B took 13 → 15 (the vote arm reads two
+  ways now); shift B took 13 → 14 (the rank arm gained the author's
+  profile read, the last create arm without one). The composed tree is
+  **16**, recounted off the file rather than added up: one `tx.get(` and
+  fifteen batched arguments. `TRIGGER_READS` does not move for either,
+  for the reason the constant's own comment gives.
+- **`src/v2/data/live.ts`'s pending restore** — A's `unaggregatedFrom`
+  (so `countsFor` can take an edited vote out of the option the published
+  counts still hold it in) and phase B's `noteAggBase(aid, false)` landed
+  on the same line. Independent: different fields, different consumers,
+  and `aggHoldsMark` short-circuits on a null base before it would read
+  `from`. Both kept.
+
+The other four — `firebase.json`, the deploy workflow, `DECISIONS.md` and
+its generated index — were a hash to re-measure, two comment blocks that
+both belonged, and a renumber.
+
 ### What the composition broke, and what it only revealed
+
+**THE ONE THAT MATTERS: phase B's sharded edit lane carried a cohort
+hole the same night the hot path lost it.** Night shift B found that
+`onV2AnswerUpdated` retargeted the -old/+new delta using the anchors on
+its own EVENT PAYLOAD, when the CREATE trigger's D410 correction is what
+makes those anchors honest — so a free anonymous account could claim a
+stranger's band, answer, and edit immediately, and the move landed in the
+claimed band, taking a cell belonging to someone else with it. B measured
+it on the emulator and replaced the payload read with a re-read of the
+answer document.
+
+`main` took #497 the same night, and phase B (D467) gave that arm a
+SECOND copy — the sharded lane, for a question the daily bank names —
+written on the old shape, with `after.get("anchors")` in its ledger
+entry, its log row and its shard increments. Compose the two and the hot
+path is fixed while the sharded path is holed, **and the sharded path is
+the reachable one**: the daily bank is exactly what shards, and the daily
+is the one question everyone answers. Neither side is at fault and
+neither could have seen it — B's branch has no sharded lane, #497's
+branch has no re-read, and only the composed tree has both.
+
+The lane now reads the answer alongside its ledger mark (`tx.getAll(
+eventRef, answerRef)` — the same round trip) and uses the honest anchors
+in all three places, with B's own fallback for an answer that is gone.
+The create lane needed nothing: it reads the author's profile on both
+paths already, so D410's correction applies there. A new case in
+`idempotence.test.ts` pins it, red-first — restoring the payload read
+fails it on *"the edit did not land in the author's real band"* — and it
+had to be a new case, because the hot path's own case cannot enter this
+branch: its qid is deliberately not a daily id.
+
+This is the review's whole justification in one defect. Both halves were
+correct, both were merged by their own gates, and the hole existed only
+in their sum.
 
 **`check:bundle` — the eager graph is bigger than either shift built
 it.** Measured on all four trees, same `VITE_V2_LIVE=true` build with a
