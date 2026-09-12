@@ -749,7 +749,7 @@ The backfill (`backfill-log.yml`, `backfillLogV2`) loads the answers
 written before the deploy's day; its cutoff is that day, so no row is
 appended twice. Both clicks are on `OWNER-LIST.md`.
 
-### The budget's wire (`onBudgetAlert`, COST-EXPOSURE.md §6 C4)
+### The budget's wire (`onBudgetAlert`, COST-EXPOSURE.md §6 C4; the hard stop, D471)
 
 Since 2026-09-09 the Cloud Billing budget (D332, `scripts/apply-budget.mjs`)
 publishes its state to the Pub/Sub topic `budget-alerts` every twenty to
@@ -757,8 +757,42 @@ thirty minutes, and `functions/src/budget.ts` sets the read breaker —
 `budgetMode` on `v2_meta/app`, the field `scripts/budget-mode.mjs` writes
 by hand — to level 1 the first time a month's spend reaches the budget,
 and releases it when the next month's first notification arrives under
-the line. A level set by hand is never touched. It never detaches
-billing (that hard stop is the owner's, on `OWNER-LIST.md`).
+the line. A level set by hand is never touched.
+
+**Since D471 (2026-09-12) the same function is the hard stop.** At
+`BUDGET_DETACH_AT` times the budget — three budgets, 1,500 NOK on the 500
+NOK the tree arms, the owner's figure — it calls
+`projects.updateBillingInfo` with an empty billing account, which is
+Google's documented way to disable billing: every paid service stops
+with the spend and **the app is down until a person re-attaches the
+account** (Console → Billing → the project → *Link a billing account*).
+The line is a ratio off the notification itself, so it needs no threshold
+rule and no currency; the 300 % rule `apply-budget.mjs` arms is only the
+mail. Three things to know before the day it fires:
+
+- **The grant that arms it** (`LAUNCH-RUNBOOK.md` 5.18): the functions'
+  runtime service account needs `roles/billing.projectManager` on the
+  project. Without it the API refuses, the function logs
+  `budget_detach_failed` naming the account and the role, clears its
+  latch, and tries again on every notification until the role is there
+  — and until it is, the ceiling is a mail. Never test the grant with a
+  publish: a message at or above the line detaches billing for real.
+- **The ratchet.** The function writes a latch to `v2_meta/app`
+  (`billingDetachedRatio`, `billingDetachedInterval`, the reason and the
+  time — `node scripts/budget-mode.mjs --status` prints it) BEFORE it
+  calls the API, because after the call the write may never land. Once
+  the account is re-attached the function resumes with everything else
+  and the next notification still shows a month over the line, so the
+  line for the rest of that month is the ratio it fired at plus one more
+  multiple: a re-attach buys another 1,500 NOK of room, never unlimited
+  room, and never a detach every half hour until the month ends. A new
+  cost interval starts the count over; the release clears the latch.
+- **After it fires:** read what was burning first (the Cloud Billing
+  report, the two runaway policies, the deploy log for what changed
+  last), fix or stop it, then re-attach billing, then release the breaker
+  (`--level 0`). `monitoring/onBudgetAlert-acted.json` is the policy that
+  pages for the breaker, the detach and a refused detach — with an SMS
+  channel when *Arm monitoring* was given a number (§ Alerting).
 
 - **Standing it up, once:** the deploy that carries the function creates
   the topic; attaching it to the budget is the console's click — Billing →
@@ -779,10 +813,14 @@ billing (that hard stop is the owner's, on `OWNER-LIST.md`).
   prvfire33 --member serviceAccount:billing-budget-alert@system.gserviceaccount.com
   --role roles/pubsub.publisher`.
 - **Reading it:** `budget_message` (an info line per notification, the
-  level as it stands), `budget_mode_set` (a warning with `level` 1 or 0
-  when the breaker moved — the line to page on), `budget_message_unreadable`
-  (something on the topic that was not a budget notification). On
-  `service_name="onbudgetalert"`.
+  level and the detach line as they stand), `budget_mode_set` (a warning
+  with `level` 1 or 0 when the breaker moved), `budget_billing_detach`
+  (an ERROR written before the API call: the detach is being made),
+  `budget_billing_detached` (after it), `budget_detach_failed` (the API
+  refused — the line names the role and the account), and
+  `budget_message_unreadable` (something on the topic that was not a
+  budget notification). On `service_name="onbudgetalert"`; the policy
+  pages on the breaker, the detach and the refusal.
 - **Releasing early** is what it always was: `node scripts/budget-mode.mjs
   --level 0` (its `--status` shows the reason the function wrote).
   Leaving the function's own release to the month is deliberate — a
@@ -841,7 +879,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (eleven policies, nine log-based metrics)
+## Alerting (twelve policies, twelve log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -888,7 +926,14 @@ used to give.
 
 A policy is useless without a notification channel id, and that id is not in
 this repo and should not be — it is an email address or a Slack hook, per
-operator, per project. And a pipeline that can rewrite an alert policy can
+operator, per project. (Since D471 it can also be a phone: *Arm
+monitoring*'s `sms` input creates an SMS channel for the three MONEY
+policies alone — the two Firestore runaways and the budget's own function
+acting — so the phone rings for money and a crashing trigger at 3 am stays
+a mail. Cloud Monitoring creates an SMS channel unverified and it pages
+nobody until the code Google texts comes back through the `sms_code`
+input on a second dispatch; the run's summary says which state it is in.)
+And a pipeline that can rewrite an alert policy can
 delete one, silently, in a deploy that was about something else; the
 blast radius of getting that wrong is "you stop being told when the Mirror
 stops moving". Applied by hand, once, deliberately. `npm run pulse` reports

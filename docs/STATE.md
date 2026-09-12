@@ -39,8 +39,8 @@ produced.
 
 | List | Open | Ticked |
 | --- | ---: | ---: |
-| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 153 | 3 |
-| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 11 | 0 |
+| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 155 | 3 |
+| [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 12 | 0 |
 | [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 39 |
 
 A tick is the mechanism the program runs on (`PROGRAM-PLAN.md` §2.4), so
@@ -54,7 +54,7 @@ channel — including every D334 privacy question a routine deferred into it.
 | `check:*` gates | 53 |
 | Cloud Functions | 48 |
 | …with an alert over them | 4 |
-| Decision records | 478 (30 amendments, 8 dated) |
+| Decision records | 479 (30 amendments, 8 dated) |
 
 ## Where to go next
 

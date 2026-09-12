@@ -1733,7 +1733,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [ ] **5.5b Apply the eleven monitoring alerts — nine are armed (5.5); the
+- [ ] **5.5b Apply the twelve monitoring alerts — nine are armed (5.5); the
       TENTH, `monitoring/onV2AnswerCreated-evictions.json` (D398), is
       committed and not applied.** The breakdown cap's `agg_evict`
       metric and its policy landed after run 16 verified the nine, so
@@ -2486,8 +2486,38 @@ That is a tester-count problem, not a workflow problem.
       the topic (measured 2026-09-10); its dry run is the check afterwards
       ("exists and matches"). Proof: within half an hour a `budget_message`
       line on `service_name="onbudgetalert"` (`DEPLOYMENT.md` § The
-      budget's wire). What it does not do: detach billing — that is the
-      owner's row on `OWNER-LIST.md`, with the arithmetic.
+      budget's wire). Since D471 the same function is also the hard stop
+      — 5.18 is the grant that arms it.
+
+- [ ] **5.18 Arm the hard stop — one IAM grant after the deploy that
+      carries D471, then the 300 % mail (2026-09-12).** `functions/src/
+      budget.ts` detaches the project's billing account when a month's
+      spend reaches three budgets — 1,500 NOK on the 500 NOK budget, the
+      owner's figure — and the API refuses it until the functions' own
+      runtime service account may: `roles/billing.projectManager` **on the
+      project**, granted once. Which account: `gcloud functions describe
+      onBudgetAlert --gen2 --region europe-west1
+      --format='value(serviceConfig.serviceAccountEmail)'` (the default is
+      the Compute Engine default account, `<project number>-compute@
+      developer.gserviceaccount.com`), and the refusal log line names it
+      too. The grant: `gcloud projects add-iam-policy-binding prvfire33
+      --member serviceAccount:<that email> --role
+      roles/billing.projectManager`. If the API still refuses with the
+      role in place, Google's other documented identity for the call is an
+      owner of the billing account — `roles/billing.admin` on the billing
+      account to the same email. **Do not test it with a publish**: a
+      message on `budget-alerts` at or above 300 % detaches billing for
+      real; the proof that it is armed is *Observe production* (`npm run
+      observe`) reading `hardStop ARMED` — it reads the project's IAM
+      policy for the role and joins it with the account `onBudgetAlert`
+      actually runs as, and prints the exact grant when it is missing.
+      Then re-dispatch *Arm budget*
+      (dry, then `apply`) so the budget carries a 300 % rule: the mail
+      Cloud Billing sends at that line is the confirmation from outside
+      the project the detach silences. Proof of the whole: the dry
+      dispatch reads "exists and matches" with five thresholds. What
+      happens when it fires, and the ratchet after a re-attach:
+      `DEPLOYMENT.md` § The budget's wire.
 
 ## Phase 6 — Submit
 
