@@ -33,7 +33,7 @@ import { presenceNeighbors } from "./pure";
 import { citySampleId } from "./patternsSamples";
 import { eraseUserLog, firestoreLogErasure } from "./log";
 import { rateLimitLedgers } from "./exportAccount";
-import { ledgerRemoval, playedRemovals, stampRemoval } from "./v2social";
+import { ledgerRemoval, playedRemovals, revealDueRounds, stampRemoval } from "./v2social";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -739,6 +739,19 @@ export const deleteAccount = onCall(
           if ((err as { code?: number | string }).code !== 5
             && (err as { code?: string }).code !== "not-found") throw err;
           continue;
+        }
+        // A ROSTER CHANGE CAN COMPLETE A ROUND — the same sentence
+        // leaveGroupV2 carries, and the same reason: `roundComplete` is
+        // `played >= members`, so the room this account was holding up is
+        // complete the moment the membership shrinks, and nothing else
+        // looks until the 48-hour deadline. Swallowed for a stronger
+        // reason here than there: a throw would push "v2Groups" onto
+        // `failed`, which refuses the auth delete — an erasure must never
+        // fail because somebody else's room could not be revealed.
+        try {
+          await revealDueRounds(g.ref);
+        } catch (err) {
+          logger.error(`[deleteAccount] reveal check after leaving ${g.id} failed:`, err);
         }
         // The user's vote and display name inside every published reveal of
         // a group they are STILL in. Phase 1c-bis below sweeps reveals by

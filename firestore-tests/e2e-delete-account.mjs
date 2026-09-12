@@ -321,9 +321,27 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
 
 // a group they LEAVE before deleting — the group survives with the other
 // member, and the reveal keeps naming them until erasure reaches it
+//
+// WITH AN OPEN ROUND THE SURVIVOR HAS ALREADY PLAYED, because a roster
+// change can complete a round and nothing used to look. `roundComplete`
+// is `played >= members`, so round 2 below is complete the instant the
+// doomed account is off `memberUids` — and until 2026-09-12 the only
+// callers of the reveal check were the answer trigger and the two-hourly
+// scan, neither of which fires on a membership change. The survivor's
+// sealed answer sat there until the 48-hour deadline brought the room
+// into an indexed scan. The deadline here is deliberately in the FUTURE
+// so the scan cannot be what reveals it.
+await adb.doc(`v2_users/${OTHER}/answers/g_${LEFT}_r2`).set({
+  gid: LEFT, round: 2, qid: "group-gu0", optionIdx: 0,
+  answeredAt: new Date(), anchors: {},
+});
 await adb.doc(`v2_groups/${LEFT}`).set({
   name: "Left", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER],
   memberNames: { [uid]: "Doomed", [OTHER]: "Survivor" }, streak: 5,
+  round: 2,
+  played: { r2: [OTHER] },
+  roundOpenedAt: Date.now() - 60_000,
+  roundDeadlineAt: Date.now() + 47 * 60 * 60 * 1000,
   // Leaving takes the leaver's ledger row with them (D445) — every
   // per-member map on this document goes on both paths — and leaves
   // the survivor's where it is.
@@ -670,6 +688,22 @@ const leftReveal = await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).get();
 if (!(leftReveal.get("names") || {})[uid])
   fail("leaveGroupV2 rewrote a past reveal — leaving is not erasure (see index.ts phase 1c-bis)");
 ok("left a group: membership gone, the shared reveal deliberately untouched");
+
+// …AND THE ROUND THE LEAVER WAS HOLDING UP IS OUT. The survivor answered
+// round 2 and the doomed account never did; leaving makes the round
+// complete, and the deadline is two days off, so nothing else could have
+// revealed it. Before 2026-09-12 this assertion failed: `revealDueRounds`
+// was reachable only from the answer trigger and the two-hourly scan, so
+// the survivor waited out the deadline for a round everybody had played.
+const leftRound2 = await adb.doc(`v2_groups/${LEFT}/reveals/r2`).get();
+if (!leftRound2.exists)
+  fail("leaving did not reveal the round it completed — the survivor waits for the 48-hour deadline");
+if (!(leftRound2.get("votes") || {})[OTHER])
+  fail("the round revealed without the survivor's vote in it");
+const leftNow = await adb.doc(`v2_groups/${LEFT}`).get();
+if (Number(leftNow.get("round") || 0) <= 2)
+  fail("the round revealed but the next one never opened");
+ok("leaving completed the open round, and it revealed at once rather than at the deadline");
 
 // …and the pick that names them in a circle they are not in is really there
 // before the call, or the assertion after it proves nothing.

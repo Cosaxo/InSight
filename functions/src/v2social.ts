@@ -507,6 +507,25 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
     await db.recursiveDelete(ref); // last member out → group and reveals go
     return { gid, deleted: true };
   }
+
+  // A ROSTER CHANGE CAN COMPLETE A ROUND, and nothing was looking.
+  // `roundComplete` is `played >= members`, so the room the leaver was
+  // holding up is complete the instant this transaction commits: a 1v1
+  // whose partner quits after answering, a circle of three where the
+  // third never played. `revealDueRounds` is reachable from exactly two
+  // places — the answer trigger and the two-hourly scan — and neither
+  // fires on a membership change, so the people who did answer waited for
+  // the 48-hour deadline to bring their room into an indexed scan.
+  //
+  // After the transaction, never inside: a reveal is its own transaction
+  // and a multi-document write. Swallowed, because the leave has already
+  // happened and must not fail on it — the scan is still the backstop,
+  // it is just no longer the only thing that looks.
+  try {
+    await revealDueRounds(ref);
+  } catch (err) {
+    logger.error(`[leaveGroupV2] reveal check after leave failed for ${gid}:`, err);
+  }
   return { gid, deleted: false };
 });
 
