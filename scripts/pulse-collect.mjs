@@ -360,7 +360,16 @@ export function programVerdict({ allowanceUsdPerDay, usdPerDay, measuredOn, toda
   // at the size it was measured at, and what staleness can make
   // unbelievable is the PASS.
   if (usdPerDay > allowanceUsdPerDay) return { state: "over", ...figures };
-  if (ageDays != null && ageDays > PROGRAM_MAX_AGE_DAYS) return { state: "stale", ...figures };
+  // AN UNDATED FIGURE NEVER GOES STALE, which is the one state this guard
+  // exists to refuse. `ageDays` is null when `measuredOn` is missing or
+  // unparseable, and the bound below was written as `ageDays != null &&
+  // …` — so a block carrying `usdPerDay` and `allowanceUsdPerDay` and no
+  // date returned "ok" for as long as it sat there, which is exactly the
+  // frozen number PROGRAM_MAX_AGE_DAYS exists to age out. A figure that
+  // cannot be dated cannot be believed, so it reads as stale: the
+  // operator is asked for the date, rather than told the program is
+  // within its allowance on the strength of a number nobody can place.
+  if (ageDays == null || ageDays > PROGRAM_MAX_AGE_DAYS) return { state: "stale", ...figures };
   return { state: "ok", ...figures };
 }
 

@@ -1474,10 +1474,16 @@ describe("programVerdict", () => {
     expect(programVerdict(base).ageDays).toBe(6);
   });
 
-  it("says nothing about age when it has no date to work from", () => {
+  it("says nothing about age when it has no date to work from — and does not call it fresh", () => {
     // Absent and zero are different: a figure with no measurement date is
-    // not a fresh one.
-    expect(programVerdict({ ...base, measuredOn: undefined }).ageDays).toBeNull();
+    // not a fresh one. That sentence was here, and the code did the
+    // opposite of it: the bound read `ageDays != null && ageDays > MAX`,
+    // so a block with an allowance and a figure and NO date returned "ok"
+    // for as long as it sat there — a number that never goes stale, which
+    // is the single state this guard exists to refuse.
+    const undated = programVerdict({ ...base, measuredOn: undefined });
+    expect(undated.ageDays).toBeNull();
+    expect(undated.state, "an undated figure passed, and would have passed forever").toBe("stale");
   });
 });
 
