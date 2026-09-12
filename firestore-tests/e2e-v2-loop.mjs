@@ -2110,6 +2110,57 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("a scored attempt refuses a second submit");
 }
 
+// 11b · Practice on the OMIB bank (D451, docs/OMIB-PLAN.md §5) — the one
+// OMIB path a client can reach while LOGIC_BANK still mints verified
+// attempts on the generator, so this is the emulator's proof that the bank
+// serves and scores end to end: a stateless start hands out a seed and 25
+// codes with the ninth cell empty; a submit against that seed returns θ
+// with its SE, ranked against the model until the mirror is measured; and
+// because nothing is written, the same seed scores again — the property
+// that distinguishes practice from a verified attempt, asserted rather
+// than assumed.
+{
+  const started = await httpsCallable(fns, "logicPracticeV2")({});
+  const keys = Object.keys(started.data).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "items", "seed"])) {
+    fail("logicPracticeV2 start returned unexpected keys: " + JSON.stringify(keys));
+  }
+  const { seed, items } = started.data;
+  if (!Array.isArray(items) || items.length !== 25) fail("logicPracticeV2 did not hand out 25 items");
+  for (const it of items) {
+    const cells = String(it.code).split(",");
+    if (Object.keys(it).join() !== "code" || cells.length !== 9 || cells[8] !== "0".repeat(20)) {
+      fail("an OMIB practice item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(it));
+    }
+  }
+  ok("logicPracticeV2 hands out a seed and 25 codes, the goal cell empty (D451)");
+
+  const blank = Array(25).fill("0".repeat(20));
+  const scored = await httpsCallable(fns, "logicPracticeV2")({ seed, picks: blank });
+  const d = scored.data;
+  if (d.score !== 0 || typeof d.theta !== "number" || typeof d.se !== "number" || d.practice !== true || d.bank !== "omib") {
+    fail("logicPracticeV2 scored a blank sheet wrongly: " + JSON.stringify(d));
+  }
+  if (d.source !== "model" || !Array.isArray(d.band) || d.band.length !== 2) {
+    fail("logicPracticeV2 ranked against something other than the model with nobody counted: " + JSON.stringify(d));
+  }
+  ok("…and scores a sheet by θ with its own SE, ranked against the model");
+
+  // Stateless: the same seed scores again. A verified attempt refuses this
+  // (asserted above); practice must not, because practice holds nothing.
+  const again = await httpsCallable(fns, "logicPracticeV2")({ seed, picks: blank });
+  if (again.data.theta !== d.theta) fail("logicPracticeV2 was not deterministic for one seed and one sheet");
+  ok("…and holds nothing: the same seed scores again");
+
+  try {
+    await httpsCallable(fns, "logicPracticeV2")({ seed, picks: Array(25).fill(0) });
+    fail("logicPracticeV2 accepted the generator's pick shape");
+  } catch (e) {
+    if (e?.code !== "functions/invalid-argument") fail("wrong refusal for a malformed practice sheet: " + (e?.code || e));
+  }
+  ok("…and refuses a sheet that is not 25 twenty-bit cells");
+}
+
 // 12 · The self-serve paid-question loop (paid.ts, D313): book → the
 // automated review settles it (gates alone in the emulator — no model
 // key, and the run must prove that honest degradation, not paper over

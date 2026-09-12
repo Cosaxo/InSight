@@ -22,8 +22,12 @@ import {
   nextStartsToday,
   scoreLogicPicks,
   validLogicPicks,
+  rankAndFoldTheta,
+  mintAttempt,
+  LOGIC_BANK,
   type LogicAttempt,
 } from "./logic";
+import { OMIB_ERA, OMIB_BANK_VERSION, OMIB_FORM_ITEMS } from "./omib";
 // One name, one meaning: the day-key helpers live in pure.ts now.
 import { utcDayKeyOf } from "./pure";
 import { generateForm, version as GEN_VERSION } from "./logic-gen";
@@ -400,5 +404,60 @@ describe("rankAndFold", () => {
     expect(measured.pctile).toBe(50); // beats the 8s and 10s
     expect(measured.band).toEqual([25, 75]); // 9 beats the 8s; 13 beats 8s, 10s and 12s
     expect(LOGIC_SEM_ITEMS, "the range's width moved — the client pins the same constant").toBe(2);
+  });
+});
+
+
+// ── the OMIB bank's rank-and-fold (D451, docs/OMIB-PLAN.md §4) ───────────
+describe("rankAndFoldTheta", () => {
+  const enough = OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM;
+  const base = { theta: 0.3, se: 0.35, durationMs: enough, stored: null, alreadyCounted: false };
+
+  it("ships dark: new attempts are still minted on the generator", () => {
+    expect(LOGIC_BANK).toBe("generator");
+  });
+
+  it("below the floor ranks against the model — Φ of θ̂ — and folds a first attempt into the OMIB era", () => {
+    const r = rankAndFoldTheta(base);
+    expect(r.source).toBe("model");
+    expect(r.n).toBeNull();
+    expect(r.pctile).toBe(62); // Φ(0.3)
+    expect(r.band).toEqual([48, 74]); // Φ(−0.05), Φ(0.65) — the person's own SE, not a constant
+    expect(r.countsNorms).toBe(true);
+    expect(r.norms).toMatchObject({ ...OMIB_ERA, n: 1, t21: 1 });
+  });
+
+  it("once the OMIB histogram clears the floor, ranks against it and reads the band the same way", () => {
+    const stored = { ...OMIB_ERA, n: LOGIC_NORMS_MIN_N, t19: 25, t20: 25, t21: 25, t22: 25 };
+    const r = rankAndFoldTheta({ ...base, stored });
+    expect(r.source).toBe("measured");
+    expect(r.n).toBe(LOGIC_NORMS_MIN_N);
+    expect(r.pctile).toBe(63); // bin 21: (50 + 12.5) / 100
+    expect(r.band[0]).toBeLessThan(r.pctile);
+    expect(r.band[1]).toBeGreaterThan(r.pctile);
+    expect(r.norms?.n).toBe(LOGIC_NORMS_MIN_N + 1);
+  });
+
+  it("a generator-era histogram is not this era: it ranks nothing and the fold starts fresh", () => {
+    const stored = { items: 25, gv: GEN_VERSION, n: 1000, b13: 1000 };
+    const r = rankAndFoldTheta({ ...base, stored });
+    expect(r.source).toBe("model");
+    expect(r.norms).toMatchObject({ ...OMIB_ERA, n: 1 });
+    expect(r.norms?.b13).toBeUndefined();
+  });
+
+  it("a re-verification is ranked and never counted; so is a click-through", () => {
+    expect(rankAndFoldTheta({ ...base, alreadyCounted: true }).countsNorms).toBe(false);
+    expect(rankAndFoldTheta({ ...base, alreadyCounted: true }).norms).toBeNull();
+    expect(rankAndFoldTheta({ ...base, durationMs: enough - 1 }).countsNorms).toBe(false);
+  });
+
+  it("mintAttempt stamps the bank and its version on the document", () => {
+    const now = NOW;
+    const o = mintAttempt(null, now, 99, "omib").attempt;
+    expect(o).toMatchObject({ seed: 99, gv: OMIB_BANK_VERSION, bank: "omib", status: "open", startsToday: 1, normsCounted: false });
+    expect(o.deadlineMs - o.startedAtMs).toBe(LOGIC_DEADLINE_MS);
+    const g = mintAttempt(attempt({ normsCounted: true }), now, 5, "generator").attempt;
+    expect(g).toMatchObject({ gv: GEN_VERSION, bank: "generator", normsCounted: true, startsToday: 2 });
   });
 });

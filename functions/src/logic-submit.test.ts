@@ -27,7 +27,13 @@ type Doc = Record<string, unknown>;
 const store = new Map<string, Doc>();
 
 function ref(path: string) {
-  return { path, id: path.split("/").pop() as string };
+  return {
+    path,
+    id: path.split("/").pop() as string,
+    // A plain read outside a transaction — what the practice callable does
+    // to the public norms mirror, and the only non-transactional read here.
+    get: async () => ({ exists: store.has(path), data: () => store.get(path) }),
+  };
 }
 const fakeDb = {
   collection: (name: string) => ({ doc: (id: string) => ref(`${name}/${id}`) }),
@@ -82,8 +88,11 @@ const fakeDb = {
 
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
-const { logicSubmitV2, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } = await import("./logic");
+const { logicSubmitV2, logicPracticeV2, mintAttempt, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } =
+  await import("./logic");
 const { version: GEN_VERSION } = await import("./logic-gen");
+const { OMIB_FORM_ITEMS, OMIB_BANK_VERSION, EMPTY_CELL, omibForm } = await import("./omib");
+const { OMIB_KEY } = await import("./omib-bank");
 
 const UID = "u1";
 const ATTEMPT = `v2_logic_attempts/${UID}`;
@@ -221,5 +230,137 @@ describe("submitting a logic test", () => {
     ).rejects.toThrow(/integers/);
     // The form the client was handed is the length the submit must be.
     expect(clientItems(7, GEN_VERSION).length).toBe(LOGIC_ITEMS);
+  });
+});
+
+// ── the OMIB bank (D451) ──────────────────────────────────────────────────
+// The attempt's own `bank` decides how it is scored, never the constant —
+// which is what lets these run with LOGIC_BANK still "generator", and what
+// scores an attempt that straddles the flip on the bank it was minted on.
+describe("submitting on the OMIB bank", () => {
+  const SEED = 7;
+  const keyFor = (seed: number) => omibForm(seed).map((i) => OMIB_KEY[i.n]);
+  const blanks = () => new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) as string[];
+  const submitOmib = (picks: unknown) =>
+    (logicSubmitV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data: { picks } });
+  const openOmib = (over: Doc = {}) =>
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: SEED, startedAtMs: Date.now() - OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM - 1, ...over });
+
+  it("mints an attempt stamped with its bank and the bank's own version, and hands out codes only", () => {
+    const m = mintAttempt(null, Date.now(), SEED, "omib");
+    expect(m.attempt.bank).toBe("omib");
+    expect(m.attempt.gv).toBe(OMIB_BANK_VERSION);
+    expect(m.items).toHaveLength(OMIB_FORM_ITEMS);
+    for (const it of m.items as { code: string }[]) {
+      expect(Object.keys(it)).toEqual(["code"]);
+      expect(it.code.split(",")[8]).toBe(EMPTY_CELL);
+    }
+    const g = mintAttempt(null, Date.now(), SEED, "generator");
+    expect(g.attempt.bank).toBe("generator");
+    expect(g.attempt.gv).toBe(GEN_VERSION);
+    expect("opts" in (g.items[0] as object)).toBe(true);
+  });
+
+  it("scores by θ, writes v:3 with the bank named, and folds a first counted attempt into a θ histogram", async () => {
+    openOmib();
+    const out = await submitOmib(keyFor(SEED));
+    expect(out.score).toBe(OMIB_FORM_ITEMS);
+    expect(typeof out.theta).toBe("number");
+    expect(typeof out.se).toBe("number");
+    expect(out.bank).toBe("omib");
+    expect(out.source).toBe("model"); // nobody counted yet → Φ against the calibration sample
+    expect(out.n).toBeUndefined();
+    const result = (store.get(`v2_users/${UID}`)?.testResults as Doc)?.logic as Doc;
+    expect(result.v).toBe(3);
+    expect(result.bank).toBe("omib");
+    expect(result.verified).toBe(true);
+    expect(result.theta).toBe(out.theta);
+    expect(result.gv).toBe(OMIB_BANK_VERSION);
+    // the histogram is the OMIB era's, one reading in one θ bin
+    const norms = store.get("v2_logic_norms_private/global") as Doc;
+    expect(norms.bank).toBe("omib");
+    expect(norms.n).toBe(1);
+    expect(Object.keys(norms).filter((k) => k.startsWith("t"))).toHaveLength(1);
+    expect(store.get("v2_logic_norms/global")).toMatchObject({ bank: "omib", n: 1 });
+    // …and the ledger is per item, under the same era
+    const ledger = store.get("v2_logic_norms_private/families") as Doc;
+    expect(ledger.bank).toBe("omib");
+    expect(Object.keys(ledger).filter((k) => /^i_\d+_seen$/.test(k))).toHaveLength(OMIB_FORM_ITEMS);
+    expect(store.get(ATTEMPT)?.normsCounted).toBe(true);
+  });
+
+  it("refuses the generator's pick shape on an OMIB attempt, and vice versa", async () => {
+    openOmib();
+    await expect(submitOmib(new Array(OMIB_FORM_ITEMS).fill(0))).rejects.toThrow(/twenty-character/);
+    expect(store.get(ATTEMPT)?.status).toBe("open");
+    store.clear();
+    openAttempt(); // a generator attempt (no bank field — a pre-D451 document)
+    await expect(submitOmib(blanks())).rejects.toThrow(/integers/);
+  });
+
+  it("a blank sheet scores zero, is marked unattempted in the ledger, and still folds", async () => {
+    openOmib();
+    const out = await submitOmib(blanks());
+    expect(out.score).toBe(0);
+    expect(out.theta as number).toBeLessThan(0);
+    const ledger = store.get("v2_logic_norms_private/families") as Doc;
+    expect(Object.keys(ledger).filter((k) => /^i_\d+_blank$/.test(k))).toHaveLength(OMIB_FORM_ITEMS);
+    expect(Object.keys(ledger).some((k) => /_solved$/.test(k))).toBe(false);
+  });
+
+  it("a click-through is scored and never counted (the effort floor, D402, both banks)", async () => {
+    openOmib({ startedAtMs: Date.now() - 1000 });
+    await submitOmib(keyFor(SEED));
+    expect(store.get(ATTEMPT)?.status).toBe("scored");
+    expect(store.get(ATTEMPT)?.normsCounted).toBe(false);
+    expect(store.has("v2_logic_norms_private/global")).toBe(false);
+  });
+
+  it("never folds a generator-era histogram into the OMIB one — the first OMIB submit starts fresh", async () => {
+    store.set("v2_logic_norms_private/global", { items: 25, gv: GEN_VERSION, n: 500, b12: 500 });
+    openOmib();
+    const out = await submitOmib(keyFor(SEED));
+    expect(out.source).toBe("model");
+    const norms = store.get("v2_logic_norms_private/global") as Doc;
+    expect(norms.n).toBe(1);
+    expect(norms.b12).toBeUndefined();
+  });
+});
+
+describe("practice on the OMIB bank", () => {
+  const run = (data: unknown) =>
+    (logicPracticeV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data });
+
+  it("starts with a seed and codes, writing nothing", async () => {
+    const out = await run({});
+    expect(typeof out.seed).toBe("number");
+    expect(out.items).toHaveLength(OMIB_FORM_ITEMS);
+    for (const it of out.items as { code: string }[]) expect(it.code.split(",")[8]).toBe(EMPTY_CELL);
+    expect(store.size).toBe(0);
+  });
+
+  it("scores the seed it handed out, ranks against the model when nobody is counted, and still writes nothing", async () => {
+    const start = await run({});
+    const seed = start.seed as number;
+    const out = await run({ seed, picks: omibForm(seed).map((i) => OMIB_KEY[i.n]) });
+    expect(out.score).toBe(OMIB_FORM_ITEMS);
+    expect(out.practice).toBe(true);
+    expect(out.source).toBe("model");
+    expect(typeof out.theta).toBe("number");
+    expect(Array.isArray(out.band)).toBe(true);
+    expect(store.size).toBe(0);
+  });
+
+  it("ranks against the public mirror once it is measured — the same reading a verified attempt gets", async () => {
+    store.set("v2_logic_norms/global", { bank: "omib", items: 25, gv: OMIB_BANK_VERSION, n: 100, t20: 100 });
+    const out = await run({ seed: 3, picks: new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) });
+    expect(out.source).toBe("measured");
+    expect(out.n).toBe(100);
+    expect(store.size).toBe(1); // read, never written
+  });
+
+  it("refuses a malformed seed or sheet", async () => {
+    await expect(run({ seed: -1, picks: new Array(OMIB_FORM_ITEMS).fill(EMPTY_CELL) })).rejects.toThrow(/seed/);
+    await expect(run({ seed: 3, picks: new Array(OMIB_FORM_ITEMS).fill(0) })).rejects.toThrow(/twenty-character/);
   });
 });

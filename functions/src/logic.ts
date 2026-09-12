@@ -40,6 +40,11 @@ import { logger } from "firebase-functions";
 import { utcDayKeyOf } from "./pure";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
+import {
+  OMIB_FORM_ITEMS, OMIB_BANK_VERSION, OMIB_ERA, omibClientItems, validOmibPicks, scoreOmibPicks,
+  foldThetaNorms, foldItemStats, measuredPctileTheta, modelPctileTheta, isOmibEra,
+  type Norms, type OmibClientItem,
+} from "./omib";
 import { db as firestore } from "./db";
 
 const REGION = FUNCTIONS_REGION;
@@ -83,6 +88,19 @@ export const LOGIC_MIN_MS_PER_ITEM = 2_000;
 // same arithmetic for practice results, pinned equal in both suites.
 export const LOGIC_SEM_ITEMS = 2;
 
+// ── which bank a NEW attempt is minted on (D451, docs/OMIB-PLAN.md §8) ──
+// "generator" is D31's procedural bank scored by count; "omib" is the Open
+// Matrices Item Bank scored by θ. The bank is a property of the ATTEMPT,
+// stamped at start and honoured at submit whatever this constant says by
+// then — so an attempt straddling the flip scores on the bank it was
+// minted on, and both paths are testable without touching this line.
+// Phase 1 ships the OMIB path DARK: this stays "generator" until the screen
+// that can answer an OMIB item exists (phase 2), because the current
+// overlay sends six-way indexes and would render nothing on a code. The
+// practice callable below is OMIB-only regardless; nothing calls it yet.
+export type LogicBank = "generator" | "omib";
+export const LOGIC_BANK = "generator" as LogicBank;
+
 // The percentile curves, byte-for-byte the client's logicPctileFor
 // (src/v2/data/logic-score.ts) — one per form length, landmarks asserted
 // equal in logic.test.ts so the copies cannot drift apart silently. The
@@ -106,7 +124,10 @@ export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 // ── the attempt doc (v2_logic_attempts/{uid} — one per account) ──
 export interface LogicAttempt {
   seed: number;
+  /** generator version, or OMIB_BANK_VERSION when `bank` is "omib" */
   gv: number;
+  /** absent on documents from before D451 — those are the generator's */
+  bank?: LogicBank;
   status: "open" | "scored";
   startedAtMs: number;
   deadlineMs: number;
@@ -142,6 +163,32 @@ export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVe
 
 export function nextStartsToday(prev: LogicAttempt | null, nowMs: number): number {
   return prev && prev.dayKey === utcDayKeyOf(nowMs) ? prev.startsToday + 1 : 1;
+}
+
+/**
+ * A fresh attempt document and what the client may see of it, for the bank
+ * named. Pure: the callable supplies the seed and the clock. The gv stamped
+ * is the bank's own version, so `{seed, gv, bank}` reconstructs the form
+ * forever (D31's rule, both banks).
+ */
+export function mintAttempt(
+  prev: LogicAttempt | null,
+  nowMs: number,
+  seed: number,
+  bank: LogicBank,
+): { attempt: LogicAttempt; items: LogicClientItem[] | OmibClientItem[] } {
+  const attempt: LogicAttempt = {
+    seed,
+    gv: bank === "omib" ? OMIB_BANK_VERSION : GEN_VERSION,
+    bank,
+    status: "open",
+    startedAtMs: nowMs,
+    deadlineMs: nowMs + LOGIC_DEADLINE_MS,
+    dayKey: utcDayKeyOf(nowMs),
+    startsToday: nextStartsToday(prev, nowMs),
+    normsCounted: prev?.normsCounted === true,
+  };
+  return { attempt, items: bank === "omib" ? omibClientItems(seed) : clientItems(seed, GEN_VERSION) };
 }
 
 // Picks: one per item, -1 = expired/unanswered, else an option index.
@@ -276,28 +323,20 @@ export const logicStartV2 = onCall(
     const now = Date.now();
     const seed = randomBytes(4).readUInt32BE(0);
 
-    await firestore().runTransaction(async (tx: Transaction) => {
+    const minted = await firestore().runTransaction(async (tx: Transaction) => {
       const ref = attemptRef(uid);
       const snap = await tx.get(ref);
       const prev = snap.exists ? (snap.data() as LogicAttempt) : null;
       const verdict = canStartLogic(prev, now);
       if (!verdict.ok) throw new HttpsError("failed-precondition", verdict.msg, { code: verdict.code });
-      const attempt: LogicAttempt = {
-        seed,
-        gv: GEN_VERSION,
-        status: "open",
-        startedAtMs: now,
-        deadlineMs: now + LOGIC_DEADLINE_MS,
-        dayKey: utcDayKeyOf(now),
-        startsToday: nextStartsToday(prev, now),
-        normsCounted: prev?.normsCounted === true,
-      };
-      tx.set(ref, attempt);
+      const m = mintAttempt(prev, now, seed, LOGIC_BANK);
+      tx.set(ref, m.attempt);
+      return m;
     });
 
-    logger.info(`[logicStartV2] uid=${uid} attempt opened`);
+    logger.info(`[logicStartV2] uid=${uid} attempt opened on ${LOGIC_BANK}`);
     return {
-      items: clientItems(seed, GEN_VERSION),
+      items: minted.items,
       capMs: LOGIC_ITEM_CAP_MS,
       deadlineMs: LOGIC_DEADLINE_MS,
     };
@@ -381,6 +420,150 @@ export function rankAndFold(a: {
   };
 }
 
+/**
+ * rankAndFold for the OMIB bank: the same four decisions — era, first
+ * attempt, effort floor, measured-or-model — over θ instead of a count.
+ * The band is θ̂ ± its own SE read through whatever ranked θ̂, so the range
+ * and the number rest on the same thing, and the range is the person's
+ * rather than a constant (D402's ±2 items was a modelled stand-in for
+ * exactly this). Below the floor the model is Φ(θ̂) against the calibration
+ * sample — a real population, named in the sentence that prints it
+ * (docs/OMIB-PLAN.md §4).
+ */
+export function rankAndFoldTheta(a: {
+  theta: number;
+  se: number;
+  durationMs: number;
+  stored: Norms | null;
+  alreadyCounted: boolean;
+}): {
+  pctile: number;
+  band: [number, number];
+  source: "measured" | "model";
+  countsNorms: boolean;
+  norms: Norms | null;
+  n: number | null;
+} {
+  const prevNorms = isOmibEra(a.stored) ? a.stored : null;
+  const measured = measuredPctileTheta(prevNorms, a.theta, LOGIC_NORMS_MIN_N);
+  const effort = a.durationMs >= OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM;
+  const countsNorms = !a.alreadyCounted && effort;
+  const rank = (t: number) =>
+    (measured ? measuredPctileTheta(prevNorms, t, LOGIC_NORMS_MIN_N)?.pctile : undefined) ?? modelPctileTheta(t);
+  return {
+    pctile: rank(a.theta),
+    band: [rank(a.theta - a.se), rank(a.theta + a.se)],
+    source: measured ? "measured" : "model",
+    countsNorms,
+    norms: countsNorms ? { ...foldThetaNorms(prevNorms, a.theta), ...OMIB_ERA } : null,
+    n: measured ? measured.n : null,
+  };
+}
+
+/**
+ * The OMIB submit, inside logicSubmitV2's transaction. The same shape as the
+ * generator's body below — validate, score, read the norms PRE-fold, rank,
+ * fold the ledger under the same gate, write the attempt, the profile's
+ * verified result, the norms and their mirror — over the bank's own pure
+ * functions. Kept as its own body rather than interleaved conditionals so
+ * the generator path, which is what production runs until the flip, stays
+ * byte-for-byte what it was.
+ */
+async function submitOmib(
+  tx: Transaction,
+  db: ReturnType<typeof firestore>,
+  uid: string,
+  ref: ReturnType<typeof attemptRef>,
+  attempt: LogicAttempt,
+  picks: unknown,
+  now: number,
+) {
+  if (!validOmibPicks(picks)) {
+    throw new HttpsError("invalid-argument", `picks must be ${OMIB_FORM_ITEMS} twenty-character cells of 0 and 1`);
+  }
+  const { marks, attempted, score, theta, se, itemIds } = scoreOmibPicks(attempt.seed, picks);
+  const durationMs = now - attempt.startedAtMs;
+
+  const privRef = db.collection("v2_logic_norms_private").doc("global");
+  const privSnap = await tx.get(privRef);
+  const stored = privSnap.exists ? (privSnap.data() as Norms) : null;
+  const { pctile, band, source, countsNorms, norms, n: measuredN } = rankAndFoldTheta({
+    theta,
+    se,
+    durationMs,
+    stored,
+    alreadyCounted: attempt.normsCounted === true,
+  });
+  // The ledger is per ITEM for this bank (docs/OMIB-PLAN.md §3.2), on the
+  // same document the generator kept its families on; the era stamp is
+  // what keeps the two from ever folding into each other.
+  const ledgerRef = db.collection("v2_logic_norms_private").doc("families");
+  let ledger: Norms | null = null;
+  if (countsNorms) {
+    const snap = await tx.get(ledgerRef);
+    const prev = snap.exists && isOmibEra(snap.data() as Norms) ? (snap.data() as Norms) : null;
+    ledger = { ...foldItemStats(prev, itemIds, marks, attempted), ...OMIB_ERA };
+  }
+
+  tx.set(ref, {
+    ...attempt,
+    status: "scored",
+    normsCounted: attempt.normsCounted === true || countsNorms,
+    scoredAtMs: now,
+    score,
+    durationMs,
+  });
+  // v: 3 is the OMIB era of the verified record; `bank` says so in words and
+  // `theta`/`se` are the measurement. `gv` is the bank's own version, so a
+  // reader that reconstructs the form does it on the right bank.
+  tx.set(
+    db.collection("v2_users").doc(uid),
+    {
+      testResults: {
+        logic: {
+          v: 3,
+          verified: true,
+          bank: "omib",
+          seed: attempt.seed,
+          gv: OMIB_BANK_VERSION,
+          marks,
+          theta,
+          se,
+          pctile,
+          band,
+          durationMs,
+          source,
+          ...(measuredN != null ? { n: measuredN } : {}),
+          when: now,
+        },
+      },
+    },
+    { mergeFields: ["testResults.logic"] },
+  );
+  if (norms) {
+    tx.set(privRef, norms);
+    tx.set(db.collection("v2_logic_norms").doc("global"), { ...norms, updatedAtMs: now });
+  }
+  if (ledger) {
+    tx.set(ledgerRef, ledger);
+    tx.set(db.collection("v2_logic_norms").doc("families"), { ...ledger, updatedAtMs: now });
+  }
+  return {
+    marks,
+    score,
+    theta,
+    se,
+    pctile,
+    band,
+    durationMs,
+    source,
+    ...(measuredN != null ? { n: measuredN } : {}),
+    seed: attempt.seed,
+    gv: OMIB_BANK_VERSION,
+    bank: "omib" as const,
+  };
+}
+
 export const logicSubmitV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
@@ -397,6 +580,10 @@ export const logicSubmitV2 = onCall(
       const attempt = snap.data() as LogicAttempt;
       if (attempt.status !== "open") throw new HttpsError("failed-precondition", "already scored");
       if (now > attempt.deadlineMs) throw new HttpsError("deadline-exceeded", "attempt expired");
+
+      // The bank the attempt was minted on decides how it is scored — never
+      // LOGIC_BANK, which may have flipped since it opened.
+      if (attempt.bank === "omib") return submitOmib(tx, db, uid, ref, attempt, picks, now);
 
       // Validated against the ATTEMPT's form length: an attempt opened just
       // before a form-length deploy still scores against its own era.
@@ -522,7 +709,73 @@ export const logicSubmitV2 = onCall(
       };
     });
 
-    logger.info(`[logicSubmitV2] uid=${uid} scored ${out.score}/${LOGIC_ITEMS}`);
+    logger.info(`[logicSubmitV2] uid=${uid} scored ${out.score}/${"bank" in out ? OMIB_FORM_ITEMS : LOGIC_ITEMS}`);
     return out;
   },
 );
+
+// ── practice, on the OMIB bank, stateless (D451; the owner, 2026-09-12:
+// "use the same screen for practice") ──
+//
+// One callable, two calls. Without `picks` it mints a seed and returns the
+// form — the client cannot render an item it does not have, and the bank
+// is not in the client bundle. With `{seed, picks}` it scores that seed's
+// form and returns θ, ranked against the public norms mirror when the
+// reading is measured and against the model otherwise. NOTHING IS WRITTEN:
+// no attempt document, no cooldown, no fold — practice counts for nothing,
+// which is the whole difference from a verified attempt. The seed round-
+// trips through the client on purpose: with nothing at stake there is
+// nothing to hold server-side, and a client that fabricates one scores a
+// form nobody ranks. Marks are per item, right or wrong, never the answer
+// — and the answers are public anyway (D451's recorded limit). Unbounded
+// per account, deliberately: it is one document read and 25 × 201
+// logistic evaluations, and a bound would want an attempt document, which
+// is the thing practice does not have. Recorded, not hidden.
+const UINT32 = (x: unknown): x is number =>
+  typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 0xffffffff;
+
+export const logicPracticeV2 = onCall(
+  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+    const data = (request.data ?? {}) as { seed?: unknown; picks?: unknown };
+    if (data.picks === undefined) {
+      const seed = randomBytes(4).readUInt32BE(0);
+      return { seed, items: omibClientItems(seed), capMs: LOGIC_ITEM_CAP_MS };
+    }
+    if (!UINT32(data.seed)) throw new HttpsError("invalid-argument", "seed must be the one this call returned");
+    if (!validOmibPicks(data.picks)) {
+      throw new HttpsError("invalid-argument", `picks must be ${OMIB_FORM_ITEMS} twenty-character cells of 0 and 1`);
+    }
+    return scorePractice(data.seed, data.picks, await readPublicNorms());
+  },
+);
+
+/** The mirror, read once, outside any transaction — practice never writes. */
+async function readPublicNorms(): Promise<Norms | null> {
+  const snap = await firestore().collection("v2_logic_norms").doc("global").get();
+  return snap.exists ? (snap.data() as Norms) : null;
+}
+
+/** Pure: a practice score ranked the way a verified one would be, folding nothing. */
+export function scorePractice(seed: number, picks: string[], norms: Norms | null) {
+  const { marks, score, theta, se } = scoreOmibPicks(seed, picks);
+  const prevNorms = isOmibEra(norms) ? norms : null;
+  const measured = measuredPctileTheta(prevNorms, theta, LOGIC_NORMS_MIN_N);
+  const rank = (t: number) =>
+    (measured ? measuredPctileTheta(prevNorms, t, LOGIC_NORMS_MIN_N)?.pctile : undefined) ?? modelPctileTheta(t);
+  return {
+    marks,
+    score,
+    theta,
+    se,
+    pctile: rank(theta),
+    band: [rank(theta - se), rank(theta + se)] as [number, number],
+    source: measured ? ("measured" as const) : ("model" as const),
+    ...(measured ? { n: measured.n } : {}),
+    seed,
+    gv: OMIB_BANK_VERSION,
+    bank: "omib" as const,
+    practice: true as const,
+  };
+}

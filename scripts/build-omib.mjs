@@ -39,6 +39,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "content", "omib-source");
 const ITEMS_OUT = join(ROOT, "content", "omib.json");
 const KEY_OUT = join(ROOT, "content", "omib-key.json");
+// The deployable copy. functions/tsconfig compiles only its own src/, so a
+// cross-package import cannot reach the deploy bundle — the same reason
+// logic-gen.ts exists twice (check:logic-sync). Generated rather than copied
+// because the server needs the KEY beside the items, and content/ keeps them
+// in two files on purpose; --check holds this byte-for-byte, the v2content.ts
+// discipline.
+const FN_OUT = join(ROOT, "functions", "src", "omib-bank.ts");
 
 // ── the element vocabulary ────────────────────────────────────────────────
 // drawing.js's tables, verbatim. Index is the element id, 0..19: five families
@@ -254,6 +261,58 @@ const banner = (what) => ({
   _what: what,
 });
 
+// What the server needs of each item, and nothing it does not: the code
+// (eight visible cells, ninth empty), the calibration, the rule count for
+// stratifying a form, and — in a separate export — the answer. No `p`, no
+// `rDrop`, no set: the server stratifies and scores, and reads nothing else.
+function functionsModule(items, key) {
+  const rows = items.map((i) =>
+    `  { n: ${i.n}, code: ${JSON.stringify(i.code)}, a: ${i.a === null ? "null" : i.a}, b: ${i.b === null ? "null" : i.b}, rules: ${i.ruleCount} },`,
+  );
+  const keys = items.map((i) => `  ${i.n}: ${JSON.stringify(key[i.id])},`);
+  return [
+    "// GENERATED from content/omib.json and content/omib-key.json by",
+    "// scripts/build-omib.mjs — do not hand-edit. Regenerate with `npm run",
+    "// build:omib`; `npm run check:omib` compares this file byte-for-byte",
+    "// against what content/ generates, in CI, so a hand edit here (or a",
+    "// content/ change without a regen) fails the gate.",
+    "//",
+    "// The Open Matrices Item Bank (Koch, Spinath, Greiff & Becker 2022,",
+    "// https://osf.io/4km79/, GPLv3 per the paper — D451) as the server needs",
+    "// it: per item the 9x20 construction code (eight visible cells, the ninth",
+    "// all zeros), the published 2PL calibration (`a` discrimination, `b`",
+    "// difficulty — one item carries neither), and the rule count a form is",
+    "// stratified on. OMIB_KEY is the answer key, item number → the 20-bit",
+    "// solution. THIS FILE IS SERVER-SIDE ONLY: functions/ is never shipped to a",
+    "// client, and scripts/build-omib.test.mjs holds src/ to never naming the",
+    "// key. The honest limit stands (D451): the bank's authors publish this key",
+    "// themselves.",
+    "",
+    "export const OMIB_BANK_VERSION = 1;",
+    "",
+    "export interface OmibItem {",
+    "  /** the bank's own item number, 1..220 */",
+    "  n: number;",
+    "  /** nine comma-separated 20-bit cells, element 0 first; the ninth is zeros */",
+    "  code: string;",
+    "  a: number | null;",
+    "  b: number | null;",
+    "  /** rules applied row-wise, 1..5 */",
+    "  rules: number;",
+    "}",
+    "",
+    "export const OMIB_ITEMS: readonly OmibItem[] = [",
+    ...rows,
+    "];",
+    "",
+    "/** item number → the 20-bit solution. Never sent to a client. */",
+    "export const OMIB_KEY: Readonly<Record<number, string>> = {",
+    ...keys,
+    "};",
+    "",
+  ].join("\n");
+}
+
 function main() {
   const { items, key, anchors, derived } = build();
   if (derived !== PINNED_DERIVABLE) {
@@ -264,8 +323,11 @@ function main() {
   const keyDoc = { ...banner("the answer key. Server-side only — this file must never reach a client bundle."), key };
 
   const check = process.argv.includes("--check");
-  for (const [path, doc] of [[ITEMS_OUT, itemsDoc], [KEY_OUT, keyDoc]]) {
-    const next = `${JSON.stringify(doc, null, 2)}\n`;
+  for (const [path, next] of [
+    [ITEMS_OUT, `${JSON.stringify(itemsDoc, null, 2)}\n`],
+    [KEY_OUT, `${JSON.stringify(keyDoc, null, 2)}\n`],
+    [FN_OUT, functionsModule(items, key)],
+  ]) {
     if (check) {
       const have = readFileSync(path, "utf8");
       if (have !== next) throw new Error(`${path} is out of date — run \`npm run build:omib\``);
@@ -276,7 +338,7 @@ function main() {
   const withIrt = items.filter((i) => i.b !== null).length;
   console.log(
     `check-omib OK — ${items.length} items (${withIrt} with IRT parameters), ` +
-    `${Object.keys(anchors).length} anchors, ${derived} answers re-derived from the codes.`,
+    `${Object.keys(anchors).length} anchors, ${derived} answers re-derived from the codes; functions/src/omib-bank.ts ${check ? "in sync" : "written"}.`,
   );
 }
 
