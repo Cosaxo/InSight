@@ -53044,10 +53044,13 @@ plain words each already held by a social, dating or voting app.
   paid question" and the reviewer guidelines; the push-notification
   title fallbacks in `v2social.ts`; the question report's wordmark; and
   the auth mail sender name in `scripts/auth-config.mjs`, with its tests.
-- **The store listing.** `apple.name` and `play.title` are the bare
-  "Doxa", so the listing and the on-device name agree where the store
-  allows. If App Store Connect reports it taken — names are first-come —
-  the suffixed form is the fallback and `asc-push` says so.
+- **The store listing.** The bare "Doxa" was pushed first and Apple
+  refused it — 409, *"The app name you entered is already being used"*,
+  another account's first-come reservation, released only to a
+  trademark claim. So `apple.name` and `play.title` are "Doxa: What
+  Everyone Thinks": the product's own sentence, and the half the
+  subtitle ("Answer blind, then compare") does not already say. The
+  on-device name under the icon is the bare Doxa either way.
 - **The record.** `CLAUDE.md`, `README.md`, `SECURITY.md`,
   `STORE-FORMS.md`'s 1.2 table, `design/README.md`, the vision
   lineage, and this entry.
