@@ -66,6 +66,23 @@ export interface QuestionDoc {
   prompt: string;
   options: string[];
   topic: string | null;
+  /**
+   * The first UTC day a PULSE existed, `YYYY-MM-DD`. Pulse surface only,
+   * and absent on all five shipped pulses — they predate any 21-day
+   * window that can be drawn, so absent is also correct for them.
+   *
+   * Declared before anything writes it, on purpose. `data/pulse.ts`'s
+   * `asksOn` is the fourth honesty rule's gate — a day the pulse did not
+   * ask on is absent, never a miss — and the cadence that used to be its
+   * only instance is gone. This is the instance that replaces it, and the
+   * one the owner's slow creation lane (QUESTION-FARM.md § "A pulse lane,
+   * very slow") makes real: the day a pulse is WRITTEN rather than
+   * shipped, its window starts mid-history and the days before it are not
+   * eighteen misses. Typed here so the read is checked end to end rather
+   * than resolving to undefined on every build with every gate green,
+   * which is the D280 class this repo keeps re-finding.
+   */
+  since?: string;
   // The catalogue key space a `type: "catalog"` question's `entity`
   // answers validate against — pokemon/emoji/elements/… (D14/D15). The
   // seed transports it on every doc; non-null only on catalog docs.

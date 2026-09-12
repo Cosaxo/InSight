@@ -8224,11 +8224,21 @@ const LIVE = {
    * `active` is filtered upstream, so an inactive pulse is simply not in
    * this list.
    */
-  pulseQs(): Array<{ id: string; prompt: string; options: string[] }> {
+  pulseQs(): Array<{ id: string; prompt: string; options: string[]; since?: string }> {
     return state.pulseBank.map((q) => ({
       id: q.id,
       prompt: String(q.prompt ?? ""),
       options: Array.isArray(q.options) ? q.options.map(String) : [],
+      // The first day this pulse existed, when the bank states one
+      // (data/pulse.ts `asksOn`). EMIT-WHEN-SET, the rule every other
+      // mapper in this file follows: none of the five shipped pulses
+      // carries it, and an absent field has to stay byte-for-byte absent
+      // so "the pulse predates the window" and "the bank forgot" are not
+      // the same value. Mapped here rather than left to the reader
+      // because a field this function does not name does not exist to
+      // anything downstream — the pulse roster rebuilds each entry field
+      // by field, so an unnamed one is dropped in silence.
+      ...(typeof q.since === "string" && q.since ? { since: q.since } : {}),
     }));
   },
   vote(qid: string, optionId: string): void {

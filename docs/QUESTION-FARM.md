@@ -1880,13 +1880,30 @@ amends D213's census, and these are the starting constraints:
   five today — so the honest unit for this lane is a **roster ceiling**
   it fills toward, with "one per week" as the fill rate; past the
   ceiling the lane proposes a swap (pause one, add one), never a pile.
-- **The default cadence must ship before the lane does.** `pulse.ts`'s
-  `defaultCad` falls back to **`daily`** for any id it does not know,
-  so today a new bank pulse arrives as a new *daily* card on every
-  device. At lane pace that crowds the daily tab within a month. A new
-  pulse must default `off` (a library you opt into — the cadence
-  picker is the discovery surface), which is a small client change and
-  a `pulse.test.ts` pin, and it is prerequisite work, not polish.
+- ~~**The default cadence must ship before the lane does.**~~
+  **CLOSED 2026-09-12, and not by defaulting anything to `off`.** The
+  constraint was real: `defaultCad` fell back to `daily` for an id it
+  did not know, so a new bank pulse arrived as a new daily card ON THE
+  DAILY TAB — a stack above the feed — and at one a week that buried
+  the tab within a month. The answer written here was to make a new
+  pulse default `off`, a library you opt into.
+  The owner ruled the other way, on both halves at once: *"they should
+  all be on everyday and new ones should be made but at a lower pace
+  than other questions ... daily pulses should show up in the feed like
+  any other question"*. A pulse is a member of the FEED now, so a new
+  one costs a place in a stream rather than a permanent slot above it,
+  and the crowding this bullet was about cannot happen. The cadence is
+  gone entirely; the per-person control that replaced it is the PIN
+  (at most three, `data/pulse.ts`), which moves a pulse to the head of
+  the feed and gates nothing.
+  **What the lane still owes, and it is the same rule wearing the other
+  instance:** a pulse WRITTEN mid-history has days in the 21-day window
+  on which it did not exist, and the reading must not report them as
+  misses. `asksOn` is that gate and `QuestionDoc.since`
+  (`YYYY-MM-DD`) is its input — both shipped with this change, unused,
+  because none of the five shipped pulses has a window start. **The
+  lane's first run must write `since`**, and `pulse.test.ts` already
+  pins what happens when it does.
 - **The velocity bound moves.** `functions/src/velocity.ts` budgets
   `pulseCount × scanWindowDays`; roster growth walks that term up. One
   line and its test per the D139 design, but it is named here so the

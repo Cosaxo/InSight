@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS, swipeDaily } from "./mount-app.jsx";
+import { openHeaderOverlay, awaitNode, awaitText, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS, swipeDaily } from "./mount-app.jsx";
 import NAV, { canNav } from "../data/nav";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
@@ -207,8 +207,22 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
   // because the rule is about the KIND of control: a drag surface that answers
   // a question owns its horizontal motion. A future slider that forgets the
   // mark fails here without anyone remembering to extend the list.
-  it("a drag-to-answer dial owns its drag — every feed slider is in OWNS_X", () => {
+  //
+  // GROWS THE FEED FIRST since 2026-09-12. A dial used to be reachable on
+  // the first mounted page for a reason that was never this case's: the
+  // feed PINNED one continuum question into slot 2 of `hot`, and that pin
+  // is what the owner had removed. A dial now sits wherever the mix puts
+  // it, which is usually past the first page — so without the growth this
+  // case finds no slider and says so, rather than passing vacuously, which
+  // is exactly what the assertion below was written to prevent.
+  it("a drag-to-answer dial owns its drag — every feed slider is in OWNS_X", async () => {
     mountApp();
+    // `growUntil`, not `growFeed`: this is the demo bank, which is long
+    // enough that waiting for the window to stop growing hits the pass
+    // cap. Growing until the thing under test exists is the shape the
+    // harness asks demo-bank callers for, and it also keeps the assertion
+    // below honest — a run that never finds a slider fails here.
+    await growUntil(() => document.querySelector('[role="slider"]'), "a feed dial");
     const dials = [...document.querySelectorAll('[role="slider"]')];
     expect(dials.length, "no dial rendered in the daily feed — the case is now vacuous").toBeGreaterThan(0);
     for (const d of dials) {

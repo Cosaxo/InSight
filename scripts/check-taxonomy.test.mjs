@@ -51,9 +51,12 @@ describe("1 · the feed's two lists", () => {
       /not in content\/feed-questions\.json/);
   });
 
-  it("lets the two format-only ids be absent from the wire, and says so by name", () => {
-    // `places` and `fav` are formats the bank mapper cannot emit (D97 §3).
-    expect([...FORMAT_ONLY].sort()).toEqual(["fav", "places"]);
+  it("lets the format-only ids be absent from the wire, and says so by name", () => {
+    // `places` and `fav` are formats the bank mapper cannot emit (D97 §3),
+    // and `pulse` (2026-09-12) is a third of exactly that kind: its
+    // questions come from the PULSE bank lane, which `splitBanks` keeps
+    // out of the feed bank.
+    expect([...FORMAT_ONLY].sort()).toEqual(["fav", "places", "pulse"]);
     expect(checkTaxonomy()).toEqual([]);
   });
 
@@ -103,10 +106,17 @@ describe("3 · hues stay distinguishable", () => {
   });
 
   it("accepts a hue in the widest gap — what hueFor actually returns", () => {
-    // 332 is the midpoint of 310 -> 355, the widest arc on today's ring.
+    // 218 is the midpoint of 200 -> 235, the widest arc on today's ring.
+    //
+    // It was 332 — the midpoint of 310 -> 355 — until `pulse` took 333 on
+    // 2026-09-12, which is `hueFor` doing exactly what it is for: the
+    // widest arc gets split, and the next topic splits whatever is widest
+    // after that. A case pinning the old number failed here rather than
+    // quietly asserting that a hue one degree from its neighbour is fine,
+    // which is the whole reason this number is derived and not chosen.
     const e = errs((s) => {
-      s.palette.push({ id: "crowd", label: "Crowd", color: "oklch(0.52 0.14 332)" });
-      s.wire.push({ id: "crowd", label: "Crowd", color: "oklch(0.55 0.14 332)" });
+      s.palette.push({ id: "crowd", label: "Crowd", color: "oklch(0.52 0.14 218)" });
+      s.wire.push({ id: "crowd", label: "Crowd", color: "oklch(0.55 0.14 218)" });
     });
     expect(e.filter((m) => /HUE_MIN_GAP/.test(m))).toEqual([]);
   });
@@ -174,7 +184,7 @@ describe("4 · the ledger", () => {
   });
 
   it("catches a leaf under a format or under `now`", () => {
-    expect([...LEAFLESS].sort()).toEqual(["fav", "now", "places"]);
+    expect([...LEAFLESS].sort()).toEqual(["fav", "now", "places", "pulse"]);
     fires((s) => s.ledger.proposals.push(leaf({ id: "sub_x", label: "X", parent: "now" })), /may not carry leaves/);
   });
 
@@ -248,7 +258,10 @@ describe("6 · the ring", () => {
   });
 
   it("catches a subject feed topic with no caption row, and lets the stated exception through", () => {
-    expect([...RIPPLES_TO_INTERESTS]).toEqual(["now"]);
+    // `now` is a TIME and has no branch (D231); `pulse` is a FORMAT whose
+    // reading is a 21-day line rather than a position on the Map, so
+    // neither has a ripple caption to draw.
+    expect([...RIPPLES_TO_INTERESTS]).toEqual(["now", "pulse"]);
     fires((s) => {
       s.palette.push({ id: "gaming", label: "Gaming", color: "oklch(0.52 0.14 332)" });
       s.wire.push({ id: "gaming", label: "Gaming", color: "oklch(0.55 0.14 332)" });

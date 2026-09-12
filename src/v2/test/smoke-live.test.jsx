@@ -39,7 +39,7 @@ import { BG_TEXT, DAILY_BG_TEXT, DAILY_COUNTS, FEED_OPTIONS, FIXTURE_THIRD_DAY, 
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL, PATTERNS_MIN_SKILL } from "../data/patternsReady";
 import { TYPE_SMALL } from "../data/typeMix";
-import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
+import { awaitText, growFeed, openHeaderOverlay, resetSitting, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 // The demo test pool, imported so the D280 case can bind on the actual
@@ -98,6 +98,9 @@ afterEach(() => {
   // third tab — including the cases that assert there are two.
   localStorage.removeItem(PATTERNS_EARNED_KEY);
   cleanup();
+  // …and the feed's sitting, for the same class of reason: it lives in
+  // module scope so it can outlive a tab swap. See mount-app's note.
+  resetSitting();
   errorSpy?.mockRestore();
   live?.restore();
   live = undefined;
@@ -1813,31 +1816,42 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // `vi.setSystemTime` alone, WITHOUT `vi.useFakeTimers()`: the roster is
   // read at render so the clock has to be set before mountLive, and
   // growFeed/act wait on real timers, which fake timers would hang.
-  it("draws the pulses the live bank offers — the weekly one on its day", async () => {
+  it("draws every pulse the live bank offers, on a Sunday", async () => {
     vi.setSystemTime(new Date("2026-09-06T12:00:00Z")); // a Sunday
     try {
       const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
       await growFeed();
-      // pace is daily — always due, always drawn, and its prompt comes from
-      // the bank rather than from the demo roster.
+      // Both prompts come from the BANK rather than from the demo roster,
+      // which is the half of this pair that never depended on a cadence.
       expect(screen.getByText("What pace was today?")).not.toBeNull();
-      expect(screen.getByText("How did you sleep?"),
-        "the weekly pulse was not offered on its own day").not.toBeNull();
+      expect(screen.getByText("How did you sleep?")).not.toBeNull();
       expectNoBoundary();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("…and not on any other day, with nothing standing in for it", async () => {
+  // WHAT THIS PAIR USED TO PIN, and why the weekday still matters
+  // (2026-09-12). These two cases were the cadence's DOM half: `sleep`
+  // defaulted to Sundays, so the pair asserted it appeared on 2026-09-06
+  // and was absent on 2026-09-09 "with nothing standing in for it".
+  //
+  // The owner retired the cadence — *"they should all be on everyday"* —
+  // so the absence is now the bug and the case asserts the opposite. The
+  // clock is still set, and deliberately to the same Wednesday: an
+  // every-day claim is only worth anything if it is made on a day the old
+  // rule would have refused. A case that dropped the date would pass
+  // against a re-introduced weekly default six days in seven.
+  it("…and every one of them on a Wednesday too, cadence or no cadence", async () => {
     vi.setSystemTime(new Date("2026-09-09T12:00:00Z")); // a Wednesday
     try {
       const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
       await growFeed();
       expect(screen.getByText("What pace was today?")).not.toBeNull();
-      // No tray, no placeholder, nothing announcing what is not being asked.
-      expect(screen.queryByText("How did you sleep?")).toBeNull();
-      // The demo room's other three pulses are not in the live bank at all.
+      expect(screen.getByText("How did you sleep?"),
+        "the pulse was withheld on a Wednesday — the cadence is back").not.toBeNull();
+      // The demo room's other three pulses are not in the live bank at all,
+      // so "every pulse the bank offers" stays two rather than five.
       expect(screen.queryByText("How clear was your head today?")).toBeNull();
       expect(screen.queryByText("How connected did you feel today?")).toBeNull();
       expectNoBoundary();

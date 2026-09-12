@@ -136,11 +136,17 @@ import { sharePcts } from '../data/pct';
 // entry imports statically is preloaded whether or not anything renders
 // it. The one place it was spent is the one place it is never needed at
 // boot.
-import PulseCard from '../ui/PulseCard.tsx';
-import PULSE from '../data/pulse.ts';
-// The rating result's ridge (D305) — static like PulseCard: a voted
-// rating day draws it on the first screen, so lazy would only add a
-// flash, and the component is a leaf a few hundred bytes long.
+// PulseCard and the PULSE store left this file with the stack (see
+// render()). That is a first-paint SAVING, not a neutral move: both were
+// static imports in the landing tab's own chunk, so every boot paid for
+// the card, the store and the 21-day clock arithmetic whether or not a
+// pulse was on screen. Their one importer now is world-feed.jsx, which
+// lives in the deferred feed group — the same accounting D152 spells out
+// for the takes panel directly above, arriving at the answer from the
+// other side.
+// The rating result's ridge (D305) — static: a voted rating day draws it
+// on the first screen, so lazy would only add a flash, and the component
+// is a leaf a few hundred bytes long.
 import RatingRidge from '../ui/RatingRidge.tsx';
 const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
 // The live who-voted sheet (D125), on exactly the same terms — lazy, for
@@ -1443,18 +1449,20 @@ export class DailySplit extends React.Component {
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
           S.options.map((o, i) => h('span', { key: o.id, title: floored ? o.label : o.label + ' \u00b7 ' + rp[i] + '%', style: { width: (floored ? 100 / S.options.length : rp[i]) + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
-      // The pulses due today (D139, roster at D203): the fixed instruments
-      // on the World day, compact, beside the blind daily — same contract
-      // (answer before you see anyone), one hue, and the trends reading
-      // opens from each card itself.
+      // THE PULSES ARE NOT HERE ANY MORE (2026-09-12). D139 put them
+      // beside the blind daily and D203 grew that to five with a cadence
+      // each, so what stood on this line was `PULSE.dueToday()` rendered
+      // as a stack above the feed — one card most days, three on a Sunday,
+      // and two of the roster invisible until somebody found the picker.
       //
-      // DUE, not all five. A pulse's cadence decides whether it is asked
-      // at all today, so an "off" or weekly one simply is not here — no
-      // tray, no block, nothing pinned above the feed saying what you are
-      // not being asked. On the default roster that is one card most days
-      // and three on a Sunday, which is why they sit in flow rather than
-      // in a container that would have to justify its own emptiness.
-      ...PULSE.dueToday().map((pid) => h(PulseCard, { key: 'pulse-' + pid, pid })),
+      // The owner's ruling: *"daily pulses should show up in the feed like
+      // any other question ... but you can pin it if you want it
+      // everyday"*. So they ride the feed (world-feed.jsx `feedPool`),
+      // every one of them every day, and the only thing that can hold one
+      // above the stream is a PIN the reader put there.
+      //
+      // The import stays: `dailyCard` is still this file's, and the daily
+      // question above it is still what OPENS. What left is the stack.
       sheetNode,
       feedNode);
 

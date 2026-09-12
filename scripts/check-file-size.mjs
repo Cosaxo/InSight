@@ -105,9 +105,38 @@ export const SIZE_BASELINE = {
   // what D-2026-09-09h's slice bought. A meter that only ever goes up is
   // still telling the truth — the truth is just not the one anyone wanted.
   // Every raise is signed for, which remains the whole and only claim.
-  "src/v2/data/live.ts": { mode: "ratchet", lines: 9492 },
+  //
+  // 9,492 -> 9,502 at D479 (+10, net): `pulseQs` maps one more field.
+  // `QuestionDoc.since` is the pulse's window start — the day it was
+  // written rather than shipped — and the mapper has to name it or the
+  // pulse roster, which rebuilds each entry field by field, drops it in
+  // silence. Nine of the ten lines are the comment saying so, which is
+  // this store's usual ratio and the reason its number moves at all.
+  "src/v2/data/live.ts": { mode: "ratchet", lines: 9502 },
   // +31 from main's feed work at the 2026-09-11 merge.
-  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4784 },
+  //
+  // 4,784 -> 4,978 at D479 (+194 net: 222 added, 28 removed). The removed
+  // 28 are the continuum pin the owner had deleted; of the 222 added,
+  // **163 are comment** and 59 are code — the pulse arm at three dispatch
+  // sites, the roster join in `feedPool`, the pin placement, the sitting's
+  // enter/leave wiring and one clause on the closing ring.
+  //
+  // The ratio is the finding, and it is not a defence. This file is a
+  // single class where a five-line change lands in `render` between two
+  // paragraphs explaining what the last five-line change was for, so
+  // every change here costs three times its own size in prose that a
+  // reader must walk to reach it. That is what a 4,900-line component
+  // does to the cost of touching it, and D479 added to it rather than
+  // paying any of it down: the honest note is that the pulse card and the
+  // sitting store both went OUTSIDE this file (ui/PulseCard.tsx,
+  // data/feedSitting.ts), and 59 lines is what could not.
+  //
+  // +1 more when `check:purge` caught the sitting store not hearing the
+  // purge: the fix moved OUT of this file (the store hears it itself now,
+  // because this component is unmounted whenever a purge fires), and what
+  // is left here is the note saying so — one line longer than the code it
+  // replaced. Which is the paragraph above, measuring itself.
+  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4979 },
   // +19 on 2026-09-12: the 1v1 sheet's door to the friends overlay and the
   // note on why the sheet has one (D-2026-09-12d's amendment).
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2396 },

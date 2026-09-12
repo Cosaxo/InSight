@@ -139,19 +139,11 @@ function dayKey(back: number): string {
   d.setUTCDate(d.getUTCDate() - back);
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
-/** The three Sundays in the 21-day window — always exactly three, whatever
- * weekday the suite runs on, which is what lets the weekly-cadence case be
- * written without pinning the clock. */
-function sundays(): string[] {
-  const out: string[] = [];
-  for (let back = 0; back < 21; back++) {
-    const d = new Date();
-    d.setUTCHours(0, 0, 0, 0);
-    d.setUTCDate(d.getUTCDate() - back);
-    if (d.getUTCDay() === 0) out.push(dayKey(back));
-  }
-  return out;
-}
+// `sundays()` lived here until 2026-09-12: the window's three Sundays,
+// derived rather than pinned, so the weekly-cadence cases could be written
+// without freezing the clock. The cadence is gone — every pulse asks every
+// day — and with it the only reason a case here needed to know which days
+// were Sundays.
 
 const PACE = ["Crawling", "Dragging", "Steady", "Brisk", "Flying"];
 const SLEEP = ["Badly", "Patchy", "OK", "Well", "Deeply"];
@@ -189,7 +181,15 @@ const text = () => document.body.textContent ?? "";
  * a button announces itself. */
 const options = () => screen.getAllByRole("button")
   .map((b) => b.getAttribute("aria-label") ?? "")
-  .filter((n) => n && !n.startsWith("Your last 14 asks") && !n.startsWith("How often"));
+  // The strip and the PIN are chrome, not answers. "How often" was the
+  // rhythm disclosure, filtered here for the same reason and removed with
+  // the cadence on 2026-09-12; the pin's two labels replace it. A control
+  // that leaked into this list would make every "the five steps are on
+  // screen" case fail by one, which is exactly how it announced itself.
+  .filter((n) => n
+    && !n.startsWith("Your last 14 asks")
+    && !n.startsWith("Track this pulse")
+    && !n.startsWith("Tracking this pulse"));
 const strip = () => screen.getByRole("button", { name: /Your last 14 asks/ });
 /** The strip's marks: the ticks are the only spans nested inside the
  * button's `aria-hidden` wrapper (the run digit is a direct child). */
@@ -421,11 +421,21 @@ describe("PulseCard · the reveal draws the crowd it names", () => {
 });
 
 describe("PulseCard · the strip is this pulse's run, in asks", () => {
-  it("counts a weekly pulse's Sundays as a run, not as three days in three weeks", async () => {
-    // D203's fourth honesty rule, at the card. Sleep is weekly; answering
-    // all three Sundays in the window is a run of 3. Pace — the default
-    // pulse, and what a card that forgot its own id would read — has one.
-    h.votes["pulse-sleep"] = Object.fromEntries(sundays().map((k) => [k, 3]));
+  it("counts consecutive days as a run, and reads THIS pulse's days", async () => {
+    // WHAT THIS CASE USED TO BE. Sleep was a WEEKLY pulse, so answering
+    // the window's three Sundays was a run of 3 — D203's fourth honesty
+    // rule at the card, against a prototype whose calendar walk called the
+    // same record a run of 1 with eighteen misses.
+    //
+    // Every pulse asks every day now (2026-09-12), so three Sundays is a
+    // run of 1 and correctly so: the two days between them were asks that
+    // went unanswered. The rule itself is unchanged and still pinned in
+    // data/pulse.test.ts, where the unasked day it is about — a day before
+    // the pulse existed — can still be produced. What stays HERE is the
+    // half only a render can check: that the card reads its OWN pulse's
+    // days. Pace answers today alone; a card that forgot its id would
+    // read pace's 1 for sleep's run of 3.
+    h.votes["pulse-sleep"] = Object.fromEntries([0, 1, 2].map((b) => [dayKey(b), 3]));
     h.votes["pulse-pace"] = { [dayKey(0)]: 2 };
     render(<PulseCard pid="pulse-sleep" />);
     await settle();
@@ -471,88 +481,101 @@ describe("PulseCard · the answer is recorded against this pulse", () => {
   });
 });
 
-describe("PulseCard · the rhythm (D203)", () => {
-  it("names this pulse's own cadence, and marks it in the group", async () => {
-    // Cadence is per pulse — the card reading a global one would tell you
-    // your sleep pulse asks every day while it asks on Sundays.
+describe("PulseCard · the pin (2026-09-12)", () => {
+  // WHAT THIS REPLACES. Five cases stood here for D203's rhythm picker —
+  // a disclosure over four cadence chips — and two of them were the D244
+  // regression's own pins: changing a pulse's rhythm after answering took
+  // your answer off the card and put the blind ask back over it, because
+  // `mineToday` read through the schedule gate.
+  //
+  // The cadence is gone (every pulse asks every day), so the control that
+  // could reach that gate is gone with it and those two cases have no
+  // trigger left. The fold they were about is still pinned, in
+  // data/pulse.test.ts and in `mineToday`'s own note — what is checked
+  // here is the control that replaced them, on the two properties the old
+  // ones died for: it writes against THIS pulse, and it says what it did.
+
+  it("offers the pin unpinned, and names what it would do", async () => {
     render(<PulseCard pid="pulse-sleep" />);
     await settle();
-    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
-
-    expect(screen.getByRole("radio", { name: "Sundays" }).getAttribute("aria-checked")).toBe("true");
-    for (const other of ["every day", "Mon · Wed · Fri", "paused"]) {
-      expect(screen.getByRole("radio", { name: other }).getAttribute("aria-checked"), `${other} was marked as current`)
-        .toBe("false");
-    }
+    const btn = screen.getByRole("button", { name: /^Track this pulse/ });
+    expect(btn.getAttribute("aria-pressed")).toBe("false");
+    expect(btn.textContent).toContain("track");
   });
 
-  it("writes the rhythm against THIS pulse, leaving the others alone", async () => {
-    // The two WRITE sites are what property 1 is actually about, and this
-    // one was unheld: `PULSE.setCadence(id, c)` mutated to
-    // `PULSE.setCadence(PULSE.first(), c)` passed the whole suite. Reading
-    // the cadence back is not enough — the read is per-pulse and correct
-    // either way, so only the neighbour's cadence can tell them apart.
-    // Setting your sleep rhythm would silently repoint the pace pulse's.
+  it("writes the pin against THIS pulse, leaving the others alone", async () => {
+    // The write site is what this is about, and it is the one the rhythm
+    // version found unheld: `setPinned(id, …)` mutated to
+    // `setPinned(PULSE.first(), …)` would pass any case that only reads
+    // the pin back, because the read is per-pulse and correct either way.
+    // Only the neighbour can tell them apart.
     render(<PulseCard pid="pulse-sleep" />);
     await settle();
-    const paceBefore = PULSE.cadence("pulse-pace");
-    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Mon · Wed · Fri" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Track this pulse/ }));
     await settle();
 
-    expect(PULSE.cadence("pulse-sleep")).toBe("often");
-    expect(PULSE.cadence("pulse-pace"), "the neighbouring pulse's rhythm moved").toBe(paceBefore);
+    expect(PULSE.pinned("pulse-sleep")).toBe(true);
+    expect(PULSE.pinned("pulse-pace"), "the neighbouring pulse was pinned too").toBe(false);
   });
 
-  it("takes a new rhythm, says so, and closes the row", async () => {
-    render(<PulseCard />);
+  it("says it is tracking, and untracks on the second tap", async () => {
+    render(<PulseCard pid="pulse-sleep" />);
     await settle();
-    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Mon · Wed · Fri" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Track this pulse/ }));
     await settle();
 
-    expect(screen.getByRole("button", { name: /How often this pulse asks — Mon · Wed · Fri/ }).textContent)
-      .toContain("Mon · Wed · Fri");
-    // Four chips standing open on every pulse would be more chrome than
-    // question — the control states itself and closes again.
-    expect(screen.queryByRole("radiogroup"), "the chips stayed open after a choice").toBeNull();
+    const on = screen.getByRole("button", { name: /^Tracking this pulse/ });
+    expect(on.getAttribute("aria-pressed")).toBe("true");
+    expect(on.textContent).toContain("tracking");
+
+    fireEvent.click(on);
+    await settle();
+    expect(PULSE.pinned("pulse-sleep")).toBe(false);
+    expect(screen.getByRole("button", { name: /^Track this pulse/ }).getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("keeps today's answer on screen when the rhythm changes (D244)", async () => {
-    // WAS A FLAGGED DEFECT, now the fix. `mineToday` read `days()`, which
-    // nulls every day the cadence did not ask on — right for the trend
-    // line, wrong for today's card. Pausing after answering took your own
-    // answer off the screen and put the blind ask back over it, while the
-    // vote sat on the server.
+  it("says why a fourth pin did nothing, rather than looking broken", async () => {
+    // A cap the card cannot see is a dead button — the reader taps, the
+    // card does not change, and nothing anywhere says why. The refusal
+    // travels back as `setPinned`'s return value for exactly this.
+    const others = ["pulse-a", "pulse-b", "pulse-c"];
+    // THE BANK FIRST, then the pins. `pins()` filters to the live roster —
+    // a pin for a retired pulse must not hold a place at the head of the
+    // feed — so pinning an id the bank has not offered yet is filtered
+    // straight back out and the cap is never reached. The case failed on
+    // exactly that, which is the filter working.
+    h.bank = [
+      ...others.map((id) => ({ id, prompt: `${id}?`, options: PACE })),
+      { id: "pulse-sleep", prompt: "How did you sleep?", options: SLEEP },
+    ];
+    for (const id of others) PULSE.setPinned(id, true);
+    render(<PulseCard pid="pulse-sleep" />);
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: /^Track this pulse/ }));
+    await settle();
+
+    expect(PULSE.pinned("pulse-sleep"), "a fourth pin was taken").toBe(false);
+    expect(screen.getByRole("status").textContent).toMatch(/untrack one/i);
+  });
+
+  it("keeps today's answer on screen across a pin (D244's fold, still held)", async () => {
+    // The rhythm version of this case is what D244 was: a control that
+    // touched the schedule gate could hide an answer already recorded.
+    // The pin touches no gate at all, which is the claim — and a claim
+    // worth a case, because it is the property that made the pin the safe
+    // replacement for the picker.
     h.aggs[`pulse-pace_${dayKey(0)}`] = { counts: { "3": 1 }, total: 1 };
     h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
     render(<PulseCard />);
     await settle();
     expect(screen.getByText("you · Brisk")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "paused" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Track this pulse/ }));
     await settle();
 
-    // Still yours, and still no blind ask over an answer already given.
-    expect(screen.getByText("you · Brisk"), "pausing hid an answer already recorded").toBeTruthy();
+    expect(screen.getByText("you · Brisk"), "pinning hid an answer already recorded").toBeTruthy();
     expect(options(), "the blind ask came back over an answer already recorded").not.toEqual(PACE);
     expect(LIVE.votePulse, "the vote itself was never touched").not.toHaveBeenCalled();
-  });
-
-  it("…and when the new rhythm simply does not include today", async () => {
-    // Pausing is the loud case; this is the same fold and the quiet one.
-    // "Sundays" excludes today unless today is a Sunday, so a weekly
-    // rhythm chosen after answering hit exactly the same gate.
-    h.aggs[`pulse-pace_${dayKey(0)}`] = { counts: { "3": 1 }, total: 1 };
-    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
-    render(<PulseCard />);
-    await settle();
-    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
-    fireEvent.click(screen.getByRole("radio", { name: "Sundays" }));
-    await settle();
-
-    expect(screen.getByText("you · Brisk")).toBeTruthy();
   });
 });
 
