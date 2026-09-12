@@ -271,7 +271,7 @@ describe("a beat that fails says so, and offers a way out", () => {
     LIVE.near.lastError = () => "denied";
     render(<NearLiveBody />);
     expect(screen.queryByText(/Counting/i), "the card is still counting a count that failed").toBeNull();
-    expect(screen.getByText(/is off for InSight/i)).toBeTruthy();
+    expect(screen.getByText(/is off for Doxa/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Try again/i })).toBeTruthy();
   });
 
@@ -307,7 +307,7 @@ describe("a beat that fails says so, and offers a way out", () => {
     LIVE.near.on = () => false;
     LIVE.near.lastError = () => "denied";
     render(<NearLiveBody />);
-    expect(screen.queryByText(/switched off for InSight/i)).toBeNull();
+    expect(screen.queryByText(/switched off for Doxa/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /Try again/i })).toBeNull();
   });
 });

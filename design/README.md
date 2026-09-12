@@ -89,7 +89,14 @@ extracted to `standalone-2026-09-09/` (the ten modules the bundle's own
 hashes say moved, the first extraction measured that way), with the
 plan and the questions at
 [`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it is the
-current vision (D436), recorded and not yet built. Each
+current vision (D436), recorded and not yet built; and the
+**2026-09-12** upload (`inSight_18`, the owner's own file name — sixteen
+and seventeen were never uploaded here) carries one thing, the NAME:
+the app is **Doxa**, set in DM Serif Display with the x in the tab
+accent — recorded in `standalone-2026-09-12/` as the wordmark's rules
+and markup rather than as a module extraction, because that is all the
+upload changed, and built by D471 in the same commit. It does not move
+the vision. Each
 directory README is its inventory; none re-points this file.
 
 **One directory here is not an app prototype at all**:

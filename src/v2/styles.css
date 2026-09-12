@@ -14,6 +14,28 @@
 /* vietnamese */
 /* latin-ext */
 /* latin */
+/* ── The wordmark (D471) ────────────────────────────────────────────────
+   DM Serif Display, FOUR GLYPHS. The name is Doxa and the design
+   (design/standalone-2026-09-12/) sets it in this face with the x in the
+   tab accent — the one serif in the chrome, and the only place the face
+   is used. So the file is a subset to exactly D, a, o and x: 1.2 KB from
+   Google Fonts' text= endpoint (OFL), against a font ceiling of 96 KB
+   with 86 KB already in the tree. The upload's own latin subset is
+   24.7 KB and would not have fit. Any other use of this face — a
+   heading, a numeral — falls back to Spectral, silently, and is the
+   font-ceiling conversation the prompt-voice note below describes.
+   `block` rather than `swap`: 1.2 KB arrives with the stylesheet, and
+   a serif-to-serif flash on the wordmark is the one swap a user would
+   see on every cold start. */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/dm-serif-display-400-doxa.woff2") format('woff2');
+  unicode-range: U+44, U+61, U+6F, U+78;
+}
+
 /* ── The prompt voice (2026-09-02) ──────────────────────────────────────
    Spectral, the one place the app speaks in a second face: every question
    a person answers is set in it, and UI, figures and captions stay sans.
@@ -420,6 +442,19 @@
    for plain text titles, which need no flex and must not inherit a gap. */
 .h-center .h-title { display: inline-flex; align-items: center; gap: 7px; }
 .h-center .h-title svg { display: block; flex: none; }
+/* The wordmark itself (D471): Doxa in the serif at 25px, tracked −0.01em,
+   400 in both the word and its accented x — the design's own values.
+   Scoped with .h-center for the same reason as the lockup above: overlay
+   headers reuse .h-title for plain text and must stay sans. */
+.h-center .h-title.wm-serif {
+  font-family: 'DM Serif Display', var(--serif);
+  font-weight: 400;
+  font-size: 25px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+.h-center .h-title.wm-serif em { font-weight: 400; }
 /* small round icon button (header search etc.) */
 .icon-btn {
   width: 32px; height: 32px;

@@ -52329,3 +52329,121 @@ on `main` and for reasons outside the tree: `check:web-firebase` wants
 the release `VITE_FIREBASE_*` secrets, and `check:store-copy` wants the
 Play signing SHA-256, which is a placeholder because Play is deferred
 (D42). Both were run against a `main` worktree to confirm it.
+
+## D471 · The app is Doxa: the name changes, and nothing under it does
+
+**2026-09-12.** **Status:** binding. The owner's call, in the naming
+session of this date and in these words: *"lets go with Doxa, do the
+rename"*. This record is the arithmetic that preceded it, what the
+rename touched, what it deliberately left alone, and the three things
+only the owner can finish.
+
+### Why the name moved
+
+InSight was not unoriginal so much as unfindable. Insight Timer, at
+twenty-five million downloads, is the first result for "Insight" in
+both stores; "Insight: Group Party Games" is a social question game in
+this app's own category; NASA's InSight lander owns the capitalised
+spelling on the web; and plain "InSight" was already reserved on the
+App Store on 2026-08-05, which is the only reason the listing read
+"InSight: Daily Perspective" (`design/store/listing.json`'s note). The
+word is also descriptive — every analytics product promises insight —
+and so close to unregistrable in software classes as makes no
+difference.
+
+**Doxa** is the Greek for opinion, Plato's word for belief as against
+knowledge, and the root of Aristotle's *endoxa* — the opinions held by
+everyone, by most people, or by the wise — which is what this app
+collects and what the Mirror draws a person against. Two beats, four
+letters, one ascender. The owner's objection to the string *dox* inside
+it was met by the treatment rather than the spelling: the 2026-09-12
+upload (`design/standalone-2026-09-12/`) sets the word in DM Serif
+Display with the x in the tab accent, so on screen it reads Do·x·a and
+the string never assembles; spoken, the syllable is the one in
+*paradox*. What the name shares its spelling with — Doxa dive watches
+(class 14), a medical-English course, a Ugandan media app, church apps,
+a procurement platform, the Russian student magazine — is nothing in
+this category.
+
+Considered and not taken, so the next naming pass need not repeat it:
+**Endoxa** (the fuller word, three beats — the owner's ceiling was two),
+**Doksa** (the transliteration, free, and the k's ascender breaks the
+low silhouette that made Doxa sit quietly), **Enoxa** (a blood thinner's
+brand name in three countries), **Endox** (a defence-AI startup, and it
+ends on the string), **Ygg** and **Yggdrasil** (a Web3 guild's token and
+everything else), **Consilience** and its forms, and some forty short
+plain words each already held by a social, dating or voting app.
+
+### What changed, in this commit
+
+- **The display name.** `capacitor.config.ts` `appName`, the iOS
+  `CFBundleDisplayName`, Android's `app_name` and `title_activity_main`,
+  `index.html`'s title, and the boot mark.
+- **The wordmark.** The header lockup is `Do<em>x</em>a` in DM Serif
+  Display 400 at 25 px, tracked −0.01em, the x taking the tab accent as
+  `Sight` did (`app-shell.jsx`, `.wm-serif` in `styles.css`); the
+  sign-in gate's stacked lockup is the same at 36 px; `web/join.html`'s
+  twin is in Georgia, because the hosting CSP is `default-src 'none'`
+  with no `font-src`. The face ships as a **four-glyph subset** — D, a,
+  o, x; 1.2 KB from Google Fonts' `text=` endpoint, OFL — because
+  `check:bundle` holds fonts to 96 KB, the tree carried 86 KB, and the
+  upload's own latin subset is 24.7 KB. The word is the only place the
+  face is used; any other use falls back to Spectral and is the
+  font-ceiling conversation `styles.css` has always required. The boot
+  mark keeps the system stack and its reasons (no swap mid-boot) — the
+  one deviation from the upload.
+- **The copy.** The sign-in sentence ("Answers on Doxa are public, yours
+  included"), the walkthrough's title and the account panel row ("How
+  Doxa works"), the location-denied line, the linked-account refusal,
+  the budget-mode line, the demo demographics titles, and the pinned
+  tests for each. The console prefix is `[Doxa]`, and the mount harness
+  asserts the new one.
+- **The web.** `web/privacy.html` first (D183's rule), then terms, ask,
+  delete-account, home, join and the two paid pages; the paid results
+  pages `functions/src/share.ts` renders; the Stripe line item "Doxa
+  paid question" and the reviewer guidelines; the push-notification
+  title fallbacks in `v2social.ts`; the question report's wordmark; and
+  the auth mail sender name in `scripts/auth-config.mjs`, with its tests.
+- **The store listing.** `apple.name` and `play.title` are the bare
+  "Doxa", so the listing and the on-device name agree where the store
+  allows. If App Store Connect reports it taken — names are first-come —
+  the suffixed form is the fallback and `asc-push` says so.
+- **The record.** `CLAUDE.md`, `README.md`, `SECURITY.md`,
+  `STORE-FORMS.md`'s 1.2 table, `design/README.md`, the vision
+  lineage, and this entry.
+
+### What did not change, on purpose
+
+- `com.cosaxo.insight` — the bundle id, `applicationId` and namespace —
+  the `insight://` deep-link scheme, and every `insight.*` storage key.
+  Changing the first is a new app in both stores; changing the second
+  breaks every invite link already sent; changing the third orphans
+  every device's caches and reopens the patterns gate (D265).
+- The Firebase project, and the GCP budget named "InSight" with its
+  "InSight oncall" channel: existing cloud resources, and `budget.yml`
+  already records what a second budget of the same name costs.
+- The GitHub repository `Cosaxo/InSight`, and the scripts that name it.
+- The generated catalogue headers and the generators that write them:
+  the drift gates compare the committed files to generator output, so
+  a header change is a regeneration, not a rename.
+- Internal tooling (the console, the pulse, the cost comparison, the
+  routine names in `ROUTINES.md`), CI artifact names, the header
+  comments that cite each spec module's provenance, and every earlier
+  decision record — history keeps the name it was written under.
+
+### The owner's three steps
+
+1. **App Store Connect:** reserve "Doxa" (the push will fail with a 409
+   naming the attribute if it is taken; then the suffix).
+2. **`node scripts/auth-config.mjs`** against the project, so the
+   verification and reset mails send as Doxa rather than InSight.
+3. **Trademark and domains:** classes 9 and 42 at Patentstyret and
+   TMview, and `doxa.no` / `doxa.app`, neither reachable from the
+   session that made this change.
+
+### Gates
+
+The full client and functions suites, every `check:*` this change can
+reach, and the docs index regenerated — the run is in the commit's
+message. The rules and e2e suites need Java and were not touched by a
+rename that changes no rule.

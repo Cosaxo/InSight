@@ -59,7 +59,7 @@ const APPLY = has("--apply");
 // The name the mail comes from. Not a flag value: a build that could be
 // told to send mail as anything is a build that can be told to send mail
 // as somebody else.
-const SENDER_NAME = "InSight";
+const SENDER_NAME = "Doxa";
 
 // The reviewer's address. On the app's own domain rather than a personal
 // inbox, and fixed rather than generated, so a second run REUSES the
@@ -180,7 +180,7 @@ async function reportTemplates() {
   } else {
     console.log(`  ! at least one mail does not send as "${SENDER_NAME}", so it arrives`);
     console.log(`    from the project id ("${PROJECT}"), which reads as phishing for`);
-    console.log(`    an app called InSight.`);
+    console.log(`    an app called Doxa.`);
     console.log(`    Fix: node scripts/auth-config.mjs --sender-name --apply`);
   }
   return cfg;
@@ -211,7 +211,7 @@ async function setSenderName() {
 
   // ONE PATCH, both templates, with a mask naming exactly the two leaves.
   // A mask per template would be two round trips and two chances to leave
-  // the pair disagreeing — a verification mail from InSight and a reset
+  // the pair disagreeing — a verification mail from Doxa and a reset
   // from prvfire33 is worse than neither being set, because the
   // inconsistency is what looks like a spoof.
   await patchConfig(

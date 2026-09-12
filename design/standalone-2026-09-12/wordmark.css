@@ -1,0 +1,25 @@
+/* The Doxa wordmark as the 2026-09-12 upload (inSight_18.html) sets it —
+   the two rules and the boot mark, quoted from the bundle's own CSS and
+   markup. Everything else in that upload is the 2026-09-09 tree. */
+
+/* Doxa wordmark — the one serif in the chrome. The x is the <em>, so it takes
+   the tab accent (and the daily sub-mode accent, set inline) like inSight's
+   "Sight" did. */
+.app-header .h-title.wm-serif {
+  font-family: 'DM Serif Display', var(--serif);
+  font-weight: 400;
+  font-size: 25px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+.app-header .h-title.wm-serif em { font-weight: 400; }
+
+/* The boot splash's mark, inline in the upload's index:
+   <div id="boot-mark" style="font-family:'DM Serif Display',Georgia,serif;
+        font-size:36px;font-weight:400;letter-spacing:-0.01em;
+        color:oklch(0.216 0.011 70)">Do<em style="font-style:normal;
+        color:oklch(0.52 0.14 282)">x</em>a</div>
+   followed by a script reading localStorage 'insight.brand.v2' with the
+   alternates { insight: ['in','Sight'], endoxa: ['En','doxa'] } — a
+   design-time switch, not a feature. */

@@ -1,6 +1,6 @@
 # Security Policy
 
-InSight's product claim is that its privacy guarantees are enforced by the
+Doxa's product claim is that its privacy guarantees are enforced by the
 backend rather than promised by the UI. Reports that show otherwise are the
 most valuable thing anyone can send us.
 

@@ -955,7 +955,7 @@ export function renderReportHtml(data) {
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>InSight · question report</title>
+<title>Doxa · question report</title>
 <style>
   :root {
     --surface: oklch(0.965 0.004 75); --surface-2: oklch(0.994 0.0025 80);
@@ -977,7 +977,7 @@ export function renderReportHtml(data) {
 <div class="page">
   <div style="display:flex;align-items:center;gap:8px">
     <span style="width:12px;height:12px;border-radius:50%;border:3px solid var(--ink)"></span>
-    <span style="font-size:14px;font-weight:800;letter-spacing:-0.01em">InSight</span>
+    <span style="font-size:14px;font-weight:800;letter-spacing:-0.01em">Doxa</span>
     <span style="font-size:11px;font-weight:600;color:var(--ink-3);margin-left:auto">Question report · ${day}</span>
   </div>
   <div style="margin:14px 2px 0;font-size:12.5px;font-weight:600;color:var(--ink-2);line-height:1.5">
