@@ -17,8 +17,13 @@
 // are answered here; the fourth, rotation, is answered by the publication
 // path itself (see `worldPositions`' comment in patterns.ts).
 //
-// This module is pure: bucketing, the caps, and the rounding. The solve
-// and the write live in patterns.ts, beside the fit whose rows they read.
+// This module is pure: bucketing, the caps, the rounding, and the
+// per-person ridge solve. `positionTheta` was lifted out of the fold and
+// into this file so that ONE function owns the regularisation convention
+// the device also uses — the two solves drifting apart is the defect it
+// exists to prevent, and a test can reach it here without booting the
+// fit. What stays in patterns.ts is the WRITE: the publication path,
+// beside the fit whose rows it reads.
 import type { AlsModel, AlsRow, ItemMeta } from "./patternsAls";
 import { ridgeTheta } from "./patternsAls";
 
