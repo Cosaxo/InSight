@@ -466,12 +466,14 @@ Nobody has written this block.
   it("reads the register on main without inventing an account", () => {
     // Against the committed file rather than a fixture, because the bug
     // was invisible in every fixture written for it: §2 declares its own
-    // count in prose ("eleven Routines"), and that is the one number here
-    // a parser cannot fake.
+    // count in prose, and that is the one number here a parser cannot
+    // fake. Twelve since 2026-09-12, when the pulse lane was created
+    // (D480) — the count is a fact about the account, so it moves with
+    // the account and this case is what makes the register move with it.
     const rows = parseRegister(read("docs/ROUTINES.md"));
     const byAccount = {};
     for (const r of rows) byAccount[r.account] = (byAccount[r.account] || 0) + 1;
-    expect(byAccount["Claude 1"]).toBe(11);
+    expect(byAccount["Claude 1"]).toBe(12);
     expect(byAccount["Claude 3"]).toBeUndefined();
     expect(rows.every((r) => /^trig_/.test(r.trigger))).toBe(true);
   });
