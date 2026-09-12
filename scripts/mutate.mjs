@@ -189,11 +189,39 @@ function isEntry() {
   return process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
 }
 
-function arg(name, fallback = null) {
-  const i = process.argv.indexOf(`--${name}`);
-  return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith("--")
-    ? process.argv[i + 1]
-    : (process.argv.includes(`--${name}`) ? true : fallback);
+// A flag's value, or `true` when it is a bare boolean flag, or the
+// fallback when it is absent.
+//
+// AN EMPTY VALUE IS NOT `true`, and that distinction is the whole of why
+// the nightly lane never rotated. `mutate.yml` writes
+// `--seed "${{ inputs.seed || '' }}"`, so every SCHEDULED run — the only
+// kind there is, since the input is only set by hand — passed the two
+// characters `""`. The old expression tested `process.argv[i + 1]` for
+// truthiness, an empty string is falsy, so it fell to the boolean branch
+// and answered `true`; `String(true)` then made the seed the literal word
+// "true". The pool is seeded from that, so this lane re-planted THE SAME
+// FOUR mutants every night since it was built, over ~164 suited files, and
+// reported "0 survivors" about a sample that had already passed. Three
+// places say it rotates daily — this file's own header, mutate.yml's, and
+// D-2026-09-08's record.
+//
+// Measured before the fix: `--dry --seed "" --count 5` printed `seed true`
+// with EmptyField / profileFanout / LiveRolesPanel / calls; without
+// `--seed` at all it printed the date and four entirely different files.
+//
+// So an empty string means "the caller offered no value" and takes the
+// fallback. A bare `--dry` still answers `true`, because its next argv is
+// undefined rather than empty — a different thing, and the one case that
+// genuinely means "present, no value".
+export function arg(name, fallback = null, argv = process.argv) {
+  const i = argv.indexOf(`--${name}`);
+  if (i < 0) return fallback;
+  const next = argv[i + 1];
+  if (typeof next === "string") {
+    if (next === "") return fallback;
+    if (!next.startsWith("--")) return next;
+  }
+  return true;
 }
 
 function dirtyFiles() {

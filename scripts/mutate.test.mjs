@@ -8,7 +8,7 @@
 // obvious reason; it is exercised every night, and its first real run
 // found a live gap in typeMix.test.ts's scope coverage.
 import { describe, expect, it } from "vitest";
-import { OPERATORS, applyMutant, hash, mutableLine, planRun, sitesIn } from "./mutate.mjs";
+import { OPERATORS, applyMutant, arg, hash, mutableLine, planRun, sitesIn } from "./mutate.mjs";
 
 describe("mutableLine", () => {
   it("refuses comments — a mutated comment is not a defect", () => {
@@ -121,5 +121,35 @@ describe("hash and planRun", () => {
       readSource: () => "const x = a >= b;",
     });
     expect(new Set(plan.map((p) => p.source)).size).toBeGreaterThan(1);
+  });
+});
+
+describe("arg — an empty value is not a boolean flag", () => {
+  // THE ONE THAT FROZE THE LANE. mutate.yml writes
+  // `--seed "${{ inputs.seed || '' }}"`, so every scheduled run passed an
+  // empty string. The old parser tested the next argv for truthiness, ""
+  // is falsy, so it answered `true` — and `String(true)` made the seed the
+  // literal word "true". The pool never rotated: the same four mutants,
+  // every night, over ~164 suited files, reported as "0 survivors".
+  const argv = (...rest) => ["node", "mutate.mjs", ...rest];
+
+  it("an empty value takes the fallback, so the schedule seeds by date", () => {
+    expect(arg("seed", "2026-09-12", argv("--seed", ""))).toBe("2026-09-12");
+  });
+
+  it("a real value still wins", () => {
+    expect(arg("seed", "2026-09-12", argv("--seed", "abc"))).toBe("abc");
+  });
+
+  it("a bare boolean flag is still true — undefined is not empty", () => {
+    // The distinction the fix turns on: `--dry` has no next argv at all,
+    // which genuinely means "present, no value"; `--seed ""` has one and
+    // it is empty, which means "the caller offered nothing".
+    expect(arg("dry", false, argv("--dry"))).toBe(true);
+    expect(arg("dry", false, argv("--dry", "--count", "5"))).toBe(true);
+  });
+
+  it("an absent flag takes the fallback", () => {
+    expect(arg("seed", "2026-09-12", argv("--count", "5"))).toBe("2026-09-12");
   });
 });
