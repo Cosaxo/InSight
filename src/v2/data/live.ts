@@ -450,6 +450,15 @@ const state = {
   // delta fetches. A round whose call this device no longer holds shows
   // the pick alone — nothing invented.
   duelCalls: {} as Record<string, number>,
+  // WHO an index meant, for this device's own pick answers (D224). The
+  // options of a `pick` round are the roster in order, so the index alone
+  // goes stale the moment somebody leaves — every later member shifts down
+  // one and a sealed answer redraws as a person the voter never named. The
+  // answer document has snapshotted the uid since D224; this is that
+  // snapshot kept where the card can read it, filled on the write and on
+  // the boot's answers read, beside `duelCalls`, which rides the same
+  // document for the same reason.
+  duelPicks: {} as Record<string, string>,
   // ── circle takes (D1, docs/MODERATION.md) ──
   // gid → the circle's readable takes, newest first. Fetched on demand
   // (a circle's take list is opened, not watched) and held for the
@@ -2847,6 +2856,8 @@ async function hydrate(): Promise<void> {
         if (d.id.startsWith("g_")) {
           const gi = d.get("guessIdx");
           if (typeof gi === "number") state.duelCalls[d.id] = gi;
+          const pu = d.get("pickUid");
+          if (typeof pu === "string" && pu) state.duelPicks[d.id] = pu;
         }
         // NOT the server's word when the SDK's persistent cache has laid
         // this device's own unacknowledged mutation over the document
@@ -4095,12 +4106,20 @@ const SOCIAL = {
    * for a round I have not sealed; `guessIdx` null for a pick whose call
    * is not remembered — the card then names the pick alone.
    */
-  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null } | null {
+  myDuelCall(gid: string, round: number): { optionIdx: number; guessIdx: number | null; pickUid: string | null } | null {
     const aid = `g_${gid}_${roundKey(round)}`;
     const v = state.votes[aid];
     if (v == null) return null;
     const gi = state.duelCalls[aid];
-    return { optionIdx: Number(v), guessIdx: typeof gi === "number" ? gi : null };
+    return {
+      optionIdx: Number(v),
+      guessIdx: typeof gi === "number" ? gi : null,
+      // WHO, not where. Null for an answer written before D224 snapshotted
+      // it and for every non-pick round; the caller falls back to the
+      // index there, which is right when the roster cannot have shifted
+      // under it and is all there is when it can.
+      pickUid: state.duelPicks[aid] ?? null,
+    };
   },
   revealFor(gid: string) {
     return state.reveals[gid] || null;
@@ -4501,7 +4520,12 @@ const SOCIAL = {
         // and any later fold reads the uid, never the index.
         if (q.kind === "pick") {
           const pickUid = ((g.memberUids || []) as string[])[optionIdx];
-          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+          if (typeof pickUid === "string" && pickUid) {
+            payload.pickUid = pickUid;
+            // …and kept here too: the card that says "you named X" before
+            // the reveal reads this, not the index (see `duelPicks`).
+            state.duelPicks[aid] = pickUid;
+          }
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         delete state.inflight[aid];
@@ -4514,6 +4538,7 @@ const SOCIAL = {
         // this path's own and is not something rollbackPending knows about.
         rollbackPending(aid);
         delete state.duelCalls[aid];
+        delete state.duelPicks[aid];
         notify();
         reportError(err, { where: "duelVote", gid });
         throw err;
@@ -4580,7 +4605,12 @@ const SOCIAL = {
         };
         if (q.kind === "pick") {
           const pickUid = ((g.memberUids || []) as string[])[optionIdx];
-          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+          if (typeof pickUid === "string" && pickUid) {
+            payload.pickUid = pickUid;
+            // …and kept here too: the card that says "you named X" before
+            // the reveal reads this, not the index (see `duelPicks`).
+            state.duelPicks[aid] = pickUid;
+          }
         }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         delete state.inflight[aid];
@@ -8391,6 +8421,7 @@ function resetForNewUid(uid: string): void {
   state.revealHistLoaded = {};
   state.revealHistFailed = {};
   state.duelCalls = {};
+  state.duelPicks = {};
   // Circle takes are member-gated, so a cached list is the previous
   // account's circle — which the new one may not even be in. And a
   // surviving myFlags marks takes "Reported" that this account never

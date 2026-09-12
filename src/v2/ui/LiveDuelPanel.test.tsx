@@ -35,11 +35,18 @@ const LIVE = vi.hoisted(() => {
     // Request 12: my answer and call on a given round — the sealed list's
     // "you: Coffee · called Tea". Follows myDuelVote by default, so a case
     // that seals the open round sees its own pick in the list.
+    // `pickUid` since 2026-09-12: a pick round's options are the roster, so
+    // the card names WHO the answer snapshotted rather than re-reading the
+    // index against a roster that may have shrunk. Null here by default —
+    // the index fallback — and a case that is about the roster sets it.
     myDuelCall: (gid: string, round: number) => {
       void round;
       const v = social.myDuelVote(gid);
-      return v ? { optionIdx: v.optionIdx, guessIdx: null as number | null } : null;
+      return v
+        ? { optionIdx: v.optionIdx, guessIdx: null as number | null, pickUid: social.myPickUid }
+        : null;
     },
+    myPickUid: null as string | null,
     // Rounds (ROUNDS-PLAN, D426). The fixture's world is "one round is the
     // lead": a sealed answer to the open round means nothing further to
     // answer, which is the card's waiting state — the state every case
@@ -169,6 +176,14 @@ beforeEach(() => {
     ? { open: 1, next: null, sealed: [1], lead: 5 }
     : { open: 1, next: 1, sealed: [], lead: 5 });
   LIVE.social.myDuelVote = () => null;
+  // Reset beside the vote it belongs to: a case about the roster sets it,
+  // and leaking a pick's uid into the next case would name a member in an
+  // answer that has none.
+  LIVE.social.myPickUid = null;
+  // …and the question a sealed round draws, for the same reason: a case
+  // that seals a ROLE round would otherwise leave the role question
+  // standing under every later case's sealed line.
+  LIVE.social.roundQ = () => Q;
   LIVE.social.revealFor = () => null;
   LIVE.social.romanticPoolReady = () => false;
   LIVE.social.setDuoMode = async () => {};
@@ -364,6 +379,41 @@ describe("LiveDuelPanel · the group as a cast (D434)", () => {
     options: ["Calm", "mostly Calm", "in between", "mostly Chaos", "Chaos"],
   };
   beforeEach(() => { LIVE.social.groups = () => [CREW]; });
+
+  // THE ROSTER MOVED UNDER A SEALED PICK. A pick round's options ARE the
+  // members, in order (`duelQFor`), so when somebody leaves every later
+  // member shifts down one — and the index this device sealed now points
+  // at a different person, for as long as the round stays open, on a card
+  // whose "Leave group" is one tap away. The answer has snapshotted WHO
+  // since D224; until 2026-09-12 this card read the index anyway.
+  const CREW_AFTER = { ...CREW, memberUids: ["u_me", "u_bo"], memberNames: { u_me: "Me", u_bo: "Bo" } };
+  const ROLE_AFTER = { ...ROLE, options: ["Me", "Bo"] };
+
+  it("still names the member you picked after somebody ahead of them leaves", () => {
+    LIVE.social.groups = () => [CREW_AFTER];
+    LIVE.social.roundQ = () => ROLE_AFTER;
+    LIVE.social.myDuelVote = () => ({ optionIdx: 2 });   // Bo, when there were three
+    LIVE.social.myPickUid = "u_bo";
+    render(<LiveDuelPanel mode="group" />);
+    const text = document.body.textContent || "";
+    // either receipt — the wait block's "you named X" or the sealed
+    // list's "you: X" — names the member, and both read the same source
+    expect(text, "the sealed pick lost the member it named").toMatch(/you(?: named|:)\s*Bo/);
+  });
+
+  it("says nobody rather than somebody else when the member you picked has left", () => {
+    // The dangerous half: the index the answer holds now belongs to a
+    // DIFFERENT member, so reading it puts a name in the voter's mouth
+    // that they never said.
+    LIVE.social.groups = () => [CREW_AFTER];
+    LIVE.social.roundQ = () => ROLE_AFTER;
+    LIVE.social.myDuelVote = () => ({ optionIdx: 1 });   // Ada, when there were three
+    LIVE.social.myPickUid = "u_ada";
+    render(<LiveDuelPanel mode="group" />);
+    const text = document.body.textContent || "";
+    expect(text, "a departed member's seat was credited to whoever inherited the index")
+      .not.toMatch(/you(?: named|:)\s*Bo/);
+  });
 
   it("a role vote names its pack in the kicker, leads every option with its member, and seals on the one tap", async () => {
     LIVE.social.todayQ = () => ROLE;

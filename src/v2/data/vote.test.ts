@@ -874,10 +874,15 @@ describe("LIVE.social.voteDuel — the round, the id, and the question", () => {
     const LIVE = await withRoom({ mode: "duo", memberUids: ["uid_test", "u2"], round: 3, played: {} });
     expect(LIVE.social.myDuelCall("g1", 3), "a call before the vote").toBeNull();
     await LIVE.social.voteDuel("g1", 1, 0);
-    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0 });
+    // `pickUid` is null on a classic round: the options are the question's
+    // own and cannot move, so the index is the whole of the answer. It
+    // carries a uid only on a PICK round, where the options are the roster
+    // and an index goes stale the moment somebody leaves (D224, and the
+    // card that reads it).
+    expect(LIVE.social.myDuelCall("g1", 3)).toEqual({ optionIdx: 1, guessIdx: 0, pickUid: null });
     // A vote with no call reads as a pick alone, not as a missing vote.
     await LIVE.social.voteDuel("g1", 0);
-    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null });
+    expect(LIVE.social.myDuelCall("g1", 4)).toEqual({ optionIdx: 0, guessIdx: null, pickUid: null });
     expect(LIVE.social.myDuelCall("g1", 7), "an unanswered round").toBeNull();
   });
 
