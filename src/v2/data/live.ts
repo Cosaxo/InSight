@@ -49,8 +49,11 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 40 `await getDb()` sites in this file did not change
-// either, and a reader who follows one lands here.
+// deliberately: the 36 `await getDb()` sites in this file did not change
+// either, and a reader who follows one lands here. (It said 40 until
+// D482, which paired four of them with `bindVotersApi()` inside a
+// `Promise.all` — the same binding trick one section down. `check:figures`
+// is what noticed, which is the gate doing exactly its job.)
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
 let clearIndexedDbPersistence!: FsApi["clearIndexedDbPersistence"];
@@ -75,6 +78,32 @@ let waitForPendingWrites!: FsApi["waitForPendingWrites"];
 let where!: FsApi["where"];
 let getFunctions!: FnsApi["getFunctions"];
 let httpsCallable!: FnsApi["httpsCallable"];
+
+// ── the cross-user READS, bound rather than imported (D482) ──────────
+//
+// The Firestore mechanism above, one layer up. data/voters.ts cannot
+// leave the first-paint graph — `votersByOption` below is a SYNCHRONOUS
+// getter needing groupByOption/sortVoters, and circle.ts needs chunkUids
+// — so the query machinery that shared that file was parsed before every
+// paint for sheets that open later or never. data/votersFetch.ts holds it
+// now; these bindings keep the ten call sites below unchanged.
+//
+// NOT filled by getDb(), which would have been the tighter diff: every
+// call site already holds a `db`. It would also load the module for every
+// user on the session's first read, which is most of the saving handed
+// back. These sheets are OPENED, not booted.
+type VotersApi = typeof import("./votersFetch");
+let votersApi: Promise<VotersApi> | null = null;
+let fetchSampleDoc!: VotersApi["fetchSampleDoc"];
+let fetchVoters!: VotersApi["fetchVoters"];
+let fetchVoterSample!: VotersApi["fetchVoterSample"];
+let fetchVoterTail!: VotersApi["fetchVoterTail"];
+let resolveNames!: VotersApi["resolveNames"];
+async function bindVotersApi(): Promise<void> {
+  ({
+    fetchSampleDoc, fetchVoters, fetchVoterSample, fetchVoterTail, resolveNames,
+  } = await (votersApi ??= import("./votersFetch")));
+}
 
 import {
   anonSignIn,
@@ -135,11 +164,12 @@ import { makeLsSet } from "./localWrite";
 // No imports of its own, so reading it here closes no cycle back through
 // data/cityAnchor — which imports this module.
 import { cityIsConfirmed } from "./cityConfirm";
-// The cross-user read (D98). Pure helpers + the two queries live there so
-// the grouping/sorting can be unit-tested without Firebase.
+// The cross-user read (D98). The PURE half only — this module is the boot
+// store, so everything named here is parsed before the app can paint.
+// `groupByOption`/`sortVoters` have to be static: `votersByOption` below is
+// a SYNCHRONOUS getter and cannot await anything.
 import {
-  fetchSampleDoc, fetchVoters, fetchVoterSample, fetchVoterTail, groupByOption, resolveNames, sortVoters,
-  unionVoters, VOTER_TAIL_CAP, type ProfileCaches, type Voter,
+  groupByOption, sortVoters, unionVoters, VOTER_TAIL_CAP, type ProfileCaches, type Voter,
 } from "./voters";
 import { fetchOverflowCells, overflowWanted, withOverflowCell, type Cell as OverflowCellCounts } from "./overflow";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
@@ -5617,7 +5647,7 @@ const LIVE = {
     state.votersLoading[qid] = true;
     notify();
     try {
-      const db = await getDb();
+      const [db] = await Promise.all([getDb(), bindVotersApi()]);  // D482
       // THE SAMPLE PLUS A LIVE TAIL (DATA-EFFICIENCY-RUNBOOK 2.4), where
       // the sheet used to be the one live list of two hundred answer
       // documents plus their profiles. The nightly sample is the newest
@@ -5687,7 +5717,7 @@ const LIVE = {
     notify();
     let fallback = false;
     try {
-      const db = await getDb();
+      const [db] = await Promise.all([getDb(), bindVotersApi()]);  // D482
       // The rows' own stamps fill the caches first (runbook 2.3), so the
       // resolve below reads only the people no row could name.
       const rows = await fetchVoterSample(db, qid, state.uid, profileCaches());
@@ -5937,7 +5967,7 @@ const LIVE = {
         || !(u in state.logicPcts)));
     if (!want.length) return true;
     try {
-      const db = await getDb();
+      const [db] = await Promise.all([getDb(), bindVotersApi()]);  // D482
       await resolveNames(db, want, state.names, state.scores, state.faces, state.logicPcts);
       saveProfileCache();
       return true;
@@ -6149,7 +6179,7 @@ const LIVE = {
     state.cityKindredLoading = true;
     notify();
     try {
-      const db = await getDb();
+      const [db] = await Promise.all([getDb(), bindVotersApi()]);  // D482
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
       const next: Record<string, Voter[]> = {};
       // Sequential, for the reason loadKindred is: twelve collection-group

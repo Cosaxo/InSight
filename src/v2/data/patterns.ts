@@ -62,7 +62,11 @@ import LIVE from "./live";
 import { byOf, type CohortDim } from "./cohort";
 import { cohortPrior, type CohortPrior } from "./cohortPrior";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
-import { fetchVoterPicks, VOTER_FETCH_CAP, worldSampleId } from "./voters";
+import { VOTER_FETCH_CAP, worldSampleId } from "./voters";
+// The read half (D482). A static import is right here where it was wrong in
+// live.ts: this module is behind the Patterns tab's React.lazy boundary, so
+// it is not in the first-paint graph and nothing rides in with it.
+import { fetchVoterPicks } from "./votersFetch";
 
 
 import type { LiveQuestion } from "./deck";

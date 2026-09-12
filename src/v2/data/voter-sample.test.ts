@@ -45,9 +45,13 @@ vi.mock("../../lib/firebase", () => ({
   }),
 }));
 
+// The reads moved to votersFetch.ts at D482; the pure half kept the name.
 const {
-  citySampleId, fetchSampleDoc, fetchVoterSample, fetchVoterTail, unionVoters, VOTER_FETCH_CAP, VOTER_TAIL_CAP, worldSampleId,
+  citySampleId, unionVoters, VOTER_FETCH_CAP, VOTER_TAIL_CAP, worldSampleId,
 } = await import("./voters");
+const {
+  fetchSampleDoc, fetchVoterSample, fetchVoterTail,
+} = await import("./votersFetch");
 
 /** A snapshot the reader will accept, or `null` for a document that is not there. */
 const snap = (rows: Record<string, unknown> | null) => ({
