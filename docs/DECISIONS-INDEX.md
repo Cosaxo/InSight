@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 510 lines instead of
-53,055. Do not hand-edit; `npm run check:docs` fails when this
+53,064. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
