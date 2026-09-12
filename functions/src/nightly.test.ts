@@ -56,6 +56,11 @@ function healthy(): NightlyRunners & { ran: string[]; deadlines: number[]; deadl
     // the project's tsconfig, so a fake that stops matching its
     // interface is invisible to `tsc` and to the build.
     log: async () => { ran.push("log"); return { day: "2026-09-05", skipped: false, entries: 7, missing: 0, appended: 0, erasures: 0, erased: 0, passes: 0, left: false }; },
+    shadow: async (deadlineAt: number) => {
+      ran.push("shadow");
+      deadlineOf.shadow = deadlineAt;
+      return { day: "2026-09-05", skipped: false, capped: false, entries: 7, checked: 7, missing: 0, mismatched: 0, seam: 0, logEntries: 7, actives: 3, logActives: 3, questions: 2, differing: 0, examples: [], clean: true };
+    },
     fanout: async (deadlineAt: number) => { ran.push("fanout"); deadlines.push(deadlineAt); deadlineOf.fanout = deadlineAt; return { pending: 0, healed: 0, touched: 0, left: false, stopped: false }; },
     attention: async () => { ran.push("attention"); return { shards: 2, days: 1, capped: false, rate: 1 }; },
     rollup: async (deadlineAt: number) => { ran.push("rollup"); deadlineOf.rollup = deadlineAt; return { rollups: 3, days: 1, capped: false, left: 0 }; },
@@ -214,7 +219,7 @@ describe("runNightlyPass", () => {
     const r = healthy();
     const { log, lines } = recorder();
     const out = await runNightlyPass(r, log);
-    expect(r.ran).toEqual(["digest", "patterns", "taste", "velocity", "answerMaps", "log", "fanout", "attention", "rollup"]);
+    expect(r.ran).toEqual(["digest", "patterns", "taste", "velocity", "answerMaps", "log", "shadow", "fanout", "attention", "rollup"]);
     expect(out.failed).toEqual([]);
     expect(metricsOf(lines)).toEqual(["patterns_fit", "taste_fold", "engagement_digest"]);
     // The digest heartbeat carries the whole engagement pipeline's numbers,
@@ -229,7 +234,7 @@ describe("runNightlyPass", () => {
     const { log, lines } = recorder();
     await expect(runNightlyPass(r, log)).rejects.toThrow(/patterns failed — Error: ALS diverged/);
     // Everything after the fit still ran…
-    expect(r.ran).toEqual(["digest", "patterns", "taste", "velocity", "answerMaps", "log", "fanout", "attention", "rollup"]);
+    expect(r.ran).toEqual(["digest", "patterns", "taste", "velocity", "answerMaps", "log", "shadow", "fanout", "attention", "rollup"]);
     // …the fit's heartbeat is the one missing, so fitPatternsV2-silent
     // fires for exactly the fold that went quiet…
     expect(metricsOf(lines)).toEqual(["nightly_fold_failed", "taste_fold", "engagement_digest"]);

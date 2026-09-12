@@ -34,6 +34,7 @@ import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { profileStamp, type ProfileStamp } from "./profileStamp";
 import { answerMapMerge, answerMapRef } from "./answerMaps";
+import { isShardedQid, shardEditIncrements, shardIncrements, shardOf, shardRef } from "./aggShards";
 import { appendLog, logRow, type LogRow } from "./log";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
@@ -1210,12 +1211,24 @@ export const onV2AnswerCreated = onDocumentCreated(
       // honestAnchors() in pure.ts has why the rule that would check it
       // cannot exist. One more billed read, no extra round trip, and the
       // lock window on v2_question_aggs/{qid} is unchanged.
-      const [seen, agg, prof] = await tx.getAll(eventRef, pubRef, profRef);
+      // THE DAILY LANE IS SHARDED (aggShards.ts, phase B / D467): a
+      // question the daily bank names never has its published document
+      // read or rewritten here. The event and the profile are still one
+      // batched read; the publish is a blind increment on the person's
+      // counter shard, and the compactor publishes the sum once a minute.
+      // Two getAll shapes rather than one with a conditional argument,
+      // because a read this transaction does not need is a document it
+      // must not lock (pulse.test.mjs counts these).
+      const sharded = isShardedQid(qid);
+      const reads = sharded ? await tx.getAll(eventRef, profRef) : await tx.getAll(eventRef, pubRef, profRef);
+      const seen = reads[0];
+      const prof = reads[reads.length - 1];
+      const agg = sharded ? null : reads[1];
       if (seen.exists) return;
       const counts: Record<string, number> =
-        (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
+        (agg?.exists && (agg.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
-      const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
+      const total = ((agg?.exists && (agg.get("total") as number)) || 0) + 1;
       // Per-anchor breakdown, in the SAME document as the plain counts.
       // Deliberately not new per-dimension docs: this transaction already
       // writes the aggregate, so folding the slices in costs no extra
@@ -1233,26 +1246,28 @@ export const onV2AnswerCreated = onDocumentCreated(
       // before the cap, so the ordinary answer still pays the one getAll
       // above and nothing more. What the cap then evicts or refuses goes
       // to the tail as blind increments after the hot write below.
-      const storedBy = agg.exists ? (agg.get("by") as BreakdownCounts) : null;
+      const storedBy = agg?.exists ? (agg.get("by") as BreakdownCounts) : null;
       // What the answer SHOULD have said. Bound here rather than at each use
       // so the cap's shard bound, the fold and the ledger entry all see the
       // same thing, and the correction below compares against the claim.
       const claimed = snap.get("anchors");
       const anchors = honestAnchors(claimed, prof.exists ? prof.get("anchors") : {});
-      const flow = overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
-      const by = breakdownFor(
+      // The hot fold, for the unsharded question: the tail's shards read
+      // only where the cap acts, the breakdown folded, the edit-flow
+      // matrix (D226) carried because the write below replaces the doc
+      // whole (merge: false) — emit-when-set, so a never-edited question's
+      // doc gains no key. A sharded question folds nothing here: its cap
+      // is the compactor's.
+      const flow = sharded ? null : overflowTail(await readOverflowShards(tx, db, qid, capBoundShards(storedBy, anchors)));
+      const by = sharded ? null : breakdownFor(
         qid,
         storedBy,
         anchors,
         optionIdx,
         (kind, dim, bucket, total) => { capped.push({ kind, dim, bucket, total }); },
-        flow.tail,
+        flow!.tail,
       );
-      // The edit-flow matrix (D226) rides these same docs, and this write
-      // replaces the doc whole (merge: false) — so carry it, or the first
-      // create after an edit erases the flows. Emit-when-set: the common,
-      // never-edited question's doc gains no key.
-      const edits = agg.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
+      const edits = agg?.exists ? (agg.get("edits") as EditFlow | undefined) : undefined;
       // AND THE DOCUMENT IS CORRECTED, not only the fold. The People lens
       // reads other users' anchors off their answer rows to say who someone
       // is, so a fold that quietly ignored an invented cohort would leave
@@ -1284,6 +1299,14 @@ export const onV2AnswerCreated = onDocumentCreated(
       // cannot leave the map behind the count. A document only this
       // person's answers touch: no contention on the hot aggregate.
       tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: optionIdx }), { merge: true });
+      if (sharded) {
+        // The counter shard: +1 on the option, the total and every cell
+        // the honest chips name, blind — no document was read for it and
+        // none is locked by it. Uncontended at AGG_SHARDS times the wall.
+        const s = shardOf(event.params.uid);
+        tx.set(shardRef(db, qid, s), shardIncrements(qid, s, optionIdx, anchors, Date.now()), { merge: true });
+        return;
+      }
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -1303,12 +1326,12 @@ export const onV2AnswerCreated = onDocumentCreated(
       // ~1/sec/document (D7). Collapsing the two documents WAS the named
       // remedy and is now taken; what is left when this bites is sharding,
       // not a floor.
-      tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
+      tx.set(pubRef, { counts, total, by: by!, ...(edits ? { edits } : {}) }, { merge: false });
       // The tail's own writes — one merge per shard touched, increments
       // only. Dormant until a dimension reaches the cap; from then on, +1
       // write per answer whose city or country the hot document cannot
       // hold (COSTS.md's row).
-      for (const [shard, inc] of flow.pending) {
+      for (const [shard, inc] of flow!.pending) {
         tx.set(overflowRef(db, qid, shard), overflowIncrements(inc), { merge: true });
       }
     });
@@ -1351,8 +1374,25 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
     let logged: LogRow | null = null;
+    const sharded = isShardedQid(qid);
     await runAggTransaction(db, qid, async (tx) => {
       logged = null;
+      if (sharded) {
+        // The sharded lane's edit (aggShards.ts): the same ledger mark,
+        // row and map, then -old/+new as blind increments on the person's
+        // shard with the total untouched, and one crossing in the
+        // edit-flow matrix. No "arrived before its create" refusal —
+        // increments commute, so an edit folded first leaves a negative
+        // cell the create's +1 cancels, whichever lands first.
+        const [seen] = await tx.getAll(eventRef);
+        if (seen.exists) return;
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx, after.get("anchors")));
+        logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: after.get("surface"), optionIdx: toIdx, fromIdx, anchors: after.get("anchors") });
+        tx.set(answerMapRef(db, event.params.uid), answerMapMerge({ [qid]: toIdx }), { merge: true });
+        const s = shardOf(event.params.uid);
+        tx.set(shardRef(db, qid, s), shardEditIncrements(qid, s, fromIdx, toIdx, after.get("anchors"), Date.now()), { merge: true });
+        return;
+      }
       // One document, batched — same as the create path above.
       const [seen, agg] = await tx.getAll(eventRef, pubRef);
       if (seen.exists) return;

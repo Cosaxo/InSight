@@ -224,7 +224,12 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(ANSWER_MAP_WRITES_PER_ANSWER).toBe(1);
     const src = stripComments(read("functions/src/v2.ts"));
     const sites = src.match(/tx\.set\(answerMapRef\(db, event\.params\.uid\), answerMapMerge\(/g) || [];
-    expect(sites.length, "the create and the edit branch each merge the entry onto the person's map").toBe(2);
+    // 2 -> 3 on 2026-09-11 (phase B, D467): the edit branch has two arms
+    // now — the sharded lane's, which writes the map beside its shard
+    // increment, and the hot path's — and the create branch's one write
+    // sits before its two paths part. Three sites, still one write per
+    // answer on every path.
+    expect(sites.length, "the create and the edit branch each merge the entry onto the person's map").toBe(3);
   });
 
   it("the social term is flat above the voter cap, and only above it", () => {
@@ -476,7 +481,14 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       + "question, private mirror, and no profile — so it matched the "
       + "charge by coincidence while missing the guard. It now reads four, "
       + "which is exactly the +1 the constant already tolerates.",
-    ).toBe(13);
+    ).toBe(15);
+    // 13 -> 15 on 2026-09-11 (phase B, D467): the vote arm reads TWO
+    // ways now — `tx.getAll(eventRef, profRef)` for a question the daily
+    // bank names (the published aggregate is never read: the fold is a
+    // blind increment on a counter shard, TRIGGER_READS_DAILY) and the
+    // three-document getAll for everything else. Two call sites, five
+    // documents between them, on a path that reads two OR three, never
+    // five; the constant charges `world: 3` and says so.
   });
 
   it("the velocity scan's own read is a paged query over the partial day, and the whole days come off the pass's reader", () => {
