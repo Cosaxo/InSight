@@ -467,6 +467,14 @@ describe("the money path, read from the deployment", () => {
       expect(src).toContain(`process.env.${n}`);
     }
     expect(Object.keys(j.paidPath.secrets)).toContain("STRIPE_WEBHOOK_SECRET");
+    // …AND ONLY NAMES A DEPLOY CAN SET. The check above cannot fail in the
+    // over-scraping direction — every scraped name is in paid.ts by
+    // construction — which is how `FUNCTIONS_EMULATOR` joined the list at
+    // D456 and printed `NOT SET` on a working deployment forever. THREE is
+    // the number runbook 5.14 configures, and the count is what holds it.
+    expect(Object.keys(j.paidPath.secrets).sort(),
+      "a name no deploy can set is being reported as a missing secret")
+      .toEqual(["ANTHROPIC_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]);
   });
 
   it("counts a PARTIAL deploy rather than calling it set", async () => {

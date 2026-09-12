@@ -191,14 +191,28 @@ async function metricResources() {
   return readings;
 }
 
-// THE MONEY PATH'S OWN THREE NAMES, read out of the module that reads them
+// THE MONEY PATH'S OWN SECRETS, read out of the module that reads them
 // (D200/D201) rather than retyped here. Retyping is how the third copy of a
 // list drifts, and this list has a specific way of drifting: a renamed
 // variable would leave this reader printing "unset" for a name nothing looks
 // for any more, which reads as a missing secret and is a missing READER.
+//
+// AND IT DRIFTED THE OTHER WAY. The scan takes every `process.env.X` in the
+// file, and since D456 `paid.ts` reads `FUNCTIONS_EMULATOR` — the variable
+// the emulator sets and, in that file's own words, "nothing can set into a
+// deployed runtime". So a perfectly configured deployment printed
+// `✗ FUNCTIONS_EMULATOR NOT SET` and read as one secret short of working,
+// with no deploy able to clear it. A name is a SECRET here only if the
+// deploy could put it in the runtime; the emulator's marker is a runtime
+// fact, which is the opposite thing. The guard that should have caught this
+// only asks whether each scraped name appears in paid.ts — true of this one
+// — so it cannot fail in the over-scraping direction, and the count below
+// is what closes that.
+const NOT_SECRETS = new Set(["FUNCTIONS_EMULATOR", "NODE_ENV", "GCLOUD_PROJECT", "K_SERVICE"]);
 const PAID_ENV_NAMES = (() => {
   const src = stripComments(readFileSync(join(root, "functions/src/paid.ts"), "utf8"));
-  return [...new Set([...src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map((m) => m[1]))];
+  const all = [...new Set([...src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)].map((m) => m[1]))];
+  return all.filter((n) => !NOT_SECRETS.has(n));
 })();
 
 // The functions paid.ts deploys. The dotenv the deploy writes is baked into
