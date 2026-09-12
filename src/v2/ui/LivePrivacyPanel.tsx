@@ -388,8 +388,8 @@ function LivePrivacyPanel() {
           <a href={`${LP_SITE}/terms.html`} target="_blank" rel="noreferrer noopener"
             style={{ color: "var(--accent)", textDecoration: "none" }}>Terms</a>
           {/* The root, beside the two pages that were the app's only links
-              out (D473). It is the address both stores already hold as the
-              privacy and support URL, and since D472 its first row is the
+              out (D-2026-09-12c). It is the address both stores already hold as the
+              privacy and support URL, and since D-2026-09-12b its first row is the
               door to the web ask page. This link is labelled what it is and
               goes where it says — every app links its own website, and
               Apple's rule is about buttons that lead to a purchase, not

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// AskDoorButton.test.tsx — the hop out of the app (D473). The platform
+// AskDoorButton.test.tsx — the hop out of the app (D-2026-09-12c). The platform
 // rule that decides whether this renders at all is data/askDoor.test.ts's;
 // the mounted-App proof for both platforms is test/ask-door-platform's.
 import { afterEach, describe, expect, it, vi } from "vitest";

@@ -296,9 +296,9 @@ describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", (
     expect(openLine, "the public-answers line stopped being open on arrival").toBeTruthy();
   });
 
-  // D473: the root joins the two legal links. It is the one route out of
+  // D-2026-09-12c: the root joins the two legal links. It is the one route out of
   // the binary that store rules leave alone — a website link, labelled as
-  // one — and since D472 the page it opens carries the door. Pinned with
+  // one — and since D-2026-09-12b the page it opens carries the door. Pinned with
   // its neighbours so a tidy-up that trims the line to "Privacy · Terms"
   // fails here rather than in a buyer's hands.
   it("links the site root beside the policy and the terms, labelled as a website and nothing more", () => {

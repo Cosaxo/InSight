@@ -478,7 +478,7 @@ describe("spec layer mounts in live mode", () => {
     // the door was present until the decision; it now pins its absence,
     // which is the property App Review reads the app for.
     //
-    // NARROWED at D473. One door came back, on Android only: a header "+"
+    // NARROWED at D-2026-09-12c. One door came back, on Android only: a header "+"
     // that opens the WEB ask page (data/askDoor.ts asks the platform).
     // jsdom has no Capacitor, so this mounts as the web build, where the
     // door is off — this case still holds, and still proves the door does
@@ -486,7 +486,7 @@ describe("spec layer mounts in live mode", () => {
     // one a reviewer's phone makes, is ask-door-platform.test.jsx's.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),
-      "an ask-a-question door is drawn with no platform set (D368; D473 allows it on Android only)",
+      "an ask-a-question door is drawn with no platform set (D368; D-2026-09-12c allows it on Android only)",
     ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
@@ -1743,7 +1743,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
     // INVERTED at D368, same reason as the profile case above — and the
-    // sheet's own door does NOT return at D473: the one door that did is
+    // sheet's own door does NOT return at D-2026-09-12c: the one door that did is
     // the header's, Android's, and this mounts with no platform.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),

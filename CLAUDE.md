@@ -295,7 +295,7 @@ real slipped through:
   a live build that did not attach, the Map open on a cued group
   after the shell's own walk, with the caller navigating nothing, and the
   header's ask door drawn as Android and refused as iOS, the platform set
-  before the mount (D473 — the one door D368's inverted smoke cases cannot
+  before the mount (D-2026-09-12c — the one door D368's inverted smoke cases cannot
   see, because jsdom has no platform). (The sixth
   smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
   More suites than these import the harness — `dialog` and the feed's

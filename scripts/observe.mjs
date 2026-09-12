@@ -42,6 +42,12 @@ import { api, serviceAccount, accessToken } from "./google-api.mjs";
 // and source-pins.test.mjs holds the ceiling that made that concrete: this
 // file's two paid.ts readers were added without it and the gate said so.
 import { stripComments } from "./strip-comments.mjs";
+// The answer log's names come from the script that creates them and the
+// roles arithmetic from the module the apply script prints its grant from —
+// one source for each, for the reason bigquery-grants.mjs's header gives:
+// the single copy already drifted once (D-2026-09-12a).
+import { DATASET as LOG_DATASET, TABLE as LOG_TABLE, LOCATION as LOG_LOCATION } from "./apply-bigquery.mjs";
+import { logAccess, grantCommands } from "./bigquery-grants.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
@@ -103,17 +109,23 @@ const token = await accessToken(sa, "observe");
 /** One probe. Never throws: a refusal is a RESULT, because the point of the
  *  run is to learn which readings are available and which need a role. */
 async function probe(name, url, role, pick, init = {}) {
+  // `notFound` is not a fetch option. A 404 on a RESOURCE path — one table,
+  // one dataset — is the answer "not created", where a 404 on a project
+  // path reads below as "enable the API". A probe that names a resource
+  // passes one, and gets an ok-shaped result instead of the wrong fix.
+  const { notFound, ...fetchInit } = init;
   try {
     const res = await fetch(url, {
-      ...init,
+      ...fetchInit,
       headers: {
         authorization: `Bearer ${token}`,
-        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...(fetchInit.body ? { "content-type": "application/json" } : {}),
       },
     });
     const text = await res.text();
     let body;
     try { body = JSON.parse(text); } catch { body = null; }
+    if (res.status === 404 && notFound) return { name, status: "ok", ...notFound(body ?? {}) };
     if (!res.ok) {
       const msg = body?.error?.message || text.slice(0, 140);
       // 403 means the API is on and the ROLE is missing; 404 on a project
@@ -233,6 +245,14 @@ const committedPolicies = readdirSync(join(root, "monitoring"))
   .map((f) => { try { return JSON.parse(readFileSync(join(root, "monitoring", f), "utf8")); } catch { return null; } })
   .filter((p) => p && typeof p.displayName === "string" && Array.isArray(p.conditions))
   .map((p) => p.displayName);
+
+// Two bodies kept OUTSIDE the results on purpose. The project's IAM policy
+// names every principal on the project and a dataset's access list every
+// reader of it; the results are written whole to the observe-json artifact.
+// The answer-log reading below joins against both and publishes only the
+// roles ONE service account holds.
+let iamBindings = null;
+let logDatasetAccess = null;
 
 const results = await Promise.all([
   probe(
@@ -363,12 +383,15 @@ const results = await Promise.all([
     "hardStop",
     api("cloudresourcemanager.googleapis.com", `/v1/projects/${PROJECT}:getIamPolicy`),
     "roles/viewer (resourcemanager.projects.getIamPolicy)",
-    (b) => ({
-      role: "roles/billing.projectManager",
-      holders: (b.bindings || [])
-        .filter((x) => x.role === "roles/billing.projectManager")
-        .flatMap((x) => x.members || []),
-    }),
+    (b) => {
+      iamBindings = b.bindings || [];
+      return {
+        role: "roles/billing.projectManager",
+        holders: iamBindings
+          .filter((x) => x.role === "roles/billing.projectManager")
+          .flatMap((x) => x.members || []),
+      };
+    },
     { method: "POST", body: JSON.stringify({ options: { requestedPolicyVersion: 3 } }) },
   ),
   // Runbook 5.11 and 5.12 both END in a BigQuery dataset, and neither could
@@ -391,6 +414,41 @@ const results = await Promise.all([
       }));
       return { count: sets.length, datasets: sets };
     },
+  ),
+  // THE ANSWER LOG'S OWN TWO OBJECTS (D447 phase A; D-2026-09-12a). The
+  // list above says the dataset exists; whether the TABLE does, how many
+  // rows it holds and when one last landed is what tells an operator the
+  // trigger's append is working — `log_append_failed` in the function's
+  // log is the other way to learn it, and nobody reads that log on a
+  // schedule. `numRows` excludes rows still in the streaming buffer (up to
+  // ~90 minutes after an insert), so the buffer's own estimate is read
+  // beside it rather than folded in. A 404 on either is "not created" —
+  // the Apply BigQuery workflow's job — and not "enable the API".
+  probe(
+    "logDataset",
+    api("bigquery.googleapis.com", `/bigquery/v2/projects/${PROJECT}/datasets/${LOG_DATASET}`),
+    "roles/bigquery.dataViewer",
+    (b) => {
+      logDatasetAccess = b.access || [];
+      return { exists: true, location: b.location || "?" };
+    },
+    { notFound: () => ({ exists: false, location: null }) },
+  ),
+  probe(
+    "logTable",
+    api("bigquery.googleapis.com", `/bigquery/v2/projects/${PROJECT}/datasets/${LOG_DATASET}/tables/${LOG_TABLE}`),
+    "roles/bigquery.dataViewer",
+    (b) => ({
+      exists: true,
+      rows: Number(b.numRows ?? 0),
+      bytes: Number(b.numBytes ?? 0),
+      bufferedRows: Number(b.streamingBuffer?.estimatedRows ?? 0),
+      // Milliseconds since the epoch as a string, the API's own shape.
+      lastModified: b.lastModifiedTime ? new Date(Number(b.lastModifiedTime)).toISOString() : null,
+      partitionedBy: b.timePartitioning?.field || null,
+      clusteredBy: b.clustering?.fields || [],
+    }),
+    { notFound: () => ({ exists: false }) },
   ),
   // WHETHER THE ONLY ASSET SURVIVES A BAD AFTERNOON. Nothing in this
   // repository could answer that before 2026-09-11 — `docs/COST-EXPOSURE.md`
@@ -530,6 +588,27 @@ const billingExport = await (async () => {
   }
 }
 
+// THE ANSWER LOG AS ONE ANSWER (D-2026-09-12a): does a row land in BigQuery
+// when an answer commits? Three facts, each READ — the table (logTable), the
+// account the trigger runs as (the functions reading; never typed, because
+// the apply script printed the gen-1 default for three days while every
+// function here is gen-2), and what that account holds (the policy the
+// hardStop probe fetched, and the dataset's own access list). The verdict
+// is null wherever an input was refused, never a confident no.
+const answerLog = (() => {
+  const fn = results.find((r) => r.name === "functions");
+  const trigger = fn?.status === "ok" ? fn.detail.find((d) => d.name === "onV2AnswerCreated") : undefined;
+  const account = trigger?.serviceAccount ?? null;
+  const access = logAccess({ account, bindings: iamBindings, access: logDatasetAccess });
+  return {
+    deployed: fn?.status === "ok" ? Boolean(trigger) : null,
+    ...access,
+    // The two commands, only when a reading SAID no — a refusal prints
+    // nothing to run, because the role may already be there.
+    grants: account && (access.canAppend === false || access.canQuery === false) ? grantCommands(PROJECT, account) : [],
+  };
+})();
+
 const out = {
   project: PROJECT,
   // No Date.now() in the payload beyond this: the caller stamps the day.
@@ -541,6 +620,7 @@ const out = {
   paidPath,
   bqMirror,
   billingExport,
+  answerLog,
   ...(metricReadings ? { metricResources: metricReadings } : {}),
 };
 
@@ -693,6 +773,60 @@ if (AS_JSON) {
   console.log("      These three are OWNER actions: a Stripe account, a console toggle and an");
   console.log("      extension install. What this reader changes is that their state is now a");
   console.log("      line here rather than a fact nobody in the repo could see.");
+
+  // The answer log (D447 phase A), as the three facts that decide whether
+  // a row lands — printed even when every one is fine, because "fine" is
+  // the reading the two OWNER-LIST clicks wait on, and a block that only
+  // appeared on trouble would leave the ticks waiting on a silence.
+  console.log(`\n  The answer log (D447 phase A — every answer a row in ${LOG_DATASET}.${LOG_TABLE}):`);
+  {
+    const t = results.find((r) => r.name === "logTable");
+    const d = results.find((r) => r.name === "logDataset");
+    if (t.status !== "ok") {
+      console.log(`    ✗ table          unreadable — ${t.status} (${t.http ?? "-"}), ${t.why}`);
+    } else if (!t.exists) {
+      console.log(`    ✗ table          ${LOG_DATASET}.${LOG_TABLE} is NOT created — Actions → Apply BigQuery, dry then apply (LOG-FIRST-RUNBOOK A.1);`);
+      console.log("                     until it exists every append logs log_append_failed and the reconcile has nowhere to write.");
+    } else {
+      const where = d.status === "ok" && d.exists ? d.location : "?";
+      console.log(`    ✓ table          ${LOG_DATASET}.${LOG_TABLE} (${where}) — ${t.rows} row(s)`
+        + `${t.bufferedRows ? ` + ${t.bufferedRows} in the streaming buffer` : ""}, last written ${t.lastModified ?? "never"}`);
+      if (where !== "?" && where.toLowerCase() !== LOG_LOCATION) {
+        console.log(`      ✗ the dataset is in ${where}, not ${LOG_LOCATION} — the privacy page places the data in the EU (D165)`);
+      }
+    }
+    const a = answerLog;
+    if (a.deployed === null) {
+      console.log("    · trigger        unreadable — the functions reading is not available, so which account to check is unknown");
+    } else if (!a.deployed) {
+      console.log("    · trigger        onV2AnswerCreated is not deployed — nothing appends yet");
+    } else if (!a.account) {
+      console.log("    · trigger        onV2AnswerCreated is deployed but the API did not say which account it runs as");
+    } else {
+      console.log(`    ✓ trigger        onV2AnswerCreated runs as ${a.account}`);
+      if (a.canAppend === null) {
+        console.log("    · append         unreadable — the IAM policy or the dataset's access list was refused above");
+      } else if (a.canAppend) {
+        console.log(`    ✓ append         may write rows — ${a.appendVia.join(", ")}`);
+      } else {
+        console.log("    ✗ append         holds no role that writes rows, on the project or on the dataset");
+      }
+      if (a.canQuery === null) {
+        console.log("    · query          unreadable — the IAM policy was refused above");
+      } else if (a.canQuery) {
+        console.log(`    ✓ query          may run the reconcile's SELECT and the erasure's DELETE — ${a.queryVia.join(", ")}`);
+      } else {
+        console.log("    ✗ query          holds no role that runs a query job (a project permission — no dataset grant gives it)");
+      }
+      if (a.grants.length) {
+        console.log("      Until both are ✓, every append logs log_append_failed (the count is untouched) and the");
+        console.log("      nightly reconcile cannot catch the day up. Once, by the project owner — for THIS account:");
+        for (const c of a.grants) console.log(`        ${c}`);
+      } else if (a.canAppend && a.canQuery) {
+        console.log("      Every answer is a row within a minute of its count, or by the next morning's reconcile.");
+      }
+    }
+  }
   if (metricReadings) {
     console.log("\n  What each log-based metric's series will be written against:");
     for (const m of metricReadings) {

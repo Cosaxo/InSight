@@ -52969,7 +52969,100 @@ three other watched files main grew (`world-feed.jsx` +31,
 `vote.test.ts` +191, `rules.test.ts` +151). A raise is allowed; a silent
 one is not.
 
-## D472 · The door nobody could reach: shape A's acquisition half, built — and the €320 premise it was argued from
+
+## D-2026-09-12a · The answer log's setup becomes a reading, and the grant names the account the trigger runs as
+
+**Decided:** 2026-09-12 · **Status:** binding
+
+**The ask.** The owner, 2026-09-12: *"Lets setup bigquerry lay a plan and
+a step by step do as much of the setup you can."* Phase A of D447 — every
+answer a row in BigQuery — was built on 2026-09-09 and left two clicks on
+`OWNER-LIST.md`. The first thing this session established is that **both
+clicks had been made, on 2026-09-10, by the owner, and nothing in the
+tree recorded it**: the two rows still stood as open, the runbook still
+said *"Click:"*, and the only way to learn otherwise was to read the
+workflow runs.
+
+**Measured, off the run logs rather than the prose.** *Apply BigQuery*
+ran twice on 2026-09-10 — run 1 at 12:34Z dry (*"would create"*), run 2
+at 12:38Z with `apply` (`dataset insight: created in europe-west1`,
+`table answers: created`). *Backfill answer log* ran three times — run 1
+dry with `before=2026-09-09` (42 answers scanned, 32 rows before the
+cutoff), run 2 dry with `before=2026-09-10` (32), run 3 with `apply` and
+`before=2026-09-10` (**32 appended** over one call). The deploy carrying
+`functions/src/log.ts` is #460, merged 2026-09-09 at 19:57Z; the two dry
+runs agree at 32, so no answer was dated 2026-09-09 and the cutoff loaded
+exactly the rows the trigger never saw, none twice. *Observe production*,
+dispatched the same afternoon with `functions`: 57 functions deployed,
+every one `GEN_2`; `onBudgetAlert` — and with it every function in the
+deploy, since `ops.ts` sets no `serviceAccount` — runs as
+`437999864865-compute@developer.gserviceaccount.com`; two datasets in
+`europe-west1`, `insight` and BigQuery's own anonymous results dataset.
+
+**The defect the measurement exposed.** `scripts/apply-bigquery.mjs`
+printed its two grant commands for `prvfire33@appspot.gserviceaccount.com`
+— the App Engine default, which is what a GEN-1 function runs as. Every
+function in this tree is gen-2 (`firebase-functions/v2`), and gen-2 runs
+as the Compute Engine default unless a deploy says otherwise. So the
+click the owner made against those commands, if made, granted an account
+nothing runs as, and whether the trigger's append has worked since
+2026-09-10 depended on whether the Compute account still holds Editor —
+a fact no line in the repository could read. The row's own escape hatch,
+*"the first answer after the deploy tells — `log_append_failed` in the
+function's log"*, points at a log nobody reads on a schedule. This is
+D296's shape one layer over: a setting nobody could see, and a
+confident sentence standing in for the reading.
+
+**What is built.**
+
+1. `scripts/bigquery-grants.mjs`, pure and tested: which project roles
+   write rows and which run a query job, which dataset access entries
+   write rows (and that none of them gives `bigquery.jobs.create`, a
+   project permission), a verdict that is `null` wherever an input was
+   refused — a refused policy is not a missing role — and the two
+   commands for an account that was READ, never a default.
+2. `scripts/observe.mjs` reads two more objects, the dataset and the
+   table (`numRows`, the streaming buffer's own estimate,
+   `lastModifiedTime`, partition, clustering; a 404 on either is *not
+   created* and not *enable the API*, which `probe()` now lets a
+   resource path say), joins the policy the hard-stop probe already
+   fetches with the account `onV2AnswerCreated` runs as, and prints
+   **The answer log** as three lines — table, trigger, append/query —
+   with the commands only for a role a reading SAID is missing. The
+   policy and the access list stay out of the `observe-json` artifact:
+   they name every principal on the project, and the artifact carries
+   only the roles one service account holds.
+3. `scripts/apply-bigquery.mjs` looks the account up on the deployed
+   trigger and reads the same verdict in every mode; before the first
+   deploy it says so instead of guessing a default.
+4. `apply-bigquery.test.mjs` refuses a typed `--member=` in the script;
+   `observe.test.mjs` pins each state (not created, rows and buffer, the
+   wrong region, a grant to the gen-1 default read as no grant, Editor
+   as both, a dataset WRITER as rows only, a refused policy as
+   unreadable, the trigger not deployed); `bigquery-grants.test.mjs` the
+   arithmetic.
+
+**What stays the owner's.** The tick on both rows (the clicks happened;
+ticking is the owner's, D352). The two roles IF the reading prints ✗ —
+for the Compute account, with the commands the reading prints — and
+nothing if it prints ✓. Cloud Billing export to BigQuery (runbook 5.12),
+a console toggle the observer already detects by its table names. A.9
+and the 500-a-day sentence, unchanged.
+
+**Measured the same hour, on the branch's own run** (*Observe
+production* #26, 2026-09-12 16:13Z, all ten readings available):
+`insight.answers` holds **137 rows**, last written 02:29Z that morning —
+the reconcile's hour; `onV2AnswerCreated` runs as the Compute account;
+**✓ append and ✓ query, both through `roles/editor`**, the broad role the
+default account still holds. So the append has been working since the
+table was created, the grant the script asked for was never needed on
+this project, and the click the row asked for was a click at the wrong
+account that happened not to matter. What the reading buys is the day it
+would: a fresh project, or the day the least-privilege runbook trims
+Editor off the default account, is a ✗ line with the right command
+beside it rather than a silent `log_append_failed`.
+
+## D-2026-09-12b · The door nobody could reach: shape A's acquisition half, built — and the €320 premise it was argued from
 
 **2026-09-12.** **Status:** binding, BUILT. The owner, reading the
 app: *"i noticed there is no way to get from the app to the page where
@@ -53089,7 +53182,7 @@ Three, all on `OWNER-LIST.md` rather than taken by a routine:
    a buyer's name searchable — a D334 ask, not a routine's call.
 
 
-## D473 · The door comes back on Android and the account panel links the site: the owner's four answers on D472's open row
+## D-2026-09-12c · The door comes back on Android and the account panel links the site: the owner's four answers on D-2026-09-12b's open row
 
 **2026-09-12.** **Status:** binding, BUILT. The owner, on being told
 the four web routes made the door reachable but not findable — *"so
@@ -53110,7 +53203,7 @@ the owner ruled on each:
 | shape | the owner | why |
 | --- | --- | --- |
 | free "Suggest a question" in the app, the paid door for deliberate buyers | **no** — *"that like giving away youtube premium for free thats suposd to be the income source"* | asking is the product, not a funnel to it |
-| a "Website" link beside Privacy and Terms in the account panel | **yes** — *"tell me more"*, then *"go build both"* | a website link is a website link; the root now carries the door (D472) |
+| a "Website" link beside Privacy and Terms in the account panel | **yes** — *"tell me more"*, then *"go build both"* | a website link is a website link; the root now carries the door (D-2026-09-12b) |
 | the header "+" back, on Android only, opening the WEB door | **yes** — *"agree"* | Play does not police ad-type spend the way Apple does |
 | email or opted-in push to signed-in users, which Apple explicitly allows | **no** — *"acouts should be anonymous"* | D3, and a reach of nearly nobody |
 
@@ -53142,7 +53235,7 @@ path and it exists anyway.
 
 **"Website" beside Privacy policy and Terms** (`LivePrivacyPanel.tsx`).
 Opens the root — the address both stores already hold as the privacy
-and support URL, whose first row since D472 is the door. Labelled what
+and support URL, whose first row since D-2026-09-12b is the door. Labelled what
 it is and going where it says. Deliberately not "Ask a question": that
 name is the Android header's, and the iOS build must carry nothing of
 the kind.
@@ -53220,6 +53313,6 @@ root Apple already has on file — and not zero.
   one platform, opening the web rather than a composer. D368 itself is
   untouched: buying stays on the web, the funnel stays out of the iOS
   binary, and the reason (IAP has no partial-refund primitive) stands.
-- D472's three open calls stand as written: the domain, the `/q/`
+- D-2026-09-12b's three open calls stand as written: the domain, the `/q/`
   `noindex`, and — now answered — the in-app path.
 - The Play policy read joins them.

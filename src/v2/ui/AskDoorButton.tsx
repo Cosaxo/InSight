@@ -1,5 +1,5 @@
 // AskDoorButton — the header "+" that leaves the app for the web ask page
-// (D473). A React.lazy chunk: app-shell asks data/askDoor.ts whether to
+// (D-2026-09-12c). A React.lazy chunk: app-shell asks data/askDoor.ts whether to
 // draw it at all (Android only) and fetches this only on a yes, so the iOS
 // build never loads these bytes and the eager graph carries none of them
 // — askDoor.ts's header has the 484-byte arithmetic that split the two,
