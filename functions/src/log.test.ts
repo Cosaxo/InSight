@@ -7,11 +7,13 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  LOG_BACKFILL_PAGE, LOG_ERASE_BATCH, LOG_ERASE_NOW_MAX_BYTES, LOG_ERASURE_RETRY_MS,
+  LOG_BACKFILL_PAGE, LOG_ERASE_BATCH, LOG_ERASE_NOW_MAX_BYTES, LOG_ERASURE_RETRY_MS, LOG_SHADOW_ID_CHUNK,
   eraseUserLog, logRow, rowFromLedgerEntry, runLogBackfill, runLogReconcile,
+  shadowAdditionsSql, shadowCountsSql, shadowRowsSql,
   type LogErasureStore, type LogReconcileStore, type LogRow, type LogWriter,
 } from "./log";
 import type { LedgerDayEntry } from "./ledger";
+import { PATTERNS_SAMPLE_CAP } from "./patternsSamples";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const quiet = { info: () => {}, warn: () => {} };
@@ -227,6 +229,8 @@ describe("runLogBackfill", () => {
       async deleteUsers() { return "done"; },
       async tableBytes() { return null; },
       async rowsFor(uid) { return rows.filter((r) => r.uid === uid); },
+      async shadowRows() { return []; },
+      async shadowFold() { return { entries: 0, actives: 0, additions: new Map() }; },
     };
   }
   const answer = (uid: string, qid: string, data: Record<string, unknown>): Row => ({ path: `v2_users/${uid}/answers/${qid}`, data: { qid, ...data } });
@@ -264,5 +268,32 @@ describe("runLogBackfill", () => {
     const second = await runLogBackfill(db, w, { before: "2026-09-09", apply: true, after: first.next, maxPages: 1 });
     expect(second.done).toBe(true);
     expect(new Set(w.rows.map((r) => r.id)).size).toBe(rows.length);
+  });
+});
+
+describe("the shadow's queries (LOG-FIRST-RUNBOOK A.7)", () => {
+  // The SQL cannot run here; what CAN be held is that each query reads
+  // the day it claims to and folds the way the Firestore fold does —
+  // the cap, the order, the tie-break — since a query that drifted from
+  // the fold would read as a fold that drifted from the log.
+  const ref = "`p.insight.answers`";
+  it("the fold half reads the log's OWN day, the exact half looks a day either side by id", () => {
+    expect(shadowCountsSql(ref)).toMatch(/WHERE day = @day$/);
+    expect(shadowAdditionsSql(ref, PATTERNS_SAMPLE_CAP)).toMatch(/WHERE day = @day AND/);
+    expect(shadowRowsSql(ref)).toMatch(/day BETWEEN DATE_SUB\(@day, INTERVAL 1 DAY\) AND DATE_ADD\(@day, INTERVAL 1 DAY\)/);
+    expect(shadowRowsSql(ref)).toMatch(/id IN UNNEST\(@ids\)/);
+  });
+  it("the additions query is trimAdditions as SQL: newest per person (ties by id), the samples' cap, uid order", () => {
+    const sql = shadowAdditionsSql(ref, PATTERNS_SAMPLE_CAP);
+    expect(sql).toMatch(/ORDER BY answered_at DESC, id DESC LIMIT 1/);
+    expect(sql).toContain(`ORDER BY uid LIMIT ${PATTERNS_SAMPLE_CAP}`);
+    expect(sql).toMatch(/option_idx IS NOT NULL AND option_idx >= 0/);
+    // an empty uid is no person, in the counts as in the digest
+    expect(shadowCountsSql(ref)).toMatch(/COUNT\(DISTINCT IF\(uid = '', NULL, uid\)\)/);
+  });
+  it("a chunk of ids stays a small parameter", () => {
+    // ~36 bytes an id against BigQuery's 10 MB request: twenty thousand is
+    // under a megabyte, which is the whole argument for the constant.
+    expect(LOG_SHADOW_ID_CHUNK * 36).toBeLessThan(1024 * 1024);
   });
 });

@@ -51567,3 +51567,232 @@ Two are real and neither is this:
   rather than as the leak D464 closed.
 
 The remaining CI failures are on other lanes' PR branches and are theirs.
+## D466 · The answer log's shadow: the folds phase D will move, checked nightly by id and by query — and the seam the two clocks make
+
+**2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK A.7, built on
+the owner's *"start with the free ones, A.7 and the rules gate"*. The
+second of those was already built: D438 chained `rules-budget.mjs
+--gate` into `test:rules` on 2026-09-09, and the assessment that named
+it as open had read `ORIENTATION.md`'s row for the plan rather than the
+plan's own §5. The row said *"Phase 3's gate and Phase 4's split remain
+proposals"* two days after the gate shipped; it is corrected in this
+change, and the finding under it is the one `check:docs` rule 7
+already records for the Status column — a row that summarises a page
+goes stale the day the page moves, so read the page. Numbered D466
+after D452 on this branch; `main` may have claimed it since, and D408's
+rule makes that a move at merge, not a wait.
+
+**What was asked, and what the clocks did to it.** A.7 wanted one
+query per nightly fold whose result is compared with the fold's own —
+the digest's actives, the velocity scan's entry count, the samples'
+newest two hundred per question — so that a week of zero diffs licenses
+phase D. One query per fold cannot be exact here, and the reason is
+worth the record: a ledger entry's `at` is `FieldValue.serverTimestamp()`
+(pure.ts, the commit) and its BigQuery row's `answered_at` is the
+trigger's `Date.now()` a few hundred milliseconds earlier (v2.ts, the
+four `logRow` sites), so an answer committed just past midnight UTC sits
+on the ledger's day D and the log's day D−1. Neither is wrong; they are
+two definitions of a day, and under phase D the log's becomes THE day.
+A shadow that compared the ledger's day D with the log's day D would
+report that seam every busy night and never reach a clean week. The
+reconcile (A.3) already meets the same fact and looks a day either side
+by id; the shadow does the same, and then some.
+
+**What was built** (`functions/src/logShadow.ts`, the pass's tenth
+runner, right after the reconcile so the day it reads is the day the
+reconcile just completed):
+
+- **The exact half, by id.** The ledger day's ids, `LOG_SHADOW_ID_CHUNK`
+  (20,000) a query — an `IN UNNEST` parameter under a megabyte against
+  the 10 MB request ceiling — looked up across three partitions, and
+  each row compared with what `rowFromLedgerEntry` would have written
+  for its entry: `missing` (the reconcile could not put it back),
+  `mismatched` (another person, question or option — an index the row
+  nulls is compared as null, the same rule on both sides), `seam` (the
+  row is filed under another day). Bounded by the pass's clock
+  (`LOG_SHADOW_SLICE_MS`, a minute, through `sliceDeadline` like every
+  bounded fold), checked before each chunk because a chunk started is a
+  chunk paid for; a capped night says `checked` and is never clean.
+- **The fold half, by query, over the log's own day.** The three
+  queries phase D will run — `shadowCountsSql` (`COUNT(*)` and
+  `COUNT(DISTINCT uid)` with an empty uid no person, as the digest reads
+  the ledger) and `shadowAdditionsSql` (each person's newest
+  option-shaped answer of the day, ties by id, which is the ledger's own
+  tie-break; then `ARRAY_AGG … ORDER BY uid LIMIT 200`, the cap inlined
+  because ARRAY_AGG's LIMIT takes a constant) — against the same folds
+  computed off the shared ledger read. The samples' side goes through
+  `sampleAdditions` and `trimAdditions`, the second EXTRACTED from
+  `mergeSample` in this change so the comparison is the fold's own
+  arithmetic and not a second copy of it (D197's lesson, one file over;
+  `mergeSample`'s behaviour is unchanged and its suite says so).
+- **One line.** `log_shadow`, info when `clean`, a warning carrying every
+  number when not. `clean` is the conjunction: the exact half complete
+  with nothing missing, mismatched or on another day, the two counts
+  equal, no question's list differing. Read against `seam`: a fold diff
+  no larger than it is the seam; a fold diff with the seam at zero is a
+  query that does not reproduce the fold, which is the finding the week
+  exists to make before a fold moves.
+
+**What it deliberately does not compare**, so a clean week is read as
+what it is and not more: the cumulative sample DOCUMENT (a Firestore
+read per sample and a scan of the table's whole history, and the merge
+is deterministic over the day's additions this does compare — a week of
+matching days is a matching fold by induction); the frozen chips on a
+row; and the candidate's corpus filter (`patterns.ts` folds only the
+items its corpus names, the shadow folds every option-shaped entry, and
+equality on the superset is equality on the subset). The week is read
+off the log lines — seven nights of `clean: true` — and nothing is
+written anywhere to count it: a state document for a diagnostic that
+retires with phase D would outlive its purpose.
+
+**What it costs.** The ledger day: nothing, the memoised reader holds it
+for the folds ahead. BigQuery: two aggregates over one partition plus
+`ceil(entries / 20,000)` lookups over three partitions' id column, each
+billed at the 10 MB minimum — about a gigabyte a night at 50,000 DAU on
+COSTS.md's answer rate, twenty cents a month, and the minute caps what a
+larger day can spend. COSTS.md's phase-A note carries the sentence.
+
+**Verified, not assumed.** 15 new tests: the fold (an edit is the later
+entry, a pick is a person and not an addition, the cap in uid order
+through the fold's own trim), the diff (an option, a person, a missing
+question, the examples bounded), the runner (skips reading nothing where
+there is no BigQuery, and a skip is not clean; a mirror is one info
+line; each of the three exact findings counted once at warn; a nulled
+index is not a mismatch; a fold disagreement is not clean and names the
+question; the chunking at the constant; the clock stopping before the
+second chunk and a deadline already past looking nothing up while the
+two fold queries still run), the queries held to the fold's cap, order
+and tie-break, and the pass's order and the tenth runner's deadline
+(the source scan that derives bounded runners from the interface found
+it without being told). 1,007 functions tests green, `tsc` and the test
+typecheck clean, eslint clean. Not verified from here: a real BigQuery
+answering the two shapes — the first night's `log_shadow` line is that
+test, and the emulator and the suites are off by construction.
+
+## D467 · Phase B: the daily lane's aggregate is sharded and a compactor publishes it — on Firestore, with Redis as the swap and not the start
+
+**2026-09-11.** **Status:** binding — LOG-FIRST-RUNBOOK phase B, built on
+the owner's *"build phase B"*. The wall D7 recorded and every cost page
+since has named first — one `v2_question_aggs/{qid}` document written on
+every answer, Firestore's ~1 write a second per document, the daily
+question answered by everyone in a waking window, ~14,400 DAU (`npm run
+costs`) — is sixteen times further out, and the ceiling of 200 folds in
+flight beside it is 1,000.
+
+**What shipped.** For a question the daily bank names — `SHARDED_QIDS`
+in `functions/src/aggShards.ts`, read off the compiled content, never off
+the answer's own `surface` claim, because a client that could opt a
+feed question into sharding would put its counts on a path the feed's
+other answers do not take — the trigger reads two documents (the ledger
+event and the profile, D410's honesty check kept) and writes one
+uncontended document: the person's counter shard,
+`v2_agg_shards/{qid}-{s}`, `s` the FNV-1a hash of the uid mod
+`AGG_SHARDS` (16), as BLIND INCREMENTS in the same transaction as the
+ledger mark and the answer map — the option, the total, one cell per
+frozen chip, an edit's -old/+new and its edit-flow crossing. The shard's
+breakdown is uncapped: the cap needs the bucket set, which is the read
+this removes. `compactAggShardsV2`, every minute, sums every shard of
+every question dirtied in the last fifteen minutes and writes
+`v2_question_aggs/{qid}` in exactly the shape the trigger wrote —
+`counts`, `total`, `by`, `edits` — with the union re-capped: the
+`BREAKDOWN_MAX_BUCKETS` biggest buckets a dimension stay hot, ties by
+name, the rest to D400's tail, each tail shard written where it has
+cells and deleted where it has none (the replay's rule, so the two
+writers agree; the rebuild publishes a sharded question through this
+same cap). Every client keeps reading the one
+document it reads today at the poll it already polls, which is D447's
+amendment of D98 made literal: exact, and never more than a poll behind.
+
+**Why Firestore shards and not the Redis the runbook wrote.** What makes
+Redis a fixed line is the counter store — Memorystore bills the instance
+from the hour it exists, $36 to $196 a month with two users as with
+fifty thousand, which `COST-EXPOSURE.md` §8 and the owner's list both
+flagged as the unexpected-bill shape this whole program exists to
+prevent. The compactor is the idea that removes the wall; the store is
+an implementation choice. A Firestore shard bills per operation, is
+exactly-once inside the ledger-marked transaction (so B.4's nightly
+reconcile is not needed and is struck with the reason), is exercised by
+the emulator and the e2e where a Redis cannot be, and needs no VPC
+connector, no instance and no owner click. It sits behind the same
+`AggCompactStore` seam the compactor reads through, so the Redis store
+is a swap of that seam and the trigger's one write when `npm run
+costs:target` prints the per-answer trigger line above the instance —
+the condition the owner's row now decides, moved from the start to the
+swap. Recorded here rather than argued in the runbook because it is a
+deviation from an adopted design, and the reason has to be findable.
+
+**Three things the design gained on the way.** *Order-independence:* a
+blind increment commutes with every other, so an edit delivered before
+its create — Eventarc orders nothing — folds to the create's final state
+where the hot path had to refuse and retry (`retargetCounts`), and the
+shard a person lands in need not be stable across a change of
+`AGG_SHARDS`. *A better cap:* the compactor keeps the biggest buckets
+rather than the earliest, deterministically, so `replay.ts`'s "arrival
+order decides the hot map" caveat is gone for a sharded question and a
+bucket that reaches the tail can climb back. *A stateless compactor:* it
+republishes what the lookback names and recomputes from every shard, so
+a run is idempotent and there is no cursor document, no collection for
+it, no rules row and no clock-skew argument — at the price the header
+states: an outage longer than fifteen minutes leaves a QUIET question
+stale until its next answer or the operator lever, which for the
+question this exists for is a minute.
+
+**The migration is a shard.** A question published before this shipped
+has a document holding every count so far and, from the deploy on, the
+trigger never touches it again. The first time the compactor meets a
+question with no `{qid}-base`, it moves the published document and its
+tail into one — hot map and tail as one uncapped map — in a transaction
+that creates or yields, and sums the base like any shard from then on.
+`rebuildAggregateV2` writes the base from its exact fold, deletes every
+other shard, and publishes; its concurrency guard is a stamp over the
+shards' write times, since the published document no longer moves
+during a scan.
+
+**What a user sees, and the one client change.** The same number, at
+most a minute later. The device's optimistic +1 used to clear when the
+post-vote refresh found a document that existed — true evidence when
+the fold was in the same transaction as the answer, false for a whole
+minute now. `aggHoldsMark` in `src/v2/data/live.ts` is ANSWER-SCALE §4's
+rule: a create clears once its option's count has grown past what the
+device held when it answered, an edit once the new option grew or the
+old shrank. Someone else's vote on the same option can satisfy it a
+minute early; the count corrects itself on the next read, and the
+comment says so.
+
+**What it costs.** The daily answer: two reads where there were three,
+one write where there was one. The compactor: a query a minute — a read
+even when empty — and, per minute the daily was dirtied in the
+lookback, seventeen reads, one write and the eight tail writes past the
+cap. `npm run costs` carries it as a flat line (`compactorReadsPerDay`,
+every constant read from source): the launch row's reads tripled and
+its bill rose twenty-five cents, the Hit row moved by a dollar, an
+eighth scheduler job is ten cents. `HOT_TRIGGER.maxInstances` 50 raises
+the hot path's runaway ceiling to ~$3,245 a month for either answer
+trigger (COSTS.md's paragraph). No fixed line anywhere.
+
+**Verified, not assumed.** `aggShards.test.ts` (fourteen cases: the
+daily set off the bank, the hash in range and spread, the writes' exact
+keys, the compacted document EQUAL to `foldAnchors`'s on forty answers,
+an edit before its create, negatives dropped and counted, the cap's
+choice and tie-break, the base, and the run's every outcome);
+`idempotence.test.ts` (the sharded lane's four: one blind increment
+with the mark and the map, a redelivery writing nothing, an edit with
+no refusal, the hot path untouched for an unlisted question);
+`vote.test.ts` (the mark held on a document that does not hold the vote
+and cleared on one that does, for a create and an edit);
+`rules.test.ts` (the shards nobody's to read or write); the e2e loop
+reading the same counts it read off the hot path, through the lever;
+`pulse.test.mjs` (13 → 15 documents across the trigger's read sites,
+2 → 3 map writes, each with its reason); `check:figures`,
+`check:monitoring`, `check:appcheck`, `check:deploy-targets`,
+`check:fn-runtime`, `check:data-inventory`, `check:docs`. Not run: a load
+probe at a hundred answers a second — the tree has no rig for one; the
+arithmetic is sixteen sustained writes a second where there was one,
+and the contention alert now watches the shards.
+
+**What is deliberately not here.** Phase 5.4's deck document. A lag
+policy beyond the heartbeat's own `capped` and `stopped`. Retiring the
+contention alert — the feed lane still folds on the hot path and a shard
+can contend at sixteen times the rate. Sharding any surface but the
+daily: the feed spreads its answers across the bank, and a shard costs
+the compactor a query's worth of reads a minute per dirty question.

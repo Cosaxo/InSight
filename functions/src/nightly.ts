@@ -81,9 +81,10 @@ import { runTasteFold, firestoreTasteStore } from "./taste";
 import { ANSWER_MAP_HEAL_SLICE_MS, runAnswerMapHeal, firestoreAnswerMapStore } from "./answerMaps";
 import { VELOCITY_AUTH_SLICE_MS, runVelocityScan, firestoreVelocityStore } from "./velocity";
 import { runLogReconcile, firestoreLogStore } from "./log";
+import { LOG_SHADOW_SLICE_MS, runLogShadow, logShadowStore } from "./logShadow";
 import { FANOUT_HEAL_SLICE_MS, runFanoutHeal, firestoreFanoutHealStore } from "./profileFanout";
 
-/** The five things a night does, as thunks — so the pass can be driven
+/** What a night does, as thunks — so the pass can be driven
  * by a test with nothing behind them, and so the Firestore stores are
  * built exactly once per invocation, over one shared reader. */
 export interface NightlyRunners {
@@ -105,6 +106,13 @@ export interface NightlyRunners {
    *  and the erasures the day deferred. Skips itself where there is no
    *  BigQuery (the emulator), and says so. */
   log: () => ReturnType<typeof runLogReconcile>;
+  /** The answer log's shadow (logShadow.ts, runbook A.7) — the tenth, run
+   *  right after the reconcile so the day it compares is the day the
+   *  reconcile just completed: the ledger day's rows looked up by id, and
+   *  the three folds phase D will run as SQL, against the same folds off
+   *  the shared read. Logs `log_shadow` itself; a week of clean nights is
+   *  what licenses phase D. Bounded by the pass's clock like the heals. */
+  shadow: (deadlineAt: number) => ReturnType<typeof runLogShadow>;
   /** The profile fan-out's heal (profileFanout.ts) — the ninth: every
    *  account whose stamp change the hourly budget deferred gets the
    *  fan-out from its profile as it is now. Bounded by the markers. */
@@ -209,6 +217,10 @@ export async function runNightlyPass(
   // after the heal so a night that dies in the folds still mirrors the
   // day — the ledger keeps it for ninety days either way.
   await attempt("log", r.log);
+  // …and the shadow (`log_shadow`) reads the day the reconcile just made
+  // whole, so a row it reports missing is one the reconcile could not put
+  // back rather than one it had not reached.
+  await attempt("shadow", () => r.shadow(sliceDeadline(LOG_SHADOW_SLICE_MS)));
   // The fan-out heal speaks only when it healed, like the map heal: a
   // healed account is a stamp change the budget refused in the day.
   const fan = await attempt("fanout", () => r.fanout(sliceDeadline(FANOUT_HEAL_SLICE_MS)));
@@ -317,6 +329,7 @@ export const digestEngagementV2 = onSchedule(
       velocity: (deadlineAt) => runVelocityScan(firestoreVelocityStore(db, ledgerDay), now, logger, { deadlineAt }),
       answerMaps: (deadlineAt) => runAnswerMapHeal(firestoreAnswerMapStore(db, ledgerDay), now, { deadlineAt }),
       log: () => runLogReconcile(firestoreLogStore(db, ledgerDay), now),
+      shadow: (deadlineAt) => runLogShadow(logShadowStore(ledgerDay), now, logger, { deadlineAt }),
       fanout: (deadlineAt) => runFanoutHeal(firestoreFanoutHealStore(db), { deadlineAt }),
       attention: () => runAttentionFold(firestoreAttentionStore(db)),
       rollup: (deadlineAt) => runRollupFold(firestoreRollupStore(db), ROLLUP_FOLD_CAP, { deadlineAt }),
