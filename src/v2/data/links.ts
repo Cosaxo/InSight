@@ -96,6 +96,21 @@ export function parseJoinCode(url: string): string | null {
 // in the same graph, and an event would be a name with no type behind it.
 const joinSubs = new Set<() => void>();
 
+/**
+ * Is one waiting? READ-ONLY, deliberately — the daily's mode switch needs
+ * to know a code is there, and the panel it switches to is what consumes
+ * it. A peek that cleared would take the invite away from the screen it
+ * was navigating to.
+ */
+export function hasJoinCode(): boolean {
+  try {
+    const c = sessionStorage.getItem(PENDING_KEY);
+    return !!c && CODE_RE.test(c);
+  } catch {
+    return false;
+  }
+}
+
 /** Fires when a code lands. The listener reads it with consumeJoinCode. */
 export function subscribeJoinCode(f: () => void): () => void {
   joinSubs.add(f);
@@ -133,8 +148,31 @@ export function initDeepLinks(): void {
     const code = parseJoinCode(url);
     if (!code) return;
     stashJoinCode(code);
-    // The registry since D248 — was a `window as unknown as {…}` cast.
-    NAV.goTab("track");
+    // THE NUDGE HAS TO OUTLIVE THE BOOT. `initDeepLinks()` runs from
+    // main.jsx BEFORE `root.render`, so on a cold start from an invite
+    // link the shell has registered nothing and `NAV.goTab` no-ops —
+    // silently, by its own design (nav.ts: "each no-ops when the shell
+    // has not registered"). Measured: `NAV.can("goTab")` is false at this
+    // moment and zero navigations happen.
+    //
+    // That was invisible while the last tab was the daily one, because
+    // the app opens there anyway. For anyone whose last tab was the
+    // Mirror it is the whole feature: they land on the Mirror, the daily
+    // panel never mounts, and nothing reads the code they just tapped.
+    //
+    // Bounded retry rather than a queue in nav.ts: the registry is a
+    // shared contract and a stashed navigation would change it for every
+    // caller, where what is wanted here is "as soon as the shell is up,
+    // and never later than that". Six tries at 60ms covers a first render
+    // and gives up rather than surprising someone who has since navigated
+    // somewhere themselves.
+    let tries = 0;
+    const nudge = () => {
+      if (NAV.can("goTab")) { NAV.goTab("track"); return; }
+      if (++tries >= 6) return;
+      setTimeout(nudge, 60);
+    };
+    nudge();
     window.dispatchEvent(new Event("insight-live-update"));
   };
   try {
