@@ -73,7 +73,7 @@ function mount(opts?: { again?: boolean }) {
   void done.then(() => { state.settled = true; });
   return state;
 }
-const onScreen = () => screen.queryByRole("dialog", { name: /How InSight works/i }) !== null;
+const onScreen = () => screen.queryByRole("dialog", { name: /How Doxa works/i }) !== null;
 const walkToLast = () => {
   for (let i = 0; i < 8 && !screen.queryByRole("button", { name: /^(Start|Done)$/ }); i++) {
     fireEvent.click(screen.getByRole("button", { name: /^Next$/ }));
@@ -229,7 +229,7 @@ describe("again, and twice", () => {
     act(() => { first = mountWalkthrough(); });
     act(() => { second = mountWalkthrough({ again: true }); });
     expect(second).toBe(first);
-    expect(screen.getAllByRole("dialog", { name: /How InSight works/i })).toHaveLength(1);
+    expect(screen.getAllByRole("dialog", { name: /How Doxa works/i })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: /^Skip$/ }));
     await settle();
     expect(onScreen()).toBe(false);

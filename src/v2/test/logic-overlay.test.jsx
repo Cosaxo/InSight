@@ -290,13 +290,45 @@ describe("a verified attempt (D57)", () => {
   });
 
   it("a refused start reports the server's reason and leaves the result screen intact", async () => {
-    vi.mocked(startVerified).mockRejectedValue(new Error("too many starts today"));
+    vi.mocked(startVerified).mockRejectedValue(new Error("one attempt every 30 days — the next opens in 12 days"));
     localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByText("Take again"));
     await act(async () => {});
-    screen.getByText(/too many starts today/);
+    screen.getByText(/one attempt every 30 days — the next opens in 12 days/);
     screen.getByText("Take again"); // still on the result screen
+  });
+
+  it("until the next attempt opens, the result screen says when instead of offering the button (D478)", () => {
+    const DAY = 86_400_000;
+    localStorage.setItem(LKEY, JSON.stringify(savedOmib({ when: Date.now() - 5 * DAY })));
+    render(<LogicOverlay onClose={() => {}} />);
+    screen.getByText("Next attempt in 25 days");
+    expect(screen.queryByText("Take again")).toBeNull();
+    // the day it opens, the button is back — savedOmib()'s `when: 1` is long past
+    cleanup();
+    localStorage.setItem(LKEY, JSON.stringify(savedOmib({ when: Date.now() - 30 * DAY })));
+    render(<LogicOverlay onClose={() => {}} />);
+    screen.getByText("Take again");
+    expect(screen.queryByText(/next attempt in/i)).toBeNull();
+  });
+
+  it("an attempt interrupted inside its window comes back as it stands: the next item, the index, the time that is left (D478)", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
+    // resumed adaptive: three picks already the server's, ten caps of window left
+    vi.mocked(startVerified).mockResolvedValue({ mode: "adaptive", items: [codes()[3]], total: N, capMs: ITEM_CAP, deadlineMs: 10 * ITEM_CAP, resumed: true, index: 3 });
+    vi.mocked(nextVerified).mockResolvedValue({ items: [codes()[4]], index: 4, total: N });
+    render(<LogicOverlay onClose={() => {}} />);
+    fireEvent.click(screen.getByText("Take again"));
+    await act(async () => {});
+    screen.getByText("15:00"); // ten caps left, not twenty-five
+    fireEvent.click(tile("box top"));
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    act(() => { vi.advanceTimersByTime(COMMIT_DELAY); });
+    await act(async () => {});
+    // the pick carries the index the server is waiting for, not zero
+    expect(vi.mocked(nextVerified)).toHaveBeenCalledWith(3, cellOf([8]));
   });
 });
 

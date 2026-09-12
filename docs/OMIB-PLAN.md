@@ -250,11 +250,11 @@ old curve was not. It is also **2,572 applicants to medical school**,
 which means a typical general-population taker will read as below its
 median. The result must say whom it is against — *"sharper than 31% of
 the people this test was calibrated on"* until n = 100, then *"… of N
-InSight players"* as now. That sentence is a claim, not a caption, and
+Doxa players"* as now. That sentence is a claim, not a caption, and
 `docs/COPY.md` §3 does not license shortening it. `source: "model"` stays
 the wire's word for the first case.
 
-Once the InSight histogram clears the floor, `measuredPctile` ranks θ̂
+Once the Doxa histogram clears the floor, `measuredPctile` ranks θ̂
 against it exactly as it ranks counts today, and the `band` becomes
 [Φ or rank](θ̂ − SE) … (θ̂ + SE) — the same interval read through the same
 curve, the D402 shape with a real SE in it.
@@ -283,9 +283,12 @@ have shown most of the bank, and a score after previews measures
 preparation rather than the ability the parameters were calibrated on
 (first sight, every item). The worked example stays — an IQ test shows
 an example before the first scored item, and it teaches the format, not
-the items. Start is the verified attempt, and "again" is the server's
-cooldown (D57: one verified score per 30 days, three starts a day) — the
-interval is the knob if the owner wants it longer.
+the items. Start is the attempt, and there is ONE EVERY 30 DAYS, counted
+from the start of the last whatever came of it (D478, the owner: *"one
+chance can only be taken once every 30 days"*); an attempt interrupted
+inside its window is resumed as it stands, never restarted, and the
+per-day restarts of D57 — a preview channel once practice was gone — are
+retired with the rule.
 
 **Tests the repo's rules demand**, named so they are not skipped: the
 functions suite for `irt.ts` and the new scorer; a `smoke-*` mount of the
@@ -322,7 +325,7 @@ printed, beside its computed ceiling and Spearman's ρ. **The floor is 300
 counted attempts**: at a hundred the transferred case reads under the
 bar, and clears it from two hundred with little margin.
 
-The same page prints the InSight mean θ̂ (expected below 0 — the
+The same page prints the Doxa mean θ̂ (expected below 0 — the
 calibration sample is selected — and the first honest sentence about
 where this app's population sits), the clock's signature (the share of
 sightings that ended blank and whether it rises with b), the five items

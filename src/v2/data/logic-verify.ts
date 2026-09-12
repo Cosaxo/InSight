@@ -42,12 +42,17 @@ export type Selection = "stratified" | "adaptive";
 
 export interface VerifiedStart {
   mode: Selection;
-  /** the whole form (stratified) or its first item (adaptive) */
+  /** the whole form (stratified), its first item (adaptive), or on a resume its next */
   items: VerifiedItem[];
   /** how many items the form has, whichever way they arrive */
   total: number;
   capMs: number;
+  /** what is LEFT of the attempt's window — the whole of it on a fresh start */
   deadlineMs: number;
+  /** D478: an attempt interrupted inside its window comes back as it stands */
+  resumed?: true;
+  /** where a resumed adaptive attempt continues — the picks before it are the server's */
+  index?: number;
 }
 
 /** What an adaptive pick comes back with when the form is not finished: the next item. */

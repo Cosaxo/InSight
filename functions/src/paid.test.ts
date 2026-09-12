@@ -1057,7 +1057,7 @@ describe("checkoutLineItem — the amount and what the charge says it is for", (
     // This sentence is the contract the buyer reads at the moment of
     // paying. Every number in it comes off the locked quote.
     const d = checkoutLineItem(q).price_data.product_data;
-    expect(d.name).toBe("InSight paid question");
+    expect(d.name).toBe("Doxa paid question");
     expect(d.description).toContain(`${q.windowDays}-day window`);
     expect(d.description).toContain(`€${q.ratePerAnswer}`);
     expect(d.description).toContain(`up to ${q.cap} answers`);

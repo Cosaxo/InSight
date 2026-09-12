@@ -37,7 +37,6 @@ import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { utcDayKeyOf } from "./pure";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
 import {
@@ -66,15 +65,23 @@ export const LOGIC_DEADLINE_MS = LOGIC_ITEMS * LOGIC_ITEM_CAP_MS + LOGIC_ITEM_CA
 export function logicItemsFor(gv: number): number {
   return gv >= 3 ? 25 : 12;
 }
-// Starting an attempt previews a fresh form, so unfinished restarts
-// are a preview channel — bounded per UTC day rather than closed, because
-// a crashed app must be able to start again.
-export const LOGIC_MAX_STARTS_PER_DAY = 3;
-// One verified score is THE score for a while: re-verification opens after
-// this many days. (First scored attempt feeds the norms histogram either
-// way — the D32 "first attempt counts" rule, for the same reason: retakes
-// measure practice, not the population.)
+// ── ONE ATTEMPT EVERY 30 DAYS (D478; the owner, 2026-09-12: "one chance
+// can only be taken once every 30 days") ──
+// The interval runs from the START of the previous attempt, whatever came
+// of it — scored, abandoned, expired: each was the chance. Before D478 the
+// rule was one VERIFIED score per 30 days plus three starts a day, and the
+// three starts were a preview channel: a start hands out a form, and with
+// practice gone (D477) an unscored restart was the last way to see the
+// bank without being measured on it. What a crash needs is not a new form
+// but the SAME one back, so an open attempt inside its deadline is RESUMED
+// rather than restarted — the same seed, the same items, the time that is
+// left — and nothing else opens the door early. The client mirrors the
+// number as LOGIC_RETAKE_DAYS (src/v2/data/logic-score.ts), pinned in both
+// suites. (First scored attempt feeds the norms histogram either way — the
+// D32 "first attempt counts" rule, for the same reason: retakes measure
+// practice, not the population.)
 export const LOGIC_REVERIFY_DAYS = 30;
+export const LOGIC_RETAKE_MS = LOGIC_REVERIFY_DAYS * 86_400_000;
 // An attempt finished faster than this per item is scored but never
 // COUNTED (D402): twenty-five matrices cannot be read, let alone solved,
 // in under two seconds each, so such an attempt is a click-through — and
@@ -157,11 +164,12 @@ export interface LogicAttempt {
    *  form is replayed from these and the seed, so nothing else is held */
   picks?: string[];
   status: "open" | "scored";
+  /** what the 30-day rule counts from (D478) */
   startedAtMs: number;
   deadlineMs: number;
-  /** UTC day the start counter refers to */
-  dayKey: string;
-  startsToday: number;
+  /** the per-day start counter of D57, retired at D478 — on older documents only */
+  dayKey?: string;
+  startsToday?: number;
   /** true once ANY attempt by this account has fed the norms histogram */
   normsCounted?: boolean;
   scoredAtMs?: number;
@@ -171,26 +179,22 @@ export interface LogicAttempt {
 
 // ── pure decision logic (unit-tested without an emulator) ──
 
-export type StartVerdict = { ok: true } | { ok: false; code: string; msg: string };
+/** `resume`: the open attempt inside its window is handed back, not a new one. */
+export type StartVerdict = { ok: true; resume: boolean } | { ok: false; code: string; msg: string };
 
 export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVerdict {
-  if (prev) {
-    if (
-      prev.status === "scored"
-      && prev.scoredAtMs != null
-      && nowMs - prev.scoredAtMs < LOGIC_REVERIFY_DAYS * 86_400_000
-    ) {
-      return { ok: false, code: "cooldown", msg: "verified recently — try again later" };
-    }
-    if (prev.dayKey === utcDayKeyOf(nowMs) && prev.startsToday >= LOGIC_MAX_STARTS_PER_DAY) {
-      return { ok: false, code: "rate-limited", msg: "too many starts today" };
-    }
+  if (!prev) return { ok: true, resume: false };
+  if (prev.status === "open" && nowMs <= prev.deadlineMs) return { ok: true, resume: true };
+  const since = nowMs - prev.startedAtMs;
+  if (since < LOGIC_RETAKE_MS) {
+    const days = Math.ceil((LOGIC_RETAKE_MS - since) / 86_400_000);
+    return {
+      ok: false,
+      code: "cooldown",
+      msg: `one attempt every ${LOGIC_REVERIFY_DAYS} days — the next opens in ${days} day${days === 1 ? "" : "s"}`,
+    };
   }
-  return { ok: true };
-}
-
-export function nextStartsToday(prev: LogicAttempt | null, nowMs: number): number {
-  return prev && prev.dayKey === utcDayKeyOf(nowMs) ? prev.startsToday + 1 : 1;
+  return { ok: true, resume: false };
 }
 
 /**
@@ -214,8 +218,6 @@ export function mintAttempt(
     status: "open",
     startedAtMs: nowMs,
     deadlineMs: nowMs + LOGIC_DEADLINE_MS,
-    dayKey: utcDayKeyOf(nowMs),
-    startsToday: nextStartsToday(prev, nowMs),
     normsCounted: prev?.normsCounted === true,
   };
   // An adaptive attempt hands out its first item only: the rest do not
@@ -224,6 +226,15 @@ export function mintAttempt(
     : selection === "adaptive" ? [{ code: omibNextItem(seed, []).code }]
     : omibClientItems(seed);
   return { attempt, items };
+}
+
+/** What a resumed attempt is handed: its own form again, or its next item. */
+function resumeItems(prev: LogicAttempt): LogicClientItem[] | OmibClientItem[] {
+  if (prev.bank !== "omib") return clientItems(prev.seed, prev.gv);
+  if (prev.mode !== "adaptive") return omibClientItems(prev.seed);
+  const next = replayAdaptive(prev.seed, prev.picks ?? []).next;
+  if (!next) throw new HttpsError("failed-precondition", "already scored");
+  return [{ code: next.code }];
 }
 
 // Picks: one per item, -1 = expired/unanswered, else an option index.
@@ -364,20 +375,31 @@ export const logicStartV2 = onCall(
       const prev = snap.exists ? (snap.data() as LogicAttempt) : null;
       const verdict = canStartLogic(prev, now);
       if (!verdict.ok) throw new HttpsError("failed-precondition", verdict.msg, { code: verdict.code });
+      // RESUME (D478): the open attempt inside its window comes back as it
+      // stands — the same seed, so the same items, and for an adaptive one
+      // the next unanswered item. Nothing is written: the document already
+      // says everything the client is about to be told.
+      if (verdict.resume && prev) return { attempt: prev, items: resumeItems(prev), resumed: true };
       const m = mintAttempt(prev, now, seed, LOGIC_BANK);
       tx.set(ref, m.attempt);
-      return m;
+      return { ...m, resumed: false };
     });
 
-    logger.info(`[logicStartV2] uid=${uid} attempt opened on ${LOGIC_BANK}${minted.attempt.mode ? ` (${minted.attempt.mode})` : ""}`);
+    const a = minted.attempt;
+    logger.info(`[logicStartV2] uid=${uid} attempt ${minted.resumed ? "resumed" : "opened"} on ${a.bank ?? "generator"}${a.mode ? ` (${a.mode})` : ""}`);
     return {
       items: minted.items,
       capMs: LOGIC_ITEM_CAP_MS,
-      deadlineMs: LOGIC_DEADLINE_MS,
+      // What is LEFT of the attempt's window — the whole of it on a fresh
+      // start, less on a resume — so the client's sitting clock is honest.
+      deadlineMs: a.deadlineMs - now,
       // The selection and the form's length travel with an OMIB start, so
       // the client knows whether the items it holds are the whole form or
       // the first of twenty-five it will be handed one at a time.
-      ...(minted.attempt.bank === "omib" ? { mode: minted.attempt.mode, total: OMIB_FORM_ITEMS } : {}),
+      ...(a.bank === "omib" ? { mode: a.mode ?? "stratified", total: OMIB_FORM_ITEMS } : {}),
+      // A resumed adaptive attempt continues at `index`: the picks before
+      // it are the server's already.
+      ...(minted.resumed ? { resumed: true, index: a.mode === "adaptive" ? (a.picks ?? []).length : 0 } : {}),
     };
   },
 );

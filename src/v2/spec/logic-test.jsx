@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { useDialog } from './primitives.jsx';
-import { FIELD_MED, loadResult, logicSecs, saveResult } from '../data/logic-score';
+import { FIELD_MED, LOGIC_RETAKE_DAYS, loadResult, logicSecs, saveResult } from '../data/logic-score';
 import { startVerified, submitVerified, nextVerified, isScore, verifyErrorMessage } from '../data/logic-verify';
 import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEMENTS } from '../data/omib-shapes';
 import { HAPTIC } from './haptics.js';
@@ -418,7 +418,18 @@ export let LOGIC;
     // Stamped in effects rather than during render: Date.now() in a render
     // body is impure and eslint's react-hooks/purity rule rightly refuses it.
     const askedAt = useRef(0);
-    const startedAt = useRef(0);
+    // When the sitting ends: the form's length at the cap, or what the
+    // server says is left of a resumed attempt's window, whichever is sooner.
+    const endsAt = useRef(0);
+    // Days until the next attempt may open (D478: one every 30 days from the
+    // start of the last), read off the saved result when the result screen
+    // shows; null until read, so neither the button nor the line flashes.
+    const [retakeDays, setRetakeDays] = useState(null);
+    useEffect(() => {
+      if (screen !== 'result') return;
+      const DAY = 86_400_000;
+      setRetakeDays(result && result.when ? Math.max(0, Math.ceil((result.when + LOGIC_RETAKE_DAYS * DAY - Date.now()) / DAY)) : 0);
+    }, [screen, result]);
     // The expiry path needs the CURRENT goal/phase/qi, not the ones from the
     // render that armed the interval — the latest-closure ref pattern.
     const timeUpRef = useRef(() => {});
@@ -442,23 +453,37 @@ export let LOGIC;
       const id = setInterval(() => {
         const now = Date.now();
         const l = askedAt.current + ITEM_CAP - now;
-        setTestLeft(Math.max(0, startedAt.current + form.total * ITEM_CAP - now));
+        setTestLeft(Math.max(0, endsAt.current - now));
         if (l <= 0) timeUpRef.current();
         else setLeft(l);
       }, TICK);
       return () => clearInterval(id);
-    }, [qi]); // eslint-disable-line react-hooks/exhaustive-deps -- `form` is fixed for the life of an attempt; keyed on qi so it re-arms as each puzzle appears
+    }, [qi]); // keyed on qi so it re-arms as each puzzle appears
 
     const arm = (f) => {
-      setForm(f); setPicks([]); setTimes([]); setGoal([]); setPhase('building'); setNet(null);
-      startedAt.current = Date.now();
-      setTestLeft(f.total * ITEM_CAP);
-      setScreen('item'); setQi(0);
+      // A resumed adaptive attempt (D478) continues at `index`: the picks
+      // before it are the server's, so this side holds placeholders for
+      // them — the index is what the next call needs, and the Pace lens
+      // skips a null timing.
+      const index = f.index || 0;
+      // the served item sits at `index`, the slots before it never drawn
+      setForm({ ...f, items: [...new Array(index).fill(null), ...f.items] });
+      setPicks(new Array(index).fill(null)); setTimes(new Array(index).fill(null));
+      setGoal([]); setPhase('building'); setNet(null);
+      const now = Date.now();
+      endsAt.current = now + Math.min(f.total * ITEM_CAP, f.deadlineMs != null ? f.deadlineMs : Infinity);
+      setTestLeft(Math.max(0, endsAt.current - now));
+      setScreen('item'); setQi(index);
     };
     // What a start says the form is. `mode` and `total` are the server's
-    // since D476; the fallbacks are for the deploy window in which a new
-    // client meets the old start shape, and read it as what it was.
-    const served = (s) => ({ mode: s.mode || 'stratified', items: s.items, total: s.total || s.items.length });
+    // since D476, `deadlineMs` is what is left of the window and `index`
+    // where a resumed adaptive attempt continues (D478); the fallbacks are
+    // for the deploy window in which a new client meets the old start
+    // shape, and read it as what it was.
+    const served = (s) => ({
+      mode: s.mode || 'stratified', items: s.items, total: s.total || s.items.length,
+      deadlineMs: s.deadlineMs, index: s.index || 0,
+    });
     // ── the round trip (D57): the server mints and keeps the seed ──
     const beginVerified = () => {
       setNet({ phase: 'starting', mode: 'verified' });
@@ -717,13 +742,22 @@ export let LOGIC;
                   <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{noteFor(result)}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                {/* one button, one kind of attempt (D477): the server's cooldown
-                    answers "again" — "verified recently — try again later"
-                    lands under the buttons, where a refused start always has */}
-                <button onClick={beginVerified} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(false), opacity: net && net.phase === 'starting' ? 0.5 : 1 }}>
-                  {net && net.phase === 'starting' ? 'Preparing…' : 'Take again'}
-                </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8, alignItems: 'center' }}>
+                {/* one button, one kind of attempt (D477), one every 30 days
+                    (D478): until the next opens, the button is the line that
+                    says when — the server's own refusal ("one attempt every
+                    30 days — the next opens in N days") still lands under
+                    the buttons if the device's clock and the server's differ */}
+                {retakeDays === 0 && (
+                  <button onClick={beginVerified} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(false), opacity: net && net.phase === 'starting' ? 0.5 : 1 }}>
+                    {net && net.phase === 'starting' ? 'Preparing…' : 'Take again'}
+                  </button>
+                )}
+                {retakeDays > 0 && (
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', padding: '0 6px' }}>
+                    {'Next attempt in ' + retakeDays + (retakeDays === 1 ? ' day' : ' days')}
+                  </div>
+                )}
                 <button onClick={onClose} style={pillBtn(true)}>Done</button>
               </div>
               {net && net.phase === 'start-error' && (

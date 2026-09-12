@@ -127,7 +127,7 @@ const exec = (args = []) => run("node", [SCRIPT, ...args], {
 describe("the report", () => {
   it("names what a recipient sees when no template sets a sender", async () => {
     const { stdout } = await exec();
-    expect(stdout).toMatch(/does not send as "InSight"/);
+    expect(stdout).toMatch(/does not send as "Doxa"/);
     // The project id, because that is what the runbook step is about.
     expect(stdout).toMatch(/prvfire33/);
     expect(calls.every((c) => c.method === "GET"), "the report wrote something").toBe(true);
@@ -148,19 +148,19 @@ describe("the report", () => {
     named("Something Else");
     const { stdout } = await exec();
     expect(stdout).toMatch(/Something Else/);
-    expect(stdout).toMatch(/does not send as "InSight"/);
+    expect(stdout).toMatch(/does not send as "Doxa"/);
   });
 
   it("says nothing needs doing once BOTH mails carry the name", async () => {
-    named("InSight");
+    named("Doxa");
     const { stdout } = await exec();
-    expect(stdout).toMatch(/both mails send as "InSight"/);
+    expect(stdout).toMatch(/both mails send as "Doxa"/);
   });
 
   it("is not satisfied by ONE of the two", async () => {
-    // A verification mail from InSight and a reset from prvfire33 is worse
+    // A verification mail from Doxa and a reset from prvfire33 is worse
     // than neither: the inconsistency is what reads as a spoof.
-    named("InSight");
+    named("Doxa");
     delete config.notification.sendEmail.verifyEmailTemplate.senderDisplayName;
     const { stdout } = await exec();
     expect(stdout).toMatch(/at least one mail does not send as/);
@@ -194,8 +194,8 @@ describe("--sender-name", () => {
     expect(writes[0].body).toEqual({
       notification: {
         sendEmail: {
-          verifyEmailTemplate: { senderDisplayName: "InSight" },
-          resetPasswordTemplate: { senderDisplayName: "InSight" },
+          verifyEmailTemplate: { senderDisplayName: "Doxa" },
+          resetPasswordTemplate: { senderDisplayName: "Doxa" },
         },
       },
     });
@@ -208,7 +208,7 @@ describe("--sender-name", () => {
   });
 
   it("does not write when both names are already right", async () => {
-    named("InSight");
+    named("Doxa");
     await exec(["--sender-name", "--apply"]);
     expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
   });

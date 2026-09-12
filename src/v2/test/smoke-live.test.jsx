@@ -66,7 +66,7 @@ import { IS_DATA } from "../spec/sample-data.js";
 // a constant compared with itself, which stays green for any fixture and
 // leaves the real assertion to fail with the wrong diagnosis.
 const FIXTURE_DAILY_COUNTS = DAILY_COUNTS;
-const BOUNDARY_LOG = "[InSight] boundary caught:";
+const BOUNDARY_LOG = "[Doxa] boundary caught:";
 const BOUNDARY_COPY = /This view hit a snag/i;
 
 let App;

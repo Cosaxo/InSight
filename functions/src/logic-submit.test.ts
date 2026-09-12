@@ -89,7 +89,7 @@ const fakeDb = {
 
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
-const { logicSubmitV2, logicNextV2, mintAttempt, OMIB_SELECTION, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } =
+const { logicSubmitV2, logicNextV2, logicStartV2, mintAttempt, OMIB_SELECTION, LOGIC_DEADLINE_MS, LOGIC_ITEMS, LOGIC_MIN_MS_PER_ITEM, clientItems } =
   await import("./logic");
 const { version: GEN_VERSION } = await import("./logic-gen");
 const { OMIB_FORM_ITEMS, OMIB_BANK_VERSION, EMPTY_CELL, omibForm, omibNextItem, replayAdaptive } = await import("./omib");
@@ -441,5 +441,62 @@ describe("an adaptive attempt", () => {
       (logicNextV2 as unknown as { run: (r: unknown) => Promise<unknown> }).run({ auth: null, data: { index: 0, pick: EMPTY_CELL } }),
     ).rejects.toThrow(/signed in/);
     expect(store.size).toBe(0);
+  });
+});
+
+// ── starting: one attempt every 30 days, resumed inside its window (D478) ─
+describe("starting an attempt", () => {
+  const start = () =>
+    (logicStartV2 as unknown as { run: (r: unknown) => Promise<Doc> }).run({ auth: { uid: UID }, data: {} });
+
+  it("mints a fresh attempt when there is none: the whole window, the form, no day counter", async () => {
+    const out = await start();
+    expect(out.deadlineMs).toBe(LOGIC_DEADLINE_MS);
+    expect(out.resumed).toBeUndefined();
+    expect(out.index).toBeUndefined();
+    expect(out.items).toHaveLength(OMIB_SELECTION === "adaptive" ? 1 : OMIB_FORM_ITEMS);
+    const doc = store.get(ATTEMPT) as Doc;
+    expect(doc.status).toBe("open");
+    expect(doc.startsToday).toBeUndefined();
+    expect(doc.dayKey).toBeUndefined();
+  });
+
+  it("hands an open attempt back as it stands — the same items, the time that is left — and writes nothing", async () => {
+    const startedAtMs = Date.now() - 5 * 60_000;
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "stratified", seed: 4242, startedAtMs, deadlineMs: startedAtMs + LOGIC_DEADLINE_MS });
+    const before = { ...(store.get(ATTEMPT) as Doc) };
+    const out = await start();
+    expect(out.resumed).toBe(true);
+    expect(out.index).toBe(0);
+    expect(out.mode).toBe("stratified");
+    expect(out.items).toEqual(omibForm(4242).map((i) => ({ code: i.code })));
+    expect(out.deadlineMs as number).toBeLessThanOrEqual(LOGIC_DEADLINE_MS - 5 * 60_000);
+    expect(out.deadlineMs as number).toBeGreaterThan(LOGIC_DEADLINE_MS - 6 * 60_000);
+    expect(store.get(ATTEMPT)).toEqual(before);
+  });
+
+  it("resumes an adaptive attempt at its next unanswered item", async () => {
+    const startedAtMs = Date.now() - 60_000;
+    const picks = [EMPTY_CELL, EMPTY_CELL, EMPTY_CELL];
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, mode: "adaptive", seed: 4242, picks, startedAtMs, deadlineMs: startedAtMs + LOGIC_DEADLINE_MS });
+    const out = await start();
+    expect(out).toMatchObject({ resumed: true, index: 3, mode: "adaptive", total: OMIB_FORM_ITEMS });
+    expect(out.items).toEqual([{ code: (replayAdaptive(4242, picks).next as { code: string }).code }]);
+    expect((store.get(ATTEMPT) as Doc).picks).toEqual(picks);
+  });
+
+  it("refuses inside 30 days of the last start, whatever came of it — and says when the next opens", async () => {
+    const DAY = 86_400_000;
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: 1, status: "scored", startedAtMs: Date.now() - 10 * DAY, scoredAtMs: Date.now() - 10 * DAY + 60_000 });
+    await expect(start()).rejects.toThrow(/one attempt every 30 days — the next opens in 20 days/);
+    // an attempt that expired unscored was the chance too
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: 1, status: "open", startedAtMs: Date.now() - 2 * DAY, deadlineMs: Date.now() - 2 * DAY + LOGIC_DEADLINE_MS });
+    await expect(start()).rejects.toThrow(/the next opens in 28 days/);
+    // and after 30 days a new one is minted
+    openAttempt({ bank: "omib", gv: OMIB_BANK_VERSION, seed: 1, status: "scored", startedAtMs: Date.now() - 31 * DAY, scoredAtMs: Date.now() - 31 * DAY + 60_000, normsCounted: true });
+    const out = await start();
+    expect(out.resumed).toBeUndefined();
+    expect((store.get(ATTEMPT) as Doc).normsCounted).toBe(true); // the D32 flag carries across attempts
+    expect((store.get(ATTEMPT) as Doc).seed).not.toBe(1);
   });
 });

@@ -53317,6 +53317,127 @@ root Apple already has on file — and not zero.
   `noindex`, and — now answered — the in-app path.
 - The Play policy read joins them.
 
+## D472 · The app is Doxa: the name changes, and nothing under it does
+
+**2026-09-12.** **Status:** binding. The owner's call, in the naming
+session of this date and in these words: *"lets go with Doxa, do the
+rename"*. This record is the arithmetic that preceded it, what the
+rename touched, what it deliberately left alone, and the three things
+only the owner can finish.
+
+### Why the name moved
+
+InSight was not unoriginal so much as unfindable. Insight Timer, at
+twenty-five million downloads, is the first result for "Insight" in
+both stores; "Insight: Group Party Games" is a social question game in
+this app's own category; NASA's InSight lander owns the capitalised
+spelling on the web; and plain "InSight" was already reserved on the
+App Store on 2026-08-05, which is the only reason the listing read
+"InSight: Daily Perspective" (`design/store/listing.json`'s note). The
+word is also descriptive — every analytics product promises insight —
+and so close to unregistrable in software classes as makes no
+difference.
+
+**Doxa** is the Greek for opinion, Plato's word for belief as against
+knowledge, and the root of Aristotle's *endoxa* — the opinions held by
+everyone, by most people, or by the wise — which is what this app
+collects and what the Mirror draws a person against. Two beats, four
+letters, one ascender. The owner's objection to the string *dox* inside
+it was met by the treatment rather than the spelling: the 2026-09-12
+upload (`design/standalone-2026-09-12/`) sets the word in DM Serif
+Display with the x in the tab accent, so on screen it reads Do·x·a and
+the string never assembles; spoken, the syllable is the one in
+*paradox*. What the name shares its spelling with — Doxa dive watches
+(class 14), a medical-English course, a Ugandan media app, church apps,
+a procurement platform, the Russian student magazine — is nothing in
+this category.
+
+Considered and not taken, so the next naming pass need not repeat it:
+**Endoxa** (the fuller word, three beats — the owner's ceiling was two),
+**Doksa** (the transliteration, free, and the k's ascender breaks the
+low silhouette that made Doxa sit quietly), **Enoxa** (a blood thinner's
+brand name in three countries), **Endox** (a defence-AI startup, and it
+ends on the string), **Ygg** and **Yggdrasil** (a Web3 guild's token and
+everything else), **Consilience** and its forms, and some forty short
+plain words each already held by a social, dating or voting app.
+
+### What changed, in this commit
+
+- **The display name.** `capacitor.config.ts` `appName`, the iOS
+  `CFBundleDisplayName`, Android's `app_name` and `title_activity_main`,
+  `index.html`'s title, and the boot mark.
+- **The wordmark.** The header lockup is `Do<em>x</em>a` in DM Serif
+  Display 400 at 25 px, tracked −0.01em, the x taking the tab accent as
+  `Sight` did (`app-shell.jsx`, `.wm-serif` in `styles.css`); the
+  sign-in gate's stacked lockup is the same at 36 px; `web/join.html`'s
+  twin is in Georgia, because the hosting CSP is `default-src 'none'`
+  with no `font-src`. The face ships as a **four-glyph subset** — D, a,
+  o, x; 1.2 KB from Google Fonts' `text=` endpoint, OFL — because
+  `check:bundle` holds fonts to 96 KB, the tree carried 86 KB, and the
+  upload's own latin subset is 24.7 KB. The word is the only place the
+  face is used; any other use falls back to Spectral and is the
+  font-ceiling conversation `styles.css` has always required. The boot
+  mark keeps the system stack and its reasons (no swap mid-boot) — the
+  one deviation from the upload.
+- **The copy.** The sign-in sentence ("Answers on Doxa are public, yours
+  included"), the walkthrough's title and the account panel row ("How
+  Doxa works"), the location-denied line, the linked-account refusal,
+  the budget-mode line, the demo demographics titles, and the pinned
+  tests for each. The console prefix is `[Doxa]`, and the mount harness
+  asserts the new one.
+- **The web.** `web/privacy.html` first (D183's rule), then terms, ask,
+  delete-account, home, join and the two paid pages; the paid results
+  pages `functions/src/share.ts` renders; the Stripe line item "Doxa
+  paid question" and the reviewer guidelines; the push-notification
+  title fallbacks in `v2social.ts`; the question report's wordmark; and
+  the auth mail sender name in `scripts/auth-config.mjs`, with its tests.
+- **The store listing.** The bare "Doxa" was pushed first and Apple
+  refused it — 409, *"The app name you entered is already being used"*,
+  another account's first-come reservation, released only to a
+  trademark claim. So `apple.name` and `play.title` are "Doxa: What
+  Everyone Thinks": the product's own sentence, and the half the
+  subtitle ("Answer blind, then compare") does not already say. The
+  on-device name under the icon is the bare Doxa either way.
+- **The record.** `CLAUDE.md`, `README.md`, `SECURITY.md`,
+  `STORE-FORMS.md`'s 1.2 table, `design/README.md`, the vision
+  lineage, and this entry.
+
+### What did not change, on purpose
+
+- `com.cosaxo.insight` — the bundle id, `applicationId` and namespace —
+  the `insight://` deep-link scheme, and every `insight.*` storage key.
+  Changing the first is a new app in both stores; changing the second
+  breaks every invite link already sent; changing the third orphans
+  every device's caches and reopens the patterns gate (D265).
+- The Firebase project, and the GCP budget named "InSight" with its
+  "InSight oncall" channel: existing cloud resources, and `budget.yml`
+  already records what a second budget of the same name costs.
+- The GitHub repository `Cosaxo/InSight`, and the scripts that name it.
+- The generated catalogue headers and the generators that write them:
+  the drift gates compare the committed files to generator output, so
+  a header change is a regeneration, not a rename.
+- Internal tooling (the console, the pulse, the cost comparison, the
+  routine names in `ROUTINES.md`), CI artifact names, the header
+  comments that cite each spec module's provenance, and every earlier
+  decision record — history keeps the name it was written under.
+
+### The owner's three steps
+
+1. **App Store Connect:** reserve "Doxa" (the push will fail with a 409
+   naming the attribute if it is taken; then the suffix).
+2. **`node scripts/auth-config.mjs`** against the project, so the
+   verification and reset mails send as Doxa rather than InSight.
+3. **Trademark and domains:** classes 9 and 42 at Patentstyret and
+   TMview, and `doxa.no` / `doxa.app`, neither reachable from the
+   session that made this change.
+
+### Gates
+
+The full client and functions suites, every `check:*` this change can
+reach, and the docs index regenerated — the run is in the commit's
+message. The rules and e2e suites need Java and were not touched by a
+rename that changes no rule.
+
 ## D473 · The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding
 
 **Date:** 2026-09-11 · **Status:** adopted by the owner (four options put,
@@ -53947,3 +54068,63 @@ the reversal), §9, §8 rows 1 and 4, §3.3's replay bullet;
 `docs/data-inventory.md` row 19; `docs/VISUAL-REQUESTS.md` request 14;
 `OWNER-LIST.md` — the practice row superseded, the flip row's "try it"
 sentence; the design README's "both modes" line.
+
+## D478 · One attempt every 30 days, from the start of the last — and an attempt interrupted inside its window is resumed, never restarted
+
+**Decision (the owner, 2026-09-12, one line after D477: *"and one
+change can only be taken once every 30 days"*).** One attempt every 30
+days, and the interval runs from the START of the previous attempt,
+whatever came of it: scored, abandoned, or expired unscored — each was
+the chance. `canStartLogic` in `functions/src/logic.ts` is the whole of
+the rule; `LOGIC_REVERIFY_DAYS = 30` is the number, mirrored on the
+client as `LOGIC_RETAKE_DAYS` (`src/v2/data/logic-score.ts`), pinned at
+30 in both suites so neither side moves alone.
+
+**What it replaces, and why the replacement is stricter on purpose.**
+D57 allowed one VERIFIED score per 30 days and three STARTS a day, the
+starts being "a preview channel — bounded per UTC day rather than
+closed, because a crashed app must be able to start again". Two things
+changed under that sentence. Practice is gone (D477), so an unscored
+restart became the last way to see the bank without being measured on
+it: three fresh forms a day is 75 of 218 items, and a fortnight of it
+is the bank. And the reason for the bound — the crash — never needed a
+NEW form; it needed the same one back. So the daily counter is retired
+(`dayKey` and `startsToday` stop being written; older documents keep
+theirs and are judged by their start alone), and **an open attempt
+inside its window is RESUMED**: `logicStartV2` hands the same attempt
+back — the same seed, so the same items; for an adaptive attempt the
+next unanswered item with `index`, the picks before it being the
+server's already — with `deadlineMs` now meaning what is LEFT of the
+window (the whole of it on a fresh start), and writes nothing. Past the
+window, the attempt was the chance, and the next opens 30 days after
+it started.
+
+**The refusal says when.** "one attempt every 30 days — the next opens
+in N days", computed server-side and shown where a refused start always
+has been. The result screen reads the same countdown off the saved
+result's `when` — *Next attempt in N days* in the button's place until
+the day it opens — so a person is not offered a button the server will
+refuse; the server's line still lands if the device's clock disagrees.
+A resumed attempt's sitting clock is the shorter of the form's length
+at the cap and the window left; the items answered before the
+interruption carry no timing on this device (nulls, which the Pace lens
+skips), and the marks are the server's regardless.
+
+**Proved by.** `logic.test.ts` (the rule: fresh, resume, expired-open
+refused, scored refused with the days and the singular, the boundary at
+exactly 30 days, a pre-D478 document judged by its start);
+`logic-submit.test.ts` (the callable through the fake transaction: a
+mint without the day counter, a stratified resume handing the same form
+back and writing nothing, an adaptive resume at its next item, the
+refusals and the day the next opens, the D32 flag carried across); the
+emulator's verified leg (a second start inside the window resumes the
+same items with the time left; after scoring, a new start is refused
+naming the day); `logic-overlay.test.jsx` (the refusal shown, the
+countdown in the button's place and the button back on the day, a
+resumed adaptive attempt continuing at its index with the header
+showing the window left); `logic-score.test.ts` (the mirror at 30, the
+pace with nulls).
+
+**Records moved.** `docs/OMIB-PLAN.md` §5; `docs/data-inventory.md` row
+18. The privacy page needed no word: it never named a cadence for the
+test, and `check:policy-claims` agrees.

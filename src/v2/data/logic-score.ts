@@ -66,6 +66,14 @@ export interface LogicResult {
 
 export const LKEY = "insight.logicTest.v1";
 
+/**
+ * One attempt every 30 days, counted from the start of the last (D478) —
+ * the server's LOGIC_REVERIFY_DAYS (functions/src/logic.ts), pinned in
+ * both suites. The client uses it only to say when the next opens; the
+ * server is the one that refuses.
+ */
+export const LOGIC_RETAKE_DAYS = 30;
+
 /** modelled median seconds per puzzle — the Pace lens's yardstick */
 export const FIELD_MED = 17;
 
@@ -152,7 +160,9 @@ export function saveResult(r: LogicResult): void {
 /** mean seconds per puzzle; a result saved before timing existed reads as
  *  the modelled median rather than as instant */
 export function logicSecs(r: LogicResult | null): number {
-  return r && Array.isArray(r.times) && r.times.length
-    ? r.times.reduce((a, b) => a + b, 0) / r.times.length / 1000
-    : FIELD_MED;
+  // A resumed attempt (D478) has no timing for the items answered before
+  // the interruption — nulls in the array — so the pace is the mean of the
+  // items this device timed, and the modelled median if it timed none.
+  const timed = r && Array.isArray(r.times) ? r.times.filter((t): t is number => typeof t === "number") : [];
+  return timed.length ? timed.reduce((a, b) => a + b, 0) / timed.length / 1000 : FIELD_MED;
 }

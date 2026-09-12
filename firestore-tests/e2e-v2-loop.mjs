@@ -2098,6 +2098,17 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("logicStartV2 hands over the form and never the answer key (D57)");
 
+  // RESUME (D478): a second start inside the attempt's window is the SAME
+  // attempt back — the same items, less of the window — and never a new
+  // form, because with practice gone (D477) a restart was the last way to
+  // see the bank without being measured on it.
+  const again = await httpsCallable(fns, "logicStartV2")({});
+  if (again.data.resumed !== true || JSON.stringify(again.data.items) !== JSON.stringify(started.data.items)) {
+    fail("a second start inside the window did not hand the same attempt back: " + JSON.stringify({ resumed: again.data.resumed, same: JSON.stringify(again.data.items) === JSON.stringify(started.data.items) }));
+  }
+  if (!(again.data.deadlineMs <= started.data.deadlineMs)) fail("a resumed attempt was given more time than it had");
+  ok("…and a second start inside the window resumes the same attempt with the time that is left (D478)");
+
   // …and the key IS disclosed once the attempt is scored, which is what
   // makes the assertion above about TIMING rather than about the field
   // never existing.
@@ -2157,6 +2168,18 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     }
   }
   ok("a scored attempt refuses a second submit");
+
+  // ONE ATTEMPT EVERY 30 DAYS (D478): the scored attempt was the chance, so
+  // a new start is refused with the day the next opens.
+  try {
+    await httpsCallable(fns, "logicStartV2")({});
+    fail("a new start inside 30 days of a scored attempt was accepted");
+  } catch (e) {
+    if (e?.code !== "functions/failed-precondition" || !/one attempt every 30 days — the next opens in 30 days/.test(e?.message || "")) {
+      fail("wrong refusal for a start inside the interval: " + (e?.code || e) + " " + (e?.message || ""));
+    }
+  }
+  ok("…and a new start inside 30 days is refused, naming the day the next opens (D478)");
 }
 
 // 12 · The self-serve paid-question loop (paid.ts, D313): book → the

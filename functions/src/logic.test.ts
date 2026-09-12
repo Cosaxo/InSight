@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   LOGIC_DEADLINE_MS,
   LOGIC_ITEMS,
-  LOGIC_MAX_STARTS_PER_DAY,
+  LOGIC_RETAKE_MS,
   LOGIC_MIN_MS_PER_ITEM,
   LOGIC_NORMS_MIN_N,
   LOGIC_REVERIFY_DAYS,
@@ -19,7 +19,6 @@ import {
   logicPctileFor,
   measuredPctile,
   rankAndFold,
-  nextStartsToday,
   scoreLogicPicks,
   validLogicPicks,
   rankAndFoldTheta,
@@ -68,58 +67,55 @@ describe("the percentile curves match the client's, landmark for landmark", () =
   });
 });
 
-describe("canStartLogic", () => {
-  it("no prior attempt → start", () => {
-    expect(canStartLogic(null, NOW)).toEqual({ ok: true });
+describe("canStartLogic — one attempt every 30 days (D478)", () => {
+  it("no prior attempt → a fresh start", () => {
+    expect(canStartLogic(null, NOW)).toEqual({ ok: true, resume: false });
   });
 
-  it("an open attempt can be restarted (crash recovery) — it just costs a start", () => {
-    expect(canStartLogic(attempt({ startsToday: 1 }), NOW).ok).toBe(true);
-    expect(nextStartsToday(attempt({ startsToday: 1 }), NOW)).toBe(2);
+  it("keeps the interval at the value the owner set, mirrored on the client", () => {
+    // "one chance can only be taken once every 30 days" (D478). The client
+    // carries the same number as LOGIC_RETAKE_DAYS (logic-score.test.ts
+    // pins it) to say when the next attempt opens; the server refuses.
+    expect(LOGIC_REVERIFY_DAYS, "the interval moved — the owner set 30 (D478); change both sides deliberately").toBe(30);
+    expect(LOGIC_RETAKE_MS).toBe(30 * DAY);
   });
 
-  it("keeps the start cap at the value whose reasoning is written down", () => {
-    // The case below proves the cap BINDS — but it states the bound
-    // relative to the constant, so it moves with it. Measured: this can be
-    // set to a million with all 593 functions tests green, and no check
-    // gate names it.
-    //
-    // logic.ts: "Starting an attempt previews a fresh form, so unfinished
-    // restarts are a preview channel — bounded per UTC day rather than
-    // closed, because a crashed app must be able to start again." That
-    // preview channel is the surface the unscored answer key is one of
-    // D98's three denies for, so the bound is what keeps a preview from
-    // becoming a way to read the key by repetition.
-    expect(LOGIC_MAX_STARTS_PER_DAY,
-      "the per-day start cap moved — re-read logic.ts's reasoning and change this line deliberately").toBe(3);
-    // …and it is a bound, not a closure: a crashed app must be able to
-    // start again, which is the other half of the same sentence.
-    expect(LOGIC_MAX_STARTS_PER_DAY,
-      "the preview channel is closed, not bounded — a crashed app cannot start again").toBeGreaterThan(1);
+  it("an open attempt inside its window is RESUMED, not restarted — a crash costs nothing", () => {
+    expect(canStartLogic(attempt({}), NOW)).toEqual({ ok: true, resume: true });
+    expect(canStartLogic(attempt({ startedAtMs: NOW - LOGIC_DEADLINE_MS, deadlineMs: NOW }), NOW)).toEqual({ ok: true, resume: true });
   });
 
-  it("the per-day start cap holds, and resets on the next UTC day", () => {
-    const capped = attempt({ startsToday: LOGIC_MAX_STARTS_PER_DAY });
-    const refused = canStartLogic(capped, NOW);
+  it("an open attempt past its window was the chance: refused until 30 days from its start", () => {
+    const expired = attempt({ startedAtMs: NOW - 2 * DAY, deadlineMs: NOW - 2 * DAY + LOGIC_DEADLINE_MS });
+    const refused = canStartLogic(expired, NOW);
     expect(refused.ok).toBe(false);
-    if (!refused.ok) expect(refused.code).toBe("rate-limited");
-    // same doc, next day: the counter is stale, so it resets
-    expect(canStartLogic(capped, NOW + DAY).ok).toBe(true);
-    expect(nextStartsToday(capped, NOW + DAY)).toBe(1);
+    if (!refused.ok) {
+      expect(refused.code).toBe("cooldown");
+      expect(refused.msg).toBe("one attempt every 30 days — the next opens in 28 days");
+    }
+    expect(canStartLogic(expired, NOW + 28 * DAY)).toEqual({ ok: true, resume: false });
   });
 
-  it("a recent verified score opens the cooldown; an old one does not", () => {
-    const scored = attempt({ status: "scored", scoredAtMs: NOW - DAY, startsToday: 1 });
+  it("a scored attempt opens the interval from its START, and says how long is left — in days, singular at one", () => {
+    const scored = attempt({ status: "scored", startedAtMs: NOW - 29 * DAY - 1000, scoredAtMs: NOW - 29 * DAY });
     const refused = canStartLogic(scored, NOW);
     expect(refused.ok).toBe(false);
-    if (!refused.ok) expect(refused.code).toBe("cooldown");
-    const old = attempt({
-      status: "scored",
-      scoredAtMs: NOW - (LOGIC_REVERIFY_DAYS + 1) * DAY,
-      startsToday: 1,
-      dayKey: utcDayKeyOf(NOW - (LOGIC_REVERIFY_DAYS + 1) * DAY),
-    });
-    expect(canStartLogic(old, NOW).ok).toBe(true);
+    if (!refused.ok) expect(refused.msg).toBe("one attempt every 30 days — the next opens in 1 day");
+    const yesterday = attempt({ status: "scored", startedAtMs: NOW - DAY, scoredAtMs: NOW - DAY + 60_000 });
+    const r2 = canStartLogic(yesterday, NOW);
+    if (!r2.ok) expect(r2.msg).toMatch(/opens in 29 days$/);
+    const old = attempt({ status: "scored", startedAtMs: NOW - 31 * DAY, scoredAtMs: NOW - 31 * DAY + 60_000 });
+    expect(canStartLogic(old, NOW)).toEqual({ ok: true, resume: false });
+    // the boundary: exactly 30 days is open
+    const edge = attempt({ status: "scored", startedAtMs: NOW - 30 * DAY, scoredAtMs: NOW - 30 * DAY + 60_000 });
+    expect(canStartLogic(edge, NOW).ok).toBe(true);
+  });
+
+  it("a document from before D478 — with the day counter still on it — is judged by its start alone", () => {
+    const legacy = attempt({ status: "scored", startedAtMs: NOW - 3 * DAY, scoredAtMs: NOW - 3 * DAY + 60_000, dayKey: "2026-08-03", startsToday: 3 });
+    const refused = canStartLogic(legacy, NOW);
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.msg).toMatch(/27 days$/);
   });
 });
 
@@ -468,9 +464,11 @@ describe("rankAndFoldTheta", () => {
   it("mintAttempt stamps the bank and its version on the document", () => {
     const now = NOW;
     const o = mintAttempt(null, now, 99, "omib").attempt;
-    expect(o).toMatchObject({ seed: 99, gv: OMIB_BANK_VERSION, bank: "omib", status: "open", startsToday: 1, normsCounted: false });
+    expect(o).toMatchObject({ seed: 99, gv: OMIB_BANK_VERSION, bank: "omib", status: "open", normsCounted: false });
+    expect(o.startsToday).toBeUndefined(); // the per-day counter retired at D478
     expect(o.deadlineMs - o.startedAtMs).toBe(LOGIC_DEADLINE_MS);
     const g = mintAttempt(attempt({ normsCounted: true }), now, 5, "generator").attempt;
-    expect(g).toMatchObject({ gv: GEN_VERSION, bank: "generator", normsCounted: true, startsToday: 2 });
+    expect(g).toMatchObject({ gv: GEN_VERSION, bank: "generator", normsCounted: true });
+    expect(g.startsToday).toBeUndefined();
   });
 });
