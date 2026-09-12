@@ -195,6 +195,11 @@ export const deleteAccount = onCall(
       ownSubtree: 0,
       // Voter sample rows this uid was scrubbed out of (D397, phase 1a′).
       patternSamples: 0,
+      // The world map's published positions (D462, phase 1a‴): one row per
+      // population this account was placed in. Counted apart from the
+      // samples because it is a separate phase with a separate export
+      // twin — see the note at the scrub.
+      worldMapPositions: 0,
       // The answer log's rows (log.ts, D447 phase A, phase 1a″): 1 when the
       // DML ran now, 0 with `logDeferred: 1` when BigQuery's streaming
       // buffer refused it or the table is past the immediate ceiling
@@ -398,7 +403,20 @@ export const deleteAccount = onCall(
       for (let i = 0; i < ids.length; i += 300) {
         await scrub(await db.getAll(...ids.slice(i, i + 300).map((id) => db.collection("v2_patterns").doc(id))));
       }
-      // 1a″. THE WORLD MAP'S POSITIONS (D462) — `people-{country}` and
+      counts.patternSamples = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] voter sample scrub failed:", err);
+      failed.push("patternSamples");
+    }
+    // ITS OWN PHASE, ITS OWN LABEL. This scrub sat inside the samples'
+    // try/catch and reported under `patternSamples`, which is why the
+    // export could omit it in silence: `TWIN` holds a phase to an export
+    // section by LABEL, and a second document family folded under an
+    // existing label is a family the contract cannot see. It arrived with
+    // an erasure arm and no export twin, and every gate stayed green —
+    // exactly the blind spot exportAccount.test.ts names one case down.
+    try {
+      // 1a‴. THE WORLD MAP'S POSITIONS (D462) — `people-{country}` and
       //      `people-world`, the same `rows` shape keyed by uid, so the
       //      same field delete reaches them. The privacy page promises
       //      this account's position is removed AT ONCE, not merely that
@@ -412,15 +430,16 @@ export const deleteAccount = onCall(
       //      would walk past it. The range is bounded by the country
       //      catalogue plus one ('.' follows '-'), which is ~245
       //      documents at the very most and one query.
+      const before = scrubbed;
       const world = await db.collection("v2_patterns")
         .where(FieldPath.documentId(), ">=", "people-")
         .where(FieldPath.documentId(), "<", "people.")
         .get();
       await scrub(world.docs);
-      counts.patternSamples = scrubbed;
+      counts.worldMapPositions = scrubbed - before;
     } catch (err) {
-      logger.error("[deleteAccount] voter sample scrub failed:", err);
-      failed.push("patternSamples");
+      logger.error("[deleteAccount] world map position scrub failed:", err);
+      failed.push("worldMapPositions");
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
