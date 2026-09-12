@@ -433,7 +433,7 @@ describe("resolveNames asks for what is missing, not for the union", () => {
     // v2_users query purely because its face was not — which is every uid,
     // on every surface that draws faces, on every open.
     return (async () => {
-      const { resolveNames } = await import("./voters");
+      const { resolveNames } = await import("./votersFetch");
       h.profiles = { u1: { displayName: "Ada" } };
       h.avatars = { u1: { token: "tok1" } };
       // A warm cache: name and score known, face unknown.
@@ -453,7 +453,7 @@ describe("resolveNames asks for what is missing, not for the union", () => {
   it("still reads the profile when the name is the missing half", () => {
     // The other direction, so the fix cannot be "never read profiles".
     return (async () => {
-      const { resolveNames } = await import("./voters");
+      const { resolveNames } = await import("./votersFetch");
       h.profiles = { u2: { displayName: "Grace" } };
       const names: Record<string, string> = {};
       const faces: Record<string, string> = { u2: "" };
@@ -466,7 +466,7 @@ describe("resolveNames asks for what is missing, not for the union", () => {
 
   it("asks both when both are missing, in one round trip", () => {
     return (async () => {
-      const { resolveNames } = await import("./voters");
+      const { resolveNames } = await import("./votersFetch");
       h.profiles = { u3: { displayName: "Alan" } };
       h.avatars = { u3: { token: "tok3" } };
       const names: Record<string, string> = {};
@@ -483,7 +483,7 @@ describe("resolveNames asks for what is missing, not for the union", () => {
     // whose avatar was never asked about, and D178's convention is that a
     // cached "" is never re-fetched.
     return (async () => {
-      const { resolveNames } = await import("./voters");
+      const { resolveNames } = await import("./votersFetch");
       const names: Record<string, string> = { u4: "Known" };
       const faces: Record<string, string> = {};
       await resolveNames({ __db: true } as never, ["u4"], names, undefined, faces);
@@ -498,7 +498,7 @@ describe("resolveNames asks for what is missing, not for the union", () => {
     // Skipping the read would show the whole roster as "untested"; one
     // round fills it and the maps agree from then on.
     return (async () => {
-      const { resolveNames } = await import("./voters");
+      const { resolveNames } = await import("./votersFetch");
       h.profiles = { u5: { displayName: "Ada", testResults: { logic: { pctile: 88 } } } };
       const names: Record<string, string> = { u5: "Ada" };
       const scores: Record<string, unknown> = { u5: null };
@@ -521,7 +521,7 @@ describe("resolveNames asks for what is missing, not for the union", () => {
 
   it("caches 'untested' as null so absence is not re-fetched (D227)", () => {
     return (async () => {
-      const { resolveNames } = await import("./voters");
+      const { resolveNames } = await import("./votersFetch");
       h.profiles = { u6: { displayName: "Lin" } };
       const names: Record<string, string> = {};
       const logic: Record<string, number | null> = {};

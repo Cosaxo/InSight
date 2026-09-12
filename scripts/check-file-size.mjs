@@ -112,7 +112,22 @@ export const SIZE_BASELINE = {
   // pulse roster, which rebuilds each entry field by field, drops it in
   // silence. Nine of the ten lines are the comment saying so, which is
   // this store's usual ratio and the reason its number moves at all.
-  "src/v2/data/live.ts": { mode: "ratchet", lines: 9502 },
+  //
+  // 9,502 -> 9,532 at D482 (+30), and this one buys something measurable
+  // rather than describing a field: the cross-user READS left this file's
+  // import graph for data/votersFetch.ts, so 3.3 KB of built chunk stopped
+  // being parsed before first paint. The lines are the binding block that
+  // pays for it — the same `let name!: Api["name"]` trick D110 used for
+  // the Firestore SDK, which is what keeps the ten call sites below
+  // byte-identical.
+  //
+  // WORTH SIGNING FOR HONESTLY: check-bundle's own note predicted ~8 KB
+  // from this move and the measured eager graph went 543 -> 541. The
+  // estimate counted SOURCE bytes, and voters.ts was 51-65% comment — so
+  // the built saving was a quarter of the guess. The structural win is the
+  // durable half: new read machinery can be added to votersFetch.ts now
+  // without touching first paint at all.
+  "src/v2/data/live.ts": { mode: "ratchet", lines: 9532 },
   // +31 from main's feed work at the 2026-09-11 merge.
   //
   // 4,784 -> 4,978 at D479 (+194 net: 222 added, 28 removed). The removed

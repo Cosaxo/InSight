@@ -118,7 +118,11 @@ describe("the fetch cap (D102)", () => {
   // Source-scanned because the query needs an emulator to run; the same
   // trade the surface-filter's rules case below takes.
   it("fetchVoters carries the cap inside the query", () => {
-    const src = readFileSync(resolve(__dirname, "./voters.ts"), "utf8");
+    // votersFetch.ts since D482 — the query moved there with the rest of
+    // the reads. The `not.toBeNull()` below is what made the move visible
+    // rather than silent: a scan pointed at the wrong file finds nothing
+    // and says so, which is the whole reason it is asserted separately.
+    const src = readFileSync(resolve(__dirname, "./votersFetch.ts"), "utf8");
     const q = src.match(/collectionGroup\(db, "answers"\)[\s\S]*?\)\);/);
     expect(q, "fetchVoters' collection-group query was not found").not.toBeNull();
     // Since DATA-EFFICIENCY-RUNBOOK 2.4 the same query serves the sheet's

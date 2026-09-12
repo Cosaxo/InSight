@@ -92,15 +92,22 @@ const voters = vi.hoisted(() => ({
   fetchVoterSample: vi.fn<(db: unknown, qid: string) => Promise<{ uid: string; optionIdx: number }[] | null>>(
     async () => null),
 }));
+// TWO MOCKS SINCE D482, because the reads moved to their own module: the
+// pure half kept the name `./voters`, and stubbing only that one lets the
+// REAL fetchVoterPicks run against the firebase mock below, which fails
+// deep inside the query with "collectionGroup is not a function" rather
+// than anywhere that names the cause.
 vi.mock("./voters", () => ({
-  fetchVoterPicks: voters.fetchVoterPicks,
-  fetchVoters: voters.fetchVoters,
-  fetchVoterSample: voters.fetchVoterSample,
   VOTER_FETCH_CAP: 200,
   // D464: the pair card reads the sample document itself now — the shared
   // reader drops a catalogue pick's row, and teaching it to keep one put
   // bytes in the first-paint graph for the benefit of one lazy caller.
   worldSampleId: (qid: string) => `sample-${qid}`,
+}));
+vi.mock("./votersFetch", () => ({
+  fetchVoterPicks: voters.fetchVoterPicks,
+  fetchVoters: voters.fetchVoters,
+  fetchVoterSample: voters.fetchVoterSample,
 }));
 
 import { PATTERNS, ensureLive } from "./patterns";

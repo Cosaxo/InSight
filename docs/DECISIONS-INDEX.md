@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 525 lines instead of
-54,840. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 526 lines instead of
+54,927. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -128,7 +128,7 @@ detect it.
 | **D107** | [A purpose string for the authorisation this app never asks for](DECISIONS.md#d107--a-purpose-string-for-the-authorisation-this-app-never-asks-for) | D199 | 10125 |
 | **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D354 (+8) | 10253 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10394 |
-| **D110** | [The bundle gets the number that decides first paint, and it immediately finds 327 KB](DECISIONS.md#d110--the-bundle-gets-the-number-that-decides-first-paint-and-it-immediately-finds-327-kb) | D355 (+4) | 10546 |
+| **D110** | [The bundle gets the number that decides first paint, and it immediately finds 327 KB](DECISIONS.md#d110--the-bundle-gets-the-number-that-decides-first-paint-and-it-immediately-finds-327-kb) | D482 (+5) | 10546 |
 | **D111** | [Near and City are two stops again: presence is not a place](DECISIONS.md#d111--near-and-city-are-two-stops-again-presence-is-not-a-place) | D-2026-09-12d (+7) | 10678 |
 | **D112** | [The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on](DECISIONS.md#d112--the-similarity-surfaces-place-score-profiles-and-kindred-ranked-by-scores--live-exact-default-on) | D425 (+16) | 10716 |
 | **D113** | [Two continuum forms in the feed, a lane that writes them, and the compare rose redrawn (a partial v20 sync)](DECISIONS.md#d113--two-continuum-forms-in-the-feed-a-lane-that-writes-them-and-the-compare-rose-redrawn-a-partial-v20-sync) | D390 (+4) | 10823 |
@@ -527,6 +527,7 @@ detect it.
 | **D480** | [Build 36's pre-flight: three deliveries went unrecorded, build 32 never existed, and the bump that skipped it landed between a dry run and its upload](DECISIONS.md#d480--build-36s-pre-flight-three-deliveries-went-unrecorded-build-32-never-existed-and-the-bump-that-skipped-it-landed-between-a-dry-run-and-its-upload) | — | 54558 |
 |  | ↳ *amendment 2026-09-12, the same session* — [Build 36 is delivered, and the gap was closed on purpose](DECISIONS.md#d480-amendment-2026-09-12-the-same-session--build-36-is-delivered-and-the-gap-was-closed-on-purpose) | — | 54658 |
 | **D481** | [The pulse lane is adopted — one a week, propose-only, to a ceiling that had to be built before it could be argued](DECISIONS.md#d481--the-pulse-lane-is-adopted--one-a-week-propose-only-to-a-ceiling-that-had-to-be-built-before-it-could-be-argued) | — | 54703 |
+| **D482** | [The cross-user reads leave the first-paint graph — and the estimate that asked for it was wrong by 4x](DECISIONS.md#d482--the-cross-user-reads-leave-the-first-paint-graph--and-the-estimate-that-asked-for-it-was-wrong-by-4x) | — | 54841 |
 | **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 52513 |
 | **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 52578 |
 | **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 52655 |

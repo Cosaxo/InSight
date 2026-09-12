@@ -54837,3 +54837,90 @@ it into the bank is that the corpus could then be held to it forever; the
 argument against is that it is schema for a guard a human merge already
 provides, on a lane that merges by hand by construction. Recorded so the
 second reader knows it was weighed rather than missed.
+
+## D482 · The cross-user reads leave the first-paint graph — and the estimate that asked for it was wrong by 4x
+
+**2026-09-12.** **Status:** binding. `data/voters.ts` is split: the pure
+half keeps the name, the reads move to `data/votersFetch.ts`, and
+`data/live.ts` binds them off one memoised dynamic import. **Measured
+eager graph 543 → 541 KB**, against the ~8 KB `check-bundle.mjs` predicted.
+
+### Why the reads were in the graph at all
+
+`data/voters.ts` cannot leave the first-paint graph, and that is
+structural rather than an oversight:
+
+- `live.ts`'s `votersByOption` is a **synchronous getter** — it cannot
+  await anything, so `groupByOption` and `sortVoters` must be static.
+- `circle.ts` needs `chunkUids`, and `circle.ts` is imported by `live.ts`.
+
+So fixing only `live.ts`'s nine value imports — which is what the note in
+`check-bundle.mjs` asked for — would have saved **nothing**: `circle.ts`
+would have kept the module in the graph on its own. Both doors had to
+close, and the way to close them was to move the code rather than the
+imports.
+
+The seam was already drawn in the file: `// ── pure helpers (unit-tested
+without Firebase) ──` against `// ── the reads ──`. Nothing was
+rewritten; the six fetchers moved unchanged, and `unionVoters` (a pure
+helper stranded in the reads section) moved the other way.
+
+### The binding, and why not `getDb()`
+
+`live.ts` uses D110's mechanism one layer up: module-scope `let`
+bindings filled once from a memoised `import()`, so **all ten call sites
+are byte-identical**. Four methods gained `bindVotersApi()`, paired with
+their existing `getDb()` inside a `Promise.all` so the load costs no
+latency.
+
+It is deliberately **not** filled by `getDb()` itself, which would have
+been the smaller diff — every call site already holds a `db`. That would
+also load the module for every user on the session's first read, which
+hands most of the saving back. These sheets are OPENED, not booted.
+
+### The arithmetic, stated against its own prediction
+
+`check-bundle.mjs` said `data/voters` was "~8 KB of this graph" and that
+this change "would return this constant to 546". Measured:
+
+| | |
+| --- | --- |
+| `voters-*.js` (pure, preloaded) | **0.8 KB** |
+| `votersFetch-*.js` (reads, NOT preloaded) | **3.3 KB** |
+| eager graph | 543 → **541 KB** |
+
+**The estimate counted source bytes.** `voters.ts` was 28 KB of source
+and 51–65% comment, so the built weight of the reads was a quarter of the
+guess. The finding is worth more than the saving: *a source-byte guess is
+not a bundle measurement*, and that note was the one place in
+`check-bundle.mjs` estimating a saving it had not built and weighed.
+Both halves are now recorded where the wrong number was.
+
+### What this does and does not buy
+
+It does not end the every-byte alarm the note complained about. What it
+buys is durable rather than numeric: read machinery added to
+`votersFetch.ts` from here on does not touch first paint.
+
+**The fish, named and not taken:** `spec/sample-data.js` is **40.5 KB of
+the eager graph**, pulled in because `app-shell.jsx` and eleven other
+spec modules import `IS_DATA` — and `IS_DATA` *is* the 55 KB object, not
+a small flag beside it. That is twenty times this change and a real
+refactor. It is its own decision and its own risk, so it is recorded
+here rather than ridden in on this one.
+
+### Cost signed for
+
+`live.ts` 9,502 → 9,532 lines (`check:file-size`, raised with the reason
+at its entry). `check:figures` caught the store's header still saying
+"the 40 `await getDb()` sites" when the `Promise.all` pairing had made it
+36 — the gate doing exactly its job, and the sentence moved.
+
+**Proved by.** 3,380 client tests (four files repointed at the new module:
+`patterns.test.ts` needed its `vi.mock` split in two, because stubbing
+only `./voters` let the real `fetchVoterPicks` run and fail deep inside
+the query; `voters.test.ts`'s source-scan follows the query to
+`votersFetch.ts`, and its `not.toBeNull()` is what made the move visible
+rather than silent); 1,584 scripts tests; `check:bundle`, `check:globals`
+(27/27), `check:eager-content`, `check:file-size`, `check:figures`,
+`check:docs`, lint, `tsc -b`.

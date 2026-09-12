@@ -1109,6 +1109,22 @@ const MAX_TOTAL_JS_KB = 2440;
 // 63 commits either. It would return this constant to 546 and end the
 // every-byte alarm this block has now called out twice.
 //
+// DONE AT D482, AND THE ~8 KB ABOVE WAS WRONG — measured 543 -> 541, so
+// about a quarter of it. The estimate counted voters.ts's SOURCE bytes
+// (28 KB), and that file was 51-65% comment; the reads' built chunk is
+// 3.3 KB, of which the eager graph gave back 2. The shape of the fix was
+// right and its arithmetic was not, which is worth more than the saving:
+// **a source-byte guess is not a bundle measurement**, and this block is
+// where the next person will look for one. Nothing else in this file
+// estimates a saving it has not built and weighed — this was the
+// exception, and it overstated by 4x.
+//
+// So the every-byte alarm is NOT ended by it. If the pin is what hurts,
+// the fish is `spec/sample-data.js`: 40.5 KB of the eager graph, pulled
+// in because `app-shell.jsx` and eleven other spec modules import
+// `IS_DATA` — which IS the 55 KB object, not a small flag beside it. That
+// is a real refactor and its own decision, not a rider on anything.
+//
 // MEASURED ON THE COMPOSED TREE (2026-09-12 11:06, the review branch's own
 // merge of main's 41): **554.527 KB**, so the 555 above holds and there is
 // no fifth raise here. 484 bytes of margin. Recorded because this block's
