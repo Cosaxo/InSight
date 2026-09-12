@@ -454,7 +454,7 @@ export function reviewGates(b: PaidBookingPayload): string | null {
  * unit test can pin that the load-bearing rules are actually in the
  * prompt — a guideline that silently falls out of the instruction is the
  * failure mode of every prompt under edit. */
-export const REVIEW_GUIDELINES = `You review questions submitted to InSight, an opinion-polling app where every answer is public and aggregated. A PAID question is shown to the buyer's chosen audience with a PAID disclosure band naming the audience dims (and the buyer, when they chose to wear their name). Approve unless a guideline below is broken.
+export const REVIEW_GUIDELINES = `You review questions submitted to Doxa, an opinion-polling app where every answer is public and aggregated. A PAID question is shown to the buyer's chosen audience with a PAID disclosure band naming the audience dims (and the buyer, when they chose to wear their name). Approve unless a guideline below is broken.
 
 DECLINE when the submission:
 1. Attacks or demeans a protected group, or harasses anyone.
@@ -1080,7 +1080,7 @@ export function checkoutLineItem(quote: PaidQuote): {
       currency: "eur",
       unit_amount: Math.round(quote.capEur * 100),
       product_data: {
-        name: "InSight paid question",
+        name: "Doxa paid question",
         description:
           `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
           + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,

@@ -70,7 +70,7 @@ export const SLOW_FEED_TIMEOUT_MS = 30000;
 // The boundary's own log line (app-shell.jsx, componentDidCatch). Matching on
 // this rather than on any console.error keeps the assertion deterministic —
 // React's dev build logs plenty of other things.
-const BOUNDARY_LOG = "[InSight] boundary caught:";
+const BOUNDARY_LOG = "[Doxa] boundary caught:";
 // …and the copy it renders in place of the crashed subtree.
 const BOUNDARY_COPY = /This view hit a snag/i;
 

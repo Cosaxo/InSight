@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 512 lines instead of
-53,319. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 513 lines instead of
+53,440. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -202,7 +202,7 @@ detect it.
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D368 (+4) | 17883 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D370 (+3) | 18113 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D393 (+5) | 18218 |
-| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D-2026-09-12b (+23) | 18316 |
+| **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D-2026-09-12b (+24) | 18316 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D339 (+7) | 18475 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D413 (+3) | 18626 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D381 (+5) | 18800 |
@@ -285,7 +285,7 @@ detect it.
 | **D262** | [Four sentences that stopped being true, and two of them are now counted](DECISIONS.md#d262--four-sentences-that-stopped-being-true-and-two-of-them-are-now-counted) | — | 26363 |
 | **D263** | [The room cache is keyed by one cell and folded over nine](DECISIONS.md#d263--the-room-cache-is-keyed-by-one-cell-and-folded-over-nine) | D264 | 26430 |
 | **D264** | [Five the skeptics found, and one of them was two hours old](DECISIONS.md#d264--five-the-skeptics-found-and-one-of-them-was-two-hours-old) | D265 | 26488 |
-| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D-2026-09-09b (+11) | 26587 |
+| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D-2026-09-09b (+12) | 26587 |
 | **D266** | [The films catalogue ships; artists is refused on its content, not on the network](DECISIONS.md#d266--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network) | D347 (+2) | 26835 |
 | **D267** | [The artists catalogue gets a rule and a reviewer, because no rule alone finishes](DECISIONS.md#d267--the-artists-catalogue-gets-a-rule-and-a-reviewer-because-no-rule-alone-finishes) | D308 | 26930 |
 | **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D332 (+4) | 27017 |
@@ -515,6 +515,7 @@ detect it.
 | **D469** | [Name the thing, not its class — the fourth device report, and the catalogue cards that were written and never dealt](DECISIONS.md#d469--name-the-thing-not-its-class--the-fourth-device-report-and-the-catalogue-cards-that-were-written-and-never-dealt) | D470 | 51953 |
 | **D470** | [The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a security hole that existed only in the sum of two correct changes](DECISIONS.md#d470--the-2026-09-12-night-review-two-shifts-merged-as-one-tree--63-commits-kept-and-a-security-hole-that-existed-only-in-the-sum-of-two-correct-changes) | — | 52068 |
 | **D471** | [The hard stop: the budget's function detaches billing at three budgets — the owner's ceiling of 1,500 NOK — and the phone rings only for money](DECISIONS.md#d471--the-hard-stop-the-budgets-function-detaches-billing-at-three-budgets--the-owners-ceiling-of-1500-nok--and-the-phone-rings-only-for-money) | — | 52331 |
+| **D472** | [The app is Doxa: the name changes, and nothing under it does](DECISIONS.md#d472--the-app-is-doxa-the-name-changes-and-nothing-under-it-does) | — | 53320 |
 | **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 52513 |
 | **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 52578 |
 | **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 52655 |

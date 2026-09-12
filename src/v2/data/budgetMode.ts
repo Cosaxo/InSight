@@ -74,7 +74,7 @@ export function socialReadsPaused(mode: number): boolean {
  * instruction, one clause of why (docs/COPY.md).
  */
 export const BUDGET_PAUSED_BODY =
-  "This view is paused while we keep InSight’s costs in check.";
+  "This view is paused while we keep Doxa’s costs in check.";
 
 /** The head for surfaces whose empty state carries a title + line. */
 export const BUDGET_PAUSED_HEAD = "Paused for now";

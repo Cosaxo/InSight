@@ -448,7 +448,7 @@ describe("LivePrivacyPanel · the sign-in row", () => {
     LIVE.linkGoogle.mockRejectedValueOnce(new Error("auth/credential-already-in-use"));
     render(<LivePrivacyPanel />);
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/already has an InSight history/));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/already has an Doxa history/));
     expect(screen.queryByRole("button", { name: /leave this phone/i })).toBeNull();
   });
 

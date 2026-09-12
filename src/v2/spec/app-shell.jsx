@@ -90,7 +90,7 @@ function MirrorSlot(props) {
     let live = true;
     import('./mirror-tab.jsx')
       .then((m) => { rememberMirror(m); if (live) setTab(() => m.MirrorTab); })
-      .catch((e) => { console.error('[InSight] mirror chunk failed to load:', e); });
+      .catch((e) => { console.error('[Doxa] mirror chunk failed to load:', e); });
     return () => { live = false; };
   }, [Tab]);
   return Tab ? <Tab {...props} /> : null;
@@ -250,7 +250,7 @@ class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
   static getDerivedStateFromError(err) { return { err }; }
   componentDidCatch(err, info) {
-    console.error('[InSight] boundary caught:', err, info && info.componentStack);
+    console.error('[Doxa] boundary caught:', err, info && info.componentStack);
     // React swallows what a boundary catches, so Sentry's global handlers
     // never see these — and a screen dying to "This view hit a snag" is the
     // most user-visible failure the app has. Report it explicitly; the send
@@ -497,7 +497,7 @@ export function App() {
     try {
       await window.loadOverlays();
     } catch (e) {
-      console.error('[InSight] overlay chunk failed to load:', e);
+      console.error('[Doxa] overlay chunk failed to load:', e);
       return;
     }
     open();
@@ -684,14 +684,17 @@ export function App() {
               wordmark until the ruler scrolls away — then the two crossfade
               and a compact ruler takes over. */}
           <div className="h-center">
-            <div className="h-title">
+            <div className="h-title wm-serif">
               {/* The compact iris, not the full mark: at 21px the outer
                   ring muddies (D302 — full mark above ~24px, compact
                   below). Fills are the live tokens rather than baked hex,
                   so a palette retune cannot strand this the way it
                   stranded the old icon's sienna. The wordmark span is
                   load-bearing: h-title is a flex row, and bare text here
-                  would let the gap split "In" from "Sight". */}
+                  would let the gap split "Do" from "xa". The wordmark is
+                  Doxa in DM Serif Display since D472 — the one serif in
+                  the chrome, drawn by .wm-serif — and the x is the <em>,
+                  so it takes the tab accent the way "Sight" did. */}
               <svg viewBox="0 0 100 100" width="21" height="21" aria-hidden="true">
                 <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" strokeWidth="3.4" strokeLinejoin="round"/>
                 <circle cx="50" cy="24" r="10" fill="var(--c-today)"/>
@@ -702,7 +705,7 @@ export function App() {
                 <circle cx="27.5" cy="37" r="10" fill="var(--c-likeness)"/>
                 <circle cx="50" cy="50" r="12.5" fill="var(--ink)"/>
               </svg>
-              <span>In<em>Sight</em></span>
+              <span>Do<em>x</em>a</span>
             </div>
             {(tab === 'track' || tab === 'patterns') && (
               // The undocked slot sits under the wordmark's crossfade —

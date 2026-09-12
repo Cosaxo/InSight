@@ -39,7 +39,7 @@ export let DEMOGRAPHICS;
       note: 'younger crowd — most joined in the last two years.',
     },
     city: {
-      title: 'Who’s on InSight in Oslo',
+      title: 'Who’s on Doxa in Oslo',
       sub: 'the members around your city',
       count: '31k', countLabel: 'members in Oslo',
       medianAge: 31,
@@ -54,7 +54,7 @@ export let DEMOGRAPHICS;
         { k: 'Gamle Oslo', v: 13, hue: 24 },
         { k: 'elsewhere', v: 34, hue: 110 },
       ],
-      note: 'where Oslo’s InSight members live — the inner east leads.',
+      note: 'where Oslo’s Doxa members live — the inner east leads.',
     },
     groups: {
       title: 'Who’s in your circles',
@@ -75,7 +75,7 @@ export let DEMOGRAPHICS;
       note: 'your interests skew a little older and more male than the city — chess tips it.',
     },
     country: {
-      title: 'Who’s on InSight in Norway',
+      title: 'Who’s on Doxa in Norway',
       sub: 'members across the country',
       count: '182k', countLabel: 'members in Norway',
       medianAge: 32,
@@ -90,10 +90,10 @@ export let DEMOGRAPHICS;
         { k: 'Stavanger', v: 11, hue: 38 },
         { k: 'elsewhere', v: 22, hue: 110 },
       ],
-      note: 'share of InSight members by city — Oslo leads, but most of Norway is elsewhere.',
+      note: 'share of Doxa members by city — Oslo leads, but most of Norway is elsewhere.',
     },
     world: {
-      title: 'Who’s on InSight worldwide',
+      title: 'Who’s on Doxa worldwide',
       sub: 'every member, everywhere',
       count: '2.4M', countLabel: 'members worldwide',
       medianAge: 29,

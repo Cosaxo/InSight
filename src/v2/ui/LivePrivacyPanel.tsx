@@ -164,7 +164,7 @@ function LivePrivacyPanel() {
     } catch (e) {
       const msg = String((e instanceof Error && e.message) || e);
       setLinkMsg(LP_IN_USE.test(msg)
-        ? "That Google account already has an InSight history, and two histories can’t be merged. Try another."
+        ? "That Google account already has an Doxa history, and two histories can’t be merged. Try another."
         : "Couldn’t sign in just now.");
     }
     setBusy(false);
@@ -409,7 +409,7 @@ function LivePrivacyPanel() {
           the app points at — the one place the app explains itself. A
           dynamic import, so this panel's chunk does not carry the screen:
           it is fetched on the tap, off local disk, like the first time. */}
-      <LpRow title="How InSight works">
+      <LpRow title="How Doxa works">
         {btn("Show again", () => {
           void import("./walkthrough").then((m) => m.mountWalkthrough({ again: true }));
         })}

@@ -100,8 +100,8 @@ function GateTitle() {
         <circle cx="35.3" cy="41.5" r="6" fill="var(--c-likeness)" />
         <circle cx="50" cy="50" r="8" fill="var(--ink)" />
       </svg>
-      <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 30, letterSpacing: "-0.03em" }}>
-        In<span style={{ color: "var(--c-world)" }}>Sight</span>
+      <div style={{ fontFamily: "'DM Serif Display', var(--serif)", fontWeight: 400, fontSize: 36, letterSpacing: "-0.01em", lineHeight: 1 }}>
+        Do<span style={{ color: "var(--c-world)" }}>x</span>a
       </div>
     </div>
   );
@@ -189,7 +189,7 @@ function GateQuiet({ label, onClick, disabled, lead }: {
 }
 
 /**
- * The account already belongs to another InSight uid.
+ * The account already belongs to another Doxa uid.
  *
  * Firebase refuses the link rather than merging, which is correct — two
  * histories cannot become one — so the only way forward is to sign in to
@@ -426,7 +426,7 @@ function LiveSignInGate() {
       <GateShell>
         <GateTitle />
         <GateBody>
-          Can&rsquo;t reach InSight yet{LIVE.bootError ? ` \u2014 ${LIVE.bootError}` : ""}.
+          Can&rsquo;t reach Doxa yet{LIVE.bootError ? ` \u2014 ${LIVE.bootError}` : ""}.
           This build keeps your answers to a real account, so it waits for a
           connection rather than showing you sample questions.
         </GateBody>
@@ -503,7 +503,7 @@ function LiveSignInGate() {
           {inUse.known
             // Firebase already refused the link, so the other account is a
             // fact and the screen may name it.
-            ? <>That account already has an InSight history. Signing in to it leaves
+            ? <>That account already has an Doxa history. Signing in to it leaves
               this phone&rsquo;s answers behind &mdash; they are not merged.</>
             // Nothing has been asked yet at the email door, so the history
             // is the one thing this screen must not assert. What IS certain
@@ -607,7 +607,7 @@ function LiveSignInGate() {
         <>
           <p style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 700,
             color: "var(--ink-2)", margin: "20px 0 0", textAlign: "center" }}>
-            Answers on InSight are public, yours included.
+            Answers on Doxa are public, yours included.
           </p>
           <p style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500,
             color: "var(--ink-3)", margin: "8px 0 0", textAlign: "center", lineHeight: 1.5 }}>
