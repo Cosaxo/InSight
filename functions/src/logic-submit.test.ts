@@ -233,7 +233,7 @@ describe("submitting a logic test", () => {
   });
 });
 
-// ── the OMIB bank (D451) ──────────────────────────────────────────────────
+// ── the OMIB bank (D471) ──────────────────────────────────────────────────
 // The attempt's own `bank` decides how it is scored, never the constant —
 // which is what lets these run with LOGIC_BANK still "generator", and what
 // scores an attempt that straddles the flip on the bank it was minted on.
@@ -294,7 +294,7 @@ describe("submitting on the OMIB bank", () => {
     await expect(submitOmib(new Array(OMIB_FORM_ITEMS).fill(0))).rejects.toThrow(/twenty-character/);
     expect(store.get(ATTEMPT)?.status).toBe("open");
     store.clear();
-    openAttempt(); // a generator attempt (no bank field — a pre-D451 document)
+    openAttempt(); // a generator attempt (no bank field — a pre-D471 document)
     await expect(submitOmib(blanks())).rejects.toThrow(/integers/);
   });
 

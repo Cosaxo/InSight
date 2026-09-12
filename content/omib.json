@@ -1,6 +1,6 @@
 {
   "_source": "Open Matrices Item Bank (Koch, Spinath, Greiff & Becker 2022), https://osf.io/4km79/",
-  "_licence": "GPLv3, per the bank's paper. The archive itself ships no licence file — see D451.",
+  "_licence": "GPLv3, per the bank's paper. The archive itself ships no licence file — see D471.",
   "_generated": "npm run build:omib — do not hand-edit; npm run check:omib fails on drift.",
   "_what": "220 items: the 9x20 construction code and the published parameters. No answers.",
   "items": [

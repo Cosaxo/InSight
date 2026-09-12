@@ -1,4 +1,4 @@
-// The logic test on the Open Matrices Item Bank — the pure layer (D451,
+// The logic test on the Open Matrices Item Bank — the pure layer (D471,
 // docs/OMIB-PLAN.md). What a form is, how it is drawn from a seed, how a
 // pick is scored, and how a score folds into norms. No Firestore, no
 // callables: logic.ts is the decision layer that knows the floors and the

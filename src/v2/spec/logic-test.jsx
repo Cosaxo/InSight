@@ -10,8 +10,8 @@ import { startPractice, submitPractice, startVerified, submitVerified, verifyErr
 import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEMENTS } from '../data/omib-shapes';
 
 // ─────────────────────────────────────────────────────────────
-// Logic · matrix reasoning on the Open Matrices Item Bank (D451,
-// D453), run as a full overlay like the other tests. Twenty-five
+// Logic · matrix reasoning on the Open Matrices Item Bank (D471,
+// D473), run as a full overlay like the other tests. Twenty-five
 // 3×3 matrices, each a form the SERVER draws from a seed — a
 // stratified sample of a published, calibrated bank — and each
 // answered by BUILDING the missing cell out of twenty shapes rather
@@ -21,7 +21,7 @@ import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEM
 // ability θ against the bank's calibration (functions/src/irt.ts)
 // and returns the percentile. Practice differs from Verified only in
 // what COUNTS — practice is scored and forgotten, verified is scored
-// and folded into the norms once (D57, D452). Each puzzle is timed
+// and folded into the norms once (D57, D472). Each puzzle is timed
 // (D56); the clock standardises the administration and is the one
 // the bank itself ships. No per-question feedback — score + percentile
 // at the end, persisted via data/logic-score.ts. The General tab shows
@@ -332,7 +332,7 @@ export let LOGIC;
   // and the result screen says so once rather than letting five charts
   // imply five measurements.
   //
-  // The NUMBER is a different matter since D453, and the notes below say
+  // The NUMBER is a different matter since D473, and the notes below say
   // what it is. Both modes are scored on the server against the bank's
   // calibration; the percentile is Φ(θ̂) — the share of the 2,572 people
   // the bank was calibrated on who sit below you — until the verified
@@ -448,7 +448,7 @@ export let LOGIC;
       setTestLeft(f.items.length * ITEM_CAP);
       setScreen('item'); setQi(0);
     };
-    // ── practice round trip (D452): the server mints and holds nothing ──
+    // ── practice round trip (D472): the server mints and holds nothing ──
     const beginPractice = () => {
       setNet({ phase: 'starting', mode: 'practice' });
       startPractice().then(

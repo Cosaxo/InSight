@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Logic overlay's behaviour on the OMIB bank (D451, D453) — the layer
+// The Logic overlay's behaviour on the OMIB bank (D471, D473) — the layer
 // between omib-shapes (unit-tested) and the smoke suite (mounts only):
 // building a cell, committing it, the clock, both round trips, and the
 // result screen's five lenses.
@@ -102,7 +102,7 @@ describe("the worked example (visual request 8)", () => {
   });
 });
 
-describe("a practice attempt (D452)", () => {
+describe("a practice attempt (D472)", () => {
   it("Start → build every cell → Done ×25 → the server's result, saved as v3 and counted nowhere", async () => {
     vi.useFakeTimers();
     vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });

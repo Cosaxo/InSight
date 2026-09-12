@@ -1,10 +1,10 @@
-// Client transport for logic attempts on the OMIB bank (D57, D451, D453).
+// Client transport for logic attempts on the OMIB bank (D57, D471, D473).
 //
 // Two round trips, one shape. A VERIFIED attempt inverts the practice flow's
 // trust: the server mints the seed, keeps it, and returns the 25 items as
 // construction codes with the ninth cell empty — the client's only way to a
 // score is submitting its constructed cells back for server-side marking.
-// A PRACTICE attempt (D452, the owner's "use the same screen for practice")
+// A PRACTICE attempt (D472, the owner's "use the same screen for practice")
 // is the same screen against the same bank, but stateless: the server mints
 // a seed and hands it back with the items, the client returns it with the
 // cells, and the server scores that seed's form and holds nothing — no
@@ -48,7 +48,7 @@ export interface PracticeStart {
 export interface VerifiedScore {
   marks: boolean[];
   score: number;
-  /** the ability estimate on the calibration sample's scale (D451) */
+  /** the ability estimate on the calibration sample's scale (D471) */
   theta: number;
   /** its standard error — the person's own likely range, not a constant */
   se: number;

@@ -49761,7 +49761,7 @@ rules layer: a profile write that simply omitted `consent` deleted the
 consent record, which would have left the published coordinate standing
 while its consent read back as "never asked".
 
-## D451 · The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding
+## D471 · The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding
 
 **Date:** 2026-09-11 · **Status:** adopted by the owner (four options put,
 *Use OMIB* chosen), **not yet built** — one dependency is outside the tree
@@ -49858,7 +49858,7 @@ research host that answers. The 220 items and their published item
 parameters have to arrive by another route before any of this is built.
 On `OWNER-LIST.md`.
 
-## D451 amendment (2026-09-11, the same evening) · The archive read: the bank is a vocabulary, not artwork — and its answer key is public
+## D471 amendment (2026-09-11, the same evening) · The archive read: the bank is a vocabulary, not artwork — and its answer key is public
 
 The owner supplied the bank by hand (the egress block stands; that row on
 `OWNER-LIST.md` is closed by the upload, not by a policy change). Reading
@@ -49902,7 +49902,7 @@ amount of server discipline changes that. Recorded rather than
 engineered around: it is the price of items calibrated before launch, the
 owner's stated requirement, and it is the same price every published
 instrument pays. What it argues for is the thing already recorded at
-D451 — adaptive administration over the calibrated bank, and the
+D471 — adaptive administration over the calibrated bank, and the
 generator kept for the forms nobody can look up.
 
 **The calibration, now measured rather than cited.** 219 of 220 items
@@ -49918,7 +49918,7 @@ percentile still has to be ours.
 
 **No licence file in the archive.** Six files, none of them a licence —
 the GPLv3 statement lives in the paper, not in the bank. That is weaker
-than a LICENSE in the tree and stronger than Sandia's nothing (D451's
+than a LICENSE in the tree and stronger than Sandia's nothing (D471's
 table), and it does not change the `OWNER-LIST.md` row: the question was
 already what GPLv3 reaches, and it now also wants the paper's exact
 wording quoted where the bank is committed. `content/omib.json` and
@@ -49933,7 +49933,7 @@ key's absence from `src/`), the archive under `content/omib-source/`, and
 the two built files. **What is NOT built:** anything a user can see. The
 screen waits on visual request 13, which waits on a design.
 
-## D452 · OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank
+## D472 · OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank
 
 **Date:** 2026-09-12 · **Status:** built, deployed dark (`LOGIC_BANK =
 "generator"`), on the owner's *"go ahead with phase 1, use the same
@@ -49982,7 +49982,7 @@ deliberately and recorded: one document read and 25 × 201 logistic
 evaluations, and a bound would want the attempt document practice does
 not have. The seed round-trips through the client on purpose — nothing is
 at stake — and marks are right-or-wrong per item, never the answer, which
-is public anyway (D451).
+is public anyway (D471).
 
 **What the build's own tests found, and the plan now says.** With every
 discrimination equal the 2PL is the Rasch model, under which the raw count
@@ -50021,7 +50021,7 @@ against. Those are phase 2 and 3. The two honest limits stand as recorded:
 the 90 s is the bank's demo default until the paper is read, and the
 answer key is public.
 
-## D453 · OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now
+## D473 · OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now
 
 **Date:** 2026-09-12 · **Status:** built and live, on the owner's *"go
 ahead with phase 2"*. `docs/OMIB-PLAN.md` §8's phase 2, plus the flip
@@ -50031,7 +50031,7 @@ phase 1 held back. Visual requests 13 and 8 → built.
 same commit as the screen that can answer a code, so no deployed tree
 ever serves codes to a client that cannot draw them. An attempt minted
 under the generator and submitted after this deploys still scores on the
-generator (D452's design: the bank is the attempt's). The e2e's verified
+generator (D472's design: the bank is the attempt's). The e2e's verified
 leg now sends twenty-five 20-bit cells and asserts `bank: "omib"`, `theta`,
 `se` and the disclosed `diffs` on the way back.
 
@@ -50055,7 +50055,7 @@ puzzle, shown solved over the resting palette on a first open, with Start
 — not a bank item, so it teaches without leaking — and reachable again
 from the result screen.
 
-**Both modes on the one screen** (D452, the owner's call). Practice:
+**Both modes on the one screen** (D472, the owner's call). Practice:
 `startPractice` hands out a seed and the codes, `submitPractice` returns
 the seed with the cells, the server scores and keeps nothing. Verified:
 `startVerified` / `submitVerified` as before, the cells the only payload.
@@ -50106,7 +50106,7 @@ explain on struck options from request 8 dissolved with the format —
 there are no struck options when the answer is built.
 
 **What phase 3 still owes** (`OMIB-PLAN.md` §4 is built server-side since
-D452; the rest): nothing on the norms — they fold and rank today. Phase 4
+D472; the rest): nothing on the norms — they fold and rank today. Phase 4
 — adaptive selection and the §6 report — waits on hundreds of first
 attempts. The two honest limits stand: the 90 s is the bank's demo
 default until the paper is read, and the answer key is public.

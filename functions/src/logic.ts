@@ -88,7 +88,7 @@ export const LOGIC_MIN_MS_PER_ITEM = 2_000;
 // same arithmetic for practice results, pinned equal in both suites.
 export const LOGIC_SEM_ITEMS = 2;
 
-// ── which bank a NEW attempt is minted on (D451, docs/OMIB-PLAN.md §8) ──
+// ── which bank a NEW attempt is minted on (D471, docs/OMIB-PLAN.md §8) ──
 // "generator" is D31's procedural bank scored by count; "omib" is the Open
 // Matrices Item Bank scored by θ. The bank is a property of the ATTEMPT,
 // stamped at start and honoured at submit whatever this constant says by
@@ -96,7 +96,7 @@ export const LOGIC_SEM_ITEMS = 2;
 // minted on, and both paths are testable without touching this line.
 // Phase 1 shipped the OMIB path DARK on "generator", because the overlay of
 // the day sent six-way indexes and would have rendered nothing on a code.
-// Phase 2 (D453) is the screen that answers a code, and flips this with it —
+// Phase 2 (D473) is the screen that answers a code, and flips this with it —
 // the same PR, so no deployed tree ever serves codes to a client that cannot
 // draw them. The practice callable below is OMIB-only regardless.
 export type LogicBank = "generator" | "omib";
@@ -127,7 +127,7 @@ export interface LogicAttempt {
   seed: number;
   /** generator version, or OMIB_BANK_VERSION when `bank` is "omib" */
   gv: number;
-  /** absent on documents from before D451 — those are the generator's */
+  /** absent on documents from before D471 — those are the generator's */
   bank?: LogicBank;
   status: "open" | "scored";
   startedAtMs: number;
@@ -719,7 +719,7 @@ export const logicSubmitV2 = onCall(
   },
 );
 
-// ── practice, on the OMIB bank, stateless (D451; the owner, 2026-09-12:
+// ── practice, on the OMIB bank, stateless (D471; the owner, 2026-09-12:
 // "use the same screen for practice") ──
 //
 // One callable, two calls. Without `picks` it mints a seed and returns the
@@ -732,7 +732,7 @@ export const logicSubmitV2 = onCall(
 // trips through the client on purpose: with nothing at stake there is
 // nothing to hold server-side, and a client that fabricates one scores a
 // form nobody ranks. Marks are per item, right or wrong, never the answer
-// — and the answers are public anyway (D451's recorded limit). Unbounded
+// — and the answers are public anyway (D471's recorded limit). Unbounded
 // per account, deliberately: it is one document read and 25 × 201
 // logistic evaluations, and a bound would want an attempt document, which
 // is the thing practice does not have. Recorded, not hidden.

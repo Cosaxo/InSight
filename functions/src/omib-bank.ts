@@ -5,14 +5,14 @@
 // content/ change without a regen) fails the gate.
 //
 // The Open Matrices Item Bank (Koch, Spinath, Greiff & Becker 2022,
-// https://osf.io/4km79/, GPLv3 per the paper — D451) as the server needs
+// https://osf.io/4km79/, GPLv3 per the paper — D471) as the server needs
 // it: per item the 9x20 construction code (eight visible cells, the ninth
 // all zeros), the published 2PL calibration (`a` discrimination, `b`
 // difficulty — one item carries neither), and the rule count a form is
 // stratified on. OMIB_KEY is the answer key, item number → the 20-bit
 // solution. THIS FILE IS SERVER-SIDE ONLY: functions/ is never shipped to a
 // client, and scripts/build-omib.test.mjs holds src/ to never naming the
-// key. The honest limit stands (D451): the bank's authors publish this key
+// key. The honest limit stands (D471): the bank's authors publish this key
 // themselves.
 
 export const OMIB_BANK_VERSION = 1;

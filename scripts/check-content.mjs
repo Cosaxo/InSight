@@ -683,7 +683,7 @@ for (const [key, l] of Object.entries(content.lenses)) {
 // outlive its subjects.
 const NOT_SEEDED = {
   "omib.json":
-    "a third-party instrument's item bank, not question content (D451) — the "
+    "a third-party instrument's item bank, not question content (D471) — the "
     + "Open Matrices Item Bank's 220 items as construction codes plus the "
     + "difficulty each was calibrated to before we shipped a line, built by "
     + "scripts/build-omib.mjs and gated by check:omib against the published "
@@ -691,7 +691,7 @@ const NOT_SEEDED = {
     + "that would is visual request 13, which D352 sends to a design first, "
     + "and a bank committed ahead of its screen is the honest order here",
   "omib-key.json":
-    "the same bank's ANSWER KEY, and the reason it is a separate file (D451) "
+    "the same bank's ANSWER KEY, and the reason it is a separate file (D471) "
     + "— it is server-side material on the D57 posture, so a client reading "
     + "it is the failure this split exists to make visible; build-omib.test "
     + "holds src/ to naming it nowhere",

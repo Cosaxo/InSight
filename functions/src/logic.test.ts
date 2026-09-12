@@ -408,12 +408,12 @@ describe("rankAndFold", () => {
 });
 
 
-// ── the OMIB bank's rank-and-fold (D451, docs/OMIB-PLAN.md §4) ───────────
+// ── the OMIB bank's rank-and-fold (D471, docs/OMIB-PLAN.md §4) ───────────
 describe("rankAndFoldTheta", () => {
   const enough = OMIB_FORM_ITEMS * LOGIC_MIN_MS_PER_ITEM;
   const base = { theta: 0.3, se: 0.35, durationMs: enough, stored: null, alreadyCounted: false };
 
-  it("is LIVE since D453: new attempts are minted on the OMIB bank", () => {
+  it("is LIVE since D473: new attempts are minted on the OMIB bank", () => {
     expect(LOGIC_BANK).toBe("omib");
   });
 

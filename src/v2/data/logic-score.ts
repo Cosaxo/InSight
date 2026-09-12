@@ -19,9 +19,9 @@
 
 export interface LogicResult {
   /** payload version: absent = pre-generator (v1), 2 = generator era,
-   *  3 = the OMIB bank (D451, D453) */
+   *  3 = the OMIB bank (D471, D473) */
   v?: number;
-  /** "omib" since D453; absent = the generator's */
+  /** "omib" since D473; absent = the generator's */
   bank?: string;
   /** the ability estimate on the calibration sample's scale (OMIB) */
   theta?: number;

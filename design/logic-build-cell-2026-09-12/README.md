@@ -1,7 +1,7 @@
 # Build the missing cell — the logic test's answer screen (2026-09-12)
 
 The owner's `InSight_Logic_Test_-_Build_the_Cell.html` upload of
-2026-09-12, answering **visual request 13** (D451): the Open Matrices
+2026-09-12, answering **visual request 13** (D471): the Open Matrices
 Item Bank is answered by CONSTRUCTING the missing cell out of twenty
 shapes, not by tapping one of six finished tiles, so the item screen is
 a new interaction rather than a new control. The upload is ephemeral;
@@ -13,7 +13,7 @@ This is the first **Claude Design canvas** filed here rather than an
 InSight standalone, so the extraction differs from the numbered series
 — see below.
 
-**Built 2026-09-12 (D453)**, the same day: `src/v2/spec/logic-test.jsx` is
+**Built 2026-09-12 (D473)**, the same day: `src/v2/spec/logic-test.jsx` is
 the screen, `src/v2/data/omib-shapes.ts` its twenty shapes, and
 `logic-overlay.test.jsx` its eleven cases. What the artboard decided is
 what was built, with the two corrections below honoured; what it drew
@@ -139,7 +139,7 @@ reasons, none of them taste:
   reference ships `timelimit = 90`. Administer under a tighter clock than
   the calibration sample had and the 220 difficulty values stop
   transferring cleanly, which is the entire reason this bank was chosen
-  over the generator (D451). (Stated honestly: the reference's 90 is a
+  over the generator (D471). (Stated honestly: the reference's 90 is a
   default in the bank's own demo code. Whether the calibration study used
   exactly that is in the paper, which no session here has been able to
   reach — `www.mdpi.com` and `pmc.ncbi.nlm.nih.gov` are both blocked by
