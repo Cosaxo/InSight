@@ -1534,7 +1534,7 @@ export { activateDeviceV2 } from "./deviceBind";
 // D54's velocity scan runs inside the nightly pass since DATA-EFFICIENCY-
 // RUNBOOK 4.4 (nightly.ts) — `ledgerVelocityScan` is no longer a function
 // of its own; the project's copy is deleted by hand (OWNER-LIST.md).
-export { logicStartV2, logicSubmitV2, logicNextV2, logicPracticeV2 } from "./logic";
+export { logicStartV2, logicSubmitV2, logicNextV2 } from "./logic";
 export { saveTestResultV2 } from "./testResults";
 // D194: Foresight CALL, tier A — the daily pass that grades a sealed
 // prediction against our OWN published aggregate and publishes the numbers

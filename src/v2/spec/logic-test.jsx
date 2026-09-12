@@ -6,7 +6,7 @@
 import React from 'react';
 import { useDialog } from './primitives.jsx';
 import { FIELD_MED, loadResult, logicSecs, saveResult } from '../data/logic-score';
-import { startPractice, submitPractice, startVerified, submitVerified, nextPractice, nextVerified, isScore, verifyErrorMessage } from '../data/logic-verify';
+import { startVerified, submitVerified, nextVerified, isScore, verifyErrorMessage } from '../data/logic-verify';
 import { SHAPES, PALETTE_ORDER, STROKE, FAMILIES, familyOf, bitsOf, cellOf, ELEMENTS } from '../data/omib-shapes';
 import { HAPTIC } from './haptics.js';
 
@@ -17,12 +17,13 @@ import { HAPTIC } from './haptics.js';
 // stratified sample of a published, calibrated bank — and each
 // answered by BUILDING the missing cell out of twenty shapes rather
 // than picking one of six tiles (design/logic-build-cell-2026-09-12/,
-// visual request 14). The device never holds an answer: both modes
-// send the constructed cells to the server, which scores them by
+// visual request 14). The device never holds an answer: the attempt
+// sends the constructed cells to the server, which scores them by
 // ability θ against the bank's calibration (functions/src/irt.ts)
-// and returns the percentile. Practice differs from Verified only in
-// what COUNTS — practice is scored and forgotten, verified is scored
-// and folded into the norms once (D57, D473). Each puzzle is timed
+// and returns the percentile. ONE KIND OF ATTEMPT (D476): the test is
+// taken like an IQ test — no practice on the bank, every start is the
+// verified one, scored and folded into the norms once (D57), and
+// "again" is the server's cooldown. Each puzzle is timed
 // (D56); the clock standardises the administration and is the one
 // the bank itself ships. No per-question feedback — score + percentile
 // at the end, persisted via data/logic-score.ts. The General tab shows
@@ -165,7 +166,8 @@ export let LOGIC;
   //    as 13) ── one solved matrix before item 1, so nobody spends scored
   // items learning the format. The design's own addition puzzle, not a bank
   // item — so it teaches without leaking. Shown with the answer already in
-  // the goal cell; Start begins a practice attempt and no clock runs here.
+  // the goal cell; Start begins THE attempt (verified — there is no other
+  // kind since D476) and no clock runs here.
   const EXAMPLE = '10000000000000000000,00000000000000100000,10000000000000100000,00000000100000000000,00000001000000000000,00000001100000000000,00100000000000000100,00000000000001000000,00100000000001000100';
   const EXAMPLE_LINE = 'Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.';
 
@@ -341,10 +343,10 @@ export let LOGIC;
   // "measured", ranked against the n verified first attempts counted so
   // far). A typical taker reads below that calibration sample's median,
   // which is a fact about the sample, so the sentence names it (COPY.md §3:
-  // a claim, not a caption). A practice attempt sends its cells to be
-  // scored and is held nowhere; a verified one is counted once and goes on
-  // the profile in four broad bands. Old generator-era results (v ≤ 2)
-  // keep their old notes.
+  // a claim, not a caption). An attempt is counted once and goes on the
+  // profile in four broad bands. Old generator-era results (v ≤ 2) keep
+  // their old notes, and so does a practice result saved on a device
+  // before D476 retired practice — the note it earned is the note it keeps.
   const CALIBRATION_N = 2572;
   const CALIBRATED_ON = 'the ' + CALIBRATION_N + ' people this test was calibrated on';
   const LOGIC_PRACTICE_NOTE = 'Practice: scored on the server against a calibrated bank, counted nowhere. Until enough verified players exist here, the percentile is against ' + CALIBRATED_ON + '.';
@@ -359,7 +361,6 @@ export let LOGIC;
   // opens that document to every signed-in reader; web/privacy.html says
   // the same in as many words.
   const LOGIC_VERIFY_DISCLOSURE = 'Your cells are scored on the server and join an anonymous count. Your score goes on your profile, in four broad bands, where anyone signed in can read it.';
-  const LOGIC_PRACTICE_DISCLOSURE = 'Practice sends your cells to the server to be scored and keeps nothing.';
 
   const LOGIC_LENSES = [
     { id: 'answers', label: 'Answers' },
@@ -458,15 +459,7 @@ export let LOGIC;
     // since D475; the fallbacks are for the deploy window in which a new
     // client meets the old start shape, and read it as what it was.
     const served = (s) => ({ mode: s.mode || 'stratified', items: s.items, total: s.total || s.items.length });
-    // ── practice round trip (D473): the server mints and holds nothing ──
-    const beginPractice = () => {
-      setNet({ phase: 'starting', mode: 'practice' });
-      startPractice().then(
-        (s) => arm({ ...served(s), seed: s.seed, practice: true }),
-        (err) => setNet({ phase: 'start-error', msg: verifyErrorMessage(err) }),
-      );
-    };
-    // ── verified round trip (D57): the server mints and keeps the seed ──
+    // ── the round trip (D57): the server mints and keeps the seed ──
     const beginVerified = () => {
       setNet({ phase: 'starting', mode: 'verified' });
       startVerified().then(
@@ -497,18 +490,15 @@ export let LOGIC;
     };
     const send = (f, pk, nt) => {
       setNet({ phase: 'sending' });
-      const call = f.verified ? submitVerified(pk) : submitPractice(f.seed, pk);
-      call.then(
+      submitVerified(pk).then(
         (res) => scored(f, res, nt),
         (err) => setNet({ phase: 'send-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
       );
     };
     // ── the adaptive round trip, one per item (D475) ──
-    // The pick for item `pk.length - 1` goes to the server and the next item
-    // comes back — or, on the last, the result. A verified attempt sends the
-    // one pick with its index; practice, holding nothing server-side, sends
-    // every pick so far with its seed.
-    const askNext = (f, pk) => (f.verified ? nextVerified(pk.length - 1, pk[pk.length - 1]) : nextPractice(f.seed, pk));
+    // The pick for item `pk.length - 1` goes to the server with its index and
+    // the next item comes back — or, on the last, the result.
+    const askNext = (f, pk) => nextVerified(pk.length - 1, pk[pk.length - 1]);
     const arrived = (f, res, pk, nt) => {
       setPicks(pk); setTimes(nt); setGoal([]); setNet(null);
       if (isScore(res)) { setQi(-1); setScreen('result'); scored(f, res, nt); return; }
@@ -608,13 +598,16 @@ export let LOGIC;
               </div>
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, lineHeight: 1.45, color: 'var(--ink-2)', margin: '14px 0 10px' }}>{EXAMPLE_LINE}</div>
               <Palette selected={bitsOf(EXAMPLE.split(',')[8])} onToggle={() => {}} disabled />
-              <button onClick={beginPractice} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(true), width: '100%', marginTop: 16, height: 52, borderRadius: 999, opacity: net && net.phase === 'starting' ? 0.6 : 1 }}>
+              <button onClick={beginVerified} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(true), width: '100%', marginTop: 16, height: 52, borderRadius: 999, opacity: net && net.phase === 'starting' ? 0.6 : 1 }}>
                 {net && net.phase === 'starting' ? 'Preparing…' : 'Start'}
               </button>
               {net && net.phase === 'start-error' && (
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-2)', textAlign: 'center', lineHeight: 1.45, marginTop: 10 }}>{net.msg}</div>
               )}
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, color: 'var(--ink-3)', textAlign: 'center', lineHeight: 1.5, marginTop: 10 }}>{LOGIC_PRACTICE_DISCLOSURE}</div>
+              {/* consent is a sentence, not a dialog: what Start sends is stated
+                  where the button is, before it is ever pressed — the same
+                  sentence the result screen carries */}
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, color: 'var(--ink-3)', textAlign: 'center', lineHeight: 1.5, marginTop: 10 }}>{LOGIC_VERIFY_DISCLOSURE}</div>
               {result && (
                 <button onClick={() => setScreen('result')} className="tap44" style={{ ...pillBtn(false), display: 'block', margin: '12px auto 0', padding: '6px 14px', fontSize: 12 }}>Back to your result</button>
               )}
@@ -725,11 +718,11 @@ export let LOGIC;
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-                <button onClick={beginPractice} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(false), opacity: net && net.phase === 'starting' && net.mode === 'practice' ? 0.5 : 1 }}>
-                  {net && net.phase === 'starting' && net.mode === 'practice' ? 'Preparing…' : 'Retake'}
-                </button>
-                <button onClick={beginVerified} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(false), opacity: net && net.phase === 'starting' && net.mode === 'verified' ? 0.5 : 1 }}>
-                  {net && net.phase === 'starting' && net.mode === 'verified' ? 'Preparing…' : 'Verified attempt'}
+                {/* one button, one kind of attempt (D476): the server's cooldown
+                    answers "again" — "verified recently — try again later"
+                    lands under the buttons, where a refused start always has */}
+                <button onClick={beginVerified} disabled={net && net.phase === 'starting'} style={{ ...pillBtn(false), opacity: net && net.phase === 'starting' ? 0.5 : 1 }}>
+                  {net && net.phase === 'starting' ? 'Preparing…' : 'Take again'}
                 </button>
                 <button onClick={onClose} style={pillBtn(true)}>Done</button>
               </div>

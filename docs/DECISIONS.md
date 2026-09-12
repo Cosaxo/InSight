@@ -53532,3 +53532,71 @@ a landed cell for seconds. The θ̂ histogram mixes the two modes' readings,
 which differ in SE though not in scale. And the whole phase is dark until
 a number that needs three hundred honest attempts exists — which is the
 plan working as written, not a shortfall of it.
+
+## D476 · No practice: the logic test is taken like an IQ test — the practice half of D473 retired the day it shipped, and the callable with it
+
+**Decision (the owner, 2026-09-12, reading the built test: *"i dont
+thik they should be able to practice theis should be simlar to a iq
+test"*).** Practice on the bank is retired whole. `logicPracticeV2` is
+DELETED — not left deployed and unused, because a callable that hands
+out bank items and scores them IS practice, whoever calls it — and the
+client's practice paths go with it: `startPractice`, `submitPractice`,
+`nextPractice`, the `practice` flag on the wire. The one screen has one
+kind of attempt: the worked example, then Start, which is the verified
+attempt. The example stays — an IQ test shows an example before the
+first scored item, and request 8 teaches the format, not the items.
+"Again" is the server's cooldown as D57 set it — one verified score per
+30 days, three starts a day — shown where the button is ("verified
+recently — try again later"), and the interval is the knob if the owner
+wants it longer.
+
+**Why the reversal is right, on its own arithmetic.** A practice form is
+25 of the bank's 218 items; ten practice runs would have shown most of
+the bank, and a score after previews measures preparation rather than
+the ability the parameters were calibrated on — first sight, every item,
+for all 2,572 people. D473's "use the same screen for practice" was the
+owner's answer to a question the plan put (§9) before the built test
+was in their hand; this is the same owner reversing it with the reason,
+and the reversal is recorded rather than the earlier record edited.
+
+**What changed, exactly.**
+
+- **Server**: the callable, `scorePractice`, `readPublicNorms` and the
+  mirror read — 49 functions on the deploy list, 34 callables under App
+  Check. Nothing else moves: the attempt document, the ledgers, the
+  histogram, `logicNextV2` and the adaptive path are as D475 left them.
+- **Client**: Start on the example screen begins the verified attempt,
+  and the example screen carries the verified disclosure — a consent
+  notice, shown before the first Start as the copy rule requires
+  (COPY.md §3). The result screen's two buttons (*Retake* · *Verified
+  attempt*) become one, *Take again*. A practice result saved on a
+  device before today still reads with the note it earned; nothing new
+  can earn it.
+- **The privacy page needed no word** — it never named practice — and
+  `check:policy-claims` agrees.
+
+**What it costs the proof of the adaptive path, and the way through.**
+The emulator's practice legs (11b, 11c) were how the adaptive path was
+exercised end to end while `OMIB_SELECTION` is stratified; they go with
+practice. So the verified leg now WALKS WHICHEVER SELECTION THE START
+DECLARES — one submit for a stratified form, twenty-five `logicNextV2`
+calls for an adaptive one, each asserted — which means the day the
+constant flips, the same leg proves the adaptive path on the emulator in
+the PR that flips it, before it deploys. Until then the callable is
+proved through the fake transaction (`logic-submit.test.ts`, six cases).
+The owner's "try adaptive on a phone first" now means a test build with
+the constant flipped; the OWNER-LIST row says so.
+
+**Proved by.** `logic-overlay.test.jsx` (the example screen's Start is
+the verified attempt and carries its disclosure; the mechanics — Clear,
+the clock, a commit as it stands, a lost submit's Retry — on the one
+attempt; *Take again*; the adaptive walk and its lost pick);
+`logic-submit.test.ts` without its practice suites; the emulator's loop
+with the mode-aware verified leg; `check:deploy-targets` and
+`check:fn-runtime` at 49, `check:appcheck` at 34; every gate green.
+
+**Records moved.** `docs/OMIB-PLAN.md` §5 (the practice paragraph, now
+the reversal), §9, §8 rows 1 and 4, §3.3's replay bullet;
+`docs/data-inventory.md` row 19; `docs/VISUAL-REQUESTS.md` request 14;
+`OWNER-LIST.md` — the practice row superseded, the flip row's "try it"
+sentence; the design README's "both modes" line.

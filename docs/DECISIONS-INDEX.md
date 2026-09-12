@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 514 lines instead of
-53,535. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 515 lines instead of
+53,603. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -74,7 +74,7 @@ detect it.
 | **D54** | [The ledger gets eyes: a daily velocity scan, feeding manual review](DECISIONS.md#d54--the-ledger-gets-eyes-a-daily-velocity-scan-feeding-manual-review) | D342 (+4) | 5127 |
 | **D55** | [Three guarantees were enforced on a value and not on the way it moves](DECISIONS.md#d55--three-guarantees-were-enforced-on-a-value-and-not-on-the-way-it-moves) | D445 (+3) | 5225 |
 | **D56** | [The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock](DECISIONS.md#d56--the-logic-test-stops-telegraphing-its-rules-banded-families-and-every-puzzle-is-on-the-clock) | D402 (+2) | 5625 |
-| **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D475 (+15) | 5708 |
+| **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D476 (+16) | 5708 |
 | **D58** | [The seed refuses to edit a shipped option set](DECISIONS.md#d58--the-seed-refuses-to-edit-a-shipped-option-set) | D444 (+1) | 5835 |
 | **D59** | [The deferred chunks stop caching their own failure](DECISIONS.md#d59--the-deferred-chunks-stop-caching-their-own-failure) | — | 5908 |
 | **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D474 (+3) | 5958 |
@@ -517,9 +517,10 @@ detect it.
 | **D471** | [The hard stop: the budget's function detaches billing at three budgets — the owner's ceiling of 1,500 NOK — and the phone rings only for money](DECISIONS.md#d471--the-hard-stop-the-budgets-function-detaches-billing-at-three-budgets--the-owners-ceiling-of-1500-nok--and-the-phone-rings-only-for-money) | — | 52331 |
 | **D472** | [The logic test's items come from the Open Matrices Item Bank — and the licence sweep is the finding](DECISIONS.md#d472--the-logic-tests-items-come-from-the-open-matrices-item-bank--and-the-licence-sweep-is-the-finding) | D473 | 52973 |
 |  | ↳ *amendment 2026-09-11, the same evening* — [The archive read: the bank is a vocabulary, not artwork — and its answer key is public](DECISIONS.md#d472-amendment-2026-09-11-the-same-evening--the-archive-read-the-bank-is-a-vocabulary-not-artwork--and-its-answer-key-is-public) | — | 53070 |
-| **D473** | [OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank](DECISIONS.md#d473--omib-phase-1-the-server-scores-by-θ-dark--and-practice-is-a-stateless-callable-on-the-same-bank) | D475 (+1) | 53145 |
+| **D473** | [OMIB phase 1: the server scores by θ, dark — and practice is a stateless callable on the same bank](DECISIONS.md#d473--omib-phase-1-the-server-scores-by-θ-dark--and-practice-is-a-stateless-callable-on-the-same-bank) | D476 (+2) | 53145 |
 | **D474** | [OMIB phase 2: the screen, the wire, and the flip — the logic test is the calibrated bank now](DECISIONS.md#d474--omib-phase-2-the-screen-the-wire-and-the-flip--the-logic-test-is-the-calibrated-bank-now) | — | 53233 |
-| **D475** | [OMIB phase 4: adaptive selection built dark behind the report that decides its flip — and the report's own bar corrected by its test](DECISIONS.md#d475--omib-phase-4-adaptive-selection-built-dark-behind-the-report-that-decides-its-flip--and-the-reports-own-bar-corrected-by-its-test) | — | 53340 |
+| **D475** | [OMIB phase 4: adaptive selection built dark behind the report that decides its flip — and the report's own bar corrected by its test](DECISIONS.md#d475--omib-phase-4-adaptive-selection-built-dark-behind-the-report-that-decides-its-flip--and-the-reports-own-bar-corrected-by-its-test) | D476 | 53340 |
+| **D476** | [No practice: the logic test is taken like an IQ test — the practice half of D473 retired the day it shipped, and the callable with it](DECISIONS.md#d476--no-practice-the-logic-test-is-taken-like-an-iq-test--the-practice-half-of-d473-retired-the-day-it-shipped-and-the-callable-with-it) | — | 53536 |
 | **D-2026-09-09a** | [The blind vote becomes a data rule: the deck's crowd is read on the vote, not at boot](DECISIONS.md#d-2026-09-09a--the-blind-vote-becomes-a-data-rule-the-decks-crowd-is-read-on-the-vote-not-at-boot) | D-2026-09-09e | 52513 |
 | **D-2026-09-09b** | [The Patterns tab waits on the fit's own skill, not only on the answer counts](DECISIONS.md#d-2026-09-09b--the-patterns-tab-waits-on-the-fits-own-skill-not-only-on-the-answer-counts) | — | 52578 |
 | **D-2026-09-09c** | [Comparison gates get a library, and the two store forms are compared for the first time](DECISIONS.md#d-2026-09-09c--comparison-gates-get-a-library-and-the-two-store-forms-are-compared-for-the-first-time) | — | 52655 |

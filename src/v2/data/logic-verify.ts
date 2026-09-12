@@ -1,31 +1,28 @@
-// Client transport for logic attempts on the OMIB bank (D57, D472, D474, D475).
+// Client transport for the logic test on the OMIB bank (D57, D472, D474,
+// D475, D476).
 //
-// Two shapes of attempt. A STRATIFIED one is two round trips: the start
-// hands out all 25 items, the submit sends 25 cells back. An ADAPTIVE one
-// (D475, dark behind the server's OMIB_SELECTION until the §6 report clears
-// its bar) is a round trip per item: the start hands out the first item
-// alone, each pick goes back through `nextVerified` / `nextPractice` and the
-// next item comes out — or, on the twenty-fifth, the result. The start says
-// which (`mode`), and the client never decides: a form is whatever the
-// server serves.
+// One kind of attempt. The server is never told anything it could be lied
+// to about: it mints the seed, keeps it, and hands out the items with the
+// ninth cell empty — the client's only way to a score is sending its
+// constructed cells back for server-side marking. There is no practice
+// attempt (D476, the owner: the test is taken like an IQ test; the practice
+// mode D473 put on the same screen lasted a day), so every start is the
+// verified one, and the server's cooldown and daily start limit are the
+// only answer to "again".
 //
-// A VERIFIED attempt inverts the practice flow's
-// trust: the server mints the seed, keeps it, and returns the 25 items as
-// construction codes with the ninth cell empty — the client's only way to a
-// score is submitting its constructed cells back for server-side marking.
-// A PRACTICE attempt (D473, the owner's "use the same screen for practice")
-// is the same screen against the same bank, but stateless: the server mints
-// a seed and hands it back with the items, the client returns it with the
-// cells, and the server scores that seed's form and holds nothing — no
-// attempt document, no cooldown, no fold. The one bank cannot be scored on a
-// device, because the device never has the key (build-omib.test.mjs holds
-// src/ to never naming it), so practice sends its picks too now; the
-// result-screen copy says so.
+// Two shapes of form. A STRATIFIED one is two round trips: the start hands
+// out all 25 items, the submit sends 25 cells back. An ADAPTIVE one (D475,
+// dark behind the server's OMIB_SELECTION until the §6 report clears its
+// bar) is a round trip per item: the start hands out the first item alone,
+// each pick goes back through `nextVerified` and the next item comes out —
+// or, on the twenty-fifth, the result. The start says which (`mode`), and
+// the client never decides: a form is whatever the server serves.
 //
-// What leaves the device, exactly: a bare start call, and a submit carrying
-// twenty-five 20-character strings of 0 and 1 — one constructed cell per
-// item. Per-item timings never leave the device — the server records only
-// the attempt duration it observed itself (verified) or nothing (practice).
+// What leaves the device, exactly: a bare start call, and either one submit
+// carrying twenty-five 20-character strings of 0 and 1 — one constructed
+// cell per item — or twenty-five calls carrying one such cell each with its
+// index. Per-item timings never leave the device — the server records only
+// the attempt duration it observed itself.
 //
 // This module imports nothing from the bank: the client renders whatever
 // codes it is served, through src/v2/data/omib-shapes.ts.
@@ -53,15 +50,6 @@ export interface VerifiedStart {
   deadlineMs: number;
 }
 
-export interface PracticeStart {
-  mode: Selection;
-  /** the seed the form was drawn from — returned with the picks, held nowhere */
-  seed: number;
-  items: VerifiedItem[];
-  total: number;
-  capMs: number;
-}
-
 /** What an adaptive pick comes back with when the form is not finished: the next item. */
 export interface NextItem {
   items: VerifiedItem[];
@@ -70,7 +58,7 @@ export interface NextItem {
   total: number;
 }
 
-/** One score shape for both modes — what the server says the attempt was. */
+/** The score — what the server says the attempt was. */
 export interface VerifiedScore {
   marks: boolean[];
   score: number;
@@ -85,7 +73,7 @@ export interface VerifiedScore {
    *  among `n` verified first attempts once the histogram clears the floor */
   source?: "model" | "measured";
   n?: number;
-  /** server-observed attempt duration — verified only */
+  /** server-observed attempt duration */
   durationMs?: number;
   /** disclosed only after scoring — reconstructs the form, never a key alone */
   seed: number;
@@ -95,7 +83,6 @@ export interface VerifiedScore {
   mode?: Selection;
   /** the published difficulty of each item in form order, disclosed after scoring */
   diffs: number[];
-  practice?: true;
 }
 
 /** The result, once the twenty-fifth pick has been scored — distinguished from a next item by its marks. */
@@ -117,25 +104,9 @@ export async function submitVerified(picks: string[]): Promise<VerifiedScore> {
   return res.data as VerifiedScore;
 }
 
-export async function startPractice(): Promise<PracticeStart> {
-  const res = await httpsCallable(await fns(), "logicPracticeV2")({});
-  return res.data as PracticeStart;
-}
-
-export async function submitPractice(seed: number, picks: string[]): Promise<VerifiedScore> {
-  const res = await httpsCallable(await fns(), "logicPracticeV2")({ seed, picks });
-  return res.data as VerifiedScore;
-}
-
-/** One pick of an adaptive verified attempt: the cell for item `index`, in for the next item or the result. */
+/** One pick of an adaptive attempt: the cell for item `index`, in for the next item or the result. */
 export async function nextVerified(index: number, pick: string): Promise<NextItem | VerifiedScore> {
   const res = await httpsCallable(await fns(), "logicNextV2")({ index, pick });
-  return res.data as NextItem | VerifiedScore;
-}
-
-/** The same for practice, stateless: every pick so far goes back with the seed each time. */
-export async function nextPractice(seed: number, picks: string[]): Promise<NextItem | VerifiedScore> {
-  const res = await httpsCallable(await fns(), "logicPracticeV2")({ seed, mode: "adaptive", picks });
   return res.data as NextItem | VerifiedScore;
 }
 

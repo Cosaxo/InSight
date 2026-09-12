@@ -213,10 +213,9 @@ What is built, and what it decided:
   and five-rule ones still owed, and an all-right taker meets the bank's
   own ceiling (few items above b 1.5). Both are pinned.
 - **Replay, not storage**: the form is a deterministic function of the
-  seed and the picks, so practice stays stateless (every pick so far
-  goes back with the seed) and a verified attempt's document holds the
-  picks alone — no item list, and no per-item timing, which keeps D57's
-  promise under a protocol that could now break it.
+  seed and the picks, so the attempt's document holds the picks alone —
+  no item list, and no per-item timing, which keeps D57's promise under
+  a protocol that could now break it.
 - **The protocol**: `logicStartV2` hands out the first item with `mode`
   and `total`; `logicNextV2({ index, pick })` appends and answers with
   the next item, or with the result on the twenty-fifth, scored and
@@ -273,18 +272,20 @@ the answer with `cellOf`. Everything the design decided — tap to toggle,
 Clear, Done, the draining segment, the two clocks, a time-out that
 commits as it stands — is the screen's; this plan does not re-decide it.
 
-**Practice mode.** Today a practice attempt runs the generator on the
-device and scores locally, because the device has the rule machinery. It
-cannot score an OMIB item locally without the key, and the key is not
-allowed on a device (`build-omib.test.mjs` holds `src/` to never naming
-it). Recommendation: **practice attempts use the same bank and the same
-screen, scored by a lightweight callable that returns marks and θ and
-folds nothing** — no attempt document, no cooldown, no norms. One screen,
-one format, and the two modes differ only in what counts. The cost is a
-network round trip at submit that practice never had; the alternative —
-practice on the generator's six-tile screen, verified on the build-a-cell
-screen — teaches two formats for one test and is worse. This is a
-product call as much as a build one and is listed for the owner.
+**Practice mode — RETIRED (D476).** This paragraph recommended a practice
+attempt on the same bank and the same screen, scored by a stateless
+callable that folded nothing, and the owner said yes (D473, 2026-09-12)
+— then, the same day, having seen the built test: *"i dont think they
+should be able to practice, this should be similar to an iq test"*. So
+there is no practice attempt. The reason holds on its own arithmetic: a
+practice form is 25 of the bank's 218 items, ten practice runs would
+have shown most of the bank, and a score after previews measures
+preparation rather than the ability the parameters were calibrated on
+(first sight, every item). The worked example stays — an IQ test shows
+an example before the first scored item, and it teaches the format, not
+the items. Start is the verified attempt, and "again" is the server's
+cooldown (D57: one verified score per 30 days, three starts a day) — the
+interval is the knob if the owner wants it longer.
 
 **Tests the repo's rules demand**, named so they are not skipped: the
 functions suite for `irt.ts` and the new scorer; a `smoke-*` mount of the
@@ -350,10 +351,10 @@ byte-identical. `check:omib` keeps the bank the authors' bank.
 | Phase | What | Needs | Proves |
 | --- | --- | --- | --- |
 | **0** — done | Bank in and gated; shapes derived; 25 × 90 s; design filed | — | `check:omib`, `omib-shapes.test.ts` |
-| **1** — done (D473) | `irt.ts` (EAP + SE); `omib.ts` with the quality floor, stratified seeded selection, exact-match scoring, the θ histogram and per-item ledger; the OMIB era stamp; the bank stamped on the attempt and honoured at submit, `LOGIC_BANK` still `"generator"`; `logicPracticeV2`, stateless, on the owner's call | `omib-bank.ts` generated and gated by `check:omib` | functions suite; the emulator's practice leg — start, score, score again, refuse the generator's shape |
+| **1** — done (D473) | `irt.ts` (EAP + SE); `omib.ts` with the quality floor, stratified seeded selection, exact-match scoring, the θ histogram and per-item ledger; the OMIB era stamp; the bank stamped on the attempt and honoured at submit, `LOGIC_BANK` still `"generator"`; `logicPracticeV2`, stateless, on the owner's call (retired the same day, D476) | `omib-bank.ts` generated and gated by `check:omib` | functions suite; the emulator's practice leg — start, score, score again, refuse the generator's shape (gone with practice) |
 | **2** — done (D474) | The screen (VR 14 → built), the wire, the worked example (VR 8 → built), and the flip | — | `logic-overlay.test.jsx` (11), the smoke mount on the example, the mount-app suites, `check:tap-targets`; the emulator's verified leg on OMIB by θ |
 | **3** — done (D473, D474) | θ histogram, Φ fallback with its sentence, measured rank, the band from SE — the server half in phase 1, the sentence in phase 2 | — | rules suite on the same document paths (nothing new); `check:policy-claims` unchanged |
-| **4** — built, DARK (D475) | Adaptive selection behind `OMIB_SELECTION`; the §6 report, `npm run report:omib` | 300 counted attempts before the report's verdict, then the owner's flip | `omib.test.ts` (the selection's seven, the simulation's table), `logic-submit.test.ts` (the callable through the fake transaction), the emulator's 11c leg, `logic-overlay.test.jsx` (14), `omib-report.test.mjs` (transferred · scrambled · the floors) — and, on real counts, the expected-against-observed figure |
+| **4** — built, DARK (D475) | Adaptive selection behind `OMIB_SELECTION`; the §6 report, `npm run report:omib` | 300 counted attempts before the report's verdict, then the owner's flip | `omib.test.ts` (the selection's seven, the simulation's table), `logic-submit.test.ts` (the callable through the fake transaction), the emulator's verified leg — which walks whichever selection the start declares, so the flip is proved on the emulator before it deploys — `logic-overlay.test.jsx` (the adaptive walk, the lost pick, each index), `omib-report.test.mjs` (transferred · scrambled · the floors) — and, on real counts, the expected-against-observed figure |
 
 Phases 1 and 3 are one deploy if built together, and nothing a user sees
 moves until phase 2 ships. That is the order that keeps every commit
@@ -364,8 +365,8 @@ phone — which phase 4 then demonstrated on its own bar (§6).
 
 Two calls, neither blocking phase 1:
 
-- **Practice mode** — the same screen scored by a light callable (the
-  recommendation, §5), or the generator's screen kept for practice.
+- **Practice mode** — answered twice on 2026-09-12: the same screen
+  scored by a light callable (D473), then no practice at all (D476, §5).
 - **The two hosts** — `www.mdpi.com` and `pmc.ncbi.nlm.nih.gov` on the
   environment's allowlist, so the calibration study's own administration
   can be read rather than inferred from its demo code (§1). Already on

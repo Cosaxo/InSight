@@ -23,11 +23,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { LKEY } from "../data/logic-score";
 import { cellOf, ELEMENTS } from "../data/omib-shapes";
 vi.mock("../data/logic-verify", () => ({
-  startPractice: vi.fn(),
-  submitPractice: vi.fn(),
   startVerified: vi.fn(),
   submitVerified: vi.fn(),
-  nextPractice: vi.fn(),
   nextVerified: vi.fn(),
   isScore: (x) => "marks" in x,
   verifyErrorMessage: (e) => (e && e.message) || "err",
@@ -36,7 +33,7 @@ vi.mock("../data/logic-verify", () => ({
 // navigator.vibrate, so the real module is silent here and would prove
 // nothing about which handler spoke.
 vi.mock("../spec/haptics.js", () => ({ HAPTIC: { tick: vi.fn(), tap: vi.fn(), reveal: vi.fn(), off: () => true } }));
-import { startPractice, submitPractice, startVerified, submitVerified, nextPractice, nextVerified } from "../data/logic-verify";
+import { startVerified, submitVerified, nextVerified } from "../data/logic-verify";
 import { HAPTIC } from "../spec/haptics.js";
 import "../spec/logic-test.jsx";
 
@@ -60,8 +57,8 @@ afterEach(() => {
 });
 
 // A served form: 25 codes, eight visible cells each and the ninth empty —
-// what logicStartV2 / logicPracticeV2 hand out. The visible cells cycle the
-// twenty shapes so every one is drawn somewhere.
+// what logicStartV2 hands out. The visible cells cycle the twenty shapes so
+// every one is drawn somewhere.
 const codes = () =>
   Array.from({ length: N }, (_, i) => ({
     code: [...Array.from({ length: 8 }, (_, c) => cellOf([(i + c) % ELEMENTS])), EMPTY].join(","),
@@ -79,6 +76,8 @@ const savedOmib = (over = {}) => ({
 });
 
 const tile = (name) => screen.getByRole("button", { name });
+// what logicStartV2 answers for a stratified form (D475's shape)
+const stratified = () => ({ mode: "stratified", items: codes(), total: N, capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
 const done = () => {
   fireEvent.click(screen.getByRole("button", { name: "Done" }));
   act(() => { vi.advanceTimersByTime(COMMIT_DELAY); });
@@ -95,9 +94,11 @@ describe("the worked example (visual request 8)", () => {
     expect(shapes.every((b) => b.disabled)).toBe(true);
     screen.getByRole("button", { name: "Start" });
     expect(screen.queryByRole("timer")).toBeNull();
-    // what practice sends is stated where Start is, before it is pressed
-    screen.getByText(/practice sends your cells to the server to be scored and keeps nothing/i);
-    expect(vi.mocked(startPractice)).not.toHaveBeenCalled();
+    // what Start sends is stated where Start is, before it is pressed — the
+    // consent sentence, since D476 the only kind of attempt there is
+    screen.getByText(/scored on the server and join an anonymous count/i);
+    expect(screen.queryByText(/practice/i)).toBeNull();
+    expect(vi.mocked(startVerified)).not.toHaveBeenCalled();
   });
 
   it("is reachable again from the result screen, and leads back", () => {
@@ -110,15 +111,18 @@ describe("the worked example (visual request 8)", () => {
   });
 });
 
-describe("a practice attempt (D473)", () => {
-  it("Start → build every cell → Done ×25 → the server's result, saved as v3 and counted nowhere", async () => {
+// The screen's mechanics — Clear, the clock, a commit as it stands, a lost
+// submit — on the one kind of attempt there is since D476 (these ran on
+// the practice attempt for the day it existed; the mechanics did not move).
+describe("the attempt, from Start (D57 · D476)", () => {
+  it("Start → build every cell → Done ×25 → the server's result, saved as v3 and badged", async () => {
     vi.useFakeTimers();
-    vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });
-    vi.mocked(submitPractice).mockResolvedValue(score({ practice: true }));
+    vi.mocked(startVerified).mockResolvedValue(stratified());
+    vi.mocked(submitVerified).mockResolvedValue(score({ durationMs: 60000 }));
     HAPTIC.tick.mockClear(); HAPTIC.tap.mockClear();
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    await act(async () => {}); // resolve startPractice
+    await act(async () => {}); // resolve startVerified
 
     // item 1: the board, the live palette, Done dormant until a shape lands
     screen.getByLabelText(/3 by 3 puzzle grid, bottom-right cell to build/i);
@@ -153,19 +157,18 @@ describe("a practice attempt (D473)", () => {
       want.push(cellOf([id]));
       done();
     }
-    await act(async () => {}); // resolve submitPractice
+    await act(async () => {}); // resolve submitVerified
 
-    // the payload is the constructed cells, exactly as built, with the seed the start handed out
-    expect(vi.mocked(submitPractice)).toHaveBeenCalledWith(7, want);
+    // the payload is the constructed cells, exactly as built — nothing else
+    expect(vi.mocked(submitVerified)).toHaveBeenCalledWith(want);
     expect(HAPTIC.tap).toHaveBeenCalledTimes(N); // every Done, at the committed weight
-    // the result screen: the count, the claim against the calibration sample, the range, the note
+    // the result screen: the count, the claim against the calibration sample, the range, the note, the badge
     screen.getByText(/25 of 25/);
     screen.getByText(/Sharper than 96% of the 2572 people this test was calibrated on \(likely 93–98\)\./);
-    screen.getByText(/practice: scored on the server against a calibrated bank, counted nowhere/i);
-    expect(screen.queryByText("verified")).toBeNull();
+    screen.getByText(/verified: scored on the server, counted once/i);
+    screen.getByText("verified");
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ v: 3, bank: "omib", seed: 7, gv: 1, theta: 1.8, se: 0.36, pctile: 96, band: [93, 98], source: "model" });
-    expect(saved.verified).toBeUndefined();
+    expect(saved).toMatchObject({ v: 3, bank: "omib", verified: true, seed: 7, gv: 1, theta: 1.8, se: 0.36, pctile: 96, band: [93, 98], source: "model", durationMs: 60000 });
     expect(saved.marks).toHaveLength(N);
     expect(saved.diffs).toEqual(diffs());
     // each recorded time is the 3s dwell exactly — the reveal delay is the animation's, not the solver's
@@ -174,8 +177,8 @@ describe("a practice attempt (D473)", () => {
 
   it("the clock: the numeral surfaces in the final 20s, and at 90s the cell commits AS IT STANDS", async () => {
     vi.useFakeTimers();
-    vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });
-    vi.mocked(submitPractice).mockResolvedValue(score({ marks: Array.from({ length: N }, () => false), score: 0, theta: -2.1, pctile: 2, band: [1, 4] }));
+    vi.mocked(startVerified).mockResolvedValue(stratified());
+    vi.mocked(submitVerified).mockResolvedValue(score({ marks: Array.from({ length: N }, () => false), score: 0, theta: -2.1, pctile: 2, band: [1, 4], durationMs: 60000 }));
     HAPTIC.tick.mockClear(); HAPTIC.tap.mockClear();
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
@@ -201,7 +204,7 @@ describe("a practice attempt (D473)", () => {
     for (let i = 1; i < N; i++) done(); // skip the rest with the empty cell
     await act(async () => {});
     expect(HAPTIC.tap).toHaveBeenCalledTimes(N - 1); // a Done on an empty cell is still a Done
-    const sent = vi.mocked(submitPractice).mock.calls[0][1];
+    const sent = vi.mocked(submitVerified).mock.calls[0][0];
     expect(sent[0]).toBe(cellOf([8])); // the partial build WAS the answer
     expect(sent.slice(1).every((c) => c === EMPTY)).toBe(true); // Done on an empty cell is a skip
     const saved = JSON.parse(localStorage.getItem(LKEY));
@@ -210,7 +213,7 @@ describe("a practice attempt (D473)", () => {
   });
 
   it("a refused start says why and stays on the example", async () => {
-    vi.mocked(startPractice).mockRejectedValue(new Error("couldn't reach the server — nothing was counted"));
+    vi.mocked(startVerified).mockRejectedValue(new Error("couldn't reach the server — nothing was counted"));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await act(async () => {});
@@ -220,10 +223,10 @@ describe("a practice attempt (D473)", () => {
 
   it("a failed submit keeps the cells: Retry resubmits the same twenty-five", async () => {
     vi.useFakeTimers();
-    vi.mocked(startPractice).mockResolvedValue({ seed: 7, items: codes(), capMs: ITEM_CAP });
-    vi.mocked(submitPractice)
+    vi.mocked(startVerified).mockResolvedValue(stratified());
+    vi.mocked(submitVerified)
       .mockRejectedValueOnce(new Error("couldn't reach the server"))
-      .mockResolvedValueOnce(score({ practice: true }));
+      .mockResolvedValueOnce(score({ durationMs: 60000 }));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await act(async () => {});
@@ -232,8 +235,8 @@ describe("a practice attempt (D473)", () => {
     screen.getByText(/couldn't reach the server/);
     fireEvent.click(screen.getByText("Retry"));
     await act(async () => {});
-    expect(vi.mocked(submitPractice)).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(submitPractice).mock.calls[1]).toEqual(vi.mocked(submitPractice).mock.calls[0]);
+    expect(vi.mocked(submitVerified)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(submitVerified).mock.calls[1]).toEqual(vi.mocked(submitVerified).mock.calls[0]);
     screen.getByText(/25 of 25/);
   });
 });
@@ -241,7 +244,7 @@ describe("a practice attempt (D473)", () => {
 describe("a verified attempt (D57)", () => {
   it("start → answer-blind run → cells submitted → the server's result saved, badged", async () => {
     vi.useFakeTimers();
-    vi.mocked(startVerified).mockResolvedValue({ items: codes(), capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
+    vi.mocked(startVerified).mockResolvedValue(stratified());
     vi.mocked(submitVerified).mockResolvedValue(score({ durationMs: 60000 }));
     localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
     render(<LogicOverlay onClose={() => {}} />);
@@ -251,7 +254,7 @@ describe("a verified attempt (D57)", () => {
     const consent = screen.getByText(/scored on the server and join an anonymous count/i);
     expect(consent.textContent).toMatch(/anyone signed in/i);
     expect(consent.textContent).not.toMatch(/leaves this device/i);
-    fireEvent.click(screen.getByText("Verified attempt"));
+    fireEvent.click(screen.getByText("Take again"));
     await act(async () => {});
     const want = [];
     for (let i = 0; i < N; i++) {
@@ -272,11 +275,11 @@ describe("a verified attempt (D57)", () => {
 
   it("a measured response flips the claim: rank among n verified players (D60)", async () => {
     vi.useFakeTimers();
-    vi.mocked(startVerified).mockResolvedValue({ items: codes(), capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
+    vi.mocked(startVerified).mockResolvedValue(stratified());
     vi.mocked(submitVerified).mockResolvedValue(score({ pctile: 91, source: "measured", n: 250, band: [84, 96], durationMs: 60000 }));
     localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
     render(<LogicOverlay onClose={() => {}} />);
-    fireEvent.click(screen.getByText("Verified attempt"));
+    fireEvent.click(screen.getByText("Take again"));
     await act(async () => {});
     for (let i = 0; i < N; i++) done();
     await act(async () => {});
@@ -290,10 +293,10 @@ describe("a verified attempt (D57)", () => {
     vi.mocked(startVerified).mockRejectedValue(new Error("too many starts today"));
     localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
     render(<LogicOverlay onClose={() => {}} />);
-    fireEvent.click(screen.getByText("Verified attempt"));
+    fireEvent.click(screen.getByText("Take again"));
     await act(async () => {});
     screen.getByText(/too many starts today/);
-    screen.getByText("Retake"); // still on the result screen
+    screen.getByText("Take again"); // still on the result screen
   });
 });
 
@@ -337,9 +340,10 @@ describe("the result screen's five lenses", () => {
 // path, proved against the wire shapes the server serves.
 describe("an adaptive attempt (D475)", () => {
   const first = () => [codes()[0]];
-  // the server's answer to `picks` so far: the next item, or the result at 25
-  const nextFor = (picks) =>
-    picks.length < N ? { items: [codes()[picks.length]], index: picks.length, total: N } : score({ practice: true, mode: "adaptive" });
+  const start = () => ({ mode: "adaptive", items: first(), total: N, capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
+  // the server's answer to the pick at `index`: the next item, or the result on the last
+  const nextFor = (index) =>
+    index + 1 < N ? { items: [codes()[index + 1]], index: index + 1, total: N } : score({ durationMs: 60000, mode: "adaptive" });
   // PALETTE_ORDER is column = family, row = member: the tile for id sits at row id%4, column id/4
   const tileFor = (id) =>
     screen.getAllByRole("button", { name: /^(corner|line|box|arrow) |square$|circle$/ })[(id % 4) * 5 + Math.floor(id / 4)];
@@ -350,44 +354,41 @@ describe("an adaptive attempt (D475)", () => {
     await act(async () => {});
   };
 
-  it("practice: the start hands out one item, every Done sends the picks so far, the next arrives under the reveal, and the twenty-fifth brings the result", async () => {
+  it("the start hands out one item, every Done sends its pick with its index, the next arrives under the reveal, and the twenty-fifth brings the result, badged", async () => {
     vi.useFakeTimers();
-    vi.mocked(startPractice).mockResolvedValue({ mode: "adaptive", seed: 7, items: first(), total: N, capMs: ITEM_CAP });
-    vi.mocked(nextPractice).mockImplementation((seed, picks) => Promise.resolve(nextFor(picks)));
+    vi.mocked(startVerified).mockResolvedValue(start());
+    vi.mocked(nextVerified).mockImplementation((index) => Promise.resolve(nextFor(index)));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await act(async () => {});
     screen.getByText("37:30"); // the sitting is twenty-five items long, though one has arrived
     screen.getByLabelText(/3 by 3 puzzle grid, bottom-right cell to build/i);
-    const want = [];
     for (let i = 0; i < N; i++) {
       act(() => { vi.advanceTimersByTime(1000); });
       fireEvent.click(tileFor(i % ELEMENTS));
-      want.push(cellOf([i % ELEMENTS]));
       await doneAndWait();
-      // every pick so far goes back with the seed — practice holds nothing server-side
-      expect(vi.mocked(nextPractice)).toHaveBeenLastCalledWith(7, want);
+      expect(vi.mocked(nextVerified)).toHaveBeenLastCalledWith(i, cellOf([i % ELEMENTS]));
       if (i < N - 1) {
         expect(tileFor(i % ELEMENTS).getAttribute("aria-pressed")).toBe("false"); // the next item, fresh
         expect(screen.queryByText(/25 of 25/)).toBeNull();
       }
     }
-    expect(vi.mocked(nextPractice)).toHaveBeenCalledTimes(N);
-    expect(vi.mocked(submitPractice)).not.toHaveBeenCalled();
+    expect(vi.mocked(nextVerified)).toHaveBeenCalledTimes(N);
+    expect(vi.mocked(submitVerified)).not.toHaveBeenCalled();
     screen.getByText(/25 of 25/);
+    screen.getByText("verified");
     const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ v: 3, bank: "omib", mode: "adaptive", seed: 7, gv: 1, theta: 1.8 });
-    expect(saved.verified).toBeUndefined();
+    expect(saved).toMatchObject({ v: 3, bank: "omib", mode: "adaptive", verified: true, seed: 7, gv: 1, theta: 1.8, durationMs: 60000 });
     // the clock ran per item from each arrival, never across the round trip
     expect(saved.times).toEqual(Array.from({ length: N }, () => 1000));
   });
 
   it("a pick the server did not answer is held: Retry sends the same pick again and the next item arrives", async () => {
     vi.useFakeTimers();
-    vi.mocked(startPractice).mockResolvedValue({ mode: "adaptive", seed: 7, items: first(), total: N, capMs: ITEM_CAP });
-    vi.mocked(nextPractice)
+    vi.mocked(startVerified).mockResolvedValue(start());
+    vi.mocked(nextVerified)
       .mockRejectedValueOnce(new Error("couldn't reach the server — nothing was counted"))
-      .mockImplementation((seed, picks) => Promise.resolve(nextFor(picks)));
+      .mockImplementation((index) => Promise.resolve(nextFor(index)));
     render(<LogicOverlay onClose={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await act(async () => {});
@@ -398,30 +399,10 @@ describe("an adaptive attempt (D475)", () => {
     expect(tile("box top").getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await act(async () => {});
-    expect(vi.mocked(nextPractice)).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(nextPractice).mock.calls[1]).toEqual(vi.mocked(nextPractice).mock.calls[0]);
+    expect(vi.mocked(nextVerified)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(nextVerified).mock.calls[1]).toEqual(vi.mocked(nextVerified).mock.calls[0]);
     expect(screen.queryByText(/couldn't reach the server/)).toBeNull();
     expect(tile("box top").getAttribute("aria-pressed")).toBe("false"); // item 2, fresh
     expect(screen.getByRole("button", { name: "Done" }).disabled).toBe(false);
-  });
-
-  it("verified: each pick goes with its index, the last brings the result, badged", async () => {
-    vi.useFakeTimers();
-    localStorage.setItem(LKEY, JSON.stringify(savedOmib()));
-    vi.mocked(startVerified).mockResolvedValue({ mode: "adaptive", items: first(), total: N, capMs: ITEM_CAP, deadlineMs: 26 * ITEM_CAP });
-    vi.mocked(nextVerified).mockImplementation((index) =>
-      Promise.resolve(index + 1 < N ? { items: [codes()[index + 1]], index: index + 1, total: N } : score({ durationMs: 60000, mode: "adaptive" })));
-    render(<LogicOverlay onClose={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Verified attempt" }));
-    await act(async () => {});
-    for (let i = 0; i < N; i++) {
-      fireEvent.click(tileFor(i % ELEMENTS));
-      await doneAndWait();
-      expect(vi.mocked(nextVerified)).toHaveBeenLastCalledWith(i, cellOf([i % ELEMENTS]));
-    }
-    expect(vi.mocked(submitVerified)).not.toHaveBeenCalled();
-    screen.getByText("verified");
-    const saved = JSON.parse(localStorage.getItem(LKEY));
-    expect(saved).toMatchObject({ v: 3, bank: "omib", mode: "adaptive", verified: true, durationMs: 60000 });
   });
 });

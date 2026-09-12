@@ -7,8 +7,10 @@
 //
 // Everything HERE is a MODEL — the logistic below, the lens formulas the
 // overlay draws — and the result screen discloses it (LOGIC_FIELD_NOTE /
-// LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). Practice attempts stay
-// on-device and always score against the modelled curve. Verified
+// LOGIC_VERIFIED_NOTE / LOGIC_MEASURED_NOTE). The generator era's practice
+// attempts stayed on-device and scored against the modelled curve; since
+// D476 there is no practice attempt at all — the test is taken like an IQ
+// test — and every result is the server's. Verified
 // attempts (D57) are seeded and scored server-side, and since D60 their
 // percentile FLIPS to a measurement once the anonymous histogram clears
 // its floor: the server compares the score against the verified first
@@ -46,7 +48,7 @@ export interface LogicResult {
   n?: number;
   /** the likely range round `pctile`: the score ± LOGIC_SEM_ITEMS read
    *  through the same curve or count (D402). The server's for verified
-   *  results; logicBandFor's for practice ones */
+   *  results; logicBandFor's for the generator era's practice ones */
   band?: [number, number];
   /** server-observed attempt duration (verified results only) */
   durationMs?: number;

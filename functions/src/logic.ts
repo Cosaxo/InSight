@@ -41,7 +41,7 @@ import { utcDayKeyOf } from "./pure";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
 import {
-  OMIB_FORM_ITEMS, OMIB_BANK_VERSION, OMIB_ERA, omibClientItems, validOmibPicks, validOmibCell, validOmibCells,
+  OMIB_FORM_ITEMS, OMIB_BANK_VERSION, OMIB_ERA, omibClientItems, validOmibPicks, validOmibCell,
   omibNextItem, replayAdaptive, scoreOmib,
   foldThetaNorms, foldItemStats, measuredPctileTheta, modelPctileTheta, isOmibEra,
   type Norms, type OmibClientItem, type OmibItem, type OmibScore, type OmibSelection,
@@ -99,7 +99,8 @@ export const LOGIC_SEM_ITEMS = 2;
 // the day sent six-way indexes and would have rendered nothing on a code.
 // Phase 2 (D474) is the screen that answers a code, and flips this with it —
 // the same PR, so no deployed tree ever serves codes to a client that cannot
-// draw them. The practice callable below is OMIB-only regardless.
+// draw them. (The practice callable that stood below until D476 was
+// OMIB-only regardless; the owner retired practice the day it shipped.)
 export type LogicBank = "generator" | "omib";
 export const LOGIC_BANK = "omib" as LogicBank;
 
@@ -111,8 +112,10 @@ export const LOGIC_BANK = "omib" as LogicBank;
 // flip mid-attempt changes nothing for the person holding a form.
 //
 // DARK ON PURPOSE, and not for want of a screen: the client walks the
-// adaptive path already (both practice and verified), and the emulator
-// proves it. What the flip waits on is the §6 report: it reads per-item
+// adaptive path already, logic-submit.test.ts proves the callable through
+// the fake transaction, and the emulator's verified leg walks whichever
+// selection a start declares — so a flip is proved there before it
+// deploys. What the flip waits on is the §6 report: it reads per-item
 // solve rates off the stratified ledger to say whether the bank's published
 // difficulties hold for this app's takers, and adaptive administration
 // meets every item near its taker's 50 % point, which makes those rates say
@@ -885,94 +888,6 @@ async function storedOmibResult(
     gv: OMIB_BANK_VERSION,
     bank: "omib" as const,
     mode: "adaptive" as const,
-    diffs,
-  };
-}
-
-// ── practice, on the OMIB bank, stateless (D472; the owner, 2026-09-12:
-// "use the same screen for practice") ──
-//
-// One callable, two calls. Without `picks` it mints a seed and returns the
-// form — the client cannot render an item it does not have, and the bank
-// is not in the client bundle. With `{seed, picks}` it scores that seed's
-// form and returns θ, ranked against the public norms mirror when the
-// reading is measured and against the model otherwise. NOTHING IS WRITTEN:
-// no attempt document, no cooldown, no fold — practice counts for nothing,
-// which is the whole difference from a verified attempt. The seed round-
-// trips through the client on purpose: with nothing at stake there is
-// nothing to hold server-side, and a client that fabricates one scores a
-// form nobody ranks. Marks are per item, right or wrong, never the answer
-// — and the answers are public anyway (D472's recorded limit). Unbounded
-// per account, deliberately: it is one document read and 25 × 201
-// logistic evaluations, and a bound would want an attempt document, which
-// is the thing practice does not have. Recorded, not hidden.
-//
-// ADAPTIVE PRACTICE IS STATELESS TOO (D475): the client sends the seed and
-// every pick so far, the server replays the form from them and answers with
-// the next item, or with the score once there are twenty-five. The replay
-// is 25 × 201 logistic evaluations at most, and the payload is at most 25
-// cells of 20 characters. Practice takes an optional `mode` on the start
-// call — the overlay never sends one and gets OMIB_SELECTION, the emulator
-// suite sends "adaptive" to prove the path while the constant is
-// "stratified", and the owner can try the adaptive test on a phone before
-// deciding the flip; a practice attempt counts for nothing either way.
-const UINT32 = (x: unknown): x is number =>
-  typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 0xffffffff;
-
-export const logicPracticeV2 = onCall(
-  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
-  async (request) => {
-    if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
-    const data = (request.data ?? {}) as { seed?: unknown; picks?: unknown; mode?: unknown };
-    const mode: OmibSelection = data.mode === "adaptive" ? "adaptive" : data.mode === "stratified" ? "stratified" : OMIB_SELECTION;
-    if (data.picks === undefined) {
-      const seed = randomBytes(4).readUInt32BE(0);
-      const items = mode === "adaptive" ? [{ code: omibNextItem(seed, []).code }] : omibClientItems(seed);
-      return { mode, seed, items, total: OMIB_FORM_ITEMS, capMs: LOGIC_ITEM_CAP_MS };
-    }
-    if (!UINT32(data.seed)) throw new HttpsError("invalid-argument", "seed must be the one this call returned");
-    if (mode === "adaptive") {
-      const picks = data.picks;
-      if (!Array.isArray(picks) || picks.length > OMIB_FORM_ITEMS || !validOmibCells(picks, picks.length)) {
-        throw new HttpsError("invalid-argument", `picks must be up to ${OMIB_FORM_ITEMS} twenty-character cells of 0 and 1, in the order served`);
-      }
-      if (picks.length < OMIB_FORM_ITEMS) return nextOut(replayAdaptive(data.seed, picks).next, picks.length);
-      return scorePractice(data.seed, picks, await readPublicNorms(), "adaptive");
-    }
-    if (!validOmibPicks(data.picks)) {
-      throw new HttpsError("invalid-argument", `picks must be ${OMIB_FORM_ITEMS} twenty-character cells of 0 and 1`);
-    }
-    return scorePractice(data.seed, data.picks, await readPublicNorms());
-  },
-);
-
-/** The mirror, read once, outside any transaction — practice never writes. */
-async function readPublicNorms(): Promise<Norms | null> {
-  const snap = await firestore().collection("v2_logic_norms").doc("global").get();
-  return snap.exists ? (snap.data() as Norms) : null;
-}
-
-/** Pure: a practice score ranked the way a verified one would be, folding nothing. */
-export function scorePractice(seed: number, picks: string[], norms: Norms | null, mode: OmibSelection = "stratified") {
-  const { marks, score, theta, se, diffs } = scoreOmib(mode, seed, picks);
-  const prevNorms = isOmibEra(norms) ? norms : null;
-  const measured = measuredPctileTheta(prevNorms, theta, LOGIC_NORMS_MIN_N);
-  const rank = (t: number) =>
-    (measured ? measuredPctileTheta(prevNorms, t, LOGIC_NORMS_MIN_N)?.pctile : undefined) ?? modelPctileTheta(t);
-  return {
-    marks,
-    score,
-    theta,
-    se,
-    pctile: rank(theta),
-    band: [rank(theta - se), rank(theta + se)] as [number, number],
-    source: measured ? ("measured" as const) : ("model" as const),
-    ...(measured ? { n: measured.n } : {}),
-    seed,
-    gv: OMIB_BANK_VERSION,
-    bank: "omib" as const,
-    mode,
-    practice: true as const,
     diffs,
   };
 }

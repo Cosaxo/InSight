@@ -2103,22 +2103,53 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // never existing.
   // Since D474 a verified form is the OMIB bank's: 25 twenty-bit cells, a
   // blank sheet being the honest "answered nothing" (scored zero, θ low).
-  const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill("0".repeat(20)) });
+  // THE LEG WALKS WHICHEVER SELECTION THE START DECLARED (D475, D476): a
+  // stratified form is one submit; an adaptive one is twenty-five calls,
+  // each answered with the next item — never a repeat, never more than the
+  // code — and the last with the result. Practice, which was the way onto
+  // the adaptive path while the constant is stratified, is retired
+  // (D476); this leg is what proves the flip on the emulator the day the
+  // constant moves, before it deploys.
+  const blank = "0".repeat(20);
+  let submitted;
+  if (started.data.mode === "adaptive") {
+    const served = [started.data.items[0].code];
+    for (let k = 0; k < 25; k++) {
+      const res = await httpsCallable(fns, "logicNextV2")({ index: k, pick: blank });
+      if (k < 24) {
+        const d = res.data;
+        if (!Array.isArray(d.items) || d.items.length !== 1 || d.index !== k + 1 || d.total !== 25) {
+          fail(`logicNextV2 pick ${k + 1} did not come back with exactly the next item: ` + JSON.stringify(d));
+        }
+        const cells = String(d.items[0].code).split(",");
+        if (Object.keys(d.items[0]).join() !== "code" || cells.length !== 9 || cells[8] !== blank) {
+          fail("an adaptive item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(d.items[0]));
+        }
+        served.push(d.items[0].code);
+      } else {
+        submitted = res;
+      }
+    }
+    if (new Set(served).size !== 25) fail("the adaptive attempt repeated an item");
+    if (submitted.data.mode !== "adaptive") fail("the adaptive attempt's result did not say so: " + JSON.stringify(submitted.data));
+  } else {
+    submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(blank) });
+  }
   if (typeof submitted.data?.seed !== "number") {
-    fail("logicSubmitV2 withheld the seed after scoring: " + JSON.stringify(submitted.data));
+    fail("the verified result withheld the seed after scoring: " + JSON.stringify(submitted.data));
   }
   if (submitted.data.bank !== "omib" || typeof submitted.data.theta !== "number" || typeof submitted.data.se !== "number") {
-    fail("logicSubmitV2 did not score the verified attempt on the OMIB bank by θ: " + JSON.stringify(submitted.data));
+    fail("the verified attempt was not scored on the OMIB bank by θ: " + JSON.stringify(submitted.data));
   }
   if (!Array.isArray(submitted.data.diffs) || submitted.data.diffs.length !== 25) {
-    fail("logicSubmitV2 did not disclose the form's difficulties after scoring");
+    fail("the verified result did not disclose the form's difficulties after scoring");
   }
-  ok("…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ (D474)");
+  ok(`…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ, ${started.data.mode} (D474, D475)`);
 
   // One attempt per window. Without this the client can resubmit until the
   // score it wants, and the norms histogram counts every try.
   try {
-    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill("0".repeat(20)) });
+    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(blank) });
     fail("a second submit against a scored attempt was accepted");
   } catch (e) {
     if (e?.code !== "functions/failed-precondition") {
@@ -2126,117 +2157,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     }
   }
   ok("a scored attempt refuses a second submit");
-}
-
-// 11b · Practice on the OMIB bank (D472, docs/OMIB-PLAN.md §5) — the one
-// OMIB path a client can reach while LOGIC_BANK still mints verified
-// attempts on the generator, so this is the emulator's proof that the bank
-// serves and scores end to end: a stateless start hands out a seed and 25
-// codes with the ninth cell empty; a submit against that seed returns θ
-// with its SE, ranked against the model until the mirror is measured; and
-// because nothing is written, the same seed scores again — the property
-// that distinguishes practice from a verified attempt, asserted rather
-// than assumed.
-{
-  const started = await httpsCallable(fns, "logicPracticeV2")({});
-  const keys = Object.keys(started.data).sort();
-  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "items", "mode", "seed", "total"])) {
-    fail("logicPracticeV2 start returned unexpected keys: " + JSON.stringify(keys));
-  }
-  if (started.data.mode !== "stratified") fail("practice did not follow the server's selection: " + started.data.mode);
-  const { seed, items } = started.data;
-  if (!Array.isArray(items) || items.length !== 25) fail("logicPracticeV2 did not hand out 25 items");
-  for (const it of items) {
-    const cells = String(it.code).split(",");
-    if (Object.keys(it).join() !== "code" || cells.length !== 9 || cells[8] !== "0".repeat(20)) {
-      fail("an OMIB practice item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(it));
-    }
-  }
-  ok("logicPracticeV2 hands out a seed and 25 codes, the goal cell empty (D472)");
-
-  const blank = Array(25).fill("0".repeat(20));
-  const scored = await httpsCallable(fns, "logicPracticeV2")({ seed, picks: blank });
-  const d = scored.data;
-  if (d.score !== 0 || typeof d.theta !== "number" || typeof d.se !== "number" || d.practice !== true || d.bank !== "omib") {
-    fail("logicPracticeV2 scored a blank sheet wrongly: " + JSON.stringify(d));
-  }
-  if (d.source !== "model" || !Array.isArray(d.band) || d.band.length !== 2) {
-    fail("logicPracticeV2 ranked against something other than the model with nobody counted: " + JSON.stringify(d));
-  }
-  ok("…and scores a sheet by θ with its own SE, ranked against the model");
-
-  // Stateless: the same seed scores again. A verified attempt refuses this
-  // (asserted above); practice must not, because practice holds nothing.
-  const again = await httpsCallable(fns, "logicPracticeV2")({ seed, picks: blank });
-  if (again.data.theta !== d.theta) fail("logicPracticeV2 was not deterministic for one seed and one sheet");
-  ok("…and holds nothing: the same seed scores again");
-
-  try {
-    await httpsCallable(fns, "logicPracticeV2")({ seed, picks: Array(25).fill(0) });
-    fail("logicPracticeV2 accepted the generator's pick shape");
-  } catch (e) {
-    if (e?.code !== "functions/invalid-argument") fail("wrong refusal for a malformed practice sheet: " + (e?.code || e));
-  }
-  ok("…and refuses a sheet that is not 25 twenty-bit cells");
-}
-
-// 11c · Adaptive practice (D475, docs/OMIB-PLAN.md §3.3) — the adaptive
-// path is DARK for verified attempts until the §6 report clears its bar,
-// so practice's `mode` is the emulator's way onto it: a start hands out ONE
-// item; each call carries every pick so far and comes back with the next
-// item — never a repeat, never more than the code, its ninth cell empty —
-// and the twenty-fifth comes back with θ. Stateless like the rest of
-// practice, so the same picks replay the same items.
-{
-  const started = await httpsCallable(fns, "logicPracticeV2")({ mode: "adaptive" });
-  const keys = Object.keys(started.data).sort();
-  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "items", "mode", "seed", "total"])) {
-    fail("adaptive practice start returned unexpected keys: " + JSON.stringify(keys));
-  }
-  const { seed, items: first } = started.data;
-  if (started.data.mode !== "adaptive" || started.data.total !== 25 || !Array.isArray(first) || first.length !== 1) {
-    fail("adaptive practice did not start with exactly one item of twenty-five: " + JSON.stringify(started.data));
-  }
-  const blank = "0".repeat(20);
-  const served = [first[0].code];
-  const picks = [];
-  let last = null;
-  for (let k = 0; k < 25; k++) {
-    picks.push(blank);
-    const res = await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks });
-    if (k < 24) {
-      const d = res.data;
-      if (!Array.isArray(d.items) || d.items.length !== 1 || d.index !== k + 1 || d.total !== 25 || Object.keys(d).sort().join() !== "index,items,total") {
-        fail(`adaptive practice pick ${k + 1} did not come back with exactly the next item: ` + JSON.stringify(d));
-      }
-      const cells = String(d.items[0].code).split(",");
-      if (Object.keys(d.items[0]).join() !== "code" || cells.length !== 9 || cells[8] !== blank) {
-        fail("an adaptive item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(d.items[0]));
-      }
-      served.push(d.items[0].code);
-    } else {
-      last = res.data;
-    }
-  }
-  if (new Set(served).size !== 25) fail("adaptive practice repeated an item");
-  if (!last || last.practice !== true || last.mode !== "adaptive" || last.bank !== "omib" || last.score !== 0 || typeof last.theta !== "number" || typeof last.se !== "number") {
-    fail("adaptive practice did not score the twenty-fifth pick by θ: " + JSON.stringify(last));
-  }
-  if (!Array.isArray(last.diffs) || last.diffs.length !== 25) fail("adaptive practice did not disclose the form's difficulties after scoring");
-  ok("adaptive practice serves one item at a time, twenty-five without a repeat, and scores by θ (D475)");
-
-  // Stateless: the same seed and the same picks replay the same items.
-  const again = await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks: picks.slice(0, 7) });
-  if (again.data.items?.[0]?.code !== served[7]) fail("adaptive practice did not replay the same item for the same picks");
-  ok("…and replays the same path from the same picks, holding nothing");
-
-  try {
-    await httpsCallable(fns, "logicPracticeV2")({ seed, mode: "adaptive", picks: Array(26).fill(blank) });
-    fail("adaptive practice accepted 26 picks");
-  } catch (e) {
-    if (e?.code !== "functions/invalid-argument") fail("wrong refusal for a 26-pick adaptive sheet: " + (e?.code || e));
-  }
-  ok("…and refuses more picks than the form has items");
 }
 
 // 12 · The self-serve paid-question loop (paid.ts, D313): book → the
