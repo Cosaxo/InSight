@@ -60,6 +60,7 @@ import { assertOperator, FUNCTIONS_REGION, LIGHT_UNBOUNDED } from "./ops";
 import { db as firestore } from "./db";
 import type { LedgerDayEntry, LedgerDayReader } from "./ledger";
 import { utcDay, utcDayKeyOf } from "./pure";
+import { PATTERNS_SAMPLE_CAP } from "./patternsSamples";
 
 export const LOG_DATASET = process.env.LOG_DATASET || "insight";
 export const LOG_TABLE = "answers";
@@ -158,7 +159,75 @@ export interface LogWriter {
    *  (exportAccount.ts, D443), read through the same writer the erasure
    *  uses so the two agree on where the rows are. Null where off. */
   rowsFor(uid: string): Promise<LogRow[] | null>;
+  /** The shadow's exact half (logShadow.ts, LOG-FIRST-RUNBOOK A.7): the
+   *  rows the table holds for these ids, looked for a day either side of
+   *  `day` for the clock reason `presentIds` gives. Null where off. */
+  shadowRows(day: string, ids: readonly string[]): Promise<ShadowRow[] | null>;
+  /** The shadow's fold half: the three nightly folds phase D will run as
+   *  SQL, over the log's OWN day (`day = @day`, the trigger's clock).
+   *  Null where off. */
+  shadowFold(day: string): Promise<ShadowFold | null>;
 }
+
+// ── the shadow's queries (LOG-FIRST-RUNBOOK A.7) ─────────────────
+//
+// Two shapes, because the two clocks make one impossible. A ledger
+// entry's `at` is the commit's server time and its row's `answered_at` is
+// the trigger's `Date.now()` a few hundred milliseconds before, so an
+// answer at the midnight seam can sit on the ledger's day D and the log's
+// day D-1, and neither is wrong. So the EXACT comparison is by id — the
+// ledger day's ids, looked up across the seam — and the FOLD comparison
+// runs the queries phase D will actually run, over the log's own day,
+// beside a count of how many of the ledger day's rows the log files under
+// another day. A fold diff no larger than that count is the seam; a fold
+// diff with the seam at zero is a query that does not reproduce the fold,
+// which is the finding the week of shadowing exists to make before phase
+// D moves the night onto it.
+
+/** One row as the exact half reads it: the answer's identity and the
+ *  fields the folds consume, plus the day the log filed it under. */
+export interface ShadowRow {
+  id: string;
+  uid: string;
+  qid: string;
+  o: number | null;
+  day: string;
+}
+
+/** The three folds as SQL over one log day — the digest's actives, the
+ *  velocity scan's entry count, and the samples' trimmed additions per
+ *  question (patternsSamples.ts `trimAdditions`, in the same order). */
+export interface ShadowFold {
+  entries: number;
+  actives: number;
+  additions: Map<string, Array<{ uid: string; o: number }>>;
+}
+
+/** Ids per exact-half query. An `IN UNNEST` of twenty thousand ids is a
+ *  parameter of well under a megabyte against a 10 MB request ceiling,
+ *  and each query is a pass over the three partitions' id column. */
+export const LOG_SHADOW_ID_CHUNK = 20_000;
+
+/** The rows for a chunk of ids — the columns the exact half compares,
+ *  nothing wider (bytes scanned are per column). */
+export const shadowRowsSql = (ref: string): string =>
+  `SELECT id, uid, qid, option_idx AS o, CAST(day AS STRING) AS day FROM ${ref} `
+  + `WHERE day BETWEEN DATE_SUB(@day, INTERVAL 1 DAY) AND DATE_ADD(@day, INTERVAL 1 DAY) AND id IN UNNEST(@ids)`;
+
+/** The digest's actives and the scan's entry count, over the log's day. An
+ *  empty uid is no person, as the digest reads the ledger. */
+export const shadowCountsSql = (ref: string): string =>
+  `SELECT COUNT(*) AS entries, COUNT(DISTINCT IF(uid = '', NULL, uid)) AS actives FROM ${ref} WHERE day = @day`;
+
+/** The samples' additions per question: one row per (question, person),
+ *  the person's newest option-shaped answer of the day (an edit is a later
+ *  row; ties broken by id, which is the ledger's own tie-break), then the
+ *  cap in uid order — `trimAdditions` on a single day, as SQL. The cap is
+ *  inlined because ARRAY_AGG's LIMIT takes a constant, not a parameter. */
+export const shadowAdditionsSql = (ref: string, cap: number): string =>
+  `WITH newest AS (SELECT qid, uid, ARRAY_AGG(option_idx ORDER BY answered_at DESC, id DESC LIMIT 1)[OFFSET(0)] AS o `
+  + `FROM ${ref} WHERE day = @day AND uid != '' AND option_idx IS NOT NULL AND option_idx >= 0 GROUP BY qid, uid) `
+  + `SELECT qid, ARRAY_AGG(STRUCT(uid, o) ORDER BY uid LIMIT ${Math.max(1, Math.floor(cap))}) AS adds FROM newest GROUP BY qid ORDER BY qid`;
 
 /** Whether this process has a BigQuery to write to. Read per call rather
  *  than at import so a test that sets the variable after importing sees
@@ -177,6 +246,8 @@ const offWriter: LogWriter = {
   async deleteUsers() { return "done"; },
   async tableBytes() { return null; },
   async rowsFor() { return null; },
+  async shadowRows() { return null; },
+  async shadowFold() { return null; },
 };
 
 /** The writer against the real table: one client per instance, made on
@@ -237,6 +308,29 @@ export function bigQueryLogWriter(dataset = LOG_DATASET, table = LOG_TABLE): Log
         location: LOG_LOCATION,
       });
       return (rows as LogRow[]).map((r) => ({ ...r, anchors: r.anchors === "null" ? null : r.anchors }));
+    },
+    async shadowRows(day, ids) {
+      if (!ids.length) return [];
+      const [rows] = await bq().query({
+        query: shadowRowsSql(ref()),
+        params: { day, ids: [...ids] },
+        types: { day: "DATE", ids: ["STRING"] },
+        location: LOG_LOCATION,
+      });
+      return (rows as Array<{ id: string; uid: string; qid: string; o: number | null; day: string }>)
+        .map((r) => ({ id: r.id, uid: r.uid, qid: r.qid, o: typeof r.o === "number" ? r.o : null, day: r.day }));
+    },
+    async shadowFold(day) {
+      const q = (query: string) => bq().query({ query, params: { day }, types: { day: "DATE" }, location: LOG_LOCATION });
+      const [[counts]] = await q(shadowCountsSql(ref())) as unknown as [[{ entries: number | string; actives: number | string }]];
+      const [rows] = await q(shadowAdditionsSql(ref(), PATTERNS_SAMPLE_CAP));
+      const additions = new Map<string, Array<{ uid: string; o: number }>>();
+      for (const r of rows as Array<{ qid: string; adds: Array<{ uid: string; o: number | string }> }>) {
+        additions.set(r.qid, (r.adds ?? []).map((a) => ({ uid: a.uid, o: Number(a.o) })));
+      }
+      // COUNT comes back as INT64 — a string past 2^53 through the client,
+      // a number below; a day's entries are far below either.
+      return { entries: Number(counts?.entries ?? 0), actives: Number(counts?.actives ?? 0), additions };
     },
   };
 }

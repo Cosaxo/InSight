@@ -1165,6 +1165,59 @@ async function assertOwnApprovedBooking(
   return snap;
 }
 
+/**
+ * The quote a checkout charges — the one locked at approval, or priced
+ * now off the booking's own scope and budget when there is none.
+ *
+ * THERE IS NONE WHENEVER THE ROUTINE APPROVED IT, which since D456 is the
+ * ordinary case: production is EXPECTED to run with no reviewer key, so
+ * `reviewBooking` holds and the approval is a Claude Code Routine writing
+ * `status`/`review` straight to Firestore over REST. It does not write a
+ * quote — `scripts/paid-review.mjs` says so in its own closing note, one
+ * line after telling the operator "the buyer can now pay" — and checkout
+ * read `quote` off the document and dereferenced it. `undefined.capEur`
+ * is an `internal` error to the buyer, on every press, until the booking
+ * expires at its TTL. An approved booking that cannot be paid for is the
+ * whole money path dead on a deployment with no reviewer key, which is
+ * the deployment D456 made normal.
+ *
+ * LOCKED ON THE WAY THROUGH, so this happens once: the quote is written
+ * back, and a retry, a second session or the closer's refund all read
+ * the same figure the first press charged. What moves if the card moved
+ * in between is `ratePerAnswer` — how many answers the budget buys —
+ * never the amount, which is the buyer's own budget clamped to the
+ * card's range. So the door's promise — "the price you were quoted is
+ * the price you pay" — holds either way.
+ *
+ * A booking with no usable scope is refused rather than priced by
+ * guesswork: `priceQuote` indexes the card's cohorts by it.
+ */
+export async function quoteForCheckout(
+  db: Firestore,
+  snap: {
+    get(field: string): unknown;
+    ref: { update(u: Record<string, unknown>): Promise<unknown> };
+  },
+): Promise<PaidQuote> {
+  const stored = snap.get("quote") as PaidQuote | undefined;
+  if (stored && typeof stored.capEur === "number" && typeof stored.ratePerAnswer === "number") {
+    return stored;
+  }
+  const scope = snap.get("scope");
+  if (scope !== "city" && scope !== "country" && scope !== "world") {
+    throw new HttpsError("failed-precondition", "this booking cannot be priced");
+  }
+  const budgetEur = snap.get("budgetEur");
+  const quote = priceQuote(scope, await liveCard(db), typeof budgetEur === "number" ? budgetEur : null);
+  await snap.ref.update({ quote });
+  logger.warn("[paid] pricing an approved booking at checkout — it was approved without a quote", {
+    metric: "paid_quote_late",
+    scope,
+    capEur: quote.capEur,
+  });
+  return quote;
+}
+
 export const createPaidCheckoutV2 = onCall(
   // Same as bookPaidQuestionV2 above, and this one adds nothing of its
   // own to guard: it can act only on a booking that already exists, is
@@ -1186,7 +1239,7 @@ export const createPaidCheckoutV2 = onCall(
       // An approved-but-unpaid ad from before D375: nothing sells it now.
       throw new HttpsError("failed-precondition", "ads aren't sold here any more — ask a question instead");
     }
-    const quote = snap.get("quote") as PaidQuote;
+    const quote = await quoteForCheckout(db, snap);
     const { default: Stripe } = await import("stripe");
     // THE WIRE VERSION IS PINNED HERE, not inherited from the package.
     //

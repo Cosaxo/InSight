@@ -52,6 +52,11 @@ import { PATHS } from "../spec/paths-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
+// The pick card's catalogue, for the one case that needs the emoji to
+// have NAMES: the store fetches public/emoji.txt, which jsdom cannot, so
+// without a stub every entity resolves to "…" and the finding line the
+// case is about correctly refuses to claim anything.
+import { EMOJI } from "../data/catalogs";
 import { FRIENDS } from "../spec/follows.js";
 import { IS_DATA } from "../spec/sample-data.js";
 
@@ -449,7 +454,7 @@ describe("spec layer mounts in live mode", () => {
     // the door was present until the decision; it now pins its absence,
     // which is the property App Review reads the app for.
     //
-    // NARROWED at D467. One door came back, on Android only: a header "+"
+    // NARROWED at D472. One door came back, on Android only: a header "+"
     // that opens the WEB ask page (data/askDoor.ts asks the platform).
     // jsdom has no Capacitor, so this mounts as the web build, where the
     // door is off — this case still holds, and still proves the door does
@@ -457,7 +462,7 @@ describe("spec layer mounts in live mode", () => {
     // one a reviewer's phone makes, is ask-door-platform.test.jsx's.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),
-      "an ask-a-question door is drawn with no platform set (D368; D467 allows it on Android only)",
+      "an ask-a-question door is drawn with no platform set (D368; D472 allows it on Android only)",
     ).toHaveLength(0);
     expect(
       screen.queryByText(/Scenes you follow/i),
@@ -924,10 +929,53 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       screen.queryByText(/a spot needs 5 votes/),
       "a live board printed the demo floor's clause — D98 made counts exact",
     ).toBeNull();
-    // D17's segment chips ride the published `by`
-    expect(screen.getByRole("button", { name: "everyone" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "18-24" })).toBeTruthy();
+    // D17'S SEGMENT CHIPS ARE GONE FROM A LIVE CARD (2026-09-11). This
+    // asserted them — "everyone" plus one bucket per published cell, flat,
+    // undimensioned — which was the pre-D125 way of answering "who voted
+    // what" surviving on the one card type nobody had moved. What stands
+    // in their place is the door into the cohort-first sheet, carrying the
+    // cut it opens on.
+    expect(
+      screen.queryByRole("button", { name: "18-24" }),
+      "the old segment chips are still on a live pick card",
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Who picked what" })).toBeTruthy();
     expectNoBoundary("live feed, pick card answered");
+  });
+
+  // …and the sheet behind that door: the reading every other live question
+  // has had since D125, on a board. Reported from a device as the
+  // catalogue still having the old system for showing who voted what.
+  it("opens the catalogue's who-picked-what sheet on the cut its door names", async () => {
+    const rows = [{ key: 128514, name: "😂 joy" }, { key: 10084, name: "❤️ heart" }];
+    vi.spyOn(EMOJI, "peek").mockReturnValue(rows);
+    vi.spyOn(EMOJI, "load").mockResolvedValue(rows);
+    const expectNoBoundary = mountLive({ pickCard: true }, (l) => {
+      l.votes["pick-fixture"] = "128514";
+    });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture pick card/);
+    fireEvent.click(screen.getByText(PICK_PROMPT));
+    await awaitText(/of 10 spots on the board claimed/);
+    // The door states the finding rather than being a bare button: 18-24
+    // lead with ❤️, which is #2 on everyone's board.
+    const door = screen.getByRole("button", { name: "Who picked what" });
+    expect(door.textContent).toMatch(/18-24 put .+ first/);
+    expect(door.textContent).toMatch(/#2/);
+    fireEvent.click(door);
+    // The sheet lands ON that cut — the reader should not have to find
+    // again what the door just told them.
+    await awaitText(/for everyone\./);
+    // Scoped to the sheet's own body: the card underneath carries the same
+    // sentence on its door, and an unscoped match would pass on that.
+    const sheet = within(document.querySelector(".wf-sheet-body"));
+    expect(sheet.getByText(/for everyone\./).textContent)
+      .toMatch(/18-24 put .+ first — #2 for everyone\./);
+    // …and the cohort chips are the app's own dims, named, not raw keys.
+    expect(sheet.getByRole("button", { name: "Age" })).toBeTruthy();
+    expect(sheet.getByRole("button", { name: "Friends" })).toBeTruthy();
+    expectNoBoundary("live feed, who picked what");
   });
 
   it("says a pick outside the board is not on it, never that it is below a floor", async () => {
@@ -1671,7 +1719,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
     // INVERTED at D368, same reason as the profile case above — and the
-    // sheet's own door does NOT return at D467: the one door that did is
+    // sheet's own door does NOT return at D472: the one door that did is
     // the header's, Android's, and this mounts with no platform.
     expect(
       screen.queryAllByRole("button", { name: /ask a question/i }),

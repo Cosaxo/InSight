@@ -421,6 +421,39 @@ export const RULE_READS = { world: 1, duel: 2, call: 2 };
 // on v2_question_aggs/{qid}, which is what D7's ~1-write/sec ceiling is
 // about, is unchanged.
 export const TRIGGER_READS = { world: 3, duel: 1 };
+// THE DAILY LANE READS TWO since phase B (functions/src/aggShards.ts,
+// D467): the ledger event and the profile, never the published aggregate
+// — the fold is a blind increment on a counter shard, and the compactor
+// below publishes the sum. The model keeps charging `world: 3` for every
+// world answer, the same deliberate approximation as catalog's fourth
+// read above: `B.worldAnswers` has no per-surface split, the daily is one
+// of its four, and the error is one read HIGH on that quarter. Recorded
+// here so the constant beside it is read as what it is.
+export const TRIGGER_READS_DAILY = 2;
+
+// ── the daily lane's shards and the compactor (phase B, D467) ───
+//
+// The daily question's answers no longer contend on one document: the
+// trigger writes one of AGG_SHARDS counter documents and a minutely
+// schedule sums them into the published one. What that adds to the bill
+// is the compactor's own reads and writes, FLAT per day rather than per
+// user: every minute one query (billed as a read even when it returns
+// nothing), and for each minute the daily was dirtied in the last
+// COMPACT_LOOKBACK_MS, the shards and the base read and the published
+// document written — plus the eight tail documents once the daily's
+// cities are past the cap, which the mature phase charges. Every
+// constant is read from the source, per D47.
+export const AGG_SHARDS = readNum("functions/src/aggShards.ts", /export const AGG_SHARDS = (\d+)/, "AGG_SHARDS");
+export const COMPACT_LOOKBACK_MIN = readNum("functions/src/aggShards.ts", /export const COMPACT_LOOKBACK_MS = (\d+) \* 60_000/, "COMPACT_LOOKBACK_MS") ;
+export const COMPACTOR_SCHEDULE = readStr("functions/src/aggShards.ts", /schedule: "([^"]+)", region: FUNCTIONS_REGION, \.\.\.COMPACTOR/, "the compactor's schedule");
+if (COMPACTOR_SCHEDULE !== "* * * * *") throw new Error(`cost-arith: the compactor's schedule is ${COMPACTOR_SCHEDULE}; this model prices one run a minute — re-derive COMPACTOR_RUNS_PER_DAY`);
+export const COMPACTOR_RUNS_PER_DAY = 24 * 60;
+export const OVERFLOW_SHARDS = readNum("functions/src/pure.ts", /export const OVERFLOW_SHARDS = (\d+)/, "OVERFLOW_SHARDS");
+/** Minutes a day the daily is dirty: each of the day's daily answers
+ *  (one per user) keeps it dirty for the lookback, capped at the day. */
+export const compactorDirtyMinutes = (dau) => Math.min(COMPACTOR_RUNS_PER_DAY, dau * COMPACT_LOOKBACK_MIN);
+export const compactorReadsPerDay = (dau) => COMPACTOR_RUNS_PER_DAY + compactorDirtyMinutes(dau) * (AGG_SHARDS + 1);
+export const compactorWritesPerDay = (dau, mature) => compactorDirtyMinutes(dau) * (1 + (mature ? OVERFLOW_SHARDS : 0));
 
 // The velocity scan (D54) read every ledger entry written since its last
 // run — one per world answer, a flat term the size of the boot's top-up
@@ -1016,7 +1049,9 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   function model(dau, mature, opts = {}) {
     const { aggBytes = "aggDoc" } = opts;
     const r = readsPerUser(dau, { mature, ...opts });
-    const reads = Object.values(r).reduce((a, b) => a + b, 0) * dau;
+    // …plus the compactor's flat line (phase B): not a per-user term, so
+    // it is not in `r` and not in the pulse's stacked bar.
+    const reads = Object.values(r).reduce((a, b) => a + b, 0) * dau + compactorReadsPerDay(dau);
     // The public mirror is rewritten on every answer at every size — D98
     // removed the cadence AND the floor, so there is no immature phase
     // for a discount to differ from. This was `mature ? 1/PUBLISH_EVERY
@@ -1046,7 +1081,10 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     //
     // + the answer map's merge per world answer (runbook 3.2), the one
     // write the owner chose "live" over nightly for (D446 amendment).
-    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + attnRate(dau) + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature));
+    // The daily's `pub` write is a shard write since phase B — one write
+    // either way — and the compactor's published document rides the flat
+    // line below rather than this per-user one.
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub + B.tailShare + ANSWER_MAP_WRITES_PER_ANSWER) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + attnRate(dau) + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2 + citySampleOps(dau) + profileFanoutWrites(mature)) + compactorWritesPerDay(dau, mature);
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + attnRate(dau) + 1);

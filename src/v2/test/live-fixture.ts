@@ -450,7 +450,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     roundInfo: () => ({ open: 1, next: 1, sealed: [], lead: 5 }),
     voteLate: async () => {},
     myDuelVote: () => null,
-    myDuelCall: () => null,
+    myDuelCall: () => null as { optionIdx: number; guessIdx: number | null; pickUid: string | null } | null,
     revealFor: () => null,
     revealHistory: () => [],
     // Settled: a mount test is about the drawn frame, not the cold one.
@@ -587,8 +587,28 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set
     // would let a card read numbers the real k-floor never sends.
-    aggFor: () => (tooSmall
+    aggFor: (qid?: string) => (tooSmall
       ? { tooSmall: true }
+      : qid === "pick-fixture"
+      // A CATALOGUE question's aggregate is keyed by catalogue key, not by
+      // option index — same document, same three levels, a different third
+      // one (data/pickCohort.ts). The generic breakdown below would read
+      // its option indices as entities 0, 1 and 2, which resolve to no
+      // emoji at all, so the who-picked-what sheet would draw a board of
+      // blanks and every case about it would be vacuous.
+      //
+      // The cells are chosen to hold both readings the sheet has to make:
+      // 18-24 lead with ❤️ (everyone's #2 — a finding), and 25-34 lead
+      // with 😂, the same as everyone (not one).
+      ? {
+        counts: { "128514": 9, "10084": 4 },
+        total: 16,
+        tooSmall: false,
+        by: {
+          ageBand: { "18-24": { "10084": 3, "128514": 1 }, "25-34": { "128514": 5 } },
+          city: { "Oslo, NO": { "128514": 4, "10084": 2 } },
+        },
+      }
       : {
         counts: aggCounts ?? { 0: 12, 1: 8, 2: 5 },
         total: aggCounts
@@ -703,6 +723,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // "ready" — the loading and failed arms are driven per case.
     testAggsState: () => "ready" as "loading" | "ready" | "failed",
     kindredState: () => "ready" as "loading" | "ready" | "failed",
+    cityKindredState: () => "ready" as "loading" | "ready" | "failed",
     testFeedItems: () => [],
     myTestResults: () => ({
       big5: { title: "Big Five", dims: [
@@ -917,6 +938,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // `linked`: the mount suites build a walled build only by stubbing
     // VITE_REQUIRE_SIGNIN, and none of them does.
     wallPass: false,
+    // SETTLED: the mount suites are about what a screen draws once auth
+    // has spoken, not about the restore window. A case that wants the
+    // window flips this and leaves `linked` as it is — which is the
+    // combination the identity surfaces used to state as a fact.
+    authKnown: true,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both
     // directions).

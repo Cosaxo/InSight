@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // ask-door-platform.test.jsx — the in-app door is Android's, and the iOS
-// build carries none (D467).
+// build carries none (D472).
 //
 // D368 took every ask-a-question call to action out of the binary and
 // inverted two smoke-live cases to pin the absence. Those cases mount with

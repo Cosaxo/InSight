@@ -40,32 +40,27 @@ bumps are the dependency shepherd's to verify; a tick hands one to the
 merge shift like any other PR.
 
 <!-- console:ticks  -->
-<!-- console:generated 2026-09-12T08:17:28Z -->
+<!-- console:generated 2026-09-12T12:10:14Z -->
 
 ## Open
 
-- [ ] **#501** · a session · *what:* Four findings the owner sent off a device in one message, with screenshots. · *how:* Three of them are the same shape: a rule that was right for the thing it was written for, still running over a thing it was not. · CI green (9) · 7 behind main · conflicts · opened 2026-09-11 · stage **new**
-- [ ] **#497** · a session · *what:* Two changes from the same session, both on the log-first structure (D447), numbered **D457** and **D458** — they were D453 and D454 until `main` claimed those while this branch wa… · *how:* Why.** The wall every cost page named first: one `v2_question_aggs/{qid}` document written on every answer, Firestore's ~1 write a second per document, and the daily question answ… · CI red (1 of 9) · 39 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 64 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · 13 behind main · opened 2026-09-10 · stage **new**
-- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 369 behind main · opened 2026-09-01 · stage **new**
-- [ ] **night-20260912** (no PR yet) · Claude 2's night shift · 33 commits · last 05:27 UTC 2026-09-12
-- [ ] **nightb-20260912** (no PR yet) · Claude 1's night shift B · 30 commits · last 04:11 UTC 2026-09-12
+- [ ] **#508** · a session · *what:* The owner's ruling of 2026-09-12 on the row `OWNER-LIST.md` had carried since C4: *"i want a celling on 1500nok as that should in theory not be issue for a long time unless someth… · *how:* `functions/src/budget.ts` is now the hard stop.** At `BUDGET_DETACH_AT` (3.0) times the budget — 1,500 NOK on the 500 NOK the tree arms, a multiple so a retuned budget moves the c… · no checks · 35 behind main · conflicts · opened 2026-09-12 · stage **new**
+- [ ] **#488** · a session · *what:* D451 built the backup lane and left arming it as an owner dispatch. · *how:* Doing the rest of the dispatches found that **three of the four things this repo believed about its own production were wrong — in both directions.** Every one of them was a singl… · CI green (9) · 92 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#478** · a session · *what:* A 16-lane review of the tree found that the instruments here are better than in most production codebases, and that **every serious gap sits where an instrument cannot reach**. · *how:* These are the eight fixes, one decision record each (`D-2026-09-09a`–`h`). · CI green (10) · current with main · opened 2026-09-10 · stage **new**
+- [ ] **#341** · the axes build lane · *what:* Axes step 1.1 — the server fold** (AXES-RUNBOOK.md Phase 1, topmost unchecked step; AXES-PLAN §2 is the reasoning). · *how:* The nightly patterns run now folds each person's trait-axis substrate from their public instrument answers, beside the fit it already runs: same ledger read, same per-user state d… · CI green (9) · 397 behind main · opened 2026-09-01 · stage **new**
 
-**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · night-20260909 (D430) · nightb-20260909 (D430) · and 12 more.
+**Reviewed and merged, nothing to tick** — a night review squash-merges the composed tree, so each shift's own branch stays ahead of `main` carrying nothing new: night-20260912 (D470) · nightb-20260912 (D470) · night-20260911 (D450) · nightb-20260911 (D450) · night-20260910 (D449) · nightb-20260910 (D449) · and 14 more.
 
 **Dependencies** (dependabot — the dependency shepherd verifies; tick to hand one to the shift):
 
-- [ ] **#496** · dependabot · *what:* Build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 48 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 48 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 48 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 48 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 48 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 49 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 49 behind main · opened 2026-09-11 · stage **new**
-- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 49 behind main · opened 2026-09-11 · stage **new**
-
-**Self-merging:** #505 Catalog 2026-09-12: pk42 — the film you quote the most
+- [ ] **#496** · dependabot · *what:* build(deps): Bump firebase from 12.13.0 to 12.18.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (1 of 10) · 27 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#495** · dependabot · *what:* Build(deps-dev): Bump @capacitor/ios from 8.4.2 to 8.5.1 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (10) · 76 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#494** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 76 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#493** · dependabot · *what:* Build(deps-dev): Bump typescript from 6.0.2 to 7.0.2 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 76 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#492** · dependabot · *what:* Build(deps-dev): Bump eslint from 9.39.4 to 10.10.0 · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (9 of 10) · 76 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#491** · dependabot · *what:* Build(deps-dev): Bump vitest from 4.1.10 to 5.0.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI red (3 of 9) · 77 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#490** · dependabot · *what:* Build(deps): Bump @google-cloud/bigquery from 8.3.1 to 9.0.3 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 77 behind main · opened 2026-09-11 · stage **new**
+- [ ] **#489** · dependabot · *what:* Build(deps): Bump @anthropic-ai/sdk from 0.121.0 to 0.124.0 in /functions · *how:* a dependabot bump — the dependency shepherd verifies it (OPS-RUNBOOK.md) · CI green (9) · 77 behind main · opened 2026-09-11 · stage **new**
 
 ## In the shift
 
@@ -81,6 +76,11 @@ merge shift like any other PR.
 
 ## Merged this week
 
+- **#507** · Learn 2026-09-12: the sixteenth field opens — Sayings & idioms — and six floors rise · merged 2026-09-12
+- **#506** · The 2026-09-12 night review: two shifts merged as one tree — 63 commits kept, and a cohort hole that existed only in the sum of two correct changes (D470) · merged 2026-09-12
+- **#505** · Catalog 2026-09-12: pk42 — the film you quote the most · merged 2026-09-12
+- **#501** · Four device reports: the cropped picture, Near refusing a fix it had, the catalogue's pre-D125 who-voted, and the general questions (D468, D469) · merged 2026-09-12
+- **#497** · Phase B: the daily lane's aggregate sharded and compacted (D467), and the answer log's nightly shadow (D466) · merged 2026-09-12
 - **#502** · The failing runs: a workflow GitHub could not read, the gate that now asks, and Pulse's trail back on the clock (D465) · merged 2026-09-12
 - **#503** · Farm 2026-09-12: eight thin topics levelled, two promoted · merged 2026-09-12
 - **#500** · Patterns widened: the cohort prior, anchors and picks in the fit, the whole-world People map, and every kind of dot on the Map (D453–D460) · merged 2026-09-11
@@ -130,8 +130,3 @@ merge shift like any other PR.
 - **#455** · Plan: buying back the rules expression budget, and holding it (RULES-BUDGET-PLAN.md) · merged 2026-09-09
 - **#454** · The owner's three follow-ups: testResults bounded by a server that can loop, Apple's portal half measured, and the console half still one click (D431) · merged 2026-09-09
 - **#453** · The content lanes' self-merge is D212's, outside D385's scope (D385 amendment) · merged 2026-09-09
-- **#452** · Now 2026-09-09: the foldable on stage, and the genes behind the answers · merged 2026-09-09
-- **#450** · Duel: twenty-five for the bank burst — nine dark romantic, eight group, eight 1v1 · merged 2026-09-09
-- **#449** · Feed 2026-09-09: sixty levelled and five rooms born — the lane's first leaves · merged 2026-09-09
-- **#448** · Learn: a new room and the floor — Flags of the world born, 24 levelled across six fields · merged 2026-09-09
-- **#447** · Catalog card pk39: the language the world should share · merged 2026-09-09

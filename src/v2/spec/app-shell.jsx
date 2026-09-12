@@ -743,7 +743,7 @@ export function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             <PassiveMeter />
-            {/* The ask-a-question door — back, on Android only (D467).
+            {/* The ask-a-question door — back, on Android only (D472).
                 D368 took it out of the binary because a purchase call to
                 action inside an app is what Apple's anti-steering rule
                 polices, and a "+" one tap from anywhere was the most

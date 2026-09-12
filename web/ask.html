@@ -749,7 +749,6 @@
   function showPanel(state) {
     st.panel = state;
     var P = st.P, a = answers(), r = rate();
-    var served = Math.round(a * 0.67);
 
     $("panel").hidden = false;
     $("compose").hidden = state !== null && state !== "declined";
@@ -776,11 +775,28 @@
     $("qLink").textContent = dom ? dom + " ↗" : "";
 
     $("refundLine").hidden = state === "declined";
+    // NO FORECAST HERE, and the deletion is the point. This line used to
+    // work an example off `Math.round(a * 0.67)` and print it as concrete
+    // counts — "if it is answered 1 675 times instead of 2 500". That
+    // 0.67 was carried from a design draft and exists in no committed
+    // file: it is not a measured delivery rate, and the page said it to
+    // the buyer on the screen that takes the money.
+    //
+    // The server refuses exactly this one step earlier. pricingFold.ts's
+    // `estimates` are WITHHELD until a cohort has a campaign to measure
+    // from — "an empty ledger prints prices and open days — never a
+    // forecast" — and `web/ask-pricing.json` carries no estimates block
+    // at all, so there was nothing behind the number.
+    //
+    // What the buyer needs is the RULE, and the rule needs no forecast:
+    // the cap, the window, the per-answer rate, and that unserved answers
+    // refund themselves. Every figure below is one the page already
+    // quotes above it.
     $("refundLine").textContent =
       "You are charged " + fmtEur(budget()) + " now. The question runs for "
-      + P.refundDays + " days; if it is answered " + n(served) + " times instead of "
-      + n(a) + ", the " + n(a - served) + " unserved answers come back to you as "
-      + fmtEur((a - served) * r) + ". Nobody has to ask.";
+      + P.refundDays + " days and is answered up to " + n(a)
+      + " times; every answer it does not get comes back to you at "
+      + fmt(r) + " an answer. Nobody has to ask.";
 
     $("declineReason").hidden = state !== "declined";
     $("declineReason").textContent =
@@ -806,7 +822,8 @@
     // button does what it says and a paragraph explaining that it does not
     // would be the page contradicting itself.
     $("payNote").textContent =
-      (state === "quoted" || state === "paying") && !cfgReady() ? PAY_NOTE : "";
+      (state === "quoted" || state === "paying") && !(cfgReady() && paymentsOpen())
+        ? PAY_NOTE : "";
     $("panel").scrollIntoView({ block: "nearest" });
   }
 
@@ -866,7 +883,15 @@
       b.addEventListener("click", function () {
         st.cur = code;
         drawCurrencies();
-        drawScope();
+        // THE WHOLE COMPOSER, not just the scope line. This called
+        // `drawScope()` alone, so after tapping NOK the three menu prices
+        // and the four budget chips stayed in euro while the rate line
+        // directly above them switched to kroner — "€50" sitting over
+        // "≈ 0.23 kr an answer" on the one screen a buyer most wants in
+        // their own currency (D369 §3 moved the switch out of the
+        // composer for exactly that reason). It self-corrected on the
+        // next tap of anything, which is what kept it out of sight.
+        draw();
         if (st.panel) showPanel(st.panel);
       });
       box.appendChild(b);
@@ -938,6 +963,26 @@
 
   function cfgReady() {
     return !!(st.cfg && st.cfg.apiKey && st.cfg.project && st.cfg.region);
+  }
+
+  /** Whether a card can actually be charged on this deployment.
+   *
+   *  SEPARATE FROM cfgReady() BECAUSE THEY ARE SEPARATE KEYS, and reading
+   *  one for the other walked a buyer to a dead end: the Firebase web key
+   *  makes the backend reachable, the Stripe secret makes checkout work,
+   *  and a deployment can have the first without the second (the deploy
+   *  warns about exactly that). The page then hid its "payment is not
+   *  open" note, took the question, booked it, sent it to a reviewer who
+   *  read it — and answered the pay tap with the server's own sentence
+   *  about a deployment. Nothing was charged, but a person had written a
+   *  question and waited for a verdict that could never be spent.
+   *
+   *  ABSENT IS OPEN, not closed: a config written by a deploy from before
+   *  this field existed says nothing about Stripe, and reading silence as
+   *  "closed" would shut a working door until the next deploy. Only an
+   *  explicit false closes it. */
+  function paymentsOpen() {
+    return !(st.cfg && st.cfg.payments === false);
   }
 
   /** The callable base. Read from config rather than built from a guess:
@@ -1051,12 +1096,40 @@
     var d = {
       kind: "question",
       prompt: st.prompt.trim(),
-      type: st.type,
+      // THROUGH wireType(), which existed for exactly this and was never
+      // called. `st.type` is the COMPOSER's name for the control — it
+      // starts at "pick" (TYPES[0], selected on first paint) — and the
+      // server's PAID_TYPES is `binary · choice · scale · rating ·
+      // dilemma`. So the flagship 2-4 option form, the one a buyer lands
+      // on, was refused by validatePaidBooking with "pick one of the
+      // question forms", printed under the button to someone looking at a
+      // pressed "Pick one" chip. Its two siblings happen to share a name
+      // with the wire, which is why this looked like it worked.
+      type: wireType(),
       options: T.max ? st.opts.map(function (o) { return o.trim(); }).filter(Boolean) : [],
       scope: scopeKey(),
       dims: {},
       wearName: false,
-      budgetEur: st.budget == null ? null : st.budget,
+      // THE BUDGET THE PAGE SHOWED, not the one nobody tapped. This sent
+      // `st.budget == null ? null : st.budget`, and `st.budget` is null
+      // until a chip is tapped — while everything the buyer can see is
+      // drawn from `budget()`, which falls back to the smallest budget,
+      // and that chip's `aria-pressed` is computed from `budget()` too,
+      // so it RENDERS AS SELECTED. Nothing on screen said otherwise.
+      //
+      // The server reads null as "no budget stated" and quotes the card's
+      // cap (paid.ts, priceQuote: `const want = typeof budgetEur ===
+      // "number" && Number.isFinite(budgetEur) ? Math.round(budgetEur) :
+      // card.capEur`) — which is the LARGEST budget, not the smallest. So
+      // a buyer who wrote a question, read "€5 · up to 250 answers" and
+      // paid without ever touching the budget row was charged €50 for
+      // 2 500. web/terms.html promises the opposite in as many words:
+      // "the price is the rate card that page prints before you commit."
+      //
+      // null stays legal on the server for the reason its comment gives —
+      // a stored booking from before the budget existed carries it — but
+      // this page has always shown a budget, so it has one to send.
+      budgetEur: budget(),
       link: st.link.trim()
     };
     if (st.place && st.place.city) d.dims.city = st.place.city;
@@ -1112,7 +1185,13 @@
           var f = doc && doc.fields ? doc.fields : null;
           var status = f && f.status && f.status.stringValue;
           if (status && status !== "review") {
-            return { status: status, reason: f.declineReason && f.declineReason.stringValue };
+            // `note` IS THE FIELD, not `declineReason`: both writers in
+            // functions/src/paid.ts (the retired ad lane and the reviewer
+            // verdict) update the booking with `note`. Reading the other
+            // name silently left `reason` undefined, so every decline —
+            // a named private person, the retired ad lane — was shown the
+            // page's own civic-authority sentence instead of its reason.
+            return { status: status, reason: f.note && f.note.stringValue };
           }
           // TWENTY TRIES IS THIRTY SECONDS, and since D456 the reviewer is
           // a Routine on a schedule rather than a model call inside the
@@ -1136,7 +1215,7 @@
 
   function startPurchase() {
     if (st.busy) return;
-    if (!cfgReady()) { showPanel("paying"); return; }
+    if (!cfgReady() || !paymentsOpen()) { showPanel("paying"); return; }
     // The place is needed to BOOK, not to be quoted: "your city" costs
     // what it costs whichever city it is, and gating the price on the
     // picker would open this page with its main button disabled and no

@@ -2,7 +2,7 @@
 // returns gets prefilled into a join form, so it must accept exactly the
 // server's code shape and nothing else — however the URL was mangled in
 // transit by a chat app, a QR scanner, or a hostile hand.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -171,5 +171,84 @@ describe("web/join.html · the copy of the parser", () => {
     const fb = readFileSync(join(process.cwd(), "firebase.json"), "utf8");
     expect(fb, "join.html's inline script changed and firebase.json's script-src hash did not")
       .toContain(want);
+  });
+});
+
+// ── the nudge, and whether it survives a cold start ─────────────────────
+//
+// `initDeepLinks()` runs from main.jsx BEFORE `root.render`, so on a cold
+// start from an invite link the shell has registered no nav handlers and
+// `NAV.goTab` no-ops — silently, by nav.ts's own design. That was
+// invisible while the last tab was the daily one, because the app opens
+// there anyway; for anyone whose last tab was the Mirror it is the whole
+// feature, since the daily panel never mounts and nothing reads the code
+// they just tapped.
+describe("initDeepLinks · the navigation outlives the boot", () => {
+  const jsdomish = () => {
+    // A window and a sessionStorage, which this module reaches for at
+    // import time through helpers rather than at module scope.
+    const store = new Map<string, string>();
+    return {
+      getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      store,
+    };
+  };
+
+  it("retries until the shell is up, then navigates exactly once", async () => {
+    vi.useFakeTimers();
+    const ss = jsdomish();
+    vi.stubGlobal("sessionStorage", ss);
+    vi.stubGlobal("location", { href: "https://insight.example/join/ABCD2345" });
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal("window", { dispatchEvent, addEventListener: () => {} });
+
+    const nav = await import("./nav");
+    const links = await import("./links");
+    const goTab = vi.fn();
+
+    links.initDeepLinks();
+    // The shell is NOT up yet — this is the cold start, and the whole
+    // point: nothing has navigated, and the code is stashed.
+    expect(goTab, "it navigated before the shell existed").not.toHaveBeenCalled();
+    expect(links.peekJoinCode(), "the code was not stashed at all").toBe("ABCD2345");
+
+    // …the shell mounts, the way it does a tick later.
+    const off = nav.registerNav({ goTab });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(goTab, "the nudge was lost — the invitee stays wherever they were").toHaveBeenCalledWith("track");
+    expect(goTab, "it navigated more than once").toHaveBeenCalledTimes(1);
+    // …and peeking did not take the code away from the screen it just
+    // navigated to.
+    expect(links.peekJoinCode(), "the peek consumed the invite").toBe("ABCD2345");
+
+    off();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("gives up rather than navigating under someone who has moved on", async () => {
+    vi.useFakeTimers();
+    const ss = jsdomish();
+    vi.stubGlobal("sessionStorage", ss);
+    vi.stubGlobal("location", { href: "https://insight.example/join/ABCD2345" });
+    vi.stubGlobal("window", { dispatchEvent: vi.fn(), addEventListener: () => {} });
+
+    const nav = await import("./nav");
+    const links = await import("./links");
+    links.initDeepLinks();
+    // Well past the six tries at 60ms.
+    await vi.advanceTimersByTimeAsync(5000);
+    const goTab = vi.fn();
+    const off = nav.registerNav({ goTab });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(
+      goTab,
+      "a retry was still armed minutes later and moved someone who had navigated themselves",
+    ).not.toHaveBeenCalled();
+    off();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 });

@@ -103,6 +103,13 @@ import { pickHead, pickLoad } from '../ui/pickDomains';
 // image over the reveal's two faces, and the credits door the licence
 // requires beside every surface that draws one.
 import PickArt from '../ui/PickArt.tsx';
+// …and, since 2026-09-11, the catalogue's own who-picked-what sheet — the
+// cohort-first reading (D125) every other live card has had for a year,
+// and the names D98 exists for. The card's door carries its finding.
+import LivePickBreakdown from '../ui/LivePickBreakdown.tsx';
+import { bestPickTilt } from '../data/pickCohort.ts';
+import { byOf, COHORT_DIMS } from '../data/cohort.ts';
+import { bucketLabel } from '../data/cohortLabels.ts';
 import PickCredits from '../ui/PickCredits.tsx';
 import { PASSIVE } from './passive-progress.js';
 // Crossroads (D136). Imported, not read off window — rule 4 refuses new
@@ -175,6 +182,15 @@ const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 const WF_PAGE = 8;
 const WF_STEP = 4;
 const WF_REACH = 2200;
+
+// The floor under the catalogue card's finding line (renderPickDoor).
+//
+// feed-read.js's MIN_CELL, and the same KIND of floor: an honesty floor,
+// not a privacy one — D98 left no cell suppressed, and this is only about
+// what a cohort is big enough to be described as. One answer makes any
+// entity that cohort's unanimous favourite, so without a floor the line
+// would be led forever by cohorts of one saying nothing.
+const PICK_TILT_MIN = 3;
 
 // Know answers do NOT persist in WF_LS (D95). Their cross-session record is
 // LEARN's own store — state, streaks, positions — and LEARN_FEED re-serves a
@@ -1892,7 +1908,20 @@ class WorldFeed extends React.Component {
     const leader = c.top[0] || null;
     const myIdx = c.top.findIndex((r) => r.entity === v.entity);
     const myRow = myIdx >= 0 ? c.top[myIdx] : null;
-    const agree = !!leader && v.entity === leader.entity;
+    // A BOARD OF ONE IS NOT A CROWD, and this card had no floor at all.
+    // `pickCanon` joins the reader's own unfolded pick into the board, so
+    // the first person to answer a catalogue question met their own vote
+    // labelled "you and the crowd", ranked "#1 on the board", at "100.0%"
+    // — three claims about a population of themselves. It stays true after
+    // the fold lands: the board is still one row.
+    //
+    // `wfNoCrowd` is the predicate every other live surface uses here and
+    // it cannot serve this one: a pick card carries no `options`, so its
+    // `every(o => !o.count)` arm is vacuously true and the card would be
+    // floored forever. The board's own total is the honest test, and it is
+    // `renderMeta`'s `alone = total <= 1` one method over.
+    const alone = c.total <= 1;
+    const agree = !alone && !!leader && v.entity === leader.entity;
     const notListed = store && v.entity === store.NOT_LISTED;
     const shareOf = (count) => (c.total ? ((count / c.total) * 100).toFixed(1) + '%' : '');
     // The tail is real and the copy says why it is hidden — without naming
@@ -1917,16 +1946,21 @@ class WorldFeed extends React.Component {
     // and said why (COPY.md §3); the tile was not moved with it, so one
     // card said both things about the same pick.
     const TOPN = PK.TOP_N;
-    const tile = (ent, nm, label, strong, count, rank) => (
+    const tile = (ent, nm, label, strong, count, rank, absent) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
-        <span aria-hidden="true" style={{ position: 'relative', overflow: 'hidden', width: '100%', height: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}>
+        {/* 92 px tall until 2026-09-11, which was the right height for a
+            face made of pattern and the wrong one for a face made of a
+            picture: fitted inside a 2:1 box, a square subject drew 92 px
+            wide in a 180 px face and the tile was mostly gutter. Squarer
+            box, whole subject — and the pattern still frames it. */}
+        <span aria-hidden="true" style={{ position: 'relative', overflow: 'hidden', width: '100%', aspectRatio: '4 / 3', minHeight: 92, borderRadius: 12, background: wfCatArt(T.color, q.domain + ':' + ent), border: strong ? `1.5px solid ${T.color}` : WF_LINE, boxSizing: 'border-box', display: 'block' }}>
           {/* the picture, where the catalogue has one (D421) — over the
               generated art, which stays as the fallback */}
           <PickArt domain={q.domain} id={ent} />
         </span>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, lineHeight: 1.2, textWrap: 'pretty', color: 'var(--ink)' }}>{nm || '\u2026'}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (q.live ? 'not on the board' : 'below the floor')}</span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{count != null ? (rank ? '#' + rank + ' on the board \u00b7 ' : '') + shareOf(count) : (absent || (q.live ? 'not on the board' : 'below the floor'))}</span>
       </div>
     );
     const chip = (label, active, onTap) => (
@@ -1936,15 +1970,34 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 8, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {!seg && leader && !notListed && (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 4 }}>
-            {agree
-              ? tile(v.entity, mineName, 'you and the crowd', true, myRow && myRow.count, myIdx + 1)
-              : tile(v.entity, mineName, 'your pick', true, myRow && myRow.count, myRow ? myIdx + 1 : 0)}
-            {!agree && tile(leader.entity, this.pickName(leader.entity, q.domain), 'the crowd', false, leader.count, 1)}
+            {alone
+              ? tile(v.entity, mineName, 'your pick', true, null, 0, 'first — nobody else yet')
+              : agree
+                ? tile(v.entity, mineName, 'you and the crowd', true, myRow && myRow.count, myIdx + 1)
+                : tile(v.entity, mineName, 'your pick', true, myRow && myRow.count, myRow ? myIdx + 1 : 0)}
+            {!alone && !agree && tile(leader.entity, this.pickName(leader.entity, q.domain), 'the crowd', false, leader.count, 1)}
           </div>
         )}
         {/* the credits, under the two faces that may carry a picture */}
         {!seg && leader && !notListed && <PickCredits domain={q.domain} accent={T.color} />}
-        {segs.length > 0 && (
+        {/* THE SEGMENT CHIPS ARE THE DEMO CARD'S ALONE SINCE 2026-09-11.
+            D17's row put every published bucket of every dimension in one
+            flat line — "man", "190 cm or taller", "no", "asker, no",
+            "25-34" — each silently reordering the board, none of them
+            naming which dimension it belongs to, and the raw storage keys
+            going to the reader. That is the pre-D125 way of answering "who
+            voted what", and a live card is the one place it mattered: it
+            was the only question type in the app still using it. A live
+            card's reading is the sheet below (renderPickLiveStats), which
+            is the cohort-first one every other live question has had since
+            D125, plus the names D98 exists for.
+
+            The demo keeps the chips because it has no sheet to open: the
+            panel is live-only by construction (it folds published
+            aggregates), and a door onto an empty sheet is worse than the
+            row it replaced. Same branch the dial, the field and the stats
+            sheet all already make on `q.live`. */}
+        {!q.live && segs.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {chip('everyone', !sel, () => setSeg(null))}
             {segs.map((s) => chip(s.bucket.toLowerCase(), !!(sel && sel.dim === s.dim && sel.bucket === s.bucket), () => setSeg(s)))}
@@ -2010,6 +2063,12 @@ class WorldFeed extends React.Component {
         {!seg && rows.length < TOPN && (
           <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{rows.length} of {TOPN} spots on the board claimed{q.live ? '' : ' — a spot needs 5 votes'}</span>
         )}
+        {/* the way into the who-picked-what sheet, carrying the finding it
+            opens on — the same shape the options-shaped cards use, where
+            the surprise line IS the door (renderEngage: "the insight line
+            is itself the way into the breakdown, so the bar-chart button
+            would be a second door to the same room"). */}
+        {q.live && this.renderPickDoor(q, T, c)}
         {/* the below-floor case now lives in the ghost row above */}
         {(notListed || inTop) && (
           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
@@ -2019,6 +2078,61 @@ class WorldFeed extends React.Component {
           </span>
         )}
       </div>
+    );
+  }
+
+  // ── the catalogue's finding, and the door it opens ────────────────
+  //
+  // The same instrument the options-shaped cards carry (feed-read.js's
+  // `feedInsight`), expressed for a board: the cut that puts someone else
+  // first, and where everyone puts that. Not a points gap per entity —
+  // over a thousand-entry catalogue every entity is a rounding error away
+  // from every other, and the gap would be noise with a percent sign on
+  // it (pickCohort.ts's header).
+  //
+  // The floor is feed-read.js's MIN_CELL and is the same KIND of floor —
+  // an honesty floor, not a privacy one (D98 left no cell suppressed).
+  // One answer makes any entity a cohort's unanimous favourite, and a
+  // finding line led forever by cohorts of one says nothing.
+  renderPickDoor(q, T, c) {
+    const best = bestPickTilt(byOf(LIVE.aggFor(q.id)), COHORT_DIMS, c.top, PICK_TILT_MIN);
+    const open = () => this.setState({
+      sheet: { q, T, panel: 'stats', pickCut: best ? { dim: best.dim, bucket: best.tilt.bucket } : null },
+      sideFilter: null, replyTo: null,
+    });
+    const name = best ? this.pickName(best.tilt.entity, q.domain) : null;
+    // A finding whose entity name has not resolved yet is not a finding —
+    // "25-34 put … first" is a sentence about nothing. The plain door
+    // stands in until the catalogue lands, and the card re-renders when it
+    // does (pickName kicks the load).
+    const found = best && name;
+    return (
+      <button className="press" onClick={open} aria-label="Who picked what"
+        style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left', border: WF_LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 12px', cursor: 'pointer', WebkitAppearance: 'none' }}>
+        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: T.color }}></span>
+        <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: 'var(--ink-2)', textWrap: 'pretty' }}>
+          {found ? bucketLabel(best.dim, best.tilt.bucket) + ' put ' + name + ' first' : 'Who picked what'}
+        </span>
+        <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>
+          {found ? (best.tilt.rank ? '#' + best.tilt.rank : '\u2192') : '\u2192'}
+        </span>
+      </button>
+    );
+  }
+
+  // The sheet itself. Live only, and the guard is structural rather than
+  // defensive: the panel folds published aggregates, so a demo card has
+  // nothing for it to read — which is why the demo keeps the segment chips
+  // above rather than a door onto an empty room.
+  renderPickLiveStats(q, T) {
+    const v = this.pickVal(q);
+    return (
+      <LivePickBreakdown
+        qid={q.id}
+        mine={v ? v.entity : -1}
+        nameOf={(ent) => this.pickName(ent, q.domain) || ''}
+        openAt={(this.state.sheet && this.state.sheet.pickCut) || null}
+      />
     );
   }
 
@@ -3560,7 +3674,15 @@ class WorldFeed extends React.Component {
     // The imported binding, not the window surface — same reason
     // renderKnowInsight gives below, and check:globals rule 4 refuses new
     // coupling either way.
-    const live = LIVE.enabled;
+    //
+    // AND `demoInProd` WITH IT, because `enabled` alone answers the wrong
+    // question. It is false for two different reasons — a demo build, and
+    // a LIVE build whose boot has not attached yet — so on every cold
+    // start with a weak signal this took the demo arm and drew the rows
+    // the paragraph above refuses, at a real person. `renderEngage` in
+    // this same file already guards the pair correctly; this is that
+    // guard, here. Either half means "not the demo".
+    const live = LIVE.enabled || LIVE.demoInProd;
     const dim = live ? 'friends' : (WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends');
     const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
     const rate = LEARN_RATE(card);
@@ -3652,7 +3774,13 @@ class WorldFeed extends React.Component {
     // aggregate exists to rank. The imported LIVE, not the window surface:
     // a test driving this branch stubs the module the way
     // LiveCohortBody.test does, not through the window stand-in.
-    if (LIVE.enabled) return null;
+    // `demoInProd` with it: `enabled` is false both for a demo build and
+    // for a live build that has not attached, and only the first of those
+    // should see the demo arm. Without it, every cold start on a weak
+    // signal headlined an invented per-cohort rate at a real user for the
+    // length of the boot — the case this refusal exists for, reached the
+    // one way it was not checked.
+    if (LIVE.enabled || LIVE.demoInProd) return null;
     const card = LEARN.card(q.learn);
     if (!card) return null;
     const p = card.p;
@@ -3883,6 +4011,12 @@ class WorldFeed extends React.Component {
     // them answered "who is in this crowd" — none answered "what does this
     // question look like from where they are standing", which is the
     // reading a breakdown is for.
+    // A live CATALOGUE card first, and not only for the reading: the
+    // panel below maps `q.options`, which a pick question does not have,
+    // so a live pick reaching that branch is a TypeError. It never has,
+    // because nothing opened this sheet for a pick card — the door
+    // arrived with the panel (renderPickDoor).
+    if (q.live && q.type === 'pick') return this.renderPickLiveStats(q, T);
     if (q.live) {
       return (
         <LiveBreakdownPanel

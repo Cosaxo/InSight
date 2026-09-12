@@ -355,7 +355,28 @@ function sayRows(qid: string): Promise<SayRow[]> {
         }
         if (out.length) return out;
       }
-      return fetchVoterPicks(db, qid);
+      // THE TWO SOURCES ENCODE A CATALOGUE KEY DIFFERENTLY, and the
+      // conversion belongs here rather than in either of them. The nightly
+      // sample writes `e` as a STRING, which is what everything below
+      // compares against — `state.votes` stores a pick as `String(entity)`
+      // (`votes[qid] === meta.entity`, and `r.entity === e` in sidesOf).
+      // The live fallback reads the ANSWER document, where `entity` is a
+      // number, and `data/voters` carries it as one because the board it
+      // feeds (`LIVE.pickCanon`, `data/pickCohort`) is keyed by number.
+      //
+      // Both are right about their own source, so the seam that joins them
+      // is where it gets said. It is not cosmetic: these rows used to be
+      // dropped by `fetchVoterPicks` entirely, and now that they arrive, a
+      // numeric key compared against a string vote would match nobody —
+      // every catalogue dot silently reading "no one agrees" on any
+      // question whose sample has not been published yet.
+      const live = await fetchVoterPicks(db, qid);
+      return live.map((v) => ({
+        uid: v.uid,
+        optionIdx: v.optionIdx,
+        ...(typeof v.entity === "number" ? { entity: String(v.entity) } : {}),
+        ...(v.anchors ? { anchors: v.anchors } : {}),
+      }));
     })();
     // a failed fetch must not be cached as the crowd — drop it so the next
     // open retries (the loadVoters absent-vs-empty rule, applied here)

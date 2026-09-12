@@ -1,4 +1,4 @@
-// askDoor.test.ts — the platform rule for the one in-app door (D467).
+// askDoor.test.ts — the platform rule for the one in-app door (D472).
 //
 // One platform in, everything else out. The iOS half of that sentence is
 // what App Review reads the binary for, so it is pinned twice: here on

@@ -125,6 +125,33 @@ export function neverFalse(atoms) {
  * @returns {{ok: boolean, message: string}}
  */
 export function verdict(count, total, baseline) {
+  // A BASELINE THAT IS NOT A NUMBER MUST NOT READ AS A PASS.
+  //
+  // Both comparisons below are `>` and `<`, and both are FALSE against
+  // `undefined` or `NaN` — so a baseline file with a renamed key, a
+  // truncated write, or a hand edit that left a string sent this straight
+  // to the OK arm, which then printed "(baseline undefined)" inside a
+  // line saying the ratchet held. Measured: `verdict(7, 300, undefined)`
+  // and `verdict(7, 300, NaN)` both answered ok. `null` happened to fail,
+  // by the coercion `7 > null`, which is luck rather than a guard.
+  //
+  // Every OTHER way this gate can lose its subject already refuses
+  // loudly — the fetch, the report shape, zero boolean atoms — and its
+  // twin on the same emulator boot (rules-budget's planGate) throws on a
+  // malformed baseline field. This is that refusal, for the one that was
+  // missing. It is the ratchet D431 exists for: thirteen refusals were
+  // once granted by expression-budget exhaustion with every suite green.
+  if (!Number.isInteger(baseline) || baseline < 0) {
+    return {
+      ok: false,
+      message:
+        `rules-coverage: the baseline is ${JSON.stringify(baseline)}, which is not a count.\n`
+        + "  The ratchet has nothing to compare against, and an unreadable\n"
+        + "  baseline is not a pass. Check firestore-tests/rules-coverage.json,\n"
+        + "  or rewrite it deliberately with:\n"
+        + "      npm run test:rules:baseline",
+    };
+  }
   if (count > baseline) {
     return {
       ok: false,

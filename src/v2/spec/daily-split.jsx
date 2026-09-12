@@ -96,6 +96,7 @@ import { Sheet } from './primitives.jsx';
 // because the surface pin in data/vote.test.ts holds every one of those
 // methods on the store's literal.
 import LIVE from '../data/live';
+import { peekJoinCode } from '../data/links';
 // D354's sweep. WORLD_TOPICS was a module-scope `window.` read with a
 // five-entry fallback — the fragility src/v2/README.md's feed paragraph
 // names ("deferring world-feed-data swaps the real topic set for the
@@ -219,6 +220,11 @@ const modeOfGroup = (gid) => {
   return g ? (g.mode === 'duo' ? 'duo' : 'group') : null;
 };
 
+// Which invite code the daily has already taken the reader to. See
+// consumePendingJoin: the peek does not clear, so this is what keeps one
+// invite from landing twice.
+let landedForCode = null;
+
 export class DailySplit extends React.Component {
   state = {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
@@ -327,7 +333,7 @@ export class DailySplit extends React.Component {
     const mode = modeOfGroup(gid);
     if (!mode) return false;
     try { sessionStorage.removeItem('insight.pendingReveal'); } catch { /* best-effort */ }
-    this.setState({ mode });
+    this.landOn(mode);
     return true;
   }
 
@@ -340,7 +346,7 @@ export class DailySplit extends React.Component {
     try { mode = sessionStorage.getItem('insight.pendingInvite'); } catch { /* best-effort */ }
     if (!mode || !liveReady()) return false;
     try { sessionStorage.removeItem('insight.pendingInvite'); } catch { /* best-effort */ }
-    this.setState({ mode: mode === 'duo' ? 'duo' : 'group' });
+    this.landOn(mode === 'duo' ? 'duo' : 'group');
     return true;
   }
 
@@ -355,19 +361,71 @@ export class DailySplit extends React.Component {
     const mode = modeOfGroup(gid);
     if (!mode) return false;
     try { sessionStorage.removeItem('insight.pendingCircle'); } catch { /* best-effort */ }
-    this.setState({ mode });
+    this.landOn(mode);
     return true;
+  }
+
+  // A code tapped from an invite LINK (data/links.ts). Unlike the three
+  // above it names a room this account is not in yet, so there is no gid
+  // to resolve and no mode to read off one — Circle is where the join
+  // form lives, and LiveDuelPanel is what consumes the code once it
+  // mounts there.
+  //
+  // PEEKED, never taken. The panel's own read is read-and-clear (D238);
+  // consuming it here would navigate to a screen with nothing waiting on
+  // it, which is the invite swallowed one step later than before.
+  consumePendingJoin() {
+    const code = peekJoinCode();
+    if (!code || code === landedForCode) return false;
+    // ONCE PER CODE. `consumePending` runs on mount AND on every live-store
+    // change, and the peek above deliberately does not clear — the panel
+    // this lands on is what consumes it. Without this line the two
+    // together drag the reader back: measured in a demo mount, a user who
+    // walked from Circle to World was returned to Circle by the next store
+    // tick, for as long as the code sat unread. In a demo build nothing
+    // ever reads it, so that was forever.
+    //
+    // Module-level rather than instance state, because the daily unmounts
+    // whenever the Mirror is opened and an instance flag would forget on
+    // the way back. Keyed by the CODE so a second invite still lands.
+    landedForCode = code;
+    this.landOn('group');
+    return true;
+  }
+
+  // WHERE ALL FOUR LAND, and why it is not `setState` alone.
+  //
+  // The daily's mode lives in TWO places: this component's own state,
+  // which the body reads, and the shell's `dailyMode`, which the ruler —
+  // both copies of it, the in-flow one and the docked one — reads. The
+  // click path and the swipe keep them together by calling
+  // `props.onMode`; these four consumers set state directly and did not.
+  //
+  // So a tapped reveal, a circle notification or an invitation moved the
+  // BODY to Circle or 1v1 and left the ruler pointing at World: the stop
+  // you are standing on and the stop the ruler says you are on disagreed,
+  // and the next tap on the ruler's World was a no-op because the shell
+  // already thought it was there. Measured in a demo mount — the Circle
+  // rail and its revealed round draw while the dock ruler still reads
+  // World=true.
+  //
+  // `switchMode` is the path that already does both, animation included,
+  // and it no-ops when the mode is already the one asked for.
+  landOn(mode) {
+    this.switchMode(mode);
   }
 
   // A reveal outranks the rest: it is the one that expires today. An
   // invitation is last because it is the only one that is not about a
-  // circle this account is already in. Several can be waiting after a
-  // batch of notifications, and landing on the wrong one buries the
-  // reveal.
+  // circle this account is already in, and a link is last of all because
+  // it is the only one that is not about a circle at all yet. Several can
+  // be waiting after a batch of notifications, and landing on the wrong
+  // one buries the reveal.
   consumePending() {
     if (this.consumePendingReveal()) return;
     if (this.consumePendingCircle()) return;
-    this.consumePendingInvite();
+    if (this.consumePendingInvite()) return;
+    this.consumePendingJoin();
   }
 
   // ── docking: once the in-flow ruler has scrolled away, the wordmark steps

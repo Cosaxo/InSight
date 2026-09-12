@@ -177,6 +177,17 @@ export let MapStats;
     return Math.max(3, Math.min(97, Math.round(v)));
   }
 
-  MapStats = window.MapStats = { dist, mode, groupLabel, dimVal, cohortN };
+  /** Whether this anchor has a cohort reading AT ALL on this build.
+   *
+   *  The refusals above split two ways and the cards could not tell them
+   *  apart: `age`, `edu` and `job` map to a breakdown dim, so a null from
+   *  `dist` means the cell has not landed yet — wait and it will. The four
+   *  test anchors map to nothing, so their null is permanent, and the card
+   *  told the reader it "needs more people on this question first", which
+   *  no number of people can satisfy. Demo builds answer everything
+   *  through the hash, so everything is measurable there. */
+  function measurable(anchorId) { return !LIVE.enabled || anchorId in MAP_ANCHOR_DIM; }
+
+  MapStats = window.MapStats = { dist, mode, groupLabel, dimVal, cohortN, measurable };
 })();
 

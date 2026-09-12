@@ -113,7 +113,7 @@ export const ENFORCE_APP_CHECK =
 /**
  * WHERE EVERY FUNCTION RUNS (D201).
  *
- * One constant, imported by all seventeen modules that define functions, for the
+ * One constant, imported by all eighteen modules that define functions, for the
  * reason `db.ts` is one accessor rather than 37 literal edits: this value
  * was spelled out in ten places on this side and eight on the client's, and
  * a move that reaches some of them is worse than one that reaches none —
@@ -211,6 +211,13 @@ export const LIGHT_UNBOUNDED = { memory: "256MiB", timeoutSeconds: 480 } as cons
 // The timeout stays: the folds already page and bound themselves.
 export const NIGHTLY = { memory: "1GiB", timeoutSeconds: 480 } as const;
 
+// The aggregate compactor (aggShards.ts, phase B): every minute, a query
+// and a handful of documents per dirtied question. The timeout sits UNDER
+// the interval so two runs never overlap — they would publish the same
+// sums, but an overlap is instance-seconds paid twice for nothing. The
+// runner keeps ten seconds back from this for its own tail.
+export const COMPACTOR = { memory: "256MiB", timeoutSeconds: 55 } as const;
+
 // The hot path: one invocation per answer, ~3 documents touched. Memory is
 // not the lever here, CONCURRENCY is — at concurrency 1 every simultaneous
 // answer costs a whole instance, and maxInstances 10 then caps the whole
@@ -226,6 +233,13 @@ export const HOT_TRIGGER = {
   timeoutSeconds: 120,
   cpu: 1,
   concurrency: 20,
+  // 50 × 20 = 1,000 folds in flight (DATA-EFFICIENCY-RUNBOOK 5.3, phase B):
+  // the global 10 made 200 the system-wide ceiling on answer throughput,
+  // and it is raised in the same change that sharded the daily's document,
+  // never before it — more instances against one contended document would
+  // only have queued more retries. COSTS.md's runaway paragraph carries
+  // the arithmetic for what fifty pegged instances could bill.
+  maxInstances: 50,
 } as const;
 
 // Why HERE and not in index.ts: `export { x } from "./v2"` is a hoisted

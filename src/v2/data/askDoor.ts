@@ -1,5 +1,5 @@
 // askDoor.ts — the one in-app door to the web ask page, and the platform
-// rule that decides whether it is drawn (D467).
+// rule that decides whether it is drawn (D472).
 //
 // D368 took the purchase funnel out of the binary: a call to action inside
 // an app that leads to a purchase outside it is what Apple's guideline

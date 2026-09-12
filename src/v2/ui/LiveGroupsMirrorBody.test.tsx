@@ -428,6 +428,12 @@ describe("LiveGroupsMirrorBody · Scores: how the group rates itself", () => {
     openTab("Scores");
     expect(panel().textContent).toMatch(/Couldn’t read this room’s rounds/);
     expect(panel().textContent).not.toMatch(/No ratings yet/);
+    // …AND THE COUNT ABOVE IT, which sat outside both guards and printed
+    // "0 of 4 rated" — a numerator meaning "we could not ask" over a
+    // denominator off the device's own bank, one line above the sentence
+    // saying the read failed.
+    expect(panel().textContent, "a ratio was stated over a read that did not happen")
+      .not.toMatch(/0 of \d+ rated/);
   });
 
   it("draws a pole row per rating, strongest lean first, and opens onto the count", () => {
@@ -529,5 +535,23 @@ describe("LiveGroupsMirrorBody · Compare: your profile against theirs, and how 
     expect(panel().textContent).toMatch(/No roles yet — the next vote could change that/);
     expect(panel().textContent).not.toMatch(/the room named you/);
     expect(panel().textContent).not.toMatch(/0 of 0/);
+  });
+
+  it("says the read failed on Compare too, not that nobody has been cast", async () => {
+    // The roles list is empty for both "nobody has been named" and "the
+    // rounds could not be read", and this card was the one lens card the
+    // stop handed neither state to — so it said the first about the
+    // second, under a header naming the room, on a stop whose own kicker
+    // already says the read failed. The bar below it hides itself
+    // correctly in the same state.
+    // a refused read IS an empty history — that is the whole trap
+    LIVE.social.readFailed = true;
+    LIVE.social.revealHistory = () => [];
+    render(<LiveGroupsMirrorBody />);
+    openTab("Compare");
+    await screen.findByText(/How they see you/);
+    expect(panel().textContent).toMatch(/Couldn’t read this room’s rounds/);
+    expect(panel().textContent, "a refused read was stated as an empty cast list")
+      .not.toMatch(/No roles yet/);
   });
 });
