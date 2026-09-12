@@ -45,16 +45,28 @@
 //      three Sundays running is 3 in a row (D203's fourth honesty rule),
 //      and today's mark rings while the question is still open — the whole
 //      strip is `aria-hidden`, so that ring is the entire channel.
-//   8. THE RHYTHM IS THIS PULSE'S, AND SETTING IT STICKS (D203).
+//   8. THE PIN IS THIS PULSE'S, AND IT SAYS WHAT IT DID (2026-09-12).
+//      This read "the rhythm is this pulse's, and setting it sticks
+//      (D203)" until the cadence was retired the same day the pin
+//      replaced it — see the block that describes the swap. Three pulses
+//      is the ceiling, and a fourth tap that silently did nothing is the
+//      same defect as a wrong reading: the card has to say why.
 //   9. THE READING IS NOT PAID FOR UNTIL YOU ASK FOR IT. The card is
 //      first-screen and the reading is not: the chunk is lazy and the
 //      21-day window is fetched on the tap, which is the arithmetic that
 //      made a five-pulse roster cheaper per open than one pulse used to be.
 //
-// TWO DEFECTS ARE RECORDED HERE RATHER THAN FIXED, both in `data/pulse`
-// and so outside this panel: the rhythm case named "BUG" asserts what the
-// card does today, wrongly; and the reason the missing-question case uses
-// an unknown id instead of an empty bank is the second one.
+// ONE DEFECT IS RECORDED HERE RATHER THAN FIXED, in `data/pulse` and so
+// outside this panel: it is why the missing-question case uses an unknown
+// id instead of an empty bank, and the case says so where it stands.
+//
+// There were TWO until the cadence was retired. The other was a case
+// named "BUG" that asserted, deliberately, what the rhythm control did
+// wrongly — and it went with the five rhythm cases that day, leaving this
+// paragraph pointing a maintainer at a pinned known-defect that no longer
+// exists anywhere in the file. A header is the one part of a suite nobody
+// runs, which is exactly why it has to be moved with the cases it
+// describes.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
