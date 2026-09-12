@@ -100,8 +100,21 @@ export const LOGIC_SEM_ITEMS = 2;
 // "generator" is D31's procedural bank scored by count; "omib" is the Open
 // Matrices Item Bank scored by θ. The bank is a property of the ATTEMPT,
 // stamped at start and honoured at submit whatever this constant says by
-// then — so an attempt straddling the flip scores on the bank it was
+// then — so an attempt straddling the FLIP scores on the bank it was
 // minted on, and both paths are testable without touching this line.
+//
+// A BANK FLIP IS NOT A BANK EDIT, and only the first is covered. `bank`
+// pins which of the two scorers runs; on the generator side `gv` then
+// pins the form, because `clientItems(seed, gv)` takes it. On the OMIB
+// side nothing does: `omibForm(seed)` draws from `usableItems()` as the
+// deployed bank stands at the moment it is called, and no OMIB call site
+// passes `attempt.gv` anywhere. Every stratum is a seeded shuffle over
+// its whole pool, so adding or removing ONE item reshuffles every
+// stratum for every seed — a regeneration deployed mid-attempt rescores
+// open attempts against a different sheet than the one their taker was
+// shown, and the rule is one attempt every thirty days. See the note on
+// `gv` in the attempt record for the two ways out and why neither is a
+// night's work.
 // Phase 1 shipped the OMIB path DARK on "generator", because the overlay of
 // the day sent six-way indexes and would have rendered nothing on a code.
 // Phase 2 (D475) is the screen that answers a code, and flips this with it —
@@ -166,6 +179,25 @@ export interface LogicAttempt {
   status: "open" | "scored";
   /** what the 30-day rule counts from (D478) */
   startedAtMs: number;
+  // `gv` above is the bank's own version, and on the OMIB side NOTHING
+  // READS IT. The comment on `mintAttempt` says `{seed, gv, bank}`
+  // reconstructs the form forever; that is true of the generator, whose
+  // every call site passes `prev.gv`, and false of OMIB, whose form comes
+  // from the deployed bank at call time. The stamp is therefore a record
+  // of which bank an attempt WAS minted on and not yet a key that can
+  // rebuild it.
+  //
+  // TWO WAYS OUT, neither of them small. Keep the form: write the 25 item
+  // codes onto the attempt at mint and score by code rather than by
+  // re-deriving from the seed — exact for an added or reshuffled item,
+  // and it turns a REMOVED one into something detectable instead of
+  // silent; it is a schema change across mint, resume, submit and the
+  // adaptive replay. Or refuse: if `gv` no longer matches, decline to
+  // score and hand the attempt back without spending the thirty days —
+  // smaller, and a product decision about what the taker is told. The
+  // exposure is narrow either way (only an attempt open across a deploy
+  // that changes the bank, over a 90-second sitting), which is why this
+  // is written down rather than improvised.
   deadlineMs: number;
   /** the per-day start counter of D57, retired at D478 — on older documents only */
   dayKey?: string;
