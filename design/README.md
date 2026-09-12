@@ -89,23 +89,29 @@ extracted to `standalone-2026-09-09/` (the ten modules the bundle's own
 hashes say moved, the first extraction measured that way), with the
 plan and the questions at
 [`docs/VISION-2026-09-09.md`](../docs/VISION-2026-09-09.md); it was the
-current vision (D436) and was built the same day (D437); and the
-**2026-09-12** upload (`InSight_19`, titled *Doxa*) names the app —
-*Doxa* in a serif wordmark, *Endoxa* and *inSight* behind a Tweaks
-radio — gives friends a handshake and a *Your friends* overlay with
-four doors to it, puts a trail, Find and a resizable card on the You
-stop's Map, adds two lead sentences to the person page and a leave
-animation to every overlay, and labels the daily's modes *Groups ·
-1v1s*; extracted to `standalone-2026-09-12/` (the 38 modules that
-moved against every whole record, measured on the AST with a recipe
-the directory carries — this bundle carries no hashes of its own, so
-the README says how the next one is diffed), with the plan and the
-three owner questions at
+current vision (D436) and was built the same day (D437); and **two
+uploads on 2026-09-12**. The first, `inSight_18` (the owner's own file
+name — sixteen and seventeen were never uploaded here), arrived in
+the naming session and carried one thing, the NAME: the app is
+**Doxa**, set in DM Serif Display with the x in the tab accent —
+recorded in `standalone-2026-09-12/wordmark.css` as the wordmark's
+rules and markup, and built by D472 in the same commit, the shells,
+the store listing and the web pages with it. The second, `InSight_19`
+(titled *Doxa*), is a design: the name behind a brand module with
+*Endoxa* and *inSight* behind a Tweaks radio, friends with a handshake
+and a *Your friends* overlay with four doors to it, a trail, Find and
+a resizable card on the You stop's Map, two lead sentences on the
+person page, a leave animation on every overlay, and the daily's modes
+labelled *Groups · 1v1s*; extracted to the same `standalone-2026-09-12/`
+(the 38 modules that moved against every whole record, measured on
+the AST with a recipe the directory carries — this bundle carries no
+hashes of its own, so the README says how the next one is diffed),
+with the plan and the owner questions at
 [`docs/VISION-2026-09-12.md`](../docs/VISION-2026-09-12.md); it is the
-current vision (D-2026-09-12a), built the same day once the owner picked
-the name and the labels — the amendment on that decision records what
-departed. Each directory README is its inventory; none re-points this
-file.
+current vision (D-2026-09-12d), built the same day once the owner
+picked the name and the labels — the amendment on that decision
+records what departed. Each directory README is its inventory; none
+re-points this file.
 
 **One directory here is not an app prototype at all**:
 `identity-2026-08-26/` is the owner's identity canvas — the iris mark,

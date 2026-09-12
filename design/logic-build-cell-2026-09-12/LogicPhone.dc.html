@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @font-face{font-family:'Hanken Grotesk';font-style:normal;font-weight:400 800;font-display:swap;src:url("fonts/hanken-latin.woff2") format('woff2');}
+    body{margin:0;}
+    a{color:inherit;} a:hover{color:inherit;}
+  </style>
+</helmet>
+<div data-screen-label="{{ label }}" style="--surface: {{ T.surface }}; --surface-2: {{ T.surface2 }}; --surface-3: {{ T.surface3 }}; --rule: {{ T.rule }}; --ink: {{ T.ink }}; --ink-2: {{ T.ink2 }}; --ink-3: {{ T.ink3 }}; --acc: {{ T.acc }}; --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1); width: 402px; height: 874px; font-family: 'Hanken Grotesk', -apple-system, system-ui, sans-serif; color: var(--ink);">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ dark }}" hint-size="402px,874px">
+    <div style="height: 100%; box-sizing: border-box; padding-top: 62px; display: flex; flex-direction: column; background: color-mix(in oklab, var(--surface) 94%, var(--acc)); color: var(--ink); position: relative; overflow: hidden;">
+      <div style="height: 44px; flex-shrink: 0; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 30%);">
+        <div style="width: 32px; height: 32px; border-radius: 50%; border: 0.5px solid var(--rule); background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--ink);">✕</div>
+        <div style="font-size: 19px; font-weight: 800; letter-spacing: -0.03em;">Logic</div>
+        <div style="width: 48px; text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; color: var(--ink-3);">{{ clock }}</div>
+      </div>
+      <div style="flex: 1; min-height: 0; padding: 12px 18px 0; display: flex; flex-direction: column;">
+        <sc-if value="{{ isItem }}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; gap: 4px; height: 4px; flex-shrink: 0;">
+            <sc-for list="{{ segs }}" as="s" hint-placeholder-count="12">
+              <div style="flex: 1; border-radius: 2px; overflow: hidden; background: {{ s.track }}; transition: background 0.3s ease;">
+                <div style="height: 100%; width: {{ s.w }}; background: {{ s.fill }}; transition: width 0.1s linear;"></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isExample }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); height: 16px; line-height: 16px;">Worked example · not timed</div>
+        </sc-if>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; width: {{ gridW }}px; margin: 14px auto 0; flex-shrink: 0;">
+          <sc-for list="{{ cells }}" as="c" hint-placeholder-count="9">
+            <div style="aspect-ratio: 1; box-sizing: border-box; border-radius: 10px; padding: 6px; background: {{ c.bg }}; border: {{ c.bd }}; box-shadow: {{ c.ring }}; transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;">
+              <svg viewBox="0 0 72 72" style="width: 100%; height: 100%; display: block; overflow: visible;">
+                <sc-for list="{{ c.shapes }}" as="s" hint-placeholder-count="0">
+                  <path d="{{ s.d }}" style="fill: {{ s.fill }}; stroke: {{ s.stroke }}; stroke-width: {{ s.sw }}; stroke-linecap: round; stroke-linejoin: round; opacity: {{ s.op }}; transform: {{ s.tf }}; transform-box: fill-box; transform-origin: center; transition: opacity 0.18s ease, transform 0.3s var(--ease-spring), fill 0.3s ease, stroke 0.3s ease;"></path>
+                </sc-for>
+              </svg>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-top: 8px; min-height: 22px; flex-shrink: 0;">
+          <sc-if value="{{ isExample }}" hint-placeholder-val="{{ false }}">
+            <div style="flex: 1; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty;">Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.</div>
+          </sc-if>
+          <sc-if value="{{ isItem }}" hint-placeholder-val="{{ true }}">
+            <div style="flex: 1;"></div>
+          </sc-if>
+          <button onClick="{{ onClear }}" style="appearance: none; -webkit-appearance: none; border: none; background: none; margin: 0; padding: 2px 4px; font-family: inherit; font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-3); cursor: pointer; opacity: {{ clearOp }}; pointer-events: {{ clearPe }}; transition: opacity 0.18s ease; line-height: 18px;">Clear</button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 8px; flex-shrink: 0; opacity: {{ palOp }}; transition: opacity 0.3s ease;">
+          <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="20">
+            <button onClick="{{ t.tap }}" style="appearance: none; -webkit-appearance: none; margin: 0; aspect-ratio: 1; box-sizing: border-box; border-radius: 10px; padding: 5px; cursor: pointer; background: {{ t.bg }}; border: {{ t.bd }}; transition: background 0.16s ease, border-color 0.16s ease, transform 0.18s var(--ease-spring);" style-active="transform: scale(0.93);">
+              <svg viewBox="0 0 72 72" style="width: 100%; height: 100%; display: block; overflow: visible;">
+                <path d="{{ t.d }}" style="fill: {{ t.fill }}; stroke: {{ t.stroke }}; stroke-width: {{ t.sw }}; stroke-linecap: round; stroke-linejoin: round; transition: fill 0.16s ease, stroke 0.16s ease;"></path>
+              </svg>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ isItem }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ onDone }}" style="margin-top: 16px; height: 52px; flex-shrink: 0; border-radius: 999px; appearance: none; -webkit-appearance: none; border: {{ doneBd }}; background: {{ doneBg }}; color: {{ doneColor }}; font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: 0.01em; cursor: pointer; transform: {{ doneTf }}; transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.16s var(--ease-spring);" style-active="transform: scale(0.98);">Done</button>
+        </sc-if>
+        <sc-if value="{{ isExample }}" hint-placeholder-val="{{ false }}">
+          <button style="margin-top: 16px; height: 52px; flex-shrink: 0; border-radius: 999px; appearance: none; -webkit-appearance: none; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: 0.01em; cursor: pointer; transition: transform 0.16s var(--ease-spring);" style-active="transform: scale(0.98);">Start</button>
+        </sc-if>
+      </div>
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:874},&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;item&quot;,&quot;example&quot;],&quot;default&quot;:&quot;item&quot;,&quot;tsType&quot;:&quot;'item' | 'example'&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light' | 'dark'&quot;},&quot;puzzle&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;max&quot;:2,&quot;tsType&quot;:&quot;number&quot;},&quot;placed&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;number[]&quot;},&quot;phase&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;building&quot;,&quot;pressed&quot;,&quot;committed&quot;],&quot;default&quot;:&quot;building&quot;,&quot;tsType&quot;:&quot;'building' | 'pressed' | 'committed'&quot;},&quot;itemIndex&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;min&quot;:0,&quot;max&quot;:11,&quot;tsType&quot;:&quot;number&quot;},&quot;left&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.7,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;},&quot;clock&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;11:52&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;live&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;selectedStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;accent&quot;,&quot;inverted&quot;],&quot;default&quot;:&quot;accent&quot;,&quot;tsType&quot;:&quot;'accent' | 'inverted'&quot;},&quot;grid&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;large&quot;,&quot;match&quot;],&quot;default&quot;:&quot;large&quot;,&quot;tsType&quot;:&quot;'large' | 'match'&quot;}}">
+const SHAPES = [
+  // OMIB's element ids, in OMIB's order — every family counter-clockwise, arrows
+  // pointing OUT — each path the bank's own drawing.js polygon scaled into 6..66.
+  // Derived, not drawn: src/v2/data/omib-shapes.ts is the source and its test
+  // holds both copies to drawing.js. (The 2026-09-12 upload had these in reading
+  // order with the arrows pointing in; see the README.)
+  {d:'M6 6L21 6L6 21Z',k:'f'},{d:'M21 66L6 66L6 51Z',k:'f'},{d:'M66 51L66 66L51 66Z',k:'f'},{d:'M51 6L66 6L66 21Z',k:'f'},
+  {d:'M13.5 36L36 13.5',k:'l'},{d:'M13.5 36L36 58.5',k:'l'},{d:'M36 58.5L58.5 36',k:'l'},{d:'M36 13.5L58.5 36',k:'l'},
+  {d:'M28.5 6L43.5 6L43.5 13.5L28.5 13.5Z',k:'f'},{d:'M6 28.5L6 43.5L13.5 43.5L13.5 28.5Z',k:'f'},{d:'M28.5 58.5L43.5 58.5L43.5 66L28.5 66Z',k:'f'},{d:'M58.5 28.5L58.5 43.5L66 43.5L66 28.5Z',k:'f'},
+  {d:'M30 30L42 30L42 42L30 42Z',k:'f'},{d:'M30 30L42 30L42 42L30 42Z',k:'s'},{d:'M30 36a6 6 0 1 0 12 0a6 6 0 1 0 -12 0Z',k:'f'},{d:'M30 36a6 6 0 1 0 12 0a6 6 0 1 0 -12 0Z',k:'s'},
+  {d:'M36 13.5L28.5 21L43.5 21Z',k:'f'},{d:'M13.5 36L21 28.5L21 43.5Z',k:'f'},{d:'M36 58.5L28.5 51L43.5 51Z',k:'f'},{d:'M58.5 36L51 28.5L51 43.5Z',k:'f'}
+];
+// palette reads column = family, row = member
+const TILE_ORDER = [];
+for (let r = 0; r < 4; r++) for (let f = 0; f < 5; f++) TILE_ORDER.push(f * 4 + r);
+// 9 cells per puzzle; the 9th is the solution
+const PUZZLES = [
+  [[0],[14],[0,14],[8],[7],[8,7],[2,17],[13],[2,17,13]],
+  [[0,3,4,7,5],[1,7],[0,3,1,4,5],[2,7,6],[0,6],[0,2,7],[0,1,4,7,6],[3,4],[0,3,1,7,6]],
+  [[12,16],[12,19],[12,16,19],[15,17],[15,18],[15,17,18],[13,16],[13,18],[13,16,18]]
+];
+const THEMES = {
+  light: {surface:'oklch(0.965 0.004 75)', surface2:'oklch(0.994 0.0025 80)', surface3:'oklch(0.936 0.005 74)', rule:'oklch(0.905 0.006 74)', ink:'oklch(0.216 0.011 70)', ink2:'oklch(0.41 0.011 68)', ink3:'oklch(0.472 0.010 68)', acc:'oklch(0.52 0.14 195)'},
+  dark: {surface:'oklch(0.19 0.006 70)', surface2:'oklch(0.25 0.007 70)', surface3:'oklch(0.30 0.008 70)', rule:'oklch(0.33 0.008 70)', ink:'oklch(0.94 0.006 80)', ink2:'oklch(0.80 0.008 75)', ink3:'oklch(0.66 0.010 72)', acc:'oklch(0.74 0.11 195)'}
+};
+const ITEM_MS = 30000, TEST_MS = 12 * 60000, N_ITEMS = 12;
+const paint = (s, col) => ({d: s.d, fill: s.k === 'f' ? col : 'none', stroke: s.k === 'f' ? 'none' : col, sw: s.k === 'l' ? 2.8 : 2.2});
+const fmt = ms => { const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000); return m + ':' + String(s).padStart(2, '0'); };
+
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { placed: p.placed || [], phase: 'building', pz: Number(p.puzzle) || 0, item: Number(p.itemIndex) || 0, left: 1, clockMs: TEST_MS };
+  }
+  componentDidMount() {
+    if (!this.props.live) return;
+    this.t0 = Date.now(); this.test0 = Date.now();
+    this.iv = setInterval(() => {
+      const left = Math.max(0, 1 - (Date.now() - this.t0) / ITEM_MS);
+      const clockMs = Math.max(0, TEST_MS - (Date.now() - this.test0));
+      this.setState({ left, clockMs });
+      if (left <= 0 && this.state.phase === 'building') this.commit();
+    }, 100);
+  }
+  componentWillUnmount() { clearInterval(this.iv); clearTimeout(this.to); }
+  toggle(id) {
+    if (this.state.phase !== 'building') return;
+    this.setState(s => ({ placed: s.placed.includes(id) ? s.placed.filter(x => x !== id) : [...s.placed, id] }));
+  }
+  commit() {
+    if (this.state.phase !== 'building') return;
+    this.setState({ phase: 'committed' });
+    this.to = setTimeout(() => {
+      this.setState(s => {
+        const item = s.item + 1;
+        if (item >= N_ITEMS) this.test0 = Date.now();
+        return { phase: 'building', placed: [], pz: (s.pz + 1) % PUZZLES.length, item: item % N_ITEMS };
+      });
+      this.t0 = Date.now();
+    }, 520);
+  }
+  renderVals() {
+    const P = this.props, S = this.state;
+    const live = !!P.live, mode = P.mode || 'item', isExample = mode === 'example', isItem = !isExample;
+    const interactive = live || isExample;
+    const theme = P.theme === 'dark' ? 'dark' : 'light';
+    const T = THEMES[theme];
+    const pz = live ? S.pz : (Number(P.puzzle) || 0);
+    const puzzle = PUZZLES[pz % PUZZLES.length];
+    const placed = interactive ? S.placed : (P.placed || []);
+    const phase = live ? S.phase : (P.phase || 'building');
+    const committed = phase === 'committed', building = !committed, pressed = phase === 'pressed';
+    const inverted = P.selectedStyle === 'inverted';
+    const ACC = 'var(--acc)', INK = 'var(--ink)';
+    const idx = live ? S.item : (Number(P.itemIndex) || 0);
+    const left = live ? S.left : (P.left != null ? Number(P.left) : 1);
+    const segs = Array.from({ length: N_ITEMS }, (_, i) => {
+      const done = i < idx || (i === idx && committed), cur = i === idx && !committed;
+      return { track: done ? INK : 'var(--rule)', fill: cur ? ACC : 'transparent', w: cur ? (Math.round(left * 1000) / 10) + '%' : '0%' };
+    });
+    const clock = isExample ? '' : (live ? fmt(S.clockMs) : (P.clock || '12:00'));
+    const cells = puzzle.slice(0, 8).map(ids => ({ shapes: ids.map(id => ({ ...paint(SHAPES[id], INK), op: 1, tf: 'none' })), bg: 'var(--surface-2)', bd: '1.5px solid var(--rule)', ring: 'none' }));
+    const ansCol = committed ? INK : ACC, has = placed.length > 0;
+    cells.push({
+      shapes: SHAPES.map((s, id) => { const on = placed.includes(id); return { ...paint(s, ansCol), op: on ? 1 : 0, tf: on ? 'none' : 'scale(0.5)' }; }),
+      bg: (has || committed) ? 'var(--surface-2)' : 'transparent',
+      bd: committed ? '1.5px solid var(--rule)' : has ? '1.5px solid var(--acc)' : '1.5px dashed color-mix(in oklab, var(--acc) 70%, var(--rule))',
+      ring: (has && !committed) ? '0 0 0 3px color-mix(in oklch, var(--acc) 18%, transparent)' : 'none'
+    });
+    const tiles = TILE_ORDER.map(id => {
+      const on = placed.includes(id) && !committed;
+      const col = !on ? INK : inverted ? 'var(--surface-2)' : ACC;
+      return { ...paint(SHAPES[id], col),
+        bg: on ? (inverted ? INK : 'color-mix(in oklab, var(--acc) 12%, var(--surface-2))') : 'var(--surface-2)',
+        bd: '1.5px solid ' + (on ? (inverted ? INK : ACC) : 'var(--rule)'),
+        tap: interactive && building ? () => this.toggle(id) : undefined };
+    });
+    const active = has && building;
+    return {
+      T, dark: theme === 'dark', label: (isExample ? 'Worked example' : 'Item ' + (idx + 1)) + ' · ' + theme,
+      isItem, isExample, clock, segs, cells, tiles,
+      gridW: P.grid === 'match' ? 217 : 258,
+      clearOp: active ? 1 : 0, clearPe: active ? 'auto' : 'none',
+      onClear: interactive ? () => this.setState({ placed: [] }) : undefined,
+      palOp: committed ? 0.45 : 1,
+      doneBg: active ? (pressed ? 'color-mix(in oklab, var(--ink) 86%, var(--surface))' : INK) : 'transparent',
+      doneColor: active ? 'var(--surface)' : 'var(--ink-3)',
+      doneBd: '1px solid ' + (active ? INK : 'var(--rule)'),
+      doneTf: pressed ? 'scale(0.97)' : 'none',
+      onDone: live && active ? () => this.commit() : undefined
+    };
+  }
+}
+</script>
+</body>
+</html>

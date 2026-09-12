@@ -10,7 +10,7 @@
 // Values are plausible-but-synthetic; the user (Mira, 34, f) is marked where
 // the audience contains peers so age bands can show a "you" pin.
 // The name reaches the card titles through data/brand.ts (2026-09-12,
-// D-2026-09-12a): read once at module load, like the rest of this table —
+// D-2026-09-12d): read once at module load, like the rest of this table —
 // the DEV radio's runtime pick shows here after a reload, which is what
 // the design's own `BRAND_NAME` read did too.
 import { brandName } from '../data/brand.ts';

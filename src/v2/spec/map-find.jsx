@@ -1,5 +1,5 @@
 // map-find.jsx — the Map's wayfinding pieces (VISION-2026-09-12 §3,
-// D-2026-09-12a): the card's grab bar, its prev/next through siblings,
+// D-2026-09-12d): the card's grab bar, its prev/next through siblings,
 // and the Find results card. Extracted from the 2026-09-12 standalone
 // (design/standalone-2026-09-12/map-find.jsx) and converted on arrival —
 // named exports, no window publication, imported by map-tab.jsx alone.

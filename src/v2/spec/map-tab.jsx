@@ -426,7 +426,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const [hlCat, setHlCat] = useState(null); // spotlit branch id
   const [pairA, setPairA] = useState(null); // active group filter on the answer card
 
-  // ── wayfinding state (VISION-2026-09-12 §3, D-2026-09-12a) ──────────────
+  // ── wayfinding state (VISION-2026-09-12 §3, D-2026-09-12d) ──────────────
   // The coach hints: 0 = first arrival, the first hint owed · 0.5 = it has
   // shown, the second still owed · 1 = the second showing (a group opened)
   // · 2 = both done, remembered. Nine seconds or a tap each.

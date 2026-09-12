@@ -19,6 +19,7 @@ import {
   logicSecs,
   saveResult,
   type LogicResult,
+  LOGIC_RETAKE_DAYS,
 } from "./logic-score";
 
 beforeEach(() => localStorage.clear());
@@ -137,5 +138,17 @@ describe("logicBandFor (the likely range — D402)", () => {
     expect(logicBandFor(0, 25)).toEqual([1, logicPctileFor(2 / 25, 25)]);
     // a legacy 12-item result reads through its own curve
     expect(logicBandFor(6, 12)).toEqual([logicPctile(4 / 12), logicPctile(8 / 12)]);
+  });
+});
+
+// ── one attempt every 30 days (D478), mirrored from the server ────────────
+describe("the retake interval and a resumed attempt's pace", () => {
+  it("carries the server's 30 days (functions/src/logic.ts LOGIC_REVERIFY_DAYS, pinned there too)", () => {
+    expect(LOGIC_RETAKE_DAYS).toBe(30);
+  });
+  it("paces a resumed attempt on the items this device timed, and the modelled median if it timed none", () => {
+    expect(logicSecs({ marks: [true, true, true], times: [null, null, 4000], when: 1 } as never)).toBe(4);
+    expect(logicSecs({ marks: [true], times: [null], when: 1 } as never)).toBe(FIELD_MED);
+    expect(logicSecs({ marks: [true, true], times: [2000, 6000], when: 1 } as never)).toBe(4);
   });
 });

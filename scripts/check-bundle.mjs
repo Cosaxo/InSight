@@ -1115,12 +1115,14 @@ const MAX_TOTAL_JS_KB = 2440;
 // whole complaint is that a ceiling pinned at the measurement makes every
 // merge a renegotiation — the one useful thing a later merge can add is
 // the number it actually measured, rather than another argument.
-// 555 → 557 on 2026-09-12: the name (data/brand.ts, read by the wordmark
-// on first paint — D-2026-09-12a's amendment) and the overlays' leave hold
-// (primitives.jsx's useLeaveHold, wired in app-shell). Both are first-paint
-// by nature; the same day's sub-tab swipe was kept OFF this graph
-// (spec/sub-swipe.js, the deferred profile's own import) for this reason.
-const MAX_EAGER_KB = 557;
+// 555 → 558 on 2026-09-12: the name (data/brand.ts, read by the wordmark
+// on first paint — D-2026-09-12d's amendment) and the overlays' leave hold
+// (primitives.jsx's useLeaveHold, wired in app-shell), measured at 557 on
+// the branch and a fraction over it once main's ask-door stub (D-2026-09-12c)
+// joined the entry at the merge. Both are first-paint by nature; the same
+// day's sub-tab swipe was kept OFF this graph (spec/sub-swipe.js, the
+// deferred profile's own import) for this reason.
+const MAX_EAGER_KB = 558;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

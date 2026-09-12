@@ -37,16 +37,18 @@ import { FEEDREAD } from './feed-read.js';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
-// The name (2026-09-12, D-2026-09-12a): the wordmark, the tab title and
+// The name (2026-09-12, D-2026-09-12d): the wordmark, the tab title and
 // every self-reference read data/brand.ts; the DEV radio below moves it.
 import { BRAND_DEFAULT, brandOf, setBrand } from '../data/brand.ts';
 // The buyer's room (PAID-PLAN §7, D288) — its own lazy chunk, not part of
 // the spec overlay group: typed, and nothing on first paint pays for it.
 const AskedByYouLazy = React.lazy(() => import('../ui/AskedByYouOverlay'));
-// Your friends (VISION-2026-09-12 §2.3, D-2026-09-12a) — the same shape,
+// Your friends (VISION-2026-09-12 §2.3, D-2026-09-12d) — the same shape,
 // and in LIVE_OVERLAYS so `NAV.openOverlay('friends')` is its door from
 // anywhere: the 1v1 sheet, search, the profile header, the person page.
 const FriendsLazy = React.lazy(() => import('../ui/LiveFriendsOverlay'));
+import { askDoorOffered } from '../data/askDoor';
+const AskDoorLazy = React.lazy(() => import('../ui/AskDoorButton'));
 // R2/D270: the anonymous feature tally — a no-op until initLive arms it,
 // so every demo mount and jsdom suite stays silent without a test flag.
 import * as engagement from '../data/engagement';
@@ -95,7 +97,7 @@ function MirrorSlot(props) {
     let live = true;
     import('./mirror-tab.jsx')
       .then((m) => { rememberMirror(m); if (live) setTab(() => m.MirrorTab); })
-      .catch((e) => { console.error('[InSight] mirror chunk failed to load:', e); });
+      .catch((e) => { console.error('[Doxa] mirror chunk failed to load:', e); });
     return () => { live = false; };
   }, [Tab]);
   return Tab ? <Tab {...props} /> : null;
@@ -117,7 +119,7 @@ const DevTweaks = import.meta.env.DEV
         <m.TweaksPanel>
           {/* The three names the 2026-09-12 design carries — Doxa ships;
               Endoxa and inSight are here for a comparison or a screenshot
-              (D-2026-09-12a). Tweak state, not persisted: data/brand.ts. */}
+              (D-2026-09-12d). Tweak state, not persisted: data/brand.ts. */}
           <m.TweakSection label="Brand" />
           <m.TweakRadio label="Name" value={t.brand}
             options={[{ value: 'doxa', label: 'Doxa' }, { value: 'endoxa', label: 'Endoxa' }, { value: 'insight', label: 'inSight' }]}
@@ -243,7 +245,7 @@ const NAV_ONE = [
 // system: its lens dial (short labels; the in-page ruler keeps the long
 // ones) takes the wordmark's place when its ruler folds. One dock slot,
 // two riders (VISION-2026-09-06 §3).
-// World · Groups · 1v1s since the 2026-09-12 design (D-2026-09-12a): the
+// World · Groups · 1v1s since the 2026-09-12 design (D-2026-09-12d): the
 // owner's word, twice — ROUNDS-PLAN §9 recorded that *Circle* is the
 // Mirror's stop over the follow graph and a wrong name for a room, and the
 // upload labels the modes this way. The ids keep their historical names.
@@ -271,7 +273,7 @@ class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { err: null }; }
   static getDerivedStateFromError(err) { return { err }; }
   componentDidCatch(err, info) {
-    console.error('[InSight] boundary caught:', err, info && info.componentStack);
+    console.error('[Doxa] boundary caught:', err, info && info.componentStack);
     // React swallows what a boundary catches, so Sentry's global handlers
     // never see these — and a screen dying to "This view hit a snag" is the
     // most user-visible failure the app has. Report it explicitly; the send
@@ -522,7 +524,7 @@ export function App() {
     try {
       await window.loadOverlays();
     } catch (e) {
-      console.error('[InSight] overlay chunk failed to load:', e);
+      console.error('[Doxa] overlay chunk failed to load:', e);
       return;
     }
     open();
@@ -806,7 +808,10 @@ export function App() {
                   so a palette retune cannot strand this the way it
                   stranded the old icon's sienna. The wordmark span is
                   load-bearing: h-title is a flex row, and bare text here
-                  would let the gap split "In" from "Sight". */}
+                  would let the gap split "Do" from "xa". The wordmark is
+                  Doxa in DM Serif Display since D472 — the one serif in
+                  the chrome, drawn by .wm-serif — and the x is the <em>,
+                  so it takes the tab accent the way "Sight" did. */}
               <svg viewBox="0 0 100 100" width="21" height="21" aria-hidden="true">
                 <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" strokeWidth="3.4" strokeLinejoin="round"/>
                 <circle cx="50" cy="24" r="10" fill="var(--c-today)"/>
@@ -863,11 +868,30 @@ export function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             <PassiveMeter />
-            {/* The ask-a-question door was here until D368. Shape A moved
-                buying to the web, so the app carries no purchase call to
-                action at all — that is the whole point of the decision,
-                and a "+" one tap from anywhere was the most exposed of
-                its five entry points. */}
+            {/* The ask-a-question door — back, on Android only (D-2026-09-12c).
+                D368 took it out of the binary because a purchase call to
+                action inside an app is what Apple's anti-steering rule
+                polices, and a "+" one tap from anywhere was the most
+                exposed of its five entry points. Play does not police
+                ad-type spend the same way, so the Android build gets the
+                "+" back and it opens the WEB door in the system browser —
+                no composer, no billing, no product in the app. The iOS
+                build asks the platform and draws nothing; data/askDoor.ts
+                is the rule and ask-door-platform.test.jsx mounts the App
+                as iOS to prove it. Same class and glyph weight as Search,
+                because it is a peer of it, not a promotion. */}
+            {/* The body is a lazy chunk (ui/AskDoorButton.tsx): the eager
+                graph sat 484 bytes under check:bundle's ceiling and the
+                door was 619 (askDoor.ts's header has the arithmetic). The
+                fallback is null, not a same-size slot — the slot cost 75
+                eager bytes of a 38-byte deficit, and on native Capacitor
+                serves the chunk from the app's own bundle, so the import
+                resolves within a tick and there is no gap to hold. */}
+            {askDoorOffered() && (
+              <React.Suspense fallback={null}>
+                <AskDoorLazy />
+              </React.Suspense>
+            )}
             <button className="icon-btn" aria-label="Search" onClick={() => openDeferred(() => { closeAll(); setOv('search'); })}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
             </button>

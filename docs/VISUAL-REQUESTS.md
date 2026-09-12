@@ -390,54 +390,6 @@ that lets a buyer read them.
   price they do not pay.
 - **status** — `requested`.
 
-### 8 · The logic test's worked example — one solved matrix before item 1
-
-- **title · asked by** — *How a matrix works* · a session, 2026-09-06
-  (D402), the one administration step matrix tests take that the Logic
-  overlay does not.
-- **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), between
-  opening it and the first puzzle. Today the overlay opens straight into
-  item 1; the two weight-1 items double as the instruction, which means
-  a first-time taker spends real items learning the format and the
-  floor of the scale carries that cost. A verified attempt (D57) opens
-  the same way, on the clock.
-- **data and basis** — nothing live. One fixed, hand-picked matrix in
-  the generator's vocabulary (a shape cycle is the natural one: three
-  shapes, each once per row and column), drawn with its answer ALREADY
-  in the goal cell and the five distractors shown struck or dimmed, so
-  the reader sees a solved one before they are asked to solve one. No
-  answer key ships: the example is not a generated item and is never a
-  scored one. D1's empty state does not arise.
-- **states** — **first open** (no saved result on the device): the
-  example, then *Begin*. **Return** (a saved result exists): the result
-  screen as today, with the example reachable from a small row —
-  *see how a matrix works* — never in the way of Retake or Verified.
-  **Verified attempt**: the example is shown BEFORE `logicStartV2` is
-  called, so no clock is running while it is read. **Demo**: identical;
-  the example depends on nothing live.
-- **interaction** — one tap on *Begin* starts the attempt. Optionally,
-  tapping the struck options could say in one line why each is wrong
-  (*already in this row*, *wrong size*) — the same five words the
-  generator's mutant comments use — but the request is for the picture
-  first; D182's order.
-- **vocabulary** — the overlay's own tiles (`tileBase`, `Matrix`, the
-  raised option buttons), the test's accent (`LOGIC_COL`, the Likeness
-  colour), the kickers *The pattern* / *Pick what fills the ?* it already
-  uses. The standalone family in `design/standalone-2026-08-20/` for the
-  card and button shapes. Copy under D182: the picture carries the
-  instruction; one sentence at most.
-- **constraints** — the overlay is a lazy chunk (`loadOverlays()`), so
-  the cost is bytes in that chunk only; `check:bundle`'s ceiling is
-  the whole app's, not the chunk's. No reads. Tap targets per
-  `check:tap-targets`. The example's matrix must be renderable by
-  `Prim` as it stands — no new glyphs for the example alone.
-- **why** — the tests axiom (`AXIOMS.md`, operational): tst-3's ability
-  link function says guessing and ceilings matter for logic, and a
-  format-learning cost on the first items is floor noise that a
-  worked example removes. D402 recorded this as the one administration
-  step deferred, and as a screen rather than a control, so it is a
-  request under D352 rather than a build.
-- **status** — `requested`.
 ### 9 · The front door — one screen, three ways in
 
 - **asked by** — the owner, 2026-09-07: *"i think this app defenenetly
@@ -521,9 +473,112 @@ that lets a buyer read them.
 
 ## Designed
 
-_(none — 5 and 6 were built at D437 and moved below)_
-
 ## Built
+
+### 14 · The logic test's answer, built rather than picked — OMIB's construction format
+
+- **title · asked by** — *Build the missing cell* · the owner, 2026-09-11,
+  choosing the Open Matrices Item Bank over three alternatives (D473),
+  on the requirement that the items be *"correct from the start"*.
+- **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), the ITEM
+  screen: today a 3×3 matrix above a row of six raised option tiles,
+  answered with one tap. OMIB's items are not answered that way — the
+  taker constructs the missing cell by selecting a subset of **20 figural
+  elements**. The tiles and their single tap do not survive the change.
+  Request 8 (the worked example) sits directly upstream and should be
+  designed against THIS format, not the retiring one; if both are drafted,
+  draft them together or 8 will teach a screen that no longer exists.
+- **data and basis** — one OMIB item: its eight visible cells, its element
+  palette, and its published difficulty. Nothing live, no aggregate, no
+  read. The answer key never reaches the device — the server mints the
+  form and scores the picks (D57), so what the screen holds is a
+  SELECTION, not a judgement about it. D1's empty state does not arise.
+- **states** — **untouched** (goal cell empty) · **partial** (some elements
+  placed — a state the tile pick never had, and the one that decides
+  whether this screen is legible) · **complete** · **submitted**. Over all
+  four: the per-item clock and the attempt deadline the overlay already
+  runs, and the verified path's server deadline.
+- **interaction** — the centre of this request, because the tile pick has
+  no answer to any of it: placing an element, REMOVING one, and knowing
+  when you are finished. Tap-to-toggle on the palette with the goal cell
+  composing live is the cheapest shape; drag-and-drop is the other, and
+  costs more on a phone. Whatever it is, "I am done" must never be
+  ambiguous — there is no Next until the taker says so, and a mis-tap must
+  be undoable without losing the rest of the cell.
+- **vocabulary** — the overlay's own tiles and accent (`LOGIC_COL`), the
+  standalone family in `design/standalone-2026-08-20/`, the two palettes
+  of D302, the copy rule D182. **CORRECTED 2026-09-11, once the archive was
+  read** (D473's amendment): this paragraph said OMIB items are pictures
+  the overlay would have to import. They are not. An item is nine cells
+  over **twenty construction elements** — a corner triangle, a diagonal
+  line, an edge box, a centre shape, an edge arrow, each in four variants
+  — so the overlay COMPOSES an OMIB item exactly as it composes a
+  generated one, and the design's job is one vocabulary rather than two.
+  The twenty are the palette the taker picks from and the alphabet the
+  matrix is written in, which is a gift to the screen: the same shapes
+  appear in both halves.
+- **constraints** — the artwork worry this paragraph opened with is gone
+  with it: the whole bank is a 116 KB JSON of bit codes, so
+  `check:eager-content` and `check:bundle` are satisfied by keeping it out
+  of the first-paint graph, which the lazy overlay chunk already does. What
+  is left is the phone. Twenty elements plus a 3×3 matrix plus a goal cell
+  on a 402px screen, with tap targets per `check:tap-targets` — the
+  request should say what gives when they do not fit, rather than leave it
+  to the build. GPLv3 attribution has to live somewhere a reader can reach.
+- **why** — D473: the items are calibrated before launch, which is what
+  the owner asked for, and the construction format is the price the bank
+  charges. The return is on the scale itself — six options put ~4.2 of 25
+  in the guessing floor, and a constructed answer puts it near zero.
+- **status** — `built` 2026-09-12 (D475), the same day it was designed. Numbered 13 until the 2026-09-12 merge into `main`, where the Map ring's 13 (D464) had landed first — the D299 rule, one register over. `src/v2/spec/logic-test.jsx` is the screen: the board composing the goal cell live from `src/v2/data/omib-shapes.ts`, the palette laid out column = family / row = member with tap-to-toggle, Clear appearing once something is placed, Done committing (dormant while empty, pressable throughout — an item a taker cannot solve is skipped by committing the empty cell rather than by waiting out the clock), the current segment draining over its 90 s with the numeral in the final 20 s, the sitting's remainder in the header, and a time-out that commits the cell as it stands. One attempt on the one screen since D477 — Start IS the verified attempt, `logicStartV2`/`logicSubmitV2` (or `logicNextV2` item by item), the cells the only payload; the practice mode D474 put on the same screen lasted a day (the owner: *"this should be similar to an iq test"*). The two build notes were honoured — the shapes are the bank's, in the bank's order, arrows out (`omib-shapes.test.ts`). Fourteen cases in `logic-overlay.test.jsx`; the smoke mount renders the example. Since D476 the same screen also walks an ADAPTIVE form — one item arriving per Done, the strip drawn at the form's full length from the start, a lost pick held under Retry — behind the server's selection, which is stratified until the §6 report speaks. The graded haptics are wired through `spec/haptics.js` — place `tick`, Done `tap`, remove and the clock's commit silent — felt on Android, silent on iOS until a Capacitor bridge exists (D475 records the correction: this line first said the overlay had no haptic channel). What was designed and NOT built: the drag alternative, which the design itself put second.
+
+### 8 · The logic test's worked example — one solved matrix before item 1
+
+- **title · asked by** — *How a matrix works* · a session, 2026-09-06
+  (D402), the one administration step matrix tests take that the Logic
+  overlay does not.
+- **surface** — the Logic overlay (`src/v2/spec/logic-test.jsx`), between
+  opening it and the first puzzle. Today the overlay opens straight into
+  item 1; the two weight-1 items double as the instruction, which means
+  a first-time taker spends real items learning the format and the
+  floor of the scale carries that cost. A verified attempt (D57) opens
+  the same way, on the clock.
+- **data and basis** — nothing live. One fixed, hand-picked matrix in
+  the generator's vocabulary (a shape cycle is the natural one: three
+  shapes, each once per row and column), drawn with its answer ALREADY
+  in the goal cell and the five distractors shown struck or dimmed, so
+  the reader sees a solved one before they are asked to solve one. No
+  answer key ships: the example is not a generated item and is never a
+  scored one. D1's empty state does not arise.
+- **states** — **first open** (no saved result on the device): the
+  example, then *Begin*. **Return** (a saved result exists): the result
+  screen as today, with the example reachable from a small row —
+  *see how a matrix works* — never in the way of Retake or Verified.
+  **Verified attempt**: the example is shown BEFORE `logicStartV2` is
+  called, so no clock is running while it is read. **Demo**: identical;
+  the example depends on nothing live.
+- **interaction** — one tap on *Begin* starts the attempt. Optionally,
+  tapping the struck options could say in one line why each is wrong
+  (*already in this row*, *wrong size*) — the same five words the
+  generator's mutant comments use — but the request is for the picture
+  first; D182's order.
+- **vocabulary** — the overlay's own tiles (`tileBase`, `Matrix`, the
+  raised option buttons), the test's accent (`LOGIC_COL`, the Likeness
+  colour), the kickers *The pattern* / *Pick what fills the ?* it already
+  uses. The standalone family in `design/standalone-2026-08-20/` for the
+  card and button shapes. Copy under D182: the picture carries the
+  instruction; one sentence at most.
+- **constraints** — the overlay is a lazy chunk (`loadOverlays()`), so
+  the cost is bytes in that chunk only; `check:bundle`'s ceiling is
+  the whole app's, not the chunk's. No reads. Tap targets per
+  `check:tap-targets`. The example's matrix must be renderable by
+  `Prim` as it stands — no new glyphs for the example alone.
+- **why** — the tests axiom (`AXIOMS.md`, operational): tst-3's ability
+  link function says guessing and ceilings matter for logic, and a
+  format-learning cost on the first items is floor noise that a
+  worked example removes. D402 recorded this as the one administration
+  step deferred, and as a screen rather than a control, so it is a
+  request under D352 rather than a build.
+- **status** — `built` 2026-09-12 (D475), in the same artboard and the same commit as 13, which is what kept it from teaching a screen that no longer exists. On a first open the overlay shows the design's own addition puzzle SOLVED — not a bank item, so it teaches without leaking — over the resting palette, one sentence (*Row by row, the third cell holds the first two. Tap a shape to place it; tap it again to remove it.*), and Start, which is the first call to the server; no clock runs. Reachable again from the result screen (*See how a puzzle works*) with a way back. The optional tap-to-explain on struck options was not built: there are no struck options in a constructed-response format, which is the request's own §4 premise dissolving rather than a cut.
 
 ### 13 · A node with more than two answers on the Map ring
 

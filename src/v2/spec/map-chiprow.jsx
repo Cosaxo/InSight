@@ -4,7 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 //
-// THE TRAIL AND FIND (2026-09-12, VISION-2026-09-12 §3, D-2026-09-12a).
+// THE TRAIL AND FIND (2026-09-12, VISION-2026-09-12 §3, D-2026-09-12d).
 // The row's *All* button became a trail that says where you are — *You*,
 // or *‹ You › Everyday* inside a group, the first crumb the way back —
 // and the row's end carries a glass that turns the rail into a field:

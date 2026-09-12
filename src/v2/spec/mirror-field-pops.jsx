@@ -337,7 +337,7 @@ export function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun })
     // fallback here is the field canvas — a real picture, not a blank.
     import('./relmap.jsx')
       .then((m) => { if (live) setRelMap(() => m.RelationshipMap); })
-      .catch((e) => { console.error('[InSight] relationship map chunk failed to load:', e); });
+      .catch((e) => { console.error('[Doxa] relationship map chunk failed to load:', e); });
     return () => { live = false; };
   }, [RelMap, pop]);
 

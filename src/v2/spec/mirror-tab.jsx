@@ -103,7 +103,7 @@ function MapSlot({ onExit }) {
     let live = true;
     import('./map-tab.jsx')
       .then((m) => { if (live) setMapTab(() => m.MapTab); })
-      .catch((e) => { console.error('[InSight] map chunk failed to load:', e); });
+      .catch((e) => { console.error('[Doxa] map chunk failed to load:', e); });
     return () => { live = false; };
   }, [MapTab]);
   return MapTab ? <MapTab onExit={onExit} /> : null;

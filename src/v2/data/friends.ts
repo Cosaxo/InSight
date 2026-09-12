@@ -1,4 +1,4 @@
-// Friends, on D101's rows (VISION-2026-09-12 §2, D-2026-09-12a).
+// Friends, on D101's rows (VISION-2026-09-12 §2, D-2026-09-12d).
 //
 // THE MODEL. The people graph is one row per follow —
 // `v2_users/{uid}/following/{target}` — written by its owner, world-

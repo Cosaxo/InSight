@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// Your friends (VISION-2026-09-12 §2.3, D-2026-09-12a): one overlay over
+// Your friends (VISION-2026-09-12 §2.3, D-2026-09-12d): one overlay over
 // two stores. The demo half plays spec/follows.js's seeded people; the
 // live half draws data/friends.ts's fold of D101's rows. What these hold
 // is that each action reaches the store it should, that a live row offers

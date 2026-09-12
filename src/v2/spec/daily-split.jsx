@@ -55,7 +55,7 @@ function dq(onReady) {
   if (DQ) return DQ;
   loadDQ()
     .then(() => { if (onReady) onReady(); })
-    .catch((e) => { console.error('[InSight] daily-questions chunk failed to load:', e); });
+    .catch((e) => { console.error('[Doxa] daily-questions chunk failed to load:', e); });
   return null;
 }
 // duels-data.js is loaded on demand, not imported — it pulled
@@ -82,7 +82,7 @@ function duels(onReady) {
   if (DUELSTORE) return DUELSTORE;
   loadDuels()
     .then(() => { if (onReady) onReady(); })
-    .catch((e) => { console.error('[InSight] duels chunk failed to load:', e); });
+    .catch((e) => { console.error('[Doxa] duels chunk failed to load:', e); });
   return null;
 }
 import { Sheet } from './primitives.jsx';
@@ -485,7 +485,7 @@ export class DailySplit extends React.Component {
   // because it is the same kind of choice: how far out this answer reaches.
   dailyRuler(mode, accents, badges) {
     const h = React.createElement;
-    // World · Groups · 1v1s since the 2026-09-12 design (D-2026-09-12a; app-shell's DAILY_DOTS says why)
+    // World · Groups · 1v1s since the 2026-09-12 design (D-2026-09-12d; app-shell's DAILY_DOTS says why)
     const STOPS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Groups' }, { id: 'duo', label: '1v1s' }];
     const n = STOPS.length;
     const idx = Math.max(0, STOPS.findIndex((s) => s.id === mode));

@@ -49,7 +49,7 @@ import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
+import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION, SITE_ORIGIN } from "./ops";
 // The day key, offset in days. Was a byte-identical local copy until the
 // two families of `utcDayKey` were separated — see pure.ts's own comment.
 import { utcDayKey } from "./pure";
@@ -148,6 +148,18 @@ async function assertReviewCallBudget(db: Firestore): Promise<void> {
  * since D376, because the door prints it beside a price and a figure
  * printed in two places is one that drifts. */
 export const WINDOW_DAYS = PRICING_CARD.windowDays;
+
+/**
+ * Where Stripe sends the buyer back. Built from the origin rather than
+ * typed, because these two were the counter-example to
+ * `src/v2/data/siteOrigin.ts`'s "single edit" claim: a custom domain
+ * would have moved every link in the app and left the money path
+ * returning buyers to the old .web.app host. See ops.ts's SITE_ORIGIN.
+ */
+export const PAID_RETURN = {
+  success: `${SITE_ORIGIN}/paid-done.html`,
+  cancel: `${SITE_ORIGIN}/paid-cancel.html`,
+} as const;
 
 // ── form bounds, mirrored by value ──────────────────────────────────────
 // The same figures suggestions.ts mirrors from scripts/question-quality.mjs
@@ -442,7 +454,7 @@ export function reviewGates(b: PaidBookingPayload): string | null {
  * unit test can pin that the load-bearing rules are actually in the
  * prompt — a guideline that silently falls out of the instruction is the
  * failure mode of every prompt under edit. */
-export const REVIEW_GUIDELINES = `You review questions submitted to InSight, an opinion-polling app where every answer is public and aggregated. A PAID question is shown to the buyer's chosen audience with a PAID disclosure band naming the audience dims (and the buyer, when they chose to wear their name). Approve unless a guideline below is broken.
+export const REVIEW_GUIDELINES = `You review questions submitted to Doxa, an opinion-polling app where every answer is public and aggregated. A PAID question is shown to the buyer's chosen audience with a PAID disclosure band naming the audience dims (and the buyer, when they chose to wear their name). Approve unless a guideline below is broken.
 
 DECLINE when the submission:
 1. Attacks or demeans a protected group, or harasses anyone.
@@ -1068,7 +1080,7 @@ export function checkoutLineItem(quote: PaidQuote): {
       currency: "eur",
       unit_amount: Math.round(quote.capEur * 100),
       product_data: {
-        name: "InSight paid question",
+        name: "Doxa paid question",
         description:
           `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
           + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
@@ -1253,8 +1265,8 @@ export const createPaidCheckoutV2 = onCall(
       // question's promises — serving tomorrow, answers in Asked by you,
       // the refund at close — were all false of an ad; with one product
       // there is one page again, and every sentence on it is true.)
-      success_url: "https://prvfire33.web.app/paid-done.html",
-      cancel_url: "https://prvfire33.web.app/paid-cancel.html",
+      success_url: PAID_RETURN.success,
+      cancel_url: PAID_RETURN.cancel,
     });
     await snap.ref.update({
       stripe: { sessionId: session.id, at: Timestamp.now() },

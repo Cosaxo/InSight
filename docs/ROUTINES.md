@@ -837,54 +837,77 @@ owners' to write.
 
 ---
 
-## 10 · The paid-question review — chartered 2026-09-11 (D456), NOT created
-
-**No trigger id, because no Routine exists.** This section is a charter,
-not a row: `list_triggers` would not return one, and writing a row with
-an invented id is the failure §7 is about. It becomes a §2–§4 row on the
-account that creates it, in the same PR.
-
-**Why it is chartered rather than created.** The owner ruled that a
-Claude Code Routine should review paid-question bookings instead of a
-per-request `ANTHROPIC_API_KEY` — *"routine is fine"* — accepting that a
-buyer waits for the next firing rather than a few seconds. What stops it
-being created today is that there is nothing for it to review: the money
-path's Stripe keys are unset (runbook 5.14), so no booking can exist. A
-Routine firing hourly against an empty queue for a week is a Routine
-somebody learns to ignore before it ever matters.
-
-**Create it when the first key is set**, not before.
+## 10 · The paid-question review — CREATED 2026-09-12 on the account below
 
 | | |
 | --- | --- |
-| Schedule | hourly is the shape the buyer's wait is written against (`web/ask.html`'s held copy promises no cadence, deliberately — D456 kept it to *"come back to this address"*) |
-| Binding | a fresh session per firing: it carries no state between runs and the queue is the state |
-| Needs | `FIREBASE_SERVICE_ACCOUNT` on the `production` environment — the same secret `observe.yml` and `seed-content.yml` use |
-| Writes | `v2_paid_bookings` only, and only the `status`/`review`/`note` fields, under an `updateMask`. No branch, no PR |
+| Routine | InSight paid-question review |
+| Trigger id | `trig_01FnXkD9LsofRzMYfJyjJUsF` |
+| Schedule (UTC) | `51 * * * *` — hourly at :51 |
+| Binding | a fresh session per firing (`create_new_session_on_fire`) |
+| Account | §2's (the same one that holds the nine lanes listed there) |
+| Writes | `v2_paid_bookings` only, and only `status`/`review`/`note`, under an `updateMask`. No branch, no PR |
+| Notifications | push on, email off — a firing that settles a booking is a revenue event; an empty queue reports nothing |
 
-**The prompt, which is the whole of it:**
+**The minute is the server's, not a choice.** `create_trigger` anchors an
+`0 * * * *` schedule to the creation minute so hourly Routines spread
+instead of stacking on the hour, and :51 is what it returned. That it
+collides with none of the nine lanes above is luck the anchoring is
+designed to produce rather than something this row arranged — but it is
+worth having checked, and it was: the nine sit at :00, :30 and :35.
 
-> Run `node scripts/paid-review.mjs --list`. For each booking it prints,
-> judge it against the guidelines the script printed above them — they are
-> read out of `functions/src/paid.ts`, so they are the same rules the
-> server-side reviewer used. Then call
-> `node scripts/paid-review.mjs --verdict <bid> approve` or
-> `… decline --reason "<one or two sentences, shown to the buyer
-> verbatim, saying what to change>"`. If the list is empty, stop and say
-> nothing. Do not edit any file, do not open a pull request, and do not
-> approve anything the guidelines decline — a buyer is charged for what
-> you approve.
+**It stores no MCP connectors**, which the create call warned about and
+which costs nothing here: every firing runs `node scripts/paid-review.mjs`
+through Bash and reads `FIREBASE_SERVICE_ACCOUNT` from the environment.
+If a future prompt needs a connector, the Routine has to be recreated
+from a session that holds one, or made in the claude.ai Routines UI.
+
+**Verified before it was scheduled, not after.** `--list` was run against
+production from this environment and answered *"nothing in review"* —
+which proves the credential, the database id, the query and the empty
+case in one go. It also runs with `node_modules` moved aside, so a
+firing needs no `npm ci` and costs seconds.
+
+**Why hourly.** A buyer waits for the next firing rather than a few
+seconds, which is the trade the owner took when the review moved off a
+per-request `ANTHROPIC_API_KEY` (*"routine is fine"*). `web/ask.html`'s
+held copy promises no cadence, deliberately — D456 kept it to *"come back
+to this address"*, so this schedule can change without the page lying.
 
 **THE REVIEWER IS THE SESSION, NOT THE SCRIPT**, and that is why the
 script contains no judgement of its own: a heuristic in it would be a
 second, weaker reviewer that the real one could not see it was
-disagreeing with.
+disagreeing with. The prompt is stored on the trigger; `--list` prints
+the guidelines it judges against, read out of `functions/src/paid.ts` at
+run time, so the rules cannot drift from the ones the server-side
+reviewer used.
 
 **What settles a booking nobody reviews:** nothing, and that is the
 design. `functions/src/paid.ts` HOLDS a booking it cannot review rather
 than approving it (D456 — the line that used to approve is the most
 dangerous this repository has carried), so a queue nobody reads is a
-buyer who is never charged, never a question published unreviewed.
+buyer who is never charged, never a question published unreviewed. The
+practical consequence is that **this Routine being disabled is a silent
+outage of the money path**, not a degraded one: bookings pile up in
+`review` and no buyer is told. Anyone retiring it owes that sentence a
+plan.
+
+**It is live before the money is**, which is the one thing this row does
+that its charter said not to. The charter's argument was that a Routine
+firing at an empty queue for a week is one somebody learns to ignore.
+The owner asked for it created now anyway, and the ordinary firing is
+silent by construction — the prompt stops without a word on *"nothing in
+review"*, and notifications only carry a firing that settled something.
+So the cost the charter was avoiding is not paid.
+
+
+- **InSight paid-question review** (§10) — settles the paid queue. Every
+  hour it asks production for bookings still in `review`, judges each
+  against the guidelines read out of `functions/src/paid.ts`, and writes
+  approve or decline with a reason the buyer reads verbatim. Silent when
+  the queue is empty, which is the ordinary case. It is the only thing
+  that settles a booking, so while it is off the money path is stopped
+  rather than slowed.
 
 ## 9 · The cost hunt — chartered 2026-09-06, not yet created on any account
 

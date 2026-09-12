@@ -10,7 +10,7 @@
 // Persisted locally.
 //
 // THE DEMO'S HALF of the friends handshake (VISION-2026-09-12 §2,
-// D-2026-09-12a): beside `friends` and `invited` the store keeps
+// D-2026-09-12d): beside `friends` and `invited` the store keeps
 // `requests` — people who asked YOU, seeded so the demo's *Your friends*
 // overlay has something to accept — and `dismissed`, the suggestions waved
 // away. `status(id)` answers `none · invited · requested · friends`; an

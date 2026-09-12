@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// Friends on D101's rows (VISION-2026-09-12 §2, D-2026-09-12a). What these
+// Friends on D101's rows (VISION-2026-09-12 §2, D-2026-09-12d). What these
 // hold: the four states are the two follow rows read both ways and nothing
 // else; the four lists partition those rows; a suggestion comes from a
 // source that already publishes and never repeats a person; ignore and

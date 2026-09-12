@@ -1,7 +1,7 @@
 // The app's name, in one place.
 //
 // WHY A MODULE. The owner's 2026-09-12 upload (design/standalone-2026-09-12/,
-// D-2026-09-12a) renames the app: *Doxa*, drawn in a serif, with *Endoxa*
+// D-2026-09-12d) renames the app: *Doxa*, drawn in a serif, with *Endoxa*
 // and *inSight* kept behind a Tweaks radio while the name settles — the
 // owner's ruling of the same day is "Doxa for now, inSight was too
 // crowded". A name lives in more places than a wordmark: the tab title,

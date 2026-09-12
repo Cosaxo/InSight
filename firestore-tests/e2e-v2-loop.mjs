@@ -2076,8 +2076,15 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 {
   const started = await httpsCallable(fns, "logicStartV2")({});
   const keys = Object.keys(started.data).sort();
-  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items"])) {
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items", "mode", "total"])) {
     fail("logicStartV2 returned unexpected keys: " + JSON.stringify(keys));
+  }
+  // The selection is STRATIFIED until the §6 report clears its bar (D476):
+  // pinned here as well as in logic.test.ts, because this is the deployed
+  // shape a phone meets, and a flip that skipped the report would spoil
+  // the report's own instrument.
+  if (started.data.mode !== "stratified" || started.data.total !== 25) {
+    fail("logicStartV2 minted something other than a stratified 25-item form: " + JSON.stringify({ mode: started.data.mode, total: started.data.total }));
   }
   // Belt as well as braces: assert on the SERIALIZED response, so a key
   // nested inside `items` is caught too. `"a"` is the correct-tile index
@@ -2091,19 +2098,69 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("logicStartV2 hands over the form and never the answer key (D57)");
 
+  // RESUME (D478): a second start inside the attempt's window is the SAME
+  // attempt back — the same items, less of the window — and never a new
+  // form, because with practice gone (D477) a restart was the last way to
+  // see the bank without being measured on it.
+  const again = await httpsCallable(fns, "logicStartV2")({});
+  if (again.data.resumed !== true || JSON.stringify(again.data.items) !== JSON.stringify(started.data.items)) {
+    fail("a second start inside the window did not hand the same attempt back: " + JSON.stringify({ resumed: again.data.resumed, same: JSON.stringify(again.data.items) === JSON.stringify(started.data.items) }));
+  }
+  if (!(again.data.deadlineMs <= started.data.deadlineMs)) fail("a resumed attempt was given more time than it had");
+  ok("…and a second start inside the window resumes the same attempt with the time that is left (D478)");
+
   // …and the key IS disclosed once the attempt is scored, which is what
   // makes the assertion above about TIMING rather than about the field
   // never existing.
-  const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
-  if (typeof submitted.data?.seed !== "number") {
-    fail("logicSubmitV2 withheld the seed after scoring: " + JSON.stringify(submitted.data));
+  // Since D475 a verified form is the OMIB bank's: 25 twenty-bit cells, a
+  // blank sheet being the honest "answered nothing" (scored zero, θ low).
+  // THE LEG WALKS WHICHEVER SELECTION THE START DECLARED (D476, D477): a
+  // stratified form is one submit; an adaptive one is twenty-five calls,
+  // each answered with the next item — never a repeat, never more than the
+  // code — and the last with the result. Practice, which was the way onto
+  // the adaptive path while the constant is stratified, is retired
+  // (D477); this leg is what proves the flip on the emulator the day the
+  // constant moves, before it deploys.
+  const blank = "0".repeat(20);
+  let submitted;
+  if (started.data.mode === "adaptive") {
+    const served = [started.data.items[0].code];
+    for (let k = 0; k < 25; k++) {
+      const res = await httpsCallable(fns, "logicNextV2")({ index: k, pick: blank });
+      if (k < 24) {
+        const d = res.data;
+        if (!Array.isArray(d.items) || d.items.length !== 1 || d.index !== k + 1 || d.total !== 25) {
+          fail(`logicNextV2 pick ${k + 1} did not come back with exactly the next item: ` + JSON.stringify(d));
+        }
+        const cells = String(d.items[0].code).split(",");
+        if (Object.keys(d.items[0]).join() !== "code" || cells.length !== 9 || cells[8] !== blank) {
+          fail("an adaptive item carried more than its code, or its ninth cell was not empty: " + JSON.stringify(d.items[0]));
+        }
+        served.push(d.items[0].code);
+      } else {
+        submitted = res;
+      }
+    }
+    if (new Set(served).size !== 25) fail("the adaptive attempt repeated an item");
+    if (submitted.data.mode !== "adaptive") fail("the adaptive attempt's result did not say so: " + JSON.stringify(submitted.data));
+  } else {
+    submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(blank) });
   }
-  ok("…and discloses it after scoring, so the reveal can show the working");
+  if (typeof submitted.data?.seed !== "number") {
+    fail("the verified result withheld the seed after scoring: " + JSON.stringify(submitted.data));
+  }
+  if (submitted.data.bank !== "omib" || typeof submitted.data.theta !== "number" || typeof submitted.data.se !== "number") {
+    fail("the verified attempt was not scored on the OMIB bank by θ: " + JSON.stringify(submitted.data));
+  }
+  if (!Array.isArray(submitted.data.diffs) || submitted.data.diffs.length !== 25) {
+    fail("the verified result did not disclose the form's difficulties after scoring");
+  }
+  ok(`…and discloses it after scoring, so the reveal can show the working — on the OMIB bank, by θ, ${started.data.mode} (D475, D476)`);
 
   // One attempt per window. Without this the client can resubmit until the
   // score it wants, and the norms histogram counts every try.
   try {
-    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(blank) });
     fail("a second submit against a scored attempt was accepted");
   } catch (e) {
     if (e?.code !== "functions/failed-precondition") {
@@ -2111,6 +2168,18 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     }
   }
   ok("a scored attempt refuses a second submit");
+
+  // ONE ATTEMPT EVERY 30 DAYS (D478): the scored attempt was the chance, so
+  // a new start is refused with the day the next opens.
+  try {
+    await httpsCallable(fns, "logicStartV2")({});
+    fail("a new start inside 30 days of a scored attempt was accepted");
+  } catch (e) {
+    if (e?.code !== "functions/failed-precondition" || !/one attempt every 30 days — the next opens in 30 days/.test(e?.message || "")) {
+      fail("wrong refusal for a start inside the interval: " + (e?.code || e) + " " + (e?.message || ""));
+    }
+  }
+  ok("…and a new start inside 30 days is refused, naming the day the next opens (D478)");
 }
 
 // 12 · The self-serve paid-question loop (paid.ts, D313): book → the

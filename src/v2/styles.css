@@ -14,6 +14,28 @@
 /* vietnamese */
 /* latin-ext */
 /* latin */
+/* ── The wordmark (D472) ────────────────────────────────────────────────
+   DM Serif Display, FOUR GLYPHS. The name is Doxa and the design
+   (design/standalone-2026-09-12/) sets it in this face with the x in the
+   tab accent — the one serif in the chrome, and the only place the face
+   is used. So the file is a subset to exactly D, a, o and x: 1.2 KB from
+   Google Fonts' text= endpoint (OFL), against a font ceiling of 96 KB
+   with 86 KB already in the tree. The upload's own latin subset is
+   24.7 KB and would not have fit. Any other use of this face — a
+   heading, a numeral — falls back to Spectral, silently, and is the
+   font-ceiling conversation the prompt-voice note below describes.
+   `block` rather than `swap`: 1.2 KB arrives with the stylesheet, and
+   a serif-to-serif flash on the wordmark is the one swap a user would
+   see on every cold start. */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/dm-serif-display-400-doxa.woff2") format('woff2');
+  unicode-range: U+44, U+61, U+6F, U+78;
+}
+
 /* ── The prompt voice (2026-09-02) ──────────────────────────────────────
    Spectral, the one place the app speaks in a second face: every question
    a person answers is set in it, and UI, figures and captions stay sans.
@@ -41,24 +63,6 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* ── The wordmark (2026-09-12) ─────────────────────────────────────────
-   DM Serif Display, for one word: the name. The owner's 2026-09-12 ruling
-   (D-2026-09-12a) is Doxa, drawn in a serif — the design's `wm-serif` —
-   and this face is SUBSETTED to the letters of the three names the shell
-   knows (D E S a d g h i n o t x: Doxa, Endoxa, inSight): 1.9 KB where
-   the Google-served latin face is 24.7 KB. check:bundle's font ceiling is
-   96 KB and the tree stood at 88, so the whole face would not have fit,
-   and a wordmark needs twelve glyphs. A future name with a letter outside
-   that set draws that letter in the system serif — re-subset the face
-   (`pyftsubset --text=<the names> --flavor=woff2`) rather than shipping
-   it whole. SIL Open Font License 1.1, like Spectral. */
-@font-face {
-  font-family: 'DM Serif Display';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/dm-serif-display-wordmark.woff2") format('woff2');
-}
 
 /* cyrillic-ext */
 @font-face {
@@ -434,18 +438,24 @@
   transition: color 0.4s ease;
   font-weight: 800;
 }
-/* Doxa wordmark (2026-09-12, D-2026-09-12a) — the one serif in the chrome.
-   The x is the <em>, so it takes the tab accent (and the daily mode's
-   accent, set inline by app-shell) the way inSight's "Sight" did. The
-   class rides on .h-title because the iris and the word share that flex
-   row; only the text takes the face. */
-.app-header .h-title.wm-serif { font-family: 'DM Serif Display', var(--serif); font-weight: 400; font-size: 25px; letter-spacing: -0.01em; line-height: 1; padding-bottom: 2px; }
-.app-header .h-title.wm-serif em { font-weight: 400; }
 /* The horizontal lockup (D302): compact iris + wordmark. Scoped to
    .h-center rather than .h-title because overlay headers reuse .h-title
    for plain text titles, which need no flex and must not inherit a gap. */
 .h-center .h-title { display: inline-flex; align-items: center; gap: 7px; }
 .h-center .h-title svg { display: block; flex: none; }
+/* The wordmark itself (D472): Doxa in the serif at 25px, tracked −0.01em,
+   400 in both the word and its accented x — the design's own values.
+   Scoped with .h-center for the same reason as the lockup above: overlay
+   headers reuse .h-title for plain text and must stay sans. */
+.h-center .h-title.wm-serif {
+  font-family: 'DM Serif Display', var(--serif);
+  font-weight: 400;
+  font-size: 25px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  padding-bottom: 2px;
+}
+.h-center .h-title.wm-serif em { font-weight: 400; }
 /* small round icon button (header search etc.) */
 .icon-btn {
   width: 32px; height: 32px;
@@ -1831,7 +1841,7 @@ button.card:active,
 @media (prefers-reduced-motion: reduce) { .mmt-card { animation: none; } .mmt-dbar-seg, .mmt-matchbar i, .mmt-astat-bar i, .mmt-ridge-col > i, .mmt-astat-them { animation: none; } }
 @keyframes mmtMark { from { opacity: 0; } }
 
-/* ── map wayfinding (2026-09-12, VISION-2026-09-12 §3, D-2026-09-12a): the
+/* ── map wayfinding (2026-09-12, VISION-2026-09-12 §3, D-2026-09-12d): the
    trail, Find, the card you resize, prev/next, the coach and the legend.
    From design/standalone-2026-09-12/css/map-wayfinding.css; the rail wraps
    the chip row above, so .mmt-chips loses its absolute placement inside it

@@ -295,7 +295,7 @@ export async function fetchFollowersOf(
  *
  * The other direction of the graph, read whole rather than as a membership
  * test: the friends list's REQUESTS are the accounts that follow you and
- * you do not follow back (VISION-2026-09-12 §2.2, D-2026-09-12a), and a
+ * you do not follow back (VISION-2026-09-12 §2.2, D-2026-09-12d), and a
  * request you cannot see is one you cannot answer. Bounded because the
  * follower count is outside the viewer's control and rules cap it at
  * nothing; past the cap the newest hundred are not what this returns — the

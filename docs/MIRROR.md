@@ -607,7 +607,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the field canvas, detail card, lens row | `src/v2/spec/mirror-field.jsx` |
 | the per-population node lists | `src/v2/spec/mirror-field-pops.jsx` |
 | the daily record | `src/v2/spec/mirror-answers.jsx` |
-| the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`; since 2026-09-12 the trail and Find in `map-chiprow.jsx`, the card's grab, prev/next and the Find card in `map-find.jsx` — D-2026-09-12a's amendment) |
+| the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`; since 2026-09-12 the trail and Find in `map-chiprow.jsx`, the card's grab, prev/next and the Find card in `map-find.jsx` — D-2026-09-12d's amendment) |
 | City / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
 | Near, live — the presence counter and its unnamed field (D111, D150) | `src/v2/ui/NearLiveBody.tsx` |
 | Near's room tabs — Answers · People · Compare over a server fold (D177) | `src/v2/ui/LiveRoomTabs.tsx` + `ui/roomShape.ts` |

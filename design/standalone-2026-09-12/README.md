@@ -3,8 +3,10 @@
 The owner's `InSight_19.html` upload of 2026-09-12 (a `__bundler`
 standalone in a new *standalone bundle* shape — two generated bundles, a
 core of 94 modules and a *late* one of 18, built 2026-09-12T15:41Z; 112
-modules in 1.0 MB, titled **Doxa**; sixteen to eighteen were never
-uploaded here, like eleven, thirteen and fourteen), delivered with one
+modules in 1.0 MB, titled **Doxa**; sixteen and seventeen were never
+uploaded here, like eleven, thirteen and fourteen — eighteen arrived the
+same day in the naming session, carried the name alone, and is the
+last section of this file), delivered with one
 line: *"new visuals and functionality plan how to add the new features
 and visuals."* The plan built on this record — every item measured
 against the tree, the three owner questions, the build order — is
@@ -16,7 +18,7 @@ family's standing rule (`design/README.md`).
 until a full sync moves it (`design/README.md`'s rule). This directory,
 like its siblings, does not re-point it. `docs/VISUAL-VISION.md` names
 this directory as the current vision (D361's standing rule: the owner's
-upload moves the vision). D-2026-09-12a records the arrival.
+upload moves the vision). D-2026-09-12d records the arrival.
 
 ## What the design does, in one paragraph
 
@@ -204,3 +206,50 @@ already knows it will keep, each with its reason
 `designed` 2026-09-12 (the owner's upload). Nothing built; the three
 questions are on `docs/OWNER-LIST.md`, and the six steps on
 `docs/WORKLIST.md` — the first four gated on nothing.
+
+## The other upload of the day — `inSight_18`, the name alone (D472)
+
+The owner's `inSight_18.html` arrived in the naming session of the same
+date with one sentence, *"I really liked how Doxa looks"*, and then the
+decision: *"lets go with Doxa, do the rename"*. Its modules are the
+2026-09-09 tree; what it changed is the wordmark, recorded whole in
+`wordmark.css` at this directory's root — the header rule, the boot
+mark, and the design-time brand switch (`css/wordmark.css` is the same
+two rules as `InSight_19` carries them). D472 built it in the same
+commit and renamed the shells, the store listing and the web pages with
+it; the brand module of `InSight_19` (above) reads the name those
+surfaces now say.
+
+### What the upload specifies
+
+- **The name is Doxa.** `<title>Doxa</title>`; the header lockup is
+  `Do<em>x</em>a`.
+- **The face is DM Serif Display, 400** — "the one serif in the chrome"
+  in the upload's own comment — at 25 px in the header and 36 px on the
+  boot splash, tracked −0.01em, line-height 1.
+- **The x is the accent**, an `<em>` that takes the tab colour exactly
+  as `Sight` did in `In<em>Sight</em>`: violet on the Question map,
+  the daily sub-mode's colour on the daily.
+- **The iris does not change.** Same compact mark beside the word, same
+  paper tile (D340).
+- The bundle ships DM Serif Display as two Google Fonts subsets, latin
+  (24.7 KB) and latin-ext (10.8 KB), under the bundler's asset ids
+  `ae63319f-…` and `d18569a3-…`.
+
+## What was built from it (D472, same commit)
+
+- `src/v2/spec/app-shell.jsx` — the lockup, with `.wm-serif` on the
+  title; `src/v2/styles.css` — the face and the two rules, scoped with
+  `.h-center` so overlay headers stay sans.
+- `src/v2/ui/LiveSignInGate.tsx` — the stacked lockup in the same face
+  at 36 px; `web/join.html` — its twin in Georgia, because the hosting
+  CSP has no `font-src`.
+- **The face ships as four glyphs**, not the upload's subset: D, a, o, x,
+  1.2 KB from Google Fonts' `text=` endpoint, at
+  `public/fonts/dm-serif-display-400-doxa.woff2`. `check:bundle` holds
+  fonts to 96 KB and the tree carried 86 KB, so the 24.7 KB latin file
+  would not have fit — and the word is the only place the face is used.
+- **The boot mark stays in the system stack** and says Doxa. The upload
+  draws it in the serif; `index.html`'s own reasoning (no font swap
+  mid-boot, on a page whose whole job is to cover the bundle's fetch)
+  holds, and this is the one deviation from the upload.

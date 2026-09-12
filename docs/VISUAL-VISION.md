@@ -24,7 +24,7 @@ it is moving toward.
   measured, and the three things only the owner can decide put as
   questions (§6): which name, *Groups · 1v1s* for the daily's modes, and
   whether anything stays private until you are friends.
-  D-2026-09-12a records the arrival.
+  D-2026-09-12d records the arrival.
 - **What it changed over the 2026-09-09 standalone:** the app is called
   **Doxa** in DM Serif Display, with *Endoxa* and *inSight* behind a
   Tweaks radio and the splash, the title and the demographics cards
@@ -48,7 +48,7 @@ it is moving toward.
   Map's trail, Find, resizable card, sibling nav, coach hints and
   legend, the person page's two leads, the profile's sub-tab swipe, the
   overlays' leave, the tap slack, two of the copy deletions
-  (D-2026-09-12a's amendment). Not built: the outward-facing name (the
+  (D-2026-09-12d's amendment). Not built: the outward-facing name (the
   store, the shells, the web pages, the lockups — an owner row) and
   the third question's line, which ships nowhere.
 - **Requests it closed:** none. The Friends overlay and the Map's
@@ -207,7 +207,8 @@ it is moving toward.
 | 2026-09-08 | `design/rounds-card-2026-09-08/` | the 1v1 and group card when a round is the unit: nine states, the run of rounds, the first run | `ROUNDS-PLAN.md` §0a, D426 |
 | 2026-09-08 | `design/standalone-2026-09-08/` | the group as a cast: role votes in packs, a rating every fourth round, the crown and the contested pair | `VISION-2026-09-08.md`, D434 |
 | 2026-09-09 | `design/standalone-2026-09-09/` | how 1v1s and Groups work now: the cast round, seats, the run as a record, the Groups stop's Overview, the instrument in two settings, the Together tab — the one before, above | `VISION-2026-09-09.md`, D436, built at D437 |
-| **2026-09-12** | `design/standalone-2026-09-12/` | **the current vision** — a name (*Doxa*), the friends handshake and the *Your friends* overlay, the Map's trail and Find, the person page's leads, the shell's leave and slack | `VISION-2026-09-12.md`, D-2026-09-12a |
+| 2026-09-12 | `design/standalone-2026-09-12/` (`wordmark.css`) | the name — Doxa, in DM Serif Display with the x in the tab accent, from the owner's `inSight_18` upload in the naming session; a wordmark, recorded in the same directory as the design below | D472 |
+| **2026-09-12** | `design/standalone-2026-09-12/` | **the current vision** — the owner's `InSight_19` upload: the name behind a brand module, the friends handshake and the *Your friends* overlay, the Map's trail and Find, the person page's leads, the shell's leave and slack | `VISION-2026-09-12.md`, D-2026-09-12d |
 
 ## How the next one arrives
 

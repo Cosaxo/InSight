@@ -1,4 +1,4 @@
-// InSight v2 — the social layer ("know each other"): groups, duos, and
+// Doxa v2 — the social layer ("know each other"): groups, duos, and
 // server-materialized reveals (decision D5).
 //
 // A duo IS a group with mode "duo" and a 2-member cap — one collection,
@@ -335,7 +335,7 @@ async function requestJoinImpl(request: CallableRequest): Promise<{
       db,
       (fresh.get("memberUids") || []) as string[],
       {
-        title: out.name || "InSight",
+        title: out.name || BRAND_NAME,
         body: `${myName || "Someone"} wants to join.`,
       },
       { kind: "join-request", gid: out.gid },
@@ -429,7 +429,7 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   });
   await sendPushToUids(
     db, [who],
-    { title: name || "InSight", body: "You're in." },
+    { title: name || BRAND_NAME, body: "You're in." },
     { kind: "join-approved", gid },
     "invites",
     "join-approved",
@@ -712,7 +712,7 @@ export async function notifyTurn(
   }
 }
 
-// ── a friend request notifies (D-2026-09-12a) ───────────────────
+// ── a friend request notifies (D-2026-09-12d) ───────────────────
 //
 // The follow row IS the request (D101 read twice — VISION-2026-09-12 §2.2):
 // your row without theirs is *invited*, theirs without yours is

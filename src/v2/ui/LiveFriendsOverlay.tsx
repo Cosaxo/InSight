@@ -1,5 +1,5 @@
 // Your friends — the overlay of the 2026-09-12 design (VISION-2026-09-12
-// §2.3, D-2026-09-12a): Requests · Suggested · Invited · Friends, and the
+// §2.3, D-2026-09-12d): Requests · Suggested · Invited · Friends, and the
 // remove sheet.
 //
 // ONE OVERLAY, TWO STORES. The demo plays the spec layer's FRIENDS

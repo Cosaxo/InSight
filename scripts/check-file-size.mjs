@@ -109,7 +109,7 @@ export const SIZE_BASELINE = {
   // +31 from main's feed work at the 2026-09-11 merge.
   "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4784 },
   // +19 on 2026-09-12: the 1v1 sheet's door to the friends overlay and the
-  // note on why the sheet has one (D-2026-09-12a's amendment).
+  // note on why the sheet has one (D-2026-09-12d's amendment).
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2396 },
   // The suites are watched too, and for the same reason rather than out of
   // tidiness: vote.test.ts is the file that pins the whole window.LIVE
@@ -118,7 +118,17 @@ export const SIZE_BASELINE = {
   // Both raised at the 2026-09-11 merge: +191 and +151 of real coverage
   // from main's shifts. Growth that buys assertions is still growth a
   // reader has to walk, so it is signed for here rather than exempted.
-  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4554 },
+  //
+  // +34 for the offline-wake fix (2026-09-12). The old case asked elapsed
+  // real time to prove a negative and failed one CI run in seven; it now
+  // leaves the network broken and counts READS, which is a positive a
+  // counter settles. The growth is a harness counter, a companion case
+  // asserting the count MOVES when the guard is not holding (so a wake
+  // that silently stopped working fails one of the pair), and the reason
+  // in a comment where the next reader of that block will meet it. Both
+  // halves were mutation-checked red before this raise: deleting the
+  // navigator guard, and making wake() return unconditionally.
+  "src/v2/data/vote.test.ts": { mode: "ratchet", lines: 4588 },
   "firestore-tests/rules.test.ts": { mode: "ratchet", lines: 5359 },
   "functions/src/pure.ts": { mode: "ratchet", lines: 2833 },
   // GENERATED and appended daily by the content lanes — hence `ceiling`.

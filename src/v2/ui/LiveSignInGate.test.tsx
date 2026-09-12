@@ -189,7 +189,7 @@ describe("with the flag on", () => {
     expect(screen.getByText("Try again")).toBeTruthy();
   });
 
-  it("names the cost when the Google account is already an InSight account", async () => {
+  it("names the cost when the Google account is already an Doxa account", async () => {
     // Firebase refuses the link rather than merging, and the only way on is
     // to abandon this session. That must be a second, labelled tap — the
     // first one must never do it.

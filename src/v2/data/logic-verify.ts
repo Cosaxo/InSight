@@ -1,68 +1,118 @@
-// Client transport for verified logic attempts (D57).
+// Client transport for the logic test on the OMIB bank (D57, D473, D475,
+// D476, D477).
 //
-// A verified attempt inverts the practice flow's trust: the server mints
-// the seed, keeps it, and returns puzzles with the answer index withheld —
-// the client's only way to a score is submitting raw picks back for
-// server-side marking. This module is that round trip and nothing else;
-// the overlay imports it directly (the D53 pattern — no window global, and
-// window.LIVE's pinned member surface stays untouched).
+// One kind of attempt. The server is never told anything it could be lied
+// to about: it mints the seed, keeps it, and hands out the items with the
+// ninth cell empty — the client's only way to a score is sending its
+// constructed cells back for server-side marking. There is no practice
+// attempt (D477, the owner: the test is taken like an IQ test; the practice
+// mode D474 put on the same screen lasted a day), so every start is the
+// verified one, and the server's cooldown and daily start limit are the
+// only answer to "again".
 //
-// What leaves the device, exactly: the start call (bare, authenticated),
-// and the submit call carrying one pick index per item — 25 of them for a
-// generated form since D61, and this line said "twelve" long after that,
-// which is the v1/v2 count. Phrased against the form rather than as a
-// number, because `logic-gen.ts` owns it. The server stores the
-// scored result on the owner-only profile doc and folds the first scored
-// attempt per account into an anonymous score histogram. Per-item timings
-// never leave the device — the server records only the attempt duration it
-// observed itself.
+// Two shapes of form. A STRATIFIED one is two round trips: the start hands
+// out all 25 items, the submit sends 25 cells back. An ADAPTIVE one (D476,
+// dark behind the server's OMIB_SELECTION until the §6 report clears its
+// bar) is a round trip per item: the start hands out the first item alone,
+// each pick goes back through `nextVerified` and the next item comes out —
+// or, on the twenty-fifth, the result. The start says which (`mode`), and
+// the client never decides: a form is whatever the server serves.
+//
+// What leaves the device, exactly: a bare start call, and either one submit
+// carrying twenty-five 20-character strings of 0 and 1 — one constructed
+// cell per item — or twenty-five calls carrying one such cell each with its
+// index. Per-item timings never leave the device — the server records only
+// the attempt duration it observed itself.
+//
+// This module imports nothing from the bank: the client renders whatever
+// codes it is served, through src/v2/data/omib-shapes.ts.
 
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 import { getDb } from "../../lib/firebase";
-import type { Cell } from "./logic-gen";
 import { FUNCTIONS_REGION } from "../../lib/region";
 
+/** An item as served: nine comma-separated 20-bit cells, the ninth all zeros. */
 export interface VerifiedItem {
-  cells: Cell[];
-  opts: Cell[];
-  diff: number;
+  code: string;
 }
+
+/** How the form is served: whole at start, or one item per answer (D476). */
+export type Selection = "stratified" | "adaptive";
 
 export interface VerifiedStart {
+  mode: Selection;
+  /** the whole form (stratified), its first item (adaptive), or on a resume its next */
   items: VerifiedItem[];
+  /** how many items the form has, whichever way they arrive */
+  total: number;
   capMs: number;
+  /** what is LEFT of the attempt's window — the whole of it on a fresh start */
   deadlineMs: number;
+  /** D478: an attempt interrupted inside its window comes back as it stands */
+  resumed?: true;
+  /** where a resumed adaptive attempt continues — the picks before it are the server's */
+  index?: number;
 }
 
+/** What an adaptive pick comes back with when the form is not finished: the next item. */
+export interface NextItem {
+  items: VerifiedItem[];
+  /** how many picks the server now holds — the index the next pick must carry */
+  index: number;
+  total: number;
+}
+
+/** The score — what the server says the attempt was. */
 export interface VerifiedScore {
   marks: boolean[];
   score: number;
+  /** the ability estimate on the calibration sample's scale (D473) */
+  theta: number;
+  /** its standard error — the person's own likely range, not a constant */
+  se: number;
   pctile: number;
-  /** the likely range round pctile — the score ± one standard error,
-   *  ranked the same way the score was (D402) */
+  /** pctile at θ̂ ∓ se, ranked the same way the number was */
   band?: [number, number];
-  /** what the percentile IS: the modelled curve, or a measured rank among
-   *  `n` verified first attempts once the histogram clears the D60 floor */
+  /** "model": Φ(θ̂) against the calibration sample; "measured": a rank
+   *  among `n` verified first attempts once the histogram clears the floor */
   source?: "model" | "measured";
   n?: number;
-  durationMs: number;
-  /** disclosed only after scoring — no longer an answer key (D57) */
+  /** server-observed attempt duration */
+  durationMs?: number;
+  /** disclosed only after scoring — reconstructs the form, never a key alone */
   seed: number;
   gv: number;
+  bank: "omib";
+  /** how the form was served — reconstructable from the seed alone, or from the seed and the picks */
+  mode?: Selection;
+  /** the published difficulty of each item in form order, disclosed after scoring */
+  diffs: number[];
+}
+
+/** The result, once the twenty-fifth pick has been scored — distinguished from a next item by its marks. */
+export const isScore = (x: NextItem | VerifiedScore): x is VerifiedScore => "marks" in x;
+
+async function fns() {
+  const db = await getDb();
+  if (!getAuth(db.app).currentUser) throw new Error("still signing in — try again in a moment");
+  return getFunctions(db.app, FUNCTIONS_REGION);
 }
 
 export async function startVerified(): Promise<VerifiedStart> {
-  const db = await getDb();
-  if (!getAuth(db.app).currentUser) throw new Error("still signing in — try again in a moment");
-  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicStartV2")({});
+  const res = await httpsCallable(await fns(), "logicStartV2")({});
   return res.data as VerifiedStart;
 }
 
-export async function submitVerified(picks: number[]): Promise<VerifiedScore> {
-  const db = await getDb();
-  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicSubmitV2")({ picks });
+export async function submitVerified(picks: string[]): Promise<VerifiedScore> {
+  const res = await httpsCallable(await fns(), "logicSubmitV2")({ picks });
   return res.data as VerifiedScore;
+}
+
+/** One pick of an adaptive attempt: the cell for item `index`, in for the next item or the result. */
+export async function nextVerified(index: number, pick: string): Promise<NextItem | VerifiedScore> {
+  const res = await httpsCallable(await fns(), "logicNextV2")({ index, pick });
+  return res.data as NextItem | VerifiedScore;
 }
 
 // The failure modes worth distinguishing to a user, in their words. The
@@ -73,6 +123,6 @@ export function verifyErrorMessage(err: unknown): string {
   const code = e?.code || "";
   if (code.includes("failed-precondition") && e?.message) return e.message;
   if (code.includes("deadline-exceeded")) return "the attempt ran out of time";
-  if (code.includes("unauthenticated")) return "still signing in — try again in a moment";
+  if (code.includes("unauthenticated") || /signing in/.test(e?.message || "")) return "still signing in — try again in a moment";
   return "couldn't reach the server — nothing was counted";
 }

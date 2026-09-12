@@ -54,6 +54,11 @@ const h = vi.hoisted(() => ({
   // per-test knobs (reset in beforeEach)
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
+  // Every collection read the store issues, counted. It exists for the
+  // offline-wake case below, which needs to assert that a wake made NO
+  // network attempt — a fact about what did not happen, which elapsed
+  // time cannot establish and a counter can.
+  getDocsCalls: 0,
   // Single-document reads, by path. Only `learnAnswer`'s re-read uses one
   // (D125/D157) and it is the whole race: the answer is written, this doc
   // is fetched, and whether it already counts the answer decides whether
@@ -274,6 +279,9 @@ vi.mock("firebase/firestore", () => {
         : { exists: () => false, get: () => undefined, data: () => ({}) });
     },
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
+      // Counted BEFORE the failure knob, so a refused read still counts as
+      // an attempt — which is the whole point for the offline-wake case.
+      h.getDocsCalls += 1;
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
       if (q?.path === "v2_questions") {
@@ -539,6 +547,7 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.setDocImpl = null;
   h.getDocsImpl = null;
+  h.getDocsCalls = 0;
   h.getDocImpl = null;
   h.aggDocs.length = 0;
   h.authCb = null;
@@ -1931,16 +1940,41 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await bootHasFailed();
     expect(LIVE.enabled).toBe(false);
 
+    // THE NETWORK STAYS BROKEN, and the READ COUNT is the assertion. This
+    // case used to restore the network and assert `enabled` after three
+    // flushes, which asked elapsed real time to prove a negative against
+    // the in-flight boot the block above warns about — `bootHasFailed`
+    // narrowed that and did not close it. One CI run in seven, on main
+    // and on diffs that could not reach live.ts. A broken network means
+    // nothing here can enable the store, and `wake()` returns on
+    // `onLine === false` BEFORE any read, so "issued no read" is a
+    // positive a counter settles where "still disabled" is a negative
+    // that a wake which merely failed also satisfies.
     vi.stubGlobal("navigator", { onLine: false });
-    h.getDocsImpl = null;
+    const readsBefore = h.getDocsCalls;
     listeners.window.online();
-    // Asserting a negative: give the mocked path (all microtasks) several
-    // full turns, so a wake that DID fire would have finished and flipped
-    // enabled before we look.
     await flush();
     await flush();
     await flush();
+    expect(h.getDocsCalls, "the wake issued a read while offline").toBe(readsBefore);
     expect(LIVE.enabled).toBe(false);
+  });
+
+  it("…and the same wake DOES read once the navigator says it is back", async () => {
+    // Why the case above may stop asserting a negative: this shows the
+    // counter MOVES when the guard is not holding, so a wake that silently
+    // stopped working cannot pass both.
+    const mod = await import("./live");
+    h.getDocsImpl = () => { throw new Error("offline"); };
+    await mod.initLive(1);
+    await bootHasFailed();
+
+    vi.stubGlobal("navigator", { onLine: true });
+    const readsBefore = h.getDocsCalls;
+    listeners.window.online();
+    await vi.waitFor(() => {
+      expect(h.getDocsCalls).toBeGreaterThan(readsBefore);
+    });
   });
 
   it("a uid change wipes the previous account's votes and local trace", async () => {

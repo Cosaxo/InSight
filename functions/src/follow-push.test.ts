@@ -1,4 +1,4 @@
-// follow-push.test.ts — the friend request's delivery (D-2026-09-12a),
+// follow-push.test.ts — the friend request's delivery (D-2026-09-12d),
 // executed rather than described.
 //
 // `onV2FollowCreated` is the server's whole part in the friends

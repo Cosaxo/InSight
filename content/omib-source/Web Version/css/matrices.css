@@ -1,0 +1,114 @@
+* {
+	font-family: Arial, Helvetica, sans-serif;
+}
+button {
+	display: block;
+	margin: auto;
+}
+.root {
+	width: 100%;
+}
+.head {
+	width: fit-content;
+	margin: auto;
+	text-align: center;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+}
+.colorCodes {
+	margin-top: 0.2rem;
+	display: flex;
+	flex-wrap: wrap;
+}
+.colorCodes > span {
+	margin: 0 0.5rem;
+}
+.legend {
+	width: fit-content;
+	margin: auto;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+}
+.head > div {
+	margin: 0 2rem;
+}
+.time {
+	display: flex;
+	flex-direction: column;
+}
+
+.item-container {
+	width: 30vh;
+	height: 30vh;
+	margin: 1rem auto;
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	grid-template-rows: 1fr 1fr 1fr;
+}
+
+.opt-container {
+	width: 40vh;
+	height: 50vh;
+	margin: 1rem auto;
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr 1fr;
+	grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+}
+
+.element {
+	background-color: white;
+	margin: 5px;
+	border: 1px solid black;
+}
+
+.legendElement {
+	width: 1rem;
+	height: 1rem;
+	margin: 0 0.2rem;
+}
+
+.selected {
+	background-color: #dedede;
+}
+
+.correctResponse {
+	background-color: #0f0;
+}
+.wrongResponse {
+	background-color: #f00;
+}
+.missingResponse {
+	background-color: #00f;
+}
+
+@media all and (max-width: 700px) {
+	.container-wrap {
+		margin-top: 0.2rem;
+		margin-bottom: 0.4rem;
+	}
+	.question {
+		margin-top: 0;
+		margin-bottom: 0;
+	}
+	.head {
+		width: fit-content;
+		margin: auto;
+		text-align: center;
+		display: flex;
+		flex-direction: column;
+	}
+	.time {
+		flex-direction: row;
+	}
+	.item-container {
+		margin: 0.5rem auto;
+		width: 30vh;
+		height: 30vh;
+	}
+	.opt-container {
+		margin: 0.5rem auto;
+		width: 40vh;
+		height: 50vh;
+	}
+}

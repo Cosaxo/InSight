@@ -53,7 +53,7 @@ import LIVE from "../data/live";
 // store surface for spec-layer JSX to find by name.
 import { appleSignIn, googleSignIn, type EmailFailure } from "../../lib/firebase";
 import { SITE_ORIGIN } from "../data/siteOrigin";
-import { brandName } from "../data/brand";
+import { brandName, brandOf } from "../data/brand";
 // "an inSight history" / "a Doxa history": the article follows the name.
 const aBrandHistory = () => `${/^[aeiou]/i.test(brandName()) ? "an" : "a"} ${brandName()} history`;
 
@@ -103,8 +103,10 @@ function GateTitle() {
         <circle cx="35.3" cy="41.5" r="6" fill="var(--c-likeness)" />
         <circle cx="50" cy="50" r="8" fill="var(--ink)" />
       </svg>
-      <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 30, letterSpacing: "-0.03em" }}>
-        In<span style={{ color: "var(--c-world)" }}>Sight</span>
+      {/* the name, from data/brand.ts: the serif (D472's four glyphs) for
+          Doxa, the wordmark's sans for the two the DEV radio can set */}
+      <div style={{ fontFamily: brandOf().serif ? "'DM Serif Display', var(--serif)" : "var(--sans)", fontWeight: brandOf().serif ? 400 : 800, fontSize: 36, letterSpacing: brandOf().serif ? "-0.01em" : "-0.03em", lineHeight: 1 }}>
+        {brandOf().parts[0]}<span style={{ color: "var(--c-world)" }}>{brandOf().parts[1]}</span>{brandOf().parts[2]}
       </div>
     </div>
   );
@@ -192,7 +194,7 @@ function GateQuiet({ label, onClick, disabled, lead }: {
 }
 
 /**
- * The account already belongs to another InSight uid.
+ * The account already belongs to another Doxa uid.
  *
  * Firebase refuses the link rather than merging, which is correct — two
  * histories cannot become one — so the only way forward is to sign in to

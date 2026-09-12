@@ -183,7 +183,7 @@ describe("the Map draws its body once its pane can be measured", () => {
   });
 });
 
-// ── the wayfinding (VISION-2026-09-12 §3, D-2026-09-12a) ───────────────
+// ── the wayfinding (VISION-2026-09-12 §3, D-2026-09-12d) ───────────────
 //
 // Every piece below reads data the Map already holds, so what these hold
 // is that the chrome draws and acts, on the measured pane the cases above

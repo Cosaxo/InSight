@@ -589,7 +589,7 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
       setQ("");
       setOk(true);
       const who = handle ? atHandle(handle) : (name || "them");
-      // NOT "they will see it next time they open InSight", which is
+      // NOT "they will see it next time they open Doxa", which is
       // what this said and what D236 falsified — an invitation notifies
       // now. It does not promise the notification either: an account
       // that has never created, joined or accepted has no push token yet

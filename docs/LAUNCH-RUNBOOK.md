@@ -2243,6 +2243,11 @@ That is a tester-count problem, not a workflow problem.
       the dataset (`apply-bigquery.yml`) and the backfill
       (`backfill-log.yml` with the deploy's day), on `OWNER-LIST.md`, and
       the backfill loads what the extension's late import would have.
+      Both were clicked 2026-09-10, and on 2026-09-12 the trigger's
+      account was read as already holding what it needs through Editor —
+      *Observe production* prints that line every morning now, for the
+      account the functions RUN AS rather than the one the script had
+      printed (D-2026-09-12a).
 
       **Why the timing is the whole step.** The extension streams from the
       moment it is installed. Install it late and you are running
@@ -2372,9 +2377,17 @@ That is a tester-count problem, not a workflow problem.
       7. **Observe production again**: it should say *A sale can complete
          today: YES*. Then buy something with a Stripe test card.
 
-      **Also yours, once:** 5.1b's TTL command, and the review Routine in
-      `docs/ROUTINES.md`. Neither blocks a sale; the first bounds junk
-      bookings and the second is what answers a buyer at all.
+      **Also yours, once:** 5.1b's TTL command. It does not block a sale;
+      it bounds junk bookings.
+
+      **The review Routine is CREATED** (2026-09-12, `ROUTINES.md` §10,
+      `trig_01FnXkD9LsofRzMYfJyjJUsF`, hourly at :51) and is no longer
+      owed. It is what answers a buyer at all: a booking waits in
+      `review` until it fires, so with the Routine off, a paid question
+      is never settled and the buyer is never charged. Its `--list` was
+      run against production before it was scheduled and answered
+      "nothing in review", which is the correct empty state until the
+      keys above exist.
 
       **What is no longer on this list, because it is built:** the page
       itself. It signs in anonymously, mints a token, books, waits for the
