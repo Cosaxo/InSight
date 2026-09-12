@@ -77,6 +77,24 @@ if (status) {
     + (current >= 1 ? " — the D98 social reads are PAUSED" : " — nothing paused")
     + (at?.toDate ? ` (set ${at.toDate().toISOString()}` : "")
     + (why ? `, reason: ${why})` : at?.toDate ? ")" : ""));
+  // The hard stop's latch (D471): functions/src/budget.ts writes it before
+  // it detaches billing, and the line for the rest of that month is the
+  // ratio it fired at plus the multiple — printed here because nothing on
+  // a device reads it, and an operator who has just re-attached the
+  // account needs to know where the next detach sits. It clears itself
+  // when the next month's first notification arrives under the budget;
+  // there is deliberately no flag to clear it by hand, because a cleared
+  // latch with the month still over the line re-detaches within half an
+  // hour of the re-attach.
+  const detachedRatio = snap.get("billingDetachedRatio");
+  if (typeof detachedRatio === "number") {
+    const detachedAt = snap.get("billingDetachedAt");
+    console.log(`  billing was DETACHED by ${snap.get("billingDetachedBy") || "?"} at ${Math.round(detachedRatio * 100)}% of the budget`
+      + (detachedAt?.toDate ? ` on ${detachedAt.toDate().toISOString()}` : "")
+      + ` (interval ${snap.get("billingDetachedInterval") || "?"}; ${snap.get("billingDetachedReason") || "no reason recorded"}).`
+      + "\n  If the account is re-attached, the next detach this month is one more multiple past"
+      + " that ratio (D471, functions/src/budget.ts BUDGET_DETACH_AT).");
+  }
   process.exit(0);
 }
 

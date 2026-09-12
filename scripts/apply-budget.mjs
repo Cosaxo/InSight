@@ -41,11 +41,14 @@
 // account's email; the 403 branch below prints both halves verbatim. That
 // grant is the five minutes that remain human in this control.
 //
-// WHAT IT DOES NOT DO. It does not cap anything — a budget notifies
-// (COSTS.md: the only hard stop is detaching billing, which is an outage).
-// And it is not on any pipeline — a control this load-bearing is
-// dispatched by a person (.github/workflows/budget.yml), the
-// apply-monitoring posture.
+// WHAT IT DOES NOT DO. It does not cap anything itself — a budget
+// notifies. What caps is the function its notifications reach (below):
+// the read breaker at 100 % and, since D471, the billing detach at
+// BUDGET_DETACH_AT — three budgets, the owner's 1,500 NOK — which this
+// script carries as its top threshold rule so Google's own mail at that
+// line says what happened. And it is not on any pipeline — a control this
+// load-bearing is dispatched by a person (.github/workflows/budget.yml),
+// the apply-monitoring posture.
 //
 // WHAT IT WIRES (2026-09-09, COST-EXPOSURE.md §6 C4). The budget's
 // notifications go to the Pub/Sub topic `budget-alerts` in the project —
@@ -78,6 +81,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { api, serviceAccount, accessToken, googleFetch } from "./google-api.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -117,10 +121,27 @@ const AMOUNT = (() => {
   return n;
 })();
 
+/** The share of the budget at which functions/src/budget.ts detaches
+ *  billing (D471), read off that file the way cost-arith.mjs reads the
+ *  database's region off db.ts: a script cannot import a TypeScript
+ *  module, and a second copy of the figure is how two copies drift.
+ *  apply-budget.test.mjs pins the read. Comments stripped first (the
+ *  source-pins ratchet): a superseded value parked in a comment above the
+ *  live declaration must never be the one this arms. */
+export const BUDGET_DETACH_AT = (() => {
+  const src = stripComments(readFileSync(join(root, "functions/src/budget.ts"), "utf8"));
+  const m = src.match(/export const BUDGET_DETACH_AT = ([\d.]+);/);
+  if (!m) throw new Error("apply-budget: functions/src/budget.ts no longer exports BUDGET_DETACH_AT — the detach line's one source");
+  return Number(m[1]);
+})();
+
 // COSTS.md's own rule for the shape: 50% and 90% while it is still cheap
-// to be curious, 100%, and 150% so the alert keeps firing while the number
-// is still two figures.
-const THRESHOLDS = [0.5, 0.9, 1.0, 1.5];
+// to be curious, 100%, 150% so the alert keeps firing while the number is
+// still two figures — and the detach line, so the mail Cloud Billing sends
+// at 300 % is the one that says the app was taken down, independent of
+// anything in the project (the function's own log line may be the first
+// thing the detach silences).
+const THRESHOLDS = [0.5, 0.9, 1.0, 1.5, BUDGET_DETACH_AT];
 
 const sa = serviceAccount("apply-budget");
 const token = await accessToken(sa, "apply-budget");
@@ -247,8 +268,11 @@ const describe = `"${NAME}": ${AMOUNT}/month on projects/${projectNumber} (${PRO
  *  second time this branch did (the disabled API was the first). So a 403
  *  now says both, with the tell: a budget this credential could list and
  *  create is one the role is already in place for. Any other refusal keeps
- *  the one line, and topicHint still reads the message for a missing topic. */
-const writeFix = (r) => (r.status !== 403
+ *  the one line, and topicHint still reads the message for a missing topic.
+ *  A retune whose mask never names the topic (`touchesTopic` false — the
+ *  amount or the thresholds alone, once the topic is attached) cannot be
+ *  the second reading, so it keeps the one line too. */
+const writeFix = (r, touchesTopic = true) => (r.status !== 403 || !touchesTopic
   ? `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}`
   : `    two grants read as this 403, and the message does not say which:\n`
     + `    - roles/billing.costsManager on the BILLING ACCOUNT ${BA} to ${sa.client_email}: already in place\n`
@@ -309,17 +333,29 @@ if (!existing) {
       + "Dry run — nothing was changed. Re-run with --apply to retune it.");
     process.exit(0);
   }
-  // PATCH only the three fields this script owns. The filter is deliberately
-  // NOT in the mask: a budget an operator re-scoped by hand should not be
-  // silently re-narrowed by a retune that was about the amount.
+  // PATCH only the fields this script owns AND that differ. The filter is
+  // deliberately never in the mask: a budget an operator re-scoped by hand
+  // should not be silently re-narrowed by a retune that was about the
+  // amount. And a field that already matches is left out too, since D471:
+  // the Budgets API demands pubsub.topics.setIamPolicy of the caller
+  // whenever notificationsRule.pubsubTopic is in the request — so a mask
+  // that always carried the topic made every later retune (the detach
+  // line's threshold rule, a new amount) fail with the topic's 403 from
+  // the deploy credential, even once the console click had attached it.
+  const mask = [
+    ...(sameAmount(existing) ? [] : ["amount"]),
+    ...(sameThresholds(existing) ? [] : ["thresholdRules"]),
+    ...(sameTopic(existing) ? [] : ["notificationsRule"]),
+  ];
+  const body = Object.fromEntries(mask.map((field) => [field, wanted[field]]));
   const r = await googleFetch(
-    `${api("billingbudgets.googleapis.com", `/v1/${existing.name}`)}?updateMask=amount,thresholdRules,notificationsRule`,
+    `${api("billingbudgets.googleapis.com", `/v1/${existing.name}`)}?updateMask=${mask.join(",")}`,
     token,
-    { method: "PATCH", body: { amount: wanted.amount, thresholdRules: wanted.thresholdRules, notificationsRule: wanted.notificationsRule } },
+    { method: "PATCH", body },
   );
   if (!r.ok) {
     die(`retuning the budget returned ${r.status}: ${r.message}\n`
-      + writeFix(r)
+      + writeFix(r, mask.includes("notificationsRule"))
       + topicHint(r.message));
   }
   console.log(`retuned budget "${NAME}" — was ${have}; now ${AMOUNT}/month at `
