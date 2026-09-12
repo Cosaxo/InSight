@@ -35,6 +35,7 @@
 import { afterEach, beforeAll, expect, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import * as SITTING from "../data/feedSitting";
 import NAV from "../data/nav";
 
 // 15s per test, not the 5s default: every case mounts the FULL app in jsdom,
@@ -146,6 +147,25 @@ async function tick(ms) {
 // Registers the beforeAll/afterEach every mount suite needs. Called at the top
 // level of each `smoke-*.test.jsx`, which is where vitest expects hooks to be
 // declared.
+/**
+ * Forget the feed's sitting (data/feedSitting.ts).
+ *
+ * THE STORE OUTLIVES A MOUNT ON PURPOSE — that is the entire feature: a
+ * tab swap unmounts the feed and the answered snapshot has to survive it.
+ * Module scope is therefore the only place it can live, and module scope
+ * outlives a TEST as readily as it outlives a tab swap. Without this, case
+ * two of a file inherits case one's answered-ness: `feed-story-recovery`
+ * found it first, where a story answered by the previous case was already
+ * in the map as unanswered, so it never sank and the Answered expander the
+ * case waits for never rendered.
+ *
+ * Called from `registerSmokeHooks` below for the suites that use it, and
+ * by name from the four that mount the feed directly.
+ */
+export function resetSitting() {
+  SITTING.__resetForTests();
+}
+
 export function registerSmokeHooks() {
   beforeAll(async () => {
     // spec-index loads all ~85 modules for their side effects, in the order the
@@ -189,6 +209,7 @@ export function registerSmokeHooks() {
     // The loop is re-checked because a loop between ticks adds one more.
     while (ticks.size) await Promise.allSettled([...ticks]);
     cleanup();
+    resetSitting();
     errorSpy?.mockRestore();
   });
 }

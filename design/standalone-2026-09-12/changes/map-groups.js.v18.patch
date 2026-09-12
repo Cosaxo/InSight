@@ -1,0 +1,42 @@
+--- v18/map-groups.js (compiled, normalised)
++++ 2026-09-12/map-groups.js (normalised)
+@@ -3,7 +3,7 @@
+     id: "g-self",
+     label: "Self",
+     hue: 150,
+-    cats: ["health", "story", "home", "craft", "goals"]
++    cats: ["health", "story", "home", "craft", "goals", "pulse"]
+   }, {
+     id: "g-taste",
+     label: "Taste",
+@@ -29,6 +29,16 @@
+     label: "People",
+     hue: 320,
+     cats: ["top-people", "top-family", "top-friends", "top-love"]
++  }, {
++    id: "g-fore",
++    label: "Intuition",
++    hue: 282,
++    cats: []
++  }, {
++    id: "g-paths",
++    label: "Crossroads",
++    hue: 200,
++    cats: []
+   }];
+   const OF = {};
+   GROUPS.forEach(g => g.cats.forEach(c => {
+@@ -37,6 +47,12 @@
+   return {
+     all: () => GROUPS,
+     get: id => GROUPS.find(g => g.id === id) || null,
+-    of: catId => catId && String(catId).indexOf("lrn-") === 0 ? "g-know" : OF[catId] || "g-world"
++    of: catId => {
++      const id = catId ? String(catId) : "";
++      if (id.indexOf("lrn-") === 0) return "g-know";
++      if (id.indexOf("fore-") === 0) return "g-fore";
++      if (id.indexOf("path-") === 0) return "g-paths";
++      return OF[catId] || "g-world";
++    }
+   };
+ }();

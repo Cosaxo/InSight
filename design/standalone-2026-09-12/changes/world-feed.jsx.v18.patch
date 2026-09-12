@@ -1,0 +1,2230 @@
+--- v18/world-feed.jsx (compiled, normalised)
++++ 2026-09-12/world-feed.jsx (normalised)
+@@ -1,7 +1,18 @@
+ const WF_LS = "insight.feedVotes.v1";
++const WF_ANON_LS = "insight.feedAnon.v1";
++function wfAnonLoad() {
++  try {
++    return JSON.parse(localStorage.getItem(WF_ANON_LS) || "{}") || {};
++  } catch (e) {
++    return {};
++  }
++}
+ const WF_REPLIES_LS = "insight.feedReplies.v1";
+ const WF_TAKES_LS = "insight.feedTakes.v1";
+ const WF_PASS_LS = "insight.feedPass.v1";
++const WF_PAGE = 8;
++const WF_STEP = 4;
++const WF_REACH = 2200;
+ const WF_BRANCH = {
+   food: "Food",
+   sport: "Body",
+@@ -13,7 +24,8 @@
+   event: "Mind",
+   people: "Values",
+   bigq: "Values",
+-  fav: "Taste"
++  fav: "Taste",
++  predict: "Foresight"
+ };
+ const WF_TOPICS = window.WORLD_TOPICS || [];
+ const WF_TOPIC = Object.fromEntries(WF_TOPICS.map(t => [t.id, t]));
+@@ -58,7 +70,7 @@
+   return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : "" + n;
+ }
+ function wfVotes(q) {
+-  return q.type === "rank" ? q.votes || 0 : q.type === "rate" ? q.n || 0 : q.type === "pick" ? ((window.WF_CATALOGS || {})[q.catalog] || {}).picks || 0 : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0;
++  return q.type === "rank" ? q.votes || 0 : q.type === "rate" || q.type === "dial" || q.type === "field" ? q.n || 0 : q.type === "pick" ? ((window.WF_CATALOGS || {})[q.catalog] || {}).picks || 0 : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0;
+ }
+ function wfPcts(counts, mineIdx) {
+   const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
+@@ -212,26 +224,73 @@
+ }
+ const WF_FRIENDS = [{
+   name: "Alex",
+-  init: "A"
++  init: "A",
++  hue: "oklch(0.55 0.1 40)",
++  act: 0.5
+ }, {
+   name: "Mia",
+-  init: "M"
++  init: "M",
++  hue: "oklch(0.55 0.1 325)",
++  act: 0.42
+ }, {
+   name: "Jordi",
+-  init: "J"
++  init: "J",
++  hue: "oklch(0.55 0.1 235)",
++  act: 0.34
+ }, {
+   name: "Sara",
+-  init: "S"
++  init: "S",
++  hue: "oklch(0.55 0.1 150)",
++  act: 0.26
+ }, {
+   name: "Noah",
+-  init: "N"
++  init: "N",
++  hue: "oklch(0.55 0.1 275)",
++  act: 0.2
+ }, {
+   name: "Elif",
+-  init: "E"
++  init: "E",
++  hue: "oklch(0.55 0.1 85)",
++  act: 0.14
+ }];
++const wfDid = (q, f) => wfHash("did:" + q.id + ":" + f.name) < f.act;
++const wfFrAv = (f, D, k) => React.createElement("span", {
++  key: f.name,
++  title: f.name,
++  style: {
++    width: D,
++    height: D,
++    borderRadius: "50%",
++    marginLeft: k ? -Math.round(D * 0.28) : 0,
++    flexShrink: 0,
++    boxSizing: "border-box",
++    display: "flex",
++    alignItems: "center",
++    justifyContent: "center",
++    fontFamily: "var(--sans)",
++    fontWeight: 800,
++    fontSize: Math.round(D * 0.56),
++    background: f.hue,
++    color: "#fff",
++    boxShadow: "0 0 0 1.5px var(--surface)",
++    position: "relative",
++    zIndex: 4 - k
++  }
++}, f.init);
++const wfFrNone = txt => React.createElement("div", {
++  style: {
++    fontFamily: "var(--sans)",
++    fontSize: 13,
++    fontWeight: 600,
++    color: "var(--ink-3)",
++    textAlign: "center",
++    padding: "18px 0"
++  }
++}, txt);
+ class WorldFeed extends React.Component {
+   state = {
+     votes: wfLoad(),
++    anon: wfAnonLoad(),
+     knowRes: {},
+     pickQ: {},
+     pending: {},
+@@ -252,10 +311,10 @@
+     ctrIdx: {},
+     takeSort: "mind",
+     whyFor: null,
+-    headHide: false,
+     sort: "hot",
+     passed: wfLoadMap(WF_PASS_LS),
+-    ripple: null
++    ripple: null,
++    shown: WF_PAGE
+   };
+   get opts() {
+     const o = this.props.opts || {};
+@@ -270,7 +329,8 @@
+       crossfire: on("crossfire"),
+       counter: on("counter"),
+       why: on("why"),
+-      hier: !!o.hier
++      hier: !!o.hier,
++      friends: o.friends === false ? "off" : o.friends || "rows"
+     };
+   }
+   setPass(id, on) {
+@@ -289,7 +349,7 @@
+   }
+   friendSides(q, counts) {
+     const total = counts.reduce((a, b) => a + b, 0) || 1;
+-    return WF_FRIENDS.map(f => {
++    return WF_FRIENDS.filter(f => wfDid(q, f)).map(f => {
+       const r = wfHash(q.id + ":" + f.name);
+       let acc = 0,
+         oi = counts.length - 1;
+@@ -326,9 +386,17 @@
+   }
+   componentDidUpdate() {
+     this.applySnap();
++    const s = this._scroller;
++    if (s && this.state.shown < (this._listLen || 0) && s.scrollHeight - s.scrollTop - s.clientHeight < WF_REACH) {
++      clearTimeout(this._growT);
++      this._growT = setTimeout(() => this.setState(st => ({
++        shown: st.shown + WF_STEP
++      })), 60);
++    }
+   }
+   componentWillUnmount() {
+     clearTimeout(this._retry);
++    clearTimeout(this._growT);
+     clearTimeout(this._sheetT);
+     clearTimeout(this._rippleT);
+     if (this._unsubScenes) this._unsubScenes();
+@@ -367,12 +435,19 @@
+             if (!s) return;
+             const y = s.scrollTop,
+               dy = y - this._lastY;
++            if (s.scrollHeight - y - s.clientHeight < WF_REACH && this.state.shown < (this._listLen || 0)) {
++              this.setState(st => ({
++                shown: st.shown + WF_STEP
++              }));
++            }
+             if (Math.abs(dy) < 4) return;
+             this._lastY = y;
+-            const hide = dy > 0 && y > 60;
+-            if (hide !== this.state.headHide) this.setState({
+-              headHide: hide
+-            });
++            if (Date.now() - (this._headHold || 0) < 500) {
++              this._lastY = y;
++              return;
++            }
++            const hide = dy > 0 && y > 60 && !this.state.topicsOpen;
++            if (hide !== this._headHidden) this.setHeadHidden(hide);
+           };
+         }
+         next.addEventListener("scroll", this._onScroll, {
+@@ -391,6 +466,14 @@
+         vh: vv
+       });
+     }
++  }
++  setHeadHidden(hide) {
++    this._headHidden = hide;
++    const h = this._head;
++    if (!h) return;
++    h.style.transform = hide ? "translateY(-115%)" : "none";
++    h.style.opacity = hide ? "0" : "1";
++    h.style.pointerEvents = hide ? "none" : "auto";
+   }
+   cardFloor(answered) {
+     const vh = this.state.vh || 620;
+@@ -445,6 +528,35 @@
+     });
+     if (this.props.onVote) this.props.onVote(q, val);
+   }
++  setCall(q, val) {
++    const P = window.PREDICT;
++    if (window.HAPTIC) window.HAPTIC.tap();
++    if (val !== -1 && P) {
++      let ok = null;
++      if (q.type === "read") {
++        const ps = P.pcts(q);
++        ok = val === ps.indexOf(Math.max(...ps));
++      }
++      P.record(q, val, ok);
++      if (window.HAPTIC) {
++        clearTimeout(this._hapT);
++        this._hapT = setTimeout(() => window.HAPTIC.reveal(), 240);
++      }
++    }
++    this._fresh = q.id;
++    this.setState(s => {
++      const votes = {
++        ...s.votes,
++        [q.id]: val
++      };
++      try {
++        localStorage.setItem(WF_LS, JSON.stringify(votes));
++      } catch (e) {}
++      return {
++        votes
++      };
++    });
++  }
+   renderBeat(q, T, big) {
+     const mine = this.state.votes[q.id];
+     const {
+@@ -555,7 +667,7 @@
+           fontWeight: 500,
+           color: "var(--ink-3)"
+         }
+-      }, "tap a number — 1 rough, 10 superb"));
++      }, "1 rough · 10 superb"));
+     }
+     const avg = c ? c.avg : 5;
+     return React.createElement("div", {
+@@ -644,6 +756,370 @@
+         boxShadow: "0 1px 4px rgba(20,20,40,0.3)"
+       }
+     })));
++  }
++  setDial(q, val) {
++    if (window.HAPTIC) {
++      window.HAPTIC.tap();
++      clearTimeout(this._hapT);
++      this._hapT = setTimeout(() => window.HAPTIC.reveal(), 260);
++    }
++    this._fresh = q.id;
++    this.setState(s => {
++      const votes = {
++        ...s.votes,
++        [q.id]: val
++      };
++      try {
++        localStorage.setItem(WF_LS, JSON.stringify(votes));
++      } catch (e) {}
++      return {
++        votes
++      };
++    });
++  }
++  dialFmt(q, v) {
++    return Math.round(v) + (q.unit === "%" ? "%" : q.unit ? " " + q.unit : "");
++  }
++  dialPath(q, W, H) {
++    const d = q.dist,
++      max = Math.max(...d);
++    const pts = d.map((w, i) => [i / (d.length - 1) * W, H - 4 - w / max * (H - 12)]);
++    let path = "M " + pts[0][0] + "," + pts[0][1];
++    for (let i = 1; i < pts.length - 1; i++) path += " Q " + pts[i][0] + "," + pts[i][1] + " " + (pts[i][0] + pts[i + 1][0]) / 2 + "," + (pts[i][1] + pts[i + 1][1]) / 2;
++    path += " L " + pts[pts.length - 1][0] + "," + pts[pts.length - 1][1];
++    return path;
++  }
++  dialY(q, frac, H) {
++    const d = q.dist,
++      max = Math.max(...d);
++    const x = Math.max(0, Math.min(0.999, frac)) * (d.length - 1),
++      i = Math.floor(x),
++      t = x - i;
++    const w = d[i] * (1 - t) + d[Math.min(d.length - 1, i + 1)] * t;
++    return H - 4 - w / max * (H - 12);
++  }
++  renderDial(q, T, big) {
++    const v = this.state.votes[q.id];
++    const lo = q.lo,
++      hi = q.hi;
++    const endTxt = q.ends || [this.dialFmt(q, lo), this.dialFmt(q, hi)];
++    const ends = {
++      display: "flex",
++      justifyContent: "space-between",
++      fontFamily: "var(--sans)",
++      fontSize: 11.5,
++      fontWeight: 600,
++      color: "var(--ink-3)"
++    };
++    if (v == null) {
++      const pend = (this.state.dialPend || {})[q.id];
++      const frac = pend != null ? pend : 0.5;
++      const move = e => {
++        const r = e.currentTarget.getBoundingClientRect();
++        const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
++        this._dp = f;
++        this.setState(s => ({
++          dialPend: {
++            ...(s.dialPend || {}),
++            [q.id]: f
++          }
++        }));
++      };
++      return React.createElement("div", {
++        style: {
++          display: "flex",
++          flexDirection: "column",
++          gap: big ? 12 : 9
++        }
++      }, React.createElement("div", {
++        style: {
++          alignSelf: "center",
++          fontFamily: "var(--sans)",
++          fontWeight: 800,
++          fontSize: big ? 40 : 32,
++          letterSpacing: "-0.03em",
++          color: pend != null ? window.WPAL.ink(T.color) : "var(--ink-3)",
++          fontVariantNumeric: "tabular-nums",
++          transition: "color 0.15s"
++        }
++      }, this.dialFmt(q, lo + frac * (hi - lo))), React.createElement("div", {
++        style: {
++          position: "relative",
++          height: 44,
++          touchAction: "none",
++          cursor: "pointer"
++        },
++        onPointerDown: e => {
++          e.currentTarget.setPointerCapture(e.pointerId);
++          move(e);
++        },
++        onPointerMove: e => {
++          if (e.buttons) move(e);
++        },
++        onPointerUp: () => {
++          if (this._dp != null) {
++            this.setDial(q, Math.round(lo + this._dp * (hi - lo)));
++            this._dp = null;
++          }
++        }
++      }, React.createElement("span", {
++        style: {
++          position: "absolute",
++          left: 0,
++          right: 0,
++          top: "50%",
++          height: 6,
++          marginTop: -3,
++          borderRadius: 999,
++          background: window.WPAL.wash(T.color, 12, "var(--surface-3)")
++        }
++      }), React.createElement("span", {
++        style: {
++          position: "absolute",
++          top: "50%",
++          left: frac * 100 + "%",
++          transform: "translate(-50%,-50%)",
++          width: 28,
++          height: 28,
++          borderRadius: "50%",
++          boxSizing: "border-box",
++          background: pend != null ? T.color : "var(--surface)",
++          border: pend != null ? "3px solid var(--surface)" : "2px solid " + T.color,
++          boxShadow: "0 1px 6px rgba(20,20,40,0.25)",
++          transition: "background 0.15s"
++        }
++      })), React.createElement("div", {
++        style: ends
++      }, React.createElement("span", null, endTxt[0]), React.createElement("span", {
++        style: {
++          fontWeight: 500
++        }
++      }, "slide · let go to answer"), React.createElement("span", null, endTxt[1])));
++    }
++    const W = 320,
++      H = big ? 92 : 66;
++    const path = this.dialPath(q, W, H);
++    const frac = (v - lo) / (hi - lo);
++    const medFrac = (q.med - lo) / (hi - lo);
++    return React.createElement("div", {
++      style: {
++        display: "flex",
++        flexDirection: "column",
++        gap: big ? 12 : 9,
++        animation: "popIn .3s cubic-bezier(0.2,0.8,0.2,1)"
++      }
++    }, React.createElement("div", {
++      style: {
++        display: "flex",
++        alignItems: "baseline",
++        gap: 7
++      }
++    }, React.createElement("span", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontWeight: 800,
++        fontSize: big ? 34 : 26,
++        letterSpacing: "-0.03em",
++        color: window.WPAL.ink(T.color),
++        fontVariantNumeric: "tabular-nums"
++      }
++    }, this.dialFmt(q, v)), React.createElement("span", {
++      style: {
++        fontWeight: 600,
++        fontSize: 13,
++        color: "var(--ink-3)"
++      }
++    }, "you"), React.createElement("span", {
++      style: {
++        marginLeft: "auto",
++        fontWeight: 700,
++        fontSize: 13.5,
++        color: "var(--ink-2)"
++      }
++    }, "most say ", this.dialFmt(q, q.med))), React.createElement("svg", {
++      viewBox: "0 0 " + W + " " + H,
++      style: {
++        width: "100%",
++        height: "auto",
++        display: "block"
++      },
++      "aria-label": "How everyone answered, " + endTxt[0] + " to " + endTxt[1]
++    }, React.createElement("path", {
++      d: path + " L " + W + "," + H + " L 0," + H + " Z",
++      fill: window.WPAL.wash(T.color, 20),
++      stroke: "none"
++    }), React.createElement("path", {
++      d: path,
++      fill: "none",
++      stroke: T.color,
++      strokeWidth: "2.2",
++      strokeLinejoin: "round",
++      strokeLinecap: "round"
++    }), React.createElement("line", {
++      x1: medFrac * W,
++      y1: 8,
++      x2: medFrac * W,
++      y2: H,
++      stroke: "var(--ink-3)",
++      strokeWidth: "1.2",
++      strokeDasharray: "3 3",
++      opacity: "0.55"
++    }), React.createElement("circle", {
++      cx: frac * W,
++      cy: this.dialY(q, frac, H),
++      r: "7",
++      fill: T.color,
++      stroke: "var(--surface)",
++      strokeWidth: "2.5"
++    })), React.createElement("div", {
++      style: ends
++    }, React.createElement("span", null, endTxt[0]), React.createElement("span", null, endTxt[1])));
++  }
++  setField(q, x, y) {
++    if (window.HAPTIC) {
++      window.HAPTIC.tap();
++      clearTimeout(this._hapT);
++      this._hapT = setTimeout(() => window.HAPTIC.reveal(), 260);
++    }
++    this._fresh = q.id;
++    this.setState(s => {
++      const votes = {
++        ...s.votes,
++        [q.id]: {
++          x,
++          y
++        }
++      };
++      try {
++        localStorage.setItem(WF_LS, JSON.stringify(votes));
++      } catch (e) {}
++      return {
++        votes
++      };
++    });
++  }
++  fieldCloud(q) {
++    const dots = [];
++    (q.cloud || []).forEach((c, ci) => {
++      for (let i = 0; i < c[2]; i++) {
++        const a = wfHash(q.id + ":a" + ci + ":" + i) * Math.PI * 2;
++        const r = Math.sqrt(wfHash(q.id + ":r" + ci + ":" + i)) * c[3];
++        dots.push([Math.max(4, Math.min(96, c[0] + Math.cos(a) * r)), Math.max(6, Math.min(94, c[1] + Math.sin(a) * r * 0.9))]);
++      }
++    });
++    return dots;
++  }
++  renderField(q, T, big) {
++    const v = this.state.votes[q.id];
++    const done = v != null;
++    const fresh = this._fresh === q.id;
++    const dots = done ? this.fieldCloud(q) : [];
++    const lab = (t, style) => React.createElement("span", {
++      style: {
++        position: "absolute",
++        fontFamily: "var(--sans)",
++        fontSize: 10.5,
++        fontWeight: 650,
++        color: "var(--ink-3)",
++        letterSpacing: "0.02em",
++        pointerEvents: "none",
++        ...style
++      }
++    }, t);
++    return React.createElement("div", {
++      style: {
++        display: "flex",
++        flexDirection: "column",
++        gap: big ? 10 : 7
++      }
++    }, React.createElement("div", {
++      onClick: e => {
++        if (done) return;
++        const r = e.currentTarget.getBoundingClientRect();
++        this.setField(q, Math.round((e.clientX - r.left) / r.width * 100), Math.round((e.clientY - r.top) / r.height * 100));
++      },
++      style: {
++        position: "relative",
++        aspectRatio: big ? "1 / 1" : "4 / 3",
++        borderRadius: 16,
++        border: "1px solid color-mix(in oklch, " + T.color + " 35%, var(--rule))",
++        background: window.WPAL.wash(T.color, 5),
++        cursor: done ? "default" : "crosshair",
++        overflow: "hidden"
++      }
++    }, React.createElement("span", {
++      style: {
++        position: "absolute",
++        left: 0,
++        right: 0,
++        top: "50%",
++        height: 1,
++        background: "var(--rule)",
++        opacity: 0.8
++      }
++    }), React.createElement("span", {
++      style: {
++        position: "absolute",
++        top: 0,
++        bottom: 0,
++        left: "50%",
++        width: 1,
++        background: "var(--rule)",
++        opacity: 0.8
++      }
++    }), lab(q.ax[0], {
++      left: 9,
++      top: "50%",
++      transform: "translateY(-140%)"
++    }), lab(q.ax[1], {
++      right: 9,
++      top: "50%",
++      transform: "translateY(-140%)"
++    }), lab(q.ay[1], {
++      top: 7,
++      left: "50%",
++      transform: "translateX(8px)"
++    }), lab(q.ay[0], {
++      bottom: 7,
++      left: "50%",
++      transform: "translateX(8px)"
++    }), done && dots.map(([x, y], i) => React.createElement("span", {
++      key: i,
++      style: {
++        position: "absolute",
++        left: x + "%",
++        top: y + "%",
++        width: 7,
++        height: 7,
++        margin: "-3.5px 0 0 -3.5px",
++        borderRadius: "50%",
++        background: T.color,
++        opacity: 0.38,
++        animation: fresh ? "popIn .4s " + i * 14 + "ms cubic-bezier(0.2,0.8,0.2,1) backwards" : "none"
++      }
++    })), done && React.createElement("span", {
++      style: {
++        position: "absolute",
++        left: v.x + "%",
++        top: v.y + "%",
++        width: 16,
++        height: 16,
++        margin: "-8px 0 0 -8px",
++        borderRadius: "50%",
++        boxSizing: "border-box",
++        background: "var(--surface)",
++        border: "3px solid " + T.color,
++        boxShadow: "0 1px 6px rgba(20,20,40,0.3)",
++        animation: fresh ? "popIn .3s cubic-bezier(0.2,0.8,0.2,1)" : "none"
++      }
++    })), !done && React.createElement("span", {
++      style: {
++        alignSelf: "center",
++        fontSize: 12.5,
++        fontWeight: 500,
++        color: "var(--ink-3)"
++      }
++    }, "tap where you land"));
+   }
+   knowQs(n, cats) {
+     const LF = window.LEARN_FEED,
+@@ -1077,7 +1553,7 @@
+     const ranked = C.items.slice().sort((a, b) => b.count - a.count);
+     const headShare = ranked.reduce((a, i) => a + i.count / C.picks * 100, 0);
+     const overall = ranked[0];
+-    const groups = dim === "friends" ? WF_FRIENDS.map(f => ({
++    const groups = dim === "friends" ? WF_FRIENDS.filter(f => wfDid(q, f)).map(f => ({
+       label: f.name,
+       init: f.init
+     })) : WF_GRP(dim, axis);
+@@ -1213,7 +1689,7 @@
+         flex: 1,
+         minWidth: 0
+       }
+-    }, nDiv ? nDiv + " of " + groups.length + " put someone else first" : "Every group agrees"), React.createElement("span", {
++    }, !groups.length ? "None of your friends has answered this one yet" : nDiv ? nDiv + " of " + groups.length + " put someone else first" : "Every group agrees"), React.createElement("span", {
+       style: {
+         flexShrink: 0,
+         fontSize: 12,
+@@ -1482,31 +1958,57 @@
+     if (mine != null && this.state.beat === q.id) return this.renderBeat(q, T, big);
+     const O = this.opts;
+     if (mine == null) {
++      const two = q.options.length === 2;
+       return React.createElement("div", {
+         style: {
+-          display: "flex",
+-          flexDirection: "column",
+-          gap: big ? 11 : 8
++          display: "grid",
++          gridTemplateColumns: two ? "1fr 1fr" : "1fr",
++          gap: 2,
++          height: two ? big ? 84 : 68 : undefined,
++          borderRadius: big ? 20 : 16,
++          overflow: "hidden",
++          background: "var(--rule)",
++          border: WF_LINE
+         }
+       }, q.options.map((o, i) => React.createElement("button", {
+         key: i,
+         className: "press",
+         onClick: () => this.setVote(q, i),
+         style: {
+-          border: "1px solid color-mix(in oklch, " + T.color + " 45%, var(--rule))",
+-          borderRadius: big ? 16 : 12,
+-          background: "color-mix(in oklch, " + T.color + " 10%, var(--surface))",
++          minHeight: big ? 52 : 44,
++          border: "none",
++          borderRadius: 0,
++          background: "var(--surface-2)",
+           boxShadow: "none",
+-          padding: big ? "15px 16px" : "11px 14px",
++          padding: big ? "0 16px" : "0 13px",
++          display: "flex",
++          flexDirection: two ? "column" : "row",
++          alignItems: two ? "flex-start" : "center",
++          justifyContent: "center",
++          gap: two ? 7 : 11,
+           textAlign: "left",
+           cursor: "pointer",
+           fontFamily: "var(--sans)",
+           fontWeight: 700,
+           fontSize: big ? 16.5 : 14,
++          letterSpacing: "-0.01em",
+           color: "var(--ink)",
+           WebkitAppearance: "none"
+         }
+-      }, o.label)));
++      }, React.createElement("span", {
++        "aria-hidden": "true",
++        style: {
++          width: 8,
++          height: 8,
++          borderRadius: "50%",
++          background: this.opts.v2 ? T.color : wfOpt(T.color, i, q.options.length),
++          flexShrink: 0
++        }
++      }), React.createElement("span", {
++        style: {
++          textWrap: "pretty"
++        }
++      }, o.label))));
+     }
+     return O.reveal ? this.renderVoteTiles(q, T, big) : this.renderVoteBars(q, T, big);
+   }
+@@ -1523,7 +2025,8 @@
+     const v2 = this.opts.v2;
+     const sides = this.friendSides(q, counts);
+     const rank = p.map(x => p.filter(y => y > x).length);
+-    const H = (big ? 58 : 46) * n + (n - 1) * 7;
++    const two = n === 2;
++    const H = two ? big ? 112 : 92 : (big ? 58 : 46) * n + (n - 1) * 7;
+     return React.createElement("div", {
+       style: {
+         display: "flex",
+@@ -1534,7 +2037,7 @@
+     }, React.createElement("div", {
+       style: {
+         display: "flex",
+-        flexDirection: "column",
++        flexDirection: two ? "row" : "column",
+         gap: 7,
+         height: H
+       }
+@@ -1549,6 +2052,7 @@
+         style: {
+           flex: Math.max(p[i], 4) + " 1 0",
+           minHeight: big ? 36 : 30,
++          minWidth: two ? big ? 90 : 78 : 0,
+           border: isMine ? "1.5px solid color-mix(in oklch, " + col + " 60%, var(--rule))" : WF_LINE,
+           borderRadius: big ? 16 : 13,
+           background: v2 ? "color-mix(in oklch, " + T.color + " " + s.toFixed(1) + "%, var(--surface))" : "color-mix(in oklch, " + col + " 26%, var(--surface))",
+@@ -1557,7 +2061,15 @@
+           transition: "flex-grow .7s cubic-bezier(0.2,0.8,0.2,1)"
+         }
+       }, React.createElement("div", {
+-        style: {
++        style: two ? {
++          height: "100%",
++          display: "flex",
++          flexDirection: "column-reverse",
++          alignItems: "flex-start",
++          justifyContent: "center",
++          gap: 3,
++          padding: big ? "0 16px" : "0 12px"
++        } : {
+           height: "100%",
+           display: "flex",
+           alignItems: "center",
+@@ -1567,50 +2079,54 @@
+       }, React.createElement("div", {
+         style: {
+           display: "flex",
+-          alignItems: "baseline",
++          alignItems: "center",
+           gap: 7,
+           minWidth: 0,
+-          flex: 1
++          flex: two ? "none" : 1,
++          flexWrap: "wrap"
+         }
+       }, React.createElement("span", {
+         style: {
+           fontWeight: win ? 800 : 700,
+-          fontSize: big ? 19 : 15,
++          fontSize: big ? two ? 16 : 19 : two ? 13.5 : 15,
+           letterSpacing: "-0.02em"
+         }
+       }, o.label), isMine && React.createElement("span", {
+         style: {
+-          fontSize: 13,
+-          fontWeight: v2 ? 500 : 700,
+-          color: "var(--ink-2)",
++          fontSize: 10.5,
++          fontWeight: 800,
++          letterSpacing: ".08em",
++          textTransform: "uppercase",
++          padding: "2px 7px",
++          borderRadius: 999,
++          background: "var(--ink)",
++          color: "var(--surface-2)",
+           whiteSpace: "nowrap",
+           animation: !v2 && fresh ? "chipPop .35s var(--ease-spring) var(--rv-2) both" : "none"
+         }
+-      }, "· you")), !v2 && fr.length > 0 && React.createElement("button", {
++      }, "you")), this.opts.friends === "rows" && fr.length > 0 && React.createElement("button", {
+         onClick: () => this.openSheet(q, T, "stats", "friends"),
+         "aria-label": fr.map(f => f.name).join(", ") + " picked " + o.label,
+         style: {
+           display: "flex",
+           alignItems: "center",
+-          gap: 4,
+           padding: "4px 2px",
+           border: "none",
+           background: "none",
+           cursor: "pointer",
+           flexShrink: 0,
+-          WebkitAppearance: "none"
+-        }
+-      }, fr.map(f => React.createElement("span", {
+-        key: f.name,
+-        title: f.name,
+-        style: {
+-          width: 9,
+-          height: 9,
+-          borderRadius: "50%",
+-          background: col,
+-          boxShadow: "0 0 0 1.5px var(--surface)"
+-        }
+-      }))), React.createElement("span", {
++          WebkitAppearance: "none",
++          animation: fresh ? "chipPop .35s var(--ease-spring) .55s both" : "none"
++        }
++      }, fr.slice(0, 2).map((f, k) => wfFrAv(f, big ? 17 : 15, k)), fr.length > 2 && React.createElement("span", {
++        style: {
++          marginLeft: 4,
++          fontFamily: "var(--sans)",
++          fontSize: 10.5,
++          fontWeight: 700,
++          color: "var(--ink-2)"
++        }
++      }, "+", fr.length - 2)), React.createElement("span", {
+         style: {
+           fontFamily: "var(--sans)",
+           fontWeight: win ? 800 : 600,
+@@ -1660,6 +2176,9 @@
+         style: quiet
+       }, wfFmt(c ? c.n : q.n || 0), " ratings");
+     }
++    if (q.type === "dial" || q.type === "field") return React.createElement("span", {
++      style: quiet
++    }, wfFmt(q.n || 0), " answers");
+     if (!q.options) return React.createElement("span", {
+       style: quiet
+     });
+@@ -1668,8 +2187,43 @@
+       total
+     } = wfPcts(q.options.map(o => o.count), mine);
+     return React.createElement("span", {
++      style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 9,
++        minWidth: 0
++      }
++    }, React.createElement("span", {
+       style: quiet
+-    }, wfFmt(total), " votes");
++    }, wfFmt(total), " ", q.type === "predict" ? "calls" : "votes"), this.renderFrFoot(q, T));
++  }
++  renderFrFoot(q, T) {
++    if (this.opts.friends !== "footer" || !q.options || this.state.votes[q.id] == null) return null;
++    const fr = this.friendSides(q, q.options.map(o => o.count));
++    if (!fr.length) return null;
++    return React.createElement("button", {
++      className: "press",
++      onClick: () => this.openSheet(q, T, "stats", "friends"),
++      "aria-label": "How your friends voted: " + fr.map(f => f.name).join(", "),
++      style: {
++        display: "flex",
++        alignItems: "center",
++        border: "none",
++        background: "none",
++        padding: "2px 0",
++        cursor: "pointer",
++        flexShrink: 0,
++        WebkitAppearance: "none"
++      }
++    }, fr.slice(0, 3).map((f, k) => wfFrAv(f, 18, k)), fr.length > 3 && React.createElement("span", {
++      style: {
++        marginLeft: 4,
++        fontFamily: "var(--sans)",
++        fontSize: 10.5,
++        fontWeight: 700,
++        color: "var(--ink-2)"
++      }
++    }, "+", fr.length - 3));
+   }
+   renderMeta(q, T, big, total, p, mine) {
+     const maxP = Math.max(...p);
+@@ -1684,11 +2238,18 @@
+       }
+     }, React.createElement("span", {
+       style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 9,
++        minWidth: 0
++      }
++    }, React.createElement("span", {
++      style: {
+         fontSize: big ? 12.5 : 11.5,
+         fontWeight: 600,
+         color: "var(--ink-2)"
+       }
+-    }, wfFmt(total), " votes", p[mine] === maxP ? " · with the majority" : " · you picked the underdog"), rip && React.createElement("button", {
++    }, wfFmt(total), " votes", p[mine] === maxP ? " · with the majority" : " · you picked the underdog"), this.renderFrFoot(q, T)), rip && React.createElement("button", {
+       onClick: () => window.goTab && window.goTab("mirror"),
+       style: {
+         display: "inline-flex",
+@@ -1760,7 +2321,7 @@
+         left: 0,
+         bottom: 0,
+         width: p[i] + "%",
+-        background: window.WPAL.wash(T.color, mine === i ? 30 : 15),
++        background: window.WPAL.wash(T.color, mine === i ? 44 : 22),
+         animation: fresh ? "barIn .7s cubic-bezier(0.2,0.8,0.2,1) " + i * 0.07 + "s both" : "none"
+       }
+     }), React.createElement("div", {
+@@ -1880,7 +2441,7 @@
+           right: 0,
+           bottom: 0,
+           height: p[i] + "%",
+-          background: "color-mix(in oklch, " + T.color + " " + (win ? 40 : 24) + "%, " + (v2 ? "var(--surface)" : "transparent") + ")",
++          background: o.img ? "color-mix(in oklch, " + T.color + " " + (win ? 42 : 27) + "%, transparent)" : window.WPAL.wash(T.color, win ? 56 : 36),
+           borderTop: "1.5px solid " + T.color,
+           animation: fresh ? "wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both" : "none",
+           transition: "height .7s cubic-bezier(0.2,0.8,0.2,1)"
+@@ -2127,7 +2688,95 @@
+   }
+   answered(q) {
+     const v = this.state.votes[q.id];
++    if (q.type === "predict" && q.days < 0) return true;
+     return q.type === "rank" ? !!(v && v.order) : v != null;
++  }
++  toggleAnon(id) {
++    this.setState(s => {
++      const anon = {
++        ...s.anon,
++        [id]: !s.anon[id]
++      };
++      if (!anon[id]) delete anon[id];
++      try {
++        localStorage.setItem(WF_ANON_LS, JSON.stringify(anon));
++      } catch (e) {}
++      return {
++        anon
++      };
++    });
++  }
++  renderAnonBtn(q, answered) {
++    const on = !!this.state.anon[q.id];
++    const glyph = React.createElement("svg", {
++      viewBox: "0 0 24 24",
++      width: "12",
++      height: "12",
++      fill: "none",
++      stroke: "currentColor",
++      strokeWidth: "2.2",
++      strokeLinecap: "round",
++      strokeLinejoin: "round",
++      "aria-hidden": "true"
++    }, React.createElement("path", {
++      d: "M4.5 12.5h15"
++    }), React.createElement("path", {
++      d: "M7.5 12.5l1.3-5a1.8 1.8 0 0 1 1.75-1.35h2.9a1.8 1.8 0 0 1 1.75 1.35l1.3 5"
++    }), React.createElement("circle", {
++      cx: "8.6",
++      cy: "16.7",
++      r: "2.1"
++    }), React.createElement("circle", {
++      cx: "15.4",
++      cy: "16.7",
++      r: "2.1"
++    }), React.createElement("path", {
++      d: "M10.7 16.7h2.6"
++    }));
++    if (answered) {
++      if (!on) return null;
++      return React.createElement("span", {
++        title: "Answered anonymously — hidden when others view your map",
++        "aria-label": "Answered anonymously — hidden when others view your map",
++        style: {
++          flexShrink: 0,
++          width: 20,
++          height: 20,
++          borderRadius: "50%",
++          background: "color-mix(in oklch, var(--ink) 9%, transparent)",
++          color: "var(--ink-2)",
++          display: "inline-flex",
++          alignItems: "center",
++          justifyContent: "center"
++        }
++      }, glyph);
++    }
++    return React.createElement("button", {
++      className: "press tap44",
++      onClick: e => {
++        e.stopPropagation();
++        this.toggleAnon(q.id);
++      },
++      "aria-pressed": on,
++      "aria-label": on ? "Anonymous is on — this answer won’t show when others view your map" : "Vote anonymously",
++      title: on ? "Anonymous — hidden when others view your map" : "Vote anonymously — it won’t show on your map to others",
++      style: {
++        flexShrink: 0,
++        width: 20,
++        height: 20,
++        borderRadius: "50%",
++        border: on ? "none" : "0.5px solid var(--rule)",
++        background: on ? "var(--ink)" : "transparent",
++        color: on ? "var(--surface)" : "var(--ink-3)",
++        display: "inline-flex",
++        alignItems: "center",
++        justifyContent: "center",
++        cursor: "pointer",
++        WebkitAppearance: "none",
++        padding: 0,
++        transition: "background .15s ease, color .15s ease"
++      }
++    }, glyph);
+   }
+   renderEngage(q, T, big) {
+     const takes = (window.WORLD_FEED_COMMENTS || {})[q.id] || [];
+@@ -2303,14 +2952,111 @@
+       }
+     }, "→"));
+   }
++  renderDialInsight(q, T, big) {
++    const v = this.state.votes[q.id];
++    if (v == null) return null;
++    let best = null;
++    WF_CUTS().forEach(cut => {
++      if (cut.id === "friends") return;
++      WF_GRP(cut.id, null).forEach(g => {
++        const a = this.dialGrpAvg(q, cut.id + ":" + g.label);
++        const d = Math.abs(a - v);
++        if (!best || d > best.d) best = {
++          dim: cut.id,
++          g: g.label,
++          a,
++          d
++        };
++      });
++    });
++    if (!best) return null;
++    return this.insightLine(q, T, best.dim, best.g + " · " + this.dialFmt(q, Math.round(best.a)) + " vs your " + this.dialFmt(q, v));
++  }
++  renderFieldInsight(q, T, big) {
++    const v = this.state.votes[q.id];
++    if (v == null) return null;
++    let best = null;
++    WF_CUTS().forEach(cut => {
++      if (cut.id === "friends") return;
++      WF_GRP(cut.id, null).forEach(g => {
++        const [x, y] = this.fieldGrpPos(q, WF_CUTKEY(cut.id, null) + ":" + g.label);
++        const d = Math.hypot(x - v.x, y - v.y);
++        if (!best || d > best.d) best = {
++          dim: cut.id,
++          g: g.label,
++          x,
++          d
++        };
++      });
++    });
++    if (!best) return null;
++    const side = best.x > 50 === v.x > 50 ? "far from you" : "across the field from you";
++    return this.insightLine(q, T, best.dim, best.g + " · " + side);
++  }
++  insightLine(q, T, dim, text) {
++    return React.createElement("button", {
++      className: "press",
++      onClick: () => this.openSheet(q, T, "stats", dim),
++      style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 10,
++        width: "100%",
++        boxSizing: "border-box",
++        border: WF_LINE,
++        borderRadius: 14,
++        background: "var(--surface)",
++        padding: "10px 14px",
++        cursor: "pointer",
++        WebkitAppearance: "none",
++        textAlign: "left"
++      }
++    }, React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        width: 8,
++        height: 8,
++        borderRadius: "50%",
++        background: T.color,
++        flexShrink: 0
++      }
++    }), React.createElement("span", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontWeight: 600,
++        fontSize: 13.5,
++        lineHeight: 1.3,
++        color: "var(--ink)",
++        flex: 1,
++        minWidth: 0,
++        textWrap: "pretty"
++      }
++    }, text), React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        fontSize: 13,
++        fontWeight: 700,
++        color: "var(--ink-3)",
++        flexShrink: 0
++      }
++    }, "→"));
++  }
+   renderInsight(q, T, big) {
+     if (!this.opts.reveal) return null;
++    if (q.type === "read") return null;
+     if (q.type === "rate") return this.renderRateInsight(q, T, big);
++    if (q.type === "dial") return this.renderDialInsight(q, T, big);
++    if (q.type === "field") return this.renderFieldInsight(q, T, big);
+     if (!window.feedInsight || !q.options) return null;
+     const mine = typeof this.state.votes[q.id] === "number" ? this.state.votes[q.id] : null;
+     const counts = q.options.map(o => o.count);
+-    const ins = window.feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
++    const ins = window.feedInsight(q, counts, mine, wfHash, this.opts.friends === "rows" ? null : this.friendSides(q, counts));
+     if (!ins) return null;
++    if (!ins.strong && this._cardSeq - this._insAt < 2) return null;
++    const gkey = ins.kind === "friends" ? "friends" : ins.group;
++    if (gkey === this._insGroup && this._cardSeq - this._insAt < 5) return null;
++    this._insAt = this._cardSeq;
++    this._insGroup = gkey;
+     const n = q.options.length;
+     const v2 = this.opts.v2;
+     const other = ins.kind === "friends" ? ins.mySide === 0 ? 1 : 0 : ins.sideIdx;
+@@ -2328,7 +3074,7 @@
+         border: v2 && idx !== 0 ? "1.5px solid color-mix(in oklch, " + T.color + " 65%, var(--rule))" : "none"
+       }
+     });
+-    const text = ins.kind === "friends" ? v2 ? ins.of - ins.same + " of " + ins.of + " friends disagree" : ins.of - ins.same + " of " + ins.of + " friends went the other way" : ins.group + (ins.kind === "flip" ? q.options.length > 2 ? " flips it to " + q.options[ins.sideIdx].label : " flips it" : " leans " + q.options[ins.sideIdx].label);
++    const text = ins.kind === "friends" ? ins.of === 1 ? ins.sides[0].name + (v2 ? " disagrees" : " went the other way") : v2 ? ins.of - ins.same + " of " + ins.of + " friends disagree" : ins.of - ins.same + " of " + ins.of + " friends went the other way" : ins.group + (ins.kind === "flip" ? q.options.length > 2 ? " flips it to " + q.options[ins.sideIdx].label : " flips it" : " leans " + q.options[ins.sideIdx].label);
+     if (v2) return React.createElement("button", {
+       className: "press",
+       onClick: () => this.openSheet(q, T, "stats", ins.dim),
+@@ -2631,7 +3377,7 @@
+         color: "var(--ink-3)",
+         textWrap: "pretty"
+       }
+-    }, "Questions with a right answer, mixed into the feed. Get one right and it lands on your map."), React.createElement("div", {
++    }, "Questions with a right answer. Get one right and it lands on your map."), React.createElement("div", {
+       style: {
+         display: "flex",
+         gap: 4,
+@@ -2668,28 +3414,7 @@
+     })), learnOpen.map(f => row("lrn-" + f.id, window.WPAL.c(L.colorOf(f.id)), f.label, `${(L.subject(f.subject) || {}).label || ""} · ${L.total(f.id)} cards`, () => {
+       L.follow(f.id);
+       this.forceUpdate();
+-    }, true))) : null, React.createElement("button", {
+-      className: "press",
+-      onClick: () => {
+-        this.setState({
+-          sheet: null
+-        });
+-        if (window.openSuggestions) window.openSuggestions();
+-      },
+-      style: {
+-        marginTop: 14,
+-        padding: "11px 0",
+-        border: "0.5px solid var(--rule)",
+-        background: "var(--surface-2)",
+-        borderRadius: 14,
+-        cursor: "pointer",
+-        fontFamily: "var(--sans)",
+-        fontWeight: 700,
+-        fontSize: 13,
+-        color: "var(--ink-2)",
+-        WebkitAppearance: "none"
+-      }
+-    }, "Suggest a question"));
++    }, true))) : null);
+   }
+   renderContext(q, T) {
+     const bg = WF_BGTEXT(q);
+@@ -3747,7 +4472,7 @@
+         flexDirection: "column",
+         gap: 9
+       }
+-    }, WF_FRIENDS.map(f => {
++    }, WF_FRIENDS.filter(f => wfDid(q, f)).map(f => {
+       const a = wfRateAvg(q.id, "f:" + f.name, avg);
+       const s = Math.round(a);
+       return React.createElement("div", {
+@@ -3816,13 +4541,323 @@
+           fontVariantNumeric: "tabular-nums"
+         }
+       }, s));
+-    })) : React.createElement("div", {
++    }), !WF_FRIENDS.some(f => wfDid(q, f)) && wfFrNone("None of your friends has rated this one yet.")) : React.createElement("div", {
+       style: {
+         display: "flex",
+         flexDirection: "column",
+         gap: 11
+       }
+     }, WF_GRP(dim, axis).map(g => track(g, wfRateAvg(q.id, cutKey + ":" + g.label, avg)))));
++  }
++  dialGrpAvg(q, key) {
++    return Math.max(q.lo, Math.min(q.hi, q.med + (wfHash(q.id + ":" + key) - 0.5) * (q.hi - q.lo) * 0.34));
++  }
++  renderDialStats(q, T) {
++    const dim = this.state.dims[q.id] || "friends";
++    const axis = this.state.cutAxis[q.id] || null,
++      cutKey = WF_CUTKEY(dim, axis),
++      youBand = WF_YOU(dim, axis);
++    const v = this.state.votes[q.id];
++    const span = q.hi - q.lo;
++    const track = (label, color, a) => React.createElement("div", {
++      key: label,
++      style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 10
++      }
++    }, React.createElement("span", {
++      style: {
++        width: 94,
++        flexShrink: 0,
++        display: "flex",
++        alignItems: "center",
++        gap: 6,
++        fontFamily: "var(--sans)",
++        fontWeight: 800,
++        fontSize: 11.5,
++        whiteSpace: "nowrap",
++        overflow: "hidden"
++      }
++    }, color && React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        width: 7,
++        height: 7,
++        borderRadius: "50%",
++        background: color,
++        flexShrink: 0
++      }
++    }), React.createElement("span", {
++      style: {
++        overflow: "hidden",
++        textOverflow: "ellipsis"
++      }
++    }, label)), React.createElement("span", {
++      style: {
++        position: "relative",
++        flex: 1,
++        height: 10
++      }
++    }, React.createElement("span", {
++      style: {
++        position: "absolute",
++        inset: 0,
++        borderRadius: 999,
++        background: "color-mix(in oklch, " + T.color + " 9%, var(--surface-3))"
++      }
++    }), React.createElement("span", {
++      style: {
++        position: "absolute",
++        top: 0,
++        bottom: 0,
++        left: 0,
++        width: (a - q.lo) / span * 100 + "%",
++        borderRadius: 999,
++        background: "linear-gradient(90deg, color-mix(in oklch, " + T.color + ", transparent 55%), " + T.color + ")"
++      }
++    }), v != null && React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        position: "absolute",
++        top: -3,
++        bottom: -3,
++        left: "calc(" + (v - q.lo) / span * 100 + "% - 1px)",
++        width: 2,
++        borderRadius: 1,
++        background: "var(--ink)"
++      }
++    })), React.createElement("span", {
++      style: {
++        width: 40,
++        flexShrink: 0,
++        textAlign: "right",
++        fontFamily: "var(--sans)",
++        fontWeight: 800,
++        fontSize: 12.5,
++        color: "var(--ink)",
++        fontVariantNumeric: "tabular-nums"
++      }
++    }, this.dialFmt(q, a)));
++    return React.createElement("div", {
++      style: {
++        display: "flex",
++        flexDirection: "column",
++        gap: 13
++      }
++    }, this.renderCutChips(q, dim), (v != null || youBand) && React.createElement("div", {
++      style: {
++        background: "var(--ink)",
++        color: "var(--surface)",
++        borderRadius: 12,
++        padding: "12px 14px",
++        fontFamily: "var(--sans)",
++        fontWeight: 700,
++        fontSize: 14,
++        display: "flex",
++        alignItems: "center",
++        gap: 10
++      }
++    }, React.createElement("span", {
++      style: {
++        flex: 1,
++        minWidth: 0
++      }
++    }, v != null ? "You said " + this.dialFmt(q, v) + " · most say " + this.dialFmt(q, q.med) : "What each group says"), youBand && React.createElement("span", {
++      style: {
++        flexShrink: 0,
++        fontSize: 12,
++        fontWeight: 800,
++        background: "color-mix(in oklch, var(--surface) 22%, transparent)",
++        borderRadius: 999,
++        padding: "3px 10px"
++      }
++    }, "You · ", youBand)), React.createElement("div", {
++      style: {
++        display: "flex",
++        flexDirection: "column",
++        gap: 11
++      }
++    }, dim === "friends" ? WF_FRIENDS.some(f => wfDid(q, f)) ? WF_FRIENDS.filter(f => wfDid(q, f)).map(f => track(f.name, null, this.dialGrpAvg(q, "f:" + f.name))) : wfFrNone("None of your friends has answered this one yet.") : WF_GRP(dim, axis).map(g => track(g.label, g.color, this.dialGrpAvg(q, cutKey + ":" + g.label)))), React.createElement("div", {
++      style: {
++        display: "flex",
++        justifyContent: "space-between",
++        fontFamily: "var(--sans)",
++        fontSize: 11,
++        fontWeight: 600,
++        color: "var(--ink-3)",
++        padding: "0 40px 0 104px"
++      }
++    }, React.createElement("span", null, (q.ends || [this.dialFmt(q, q.lo), this.dialFmt(q, q.hi)])[0]), React.createElement("span", null, (q.ends || [this.dialFmt(q, q.lo), this.dialFmt(q, q.hi)])[1])));
++  }
++  fieldGrpPos(q, key) {
++    const c = this.fieldCloud(q);
++    const cx = c.reduce((a, d) => a + d[0], 0) / c.length,
++      cy = c.reduce((a, d) => a + d[1], 0) / c.length;
++    return [Math.max(10, Math.min(90, cx + (wfHash(q.id + ":x:" + key) - 0.5) * 46)), Math.max(12, Math.min(88, cy + (wfHash(q.id + ":y:" + key) - 0.5) * 46))];
++  }
++  renderFieldStats(q, T) {
++    const dim = this.state.dims[q.id] || "friends";
++    const axis = this.state.cutAxis[q.id] || null,
++      cutKey = WF_CUTKEY(dim, axis),
++      youBand = WF_YOU(dim, axis);
++    const v = this.state.votes[q.id];
++    const grps = dim === "friends" ? WF_FRIENDS.filter(f => wfDid(q, f)).map(f => ({
++      label: f.name,
++      short: f.init,
++      key: "f:" + f.name
++    })) : WF_GRP(dim, axis).map(g => ({
++      label: g.label,
++      short: g.label,
++      color: g.color,
++      key: cutKey + ":" + g.label
++    }));
++    const lab = (t, style) => React.createElement("span", {
++      style: {
++        position: "absolute",
++        fontFamily: "var(--sans)",
++        fontSize: 10.5,
++        fontWeight: 650,
++        color: "var(--ink-3)",
++        letterSpacing: "0.02em",
++        pointerEvents: "none",
++        ...style
++      }
++    }, t);
++    return React.createElement("div", {
++      style: {
++        display: "flex",
++        flexDirection: "column",
++        gap: 13
++      }
++    }, this.renderCutChips(q, dim), (v != null || youBand) && React.createElement("div", {
++      style: {
++        background: "var(--ink)",
++        color: "var(--surface)",
++        borderRadius: 12,
++        padding: "12px 14px",
++        fontFamily: "var(--sans)",
++        fontWeight: 700,
++        fontSize: 14,
++        display: "flex",
++        alignItems: "center",
++        gap: 10
++      }
++    }, React.createElement("span", {
++      style: {
++        flex: 1,
++        minWidth: 0
++      }
++    }, "Where each group lands"), youBand && React.createElement("span", {
++      style: {
++        flexShrink: 0,
++        fontSize: 12,
++        fontWeight: 800,
++        background: "color-mix(in oklch, var(--surface) 22%, transparent)",
++        borderRadius: 999,
++        padding: "3px 10px"
++      }
++    }, "You · ", youBand)), React.createElement("div", {
++      style: {
++        position: "relative",
++        aspectRatio: "4 / 3",
++        borderRadius: 16,
++        border: "1px solid color-mix(in oklch, " + T.color + " 35%, var(--rule))",
++        background: window.WPAL.wash(T.color, 5),
++        overflow: "hidden"
++      }
++    }, React.createElement("span", {
++      style: {
++        position: "absolute",
++        left: 0,
++        right: 0,
++        top: "50%",
++        height: 1,
++        background: "var(--rule)",
++        opacity: 0.8
++      }
++    }), React.createElement("span", {
++      style: {
++        position: "absolute",
++        top: 0,
++        bottom: 0,
++        left: "50%",
++        width: 1,
++        background: "var(--rule)",
++        opacity: 0.8
++      }
++    }), lab(q.ax[0], {
++      left: 9,
++      top: "50%",
++      transform: "translateY(-140%)"
++    }), lab(q.ax[1], {
++      right: 9,
++      top: "50%",
++      transform: "translateY(-140%)"
++    }), lab(q.ay[1], {
++      top: 7,
++      left: "50%",
++      transform: "translateX(8px)"
++    }), lab(q.ay[0], {
++      bottom: 7,
++      left: "50%",
++      transform: "translateX(8px)"
++    }), grps.map(g => {
++      const [x, y] = this.fieldGrpPos(q, g.key);
++      return React.createElement("span", {
++        key: g.key,
++        style: {
++          position: "absolute",
++          left: x + "%",
++          top: y + "%",
++          transform: "translate(-50%,-50%)",
++          display: "flex",
++          alignItems: "center",
++          gap: 4
++        }
++      }, React.createElement("span", {
++        style: {
++          width: 11,
++          height: 11,
++          borderRadius: "50%",
++          flexShrink: 0,
++          background: g.color || T.color,
++          border: "2px solid var(--surface)",
++          boxShadow: "0 1px 4px rgba(20,20,40,0.25)"
++        }
++      }), React.createElement("span", {
++        style: {
++          fontFamily: "var(--sans)",
++          fontSize: 10.5,
++          fontWeight: 800,
++          color: "var(--ink-2)",
++          whiteSpace: "nowrap",
++          textShadow: "0 0 4px var(--surface)"
++        }
++      }, g.short));
++    }), v != null && React.createElement("span", {
++      style: {
++        position: "absolute",
++        left: v.x + "%",
++        top: v.y + "%",
++        width: 16,
++        height: 16,
++        margin: "-8px 0 0 -8px",
++        borderRadius: "50%",
++        boxSizing: "border-box",
++        background: "var(--surface)",
++        border: "3px solid " + T.color,
++        boxShadow: "0 1px 6px rgba(20,20,40,0.3)"
++      }
++    })), v != null && React.createElement("span", {
++      style: {
++        alignSelf: "center",
++        fontFamily: "var(--sans)",
++        fontSize: 11.5,
++        fontWeight: 650,
++        color: "var(--ink-3)"
++      }
++    }, "the ring is you"));
+   }
+   renderKnowStats(q, T) {
+     const L = window.LEARN,
+@@ -4101,6 +5136,8 @@
+     }, best.rate + "%"));
+   }
+   renderStats(q, T) {
++    if (q.type === "dial") return this.renderDialStats(q, T);
++    if (q.type === "field") return this.renderFieldStats(q, T);
+     if (q.type === "pick") return this.renderPickStats(q, T);
+     if (q.type === "know") return this.renderKnowStats(q, T);
+     if (q.type === "rate") return this.renderRateStats(q, T);
+@@ -4113,20 +5150,9 @@
+     const total = counts.reduce((a, b) => a + b, 0);
+     const myVote = this.state.votes[q.id];
+     const mySide = typeof myVote === "number" ? myVote : null;
+-    const pick = name => {
+-      const r = wfHash(q.id + ":" + name);
+-      let acc = 0;
+-      for (let i = 0; i < counts.length; i++) {
+-        acc += counts[i] / total;
+-        if (r < acc) return i;
+-      }
+-      return counts.length - 1;
+-    };
+-    const friends = WF_FRIENDS.map(f => ({
+-      ...f,
+-      oi: pick(f.name)
+-    }));
+-    const same = mySide == null ? null : friends.filter(f => f.oi === mySide).length;
++    const friends = this.friendSides(q, counts);
++    const notYet = WF_FRIENDS.filter(f => !wfDid(q, f));
++    const same = mySide == null || !friends.length ? null : friends.filter(f => f.oi === mySide).length;
+     const op = counts.map(c => Math.round(c / total * 100));
+     op[op.indexOf(Math.max(...op))] += 100 - op.reduce((a, b) => a + b, 0);
+     const nG = WF_GRP(dim, axis).length;
+@@ -4161,7 +5187,7 @@
+         fontWeight: 700,
+         fontSize: 14
+       }
+-    }, same != null ? same + " of " + friends.length + " friends are on your side" : "How your friends voted"), friends.map(f => React.createElement("div", {
++    }, !friends.length ? "None of your friends has answered this one yet" : same != null ? same + " of " + friends.length + (friends.length === 1 ? " friend is" : " friends are") + " on your side" : "How your friends voted"), friends.map(f => React.createElement("div", {
+       key: f.name,
+       style: {
+         background: "var(--surface)",
+@@ -4184,8 +5210,8 @@
+         fontFamily: "var(--sans)",
+         fontWeight: 800,
+         fontSize: 12,
+-        background: wfShade(T.color, f.oi),
+-        color: wfShadeText(f.oi)
++        background: f.hue,
++        color: "#fff"
+       }
+     }, f.init), React.createElement("span", {
+       style: {
+@@ -4206,7 +5232,16 @@
+         overflow: "hidden",
+         textOverflow: "ellipsis"
+       }
+-    }, q.options[f.oi].label)))) : React.createElement("div", {
++    }, q.options[f.oi].label))), friends.length > 0 && notYet.length > 0 && React.createElement("div", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontSize: 12,
++        fontWeight: 600,
++        color: "var(--ink-3)",
++        padding: "2px 4px 0",
++        textWrap: "pretty"
++      }
++    }, notYet.map(f => f.name).join(", "), " ", notYet.length === 1 ? "hasn't" : "haven't", " answered this one.")) : React.createElement("div", {
+       style: {
+         display: "flex",
+         flexDirection: "column",
+@@ -4362,7 +5397,8 @@
+       return 0;
+     };
+     const top = items[0];
+-    const nTop = WF_FRIENDS.filter(f => firstOf(f.name) === 0).length;
++    const rkFr = WF_FRIENDS.filter(f => wfDid(q, f));
++    const nTop = rkFr.filter(f => firstOf(f.name) === 0).length;
+     const GRID = {
+       display: "grid",
+       gridTemplateColumns: `84px repeat(${N}, 1fr)`,
+@@ -4455,7 +5491,7 @@
+           boxShadow: mine === p ? "inset 0 0 0 1.5px var(--ink)" : "none"
+         }
+       })));
+-    }), React.createElement("div", {
++    }), rkFr.length ? React.createElement("div", {
+       style: {
+         fontFamily: "var(--sans)",
+         fontSize: 13,
+@@ -4463,9 +5499,51 @@
+         color: "var(--ink-2)",
+         marginTop: 4
+       }
+-    }, nTop, " of ", WF_FRIENDS.length, " friends had ", top.label.toLowerCase(), " first."));
++    }, nTop, " of ", rkFr.length, " ", rkFr.length === 1 ? "friend" : "friends", " had ", top.label.toLowerCase(), " first.") : null);
+   }
+   renderThinBar(q, T) {
++    if (q.type === "predict" || q.type === "read") {
++      const v = this.state.votes[q.id];
++      const P = window.PREDICT;
++      const quiet = {
++        fontFamily: "var(--sans)",
++        fontSize: 11.5,
++        fontWeight: 700,
++        color: "var(--ink-3)"
++      };
++      if (v === -1) return React.createElement("span", {
++        style: quiet
++      }, "clock ran out");
++      let ok = null,
++        text = "sealed";
++      if (q.type === "read" && P) {
++        const ps = P.pcts(q);
++        ok = v === ps.indexOf(Math.max(...ps));
++        text = ok ? "read " + q.group + " right" : "misread " + q.group;
++      } else if (q.days < 0) {
++        const my = v != null ? v : q.you;
++        ok = my === q.out;
++        text = ok ? "called it" : "said " + q.options[my].label;
++      }
++      return React.createElement("div", {
++        style: {
++          display: "flex",
++          alignItems: "center",
++          gap: 8
++        }
++      }, ok != null && React.createElement("span", {
++        style: {
++          width: 11,
++          height: 11,
++          borderRadius: "50%",
++          flexShrink: 0,
++          background: ok ? "var(--c-likeness)" : "transparent",
++          border: ok ? "none" : "1.5px solid var(--ochre)"
++        }
++      }), React.createElement("span", {
++        style: quiet
++      }, text));
++    }
+     if (q.type === "pick") {
+       const C = (window.WF_CATALOGS || {})[q.catalog];
+       const it = C && C.items.find(i => i.id === this.state.votes[q.id]);
+@@ -4537,6 +5615,29 @@
+           color: "var(--ink-3)"
+         }
+       }, "ranked", " · ", m, "/", q.items.length, " with the crowd");
++    }
++    if (q.type === "dial") {
++      const v = this.state.votes[q.id];
++      return React.createElement("span", {
++        style: {
++          fontSize: 11.5,
++          fontWeight: 700,
++          color: "var(--ink-3)"
++        }
++      }, "you ", this.dialFmt(q, v), " · most say ", this.dialFmt(q, q.med));
++    }
++    if (q.type === "field") {
++      const v = this.state.votes[q.id];
++      const c = this.fieldCloud(q);
++      const cx = c.reduce((a, d) => a + d[0], 0) / c.length,
++        cy = c.reduce((a, d) => a + d[1], 0) / c.length;
++      return React.createElement("span", {
++        style: {
++          fontSize: 11.5,
++          fontWeight: 700,
++          color: "var(--ink-3)"
++        }
++      }, Math.hypot(v.x - cx, v.y - cy) < 26 ? "placed · with the cluster" : "placed · out on your own");
+     }
+     const mine = this.state.votes[q.id];
+     const {
+@@ -4599,8 +5700,137 @@
+       transform: "rotate(-90 10 10)"
+     })), left, "h");
+   }
++  renderPaidFrame(q, collapsed) {
++    const p = q.paid;
++    const open = !!(this.state.paidWhy || {})[q.id];
++    const answered = this.answered(q);
++    const total = (q.options || []).reduce((a, o) => a + (o.count || 0), 0);
++    const strip = {
++      display: "flex",
++      alignItems: "center",
++      gap: 10,
++      padding: "8px 15px",
++      background: "var(--surface-3)",
++      borderBottom: WF_LINE
++    };
++    return React.createElement("div", {
++      style: {
++        margin: (collapsed ? "-12px -14px" : "-16px -15px") + " 0",
++        display: "flex",
++        flexDirection: "column"
++      }
++    }, React.createElement("div", {
++      style: {
++        display: "flex",
++        alignItems: "center",
++        gap: 10,
++        padding: "9px 15px",
++        background: "var(--ink)",
++        color: "var(--surface)",
++        borderRadius: "17px 17px 0 0"
++      }
++    }, React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        width: 10,
++        height: 10,
++        borderRadius: 2,
++        background: "var(--surface)",
++        flexShrink: 0
++      }
++    }), React.createElement("span", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontSize: 12,
++        fontWeight: 800,
++        letterSpacing: "0.16em",
++        flexShrink: 0
++      }
++    }, "PAID"), React.createElement("span", {
++      "aria-hidden": "true",
++      style: {
++        width: 1,
++        height: 13,
++        background: "color-mix(in oklch, var(--surface) 42%, transparent)",
++        flexShrink: 0
++      }
++    }), React.createElement("span", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontSize: 13.5,
++        fontWeight: 700,
++        letterSpacing: "-0.01em",
++        minWidth: 0,
++        whiteSpace: "nowrap",
++        overflow: "hidden",
++        textOverflow: "ellipsis"
++      }
++    }, "asked by ", p.buyer)), React.createElement("div", {
++      style: strip
++    }, React.createElement("span", {
++      style: {
++        flex: 1,
++        minWidth: 0,
++        fontFamily: "var(--sans)",
++        fontSize: 12.5,
++        fontWeight: 700,
++        color: "var(--ink-2)"
++      }
++    }, "asked for ", p.window, answered ? " · " + wfFmt(total) + " answers" : ""), React.createElement("button", {
++      className: "press",
++      onClick: e => {
++        e.stopPropagation();
++        this.setState(s => ({
++          paidWhy: {
++            ...(s.paidWhy || {}),
++            [q.id]: !(s.paidWhy || {})[q.id]
++          }
++        }));
++      },
++      style: {
++        flexShrink: 0,
++        border: "none",
++        background: "none",
++        padding: "2px 0",
++        cursor: "pointer",
++        WebkitAppearance: "none",
++        fontFamily: "var(--sans)",
++        fontSize: 12.5,
++        fontWeight: 800,
++        color: "var(--ink)"
++      }
++    }, open ? "close" : "why me?")), open && React.createElement("div", {
++      style: {
++        ...strip,
++        display: "flex",
++        flexDirection: "column",
++        alignItems: "stretch",
++        gap: 5,
++        padding: "2px 15px 11px"
++      }
++    }, (p.why || []).map(w => React.createElement("span", {
++      key: w,
++      style: {
++        fontFamily: "var(--sans)",
++        fontSize: 12.5,
++        fontWeight: 600,
++        color: "var(--ink-2)"
++      }
++    }, "· ", w)), React.createElement("span", {
++      style: {
++        fontFamily: "var(--sans)",
++        fontSize: 12.5,
++        fontWeight: 600,
++        color: "var(--ink-3)",
++        lineHeight: 1.45,
++        textWrap: "pretty",
++        paddingTop: 2
++      }
++    }, p.buyer, " gets ", p.gets, ".")));
++  }
+   renderCard(q, flags) {
+     const F = flags || {};
++    this._cardSeq = (this._cardSeq == null ? 0 : this._cardSeq) + 1;
+     if (this.state.passed[q.id]) {
+       return React.createElement("button", {
+         key: q.id,
+@@ -4708,21 +5938,38 @@
+         display: "inline-flex",
+         alignItems: "center",
+         gap: 7,
+-        fontSize: 12.5,
+-        fontWeight: 700,
+-        letterSpacing: "0.01em",
+-        textTransform: "lowercase",
+-        color: mk ? window.WPAL.ink(T.color) : "var(--ink-2)",
++        fontSize: mk ? 12.5 : 10.5,
++        fontWeight: mk ? 600 : 800,
++        letterSpacing: mk ? 0 : ".09em",
++        textTransform: mk ? "none" : "uppercase",
++        color: mk ? window.WPAL.ink(T.color) : window.WPAL.ink(T.color),
+         background: mk ? window.WPAL.wash(T.color, 13, "var(--surface-2)") : "transparent",
+-        border: "0.5px solid " + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : "var(--rule)"),
++        border: mk ? `0.5px solid color-mix(in oklch, ${T.color} 40%, var(--rule))` : "none",
+         borderRadius: 999,
+-        padding: "4px 12px 4px 10px",
+-        minWidth: 0
++        padding: mk ? "4px 12px 4px 10px" : 0,
++        minWidth: 0,
++        whiteSpace: "nowrap",
++        overflow: "hidden",
++        textOverflow: "ellipsis"
+       }
+     }, React.createElement("span", {
+       "aria-hidden": "true",
+       style: kickDot
+-    }), kickLabel), bgText ? React.createElement("button", {
++    }), kickLabel, !mk && q.type && q.type !== "vote" ? React.createElement("span", {
++      style: {
++        color: "var(--ink-3)"
++      }
++    }, "· " + ({
++      duel: "this or that",
++      rank: "rank",
++      rate: "rate",
++      dial: "dial",
++      field: "place it",
++      know: "learn",
++      pick: "pick one",
++      predict: "predict",
++      read: "read the room"
++    }[q.type] || q.type)) : null), bgText ? React.createElement("button", {
+       className: "press tap44",
+       onClick: e => {
+         e.stopPropagation();
+@@ -4782,7 +6029,7 @@
+         WebkitAppearance: "none",
+         padding: 0
+       }
+-    }, "i"), F.closing && this.renderClock(T), React.createElement("span", {
++    }, "i"), this.renderAnonBtn(q, answered), F.closing && this.renderClock(T), React.createElement("span", {
+       style: {
+         flex: 1
+       }
+@@ -4791,7 +6038,9 @@
+       answered: answered
+     }));
+     const snap = !compact && !focus;
+-    const skin = collapsed || focus ? "card" : q.type === "duel" ? "bleed" : this.opts.v2 || q.type === "vote" ? "bare" : "card";
++    const paid = q.paid || null;
++    const kickerNode = paid ? this.renderPaidFrame(q, collapsed) : kicker;
++    const skin = paid ? "card" : collapsed || focus ? "card" : q.type === "duel" ? "bleed" : this.opts.v2 || q.type === "vote" ? "bare" : "card";
+     const card = {
+       background: "var(--surface-2)",
+       border: mk ? "1px solid color-mix(in oklch, " + T.color + " 32%, var(--rule))" : WF_LINE,
+@@ -4824,10 +6073,24 @@
+     }
+     if (this.opts.v2 && skin === "bare") {
+       card.borderTop = WF_LINE;
+-      card.padding = "20px 1px 24px";
++      card.padding = "22px 1px 26px";
++    }
++    if (this.opts.v2 && skin === "card" && !paid && !collapsed && !focus) {
++      card.background = "transparent";
++      card.backgroundImage = "none";
++      card.border = "none";
++      card.borderTop = WF_LINE;
++      card.borderRadius = 0;
++      card.boxShadow = "none";
++      card.padding = "22px 1px 26px";
+     }
+     if (this.opts.v2 && skin === "bleed") {
+       card.borderBottom = "none";
++    }
++    if (paid) {
++      card.backgroundImage = "none";
++      card.border = "1px solid color-mix(in oklch, var(--ink) 24%, var(--rule))";
++      card.overflow = "hidden";
+     }
+     if (snap) {
+       card.minHeight = this.cardFloor(answered);
+@@ -4863,13 +6126,13 @@
+           ...card,
+           cursor: "pointer"
+         }
+-      }, kicker, React.createElement("div", {
++      }, kickerNode, React.createElement("div", {
+         style: {
+           fontFamily: "var(--sans)",
+-          fontWeight: 750,
+-          fontSize: 14.5,
++          fontWeight: 600,
++          fontSize: 15,
+           lineHeight: 1.3,
+-          letterSpacing: -0.2,
++          letterSpacing: -0.1,
+           textWrap: "pretty"
+         }
+       }, q.prompt), answered && this.renderThinBar(q, T));
+@@ -4884,21 +6147,33 @@
+         }
+       },
+       style: card
+-    }, kicker, snap && !answered && React.createElement("div", {
++    }, kickerNode, snap && !answered && React.createElement("div", {
+       "aria-hidden": "true",
+       style: {
+         flex: "0.12 1 0"
+       }
+     }), React.createElement("div", {
+       style: {
+-        fontFamily: "var(--sans)",
+-        fontWeight: snap || focus ? 800 : 750,
+-        fontSize: snap ? skin === "bare" ? this.opts.hier ? 24.5 : 30 : this.opts.hier ? 22 : 26 : focus ? 20 : 16.5,
+-        lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25,
+-        letterSpacing: snap ? skin === "bare" ? -0.7 : -0.5 : focus ? -0.4 : -0.25,
++        fontFamily: snap || focus ? "var(--serif)" : "var(--sans)",
++        fontWeight: snap || focus ? 500 : 600,
++        fontSize: snap ? skin === "bare" ? this.opts.hier ? 26 : 30 : this.opts.hier ? 23 : 26 : focus ? 22 : 16.5,
++        lineHeight: snap ? 1.18 : focus ? 1.22 : 1.25,
++        letterSpacing: snap || focus ? "-0.01em" : -0.25,
+         textWrap: snap || focus ? "balance" : "pretty"
+       }
+-    }, q.prompt), q.type === "vote" && this.renderVote(q, T, snap), q.type === "duel" && this.renderDuel(q, T, snap), q.type === "rank" && this.renderRank(q, T, snap), q.type === "rate" && this.renderRate(q, T, snap), q.type === "know" && this.renderKnow(q, T, snap), q.type === "pick" && this.renderPick(q, T, snap), !answered && this.opts.pass && React.createElement("button", {
++    }, q.prompt), q.type === "vote" && this.renderVote(q, T, snap), q.type === "duel" && this.renderDuel(q, T, snap), q.type === "rank" && this.renderRank(q, T, snap), q.type === "rate" && this.renderRate(q, T, snap), q.type === "dial" && this.renderDial(q, T, snap), q.type === "field" && this.renderField(q, T, snap), q.type === "know" && this.renderKnow(q, T, snap), q.type === "pick" && this.renderPick(q, T, snap), q.type === "predict" && window.PredictBody && React.createElement(window.PredictBody, {
++      q: q,
++      T: T,
++      big: snap,
++      mine: this.state.votes[q.id],
++      onCall: v => this.setCall(q, v)
++    }), q.type === "read" && window.ReadBody && React.createElement(window.ReadBody, {
++      q: q,
++      T: T,
++      big: snap,
++      mine: this.state.votes[q.id],
++      onCall: v => this.setCall(q, v)
++    }), !answered && this.opts.pass && React.createElement("button", {
+       className: "press",
+       onClick: () => this.setPass(q.id, true),
+       style: {
+@@ -4988,6 +6263,8 @@
+     }, "Follow"));
+   }
+   render() {
++    this._cardSeq = 0;
++    this._insAt = -99;
+     if (this.props.focus) {
+       return React.createElement("div", {
+         ref: n => {
+@@ -5042,6 +6319,18 @@
+     });
+     const sort = this.state.sort;
+     const sorted = sort === "top" ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === "new" ? [...qs].reverse() : mixed;
++    if (sort === "hot") {
++      if (!this._contPin || !sorted.some(q => q.id === this._contPin)) {
++        const isCont = q => q.type === "dial" || q.type === "field";
++        const cq = sorted.find(q => isCont(q) && this.state.votes[q.id] == null) || sorted.find(isCont);
++        this._contPin = cq && cq.id;
++      }
++      const ci = sorted.findIndex(q => q.id === this._contPin);
++      if (ci > 1) {
++        const [cq] = sorted.splice(ci, 1);
++        sorted.splice(1, 0, cq);
++      }
++    }
+     const tqs = window.TEST_FEED_QS || [];
+     const lqs = window.LENS_FEED_QS || [];
+     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
+@@ -5082,6 +6371,8 @@
+       sugg = cand[0] || null;
+     }
+     const snap = this.props.density !== "compact";
++    this._listLen = feedList.length;
++    const duePulses = window.PULSE && window.PulseCard ? window.PULSE.dueToday() : [];
+     const closingId = this.opts.clock ? (feedList.slice(0, 8).find(q => wfHash(q.id + ":close") < 0.3) || feedList[1] || {}).id : null;
+     return React.createElement("div", {
+       ref: n => {
+@@ -5090,10 +6381,13 @@
+       style: {
+         display: "flex",
+         flexDirection: "column",
+-        gap: 12,
++        gap: this.opts.v2 ? 6 : 12,
+         marginTop: 8
+       }
+     }, React.createElement("div", {
++      ref: n => {
++        this._head = n;
++      },
+       style: {
+         position: "sticky",
+         top: 0,
+@@ -5105,9 +6399,9 @@
+         padding: "12px 16px 10px",
+         background: "var(--surface-a, var(--surface))",
+         borderTop: "0.5px solid color-mix(in oklch, var(--rule), transparent 15%)",
+-        transform: this.state.headHide ? "translateY(-115%)" : "none",
+-        opacity: this.state.headHide ? 0 : 1,
+-        pointerEvents: this.state.headHide ? "none" : "auto",
++        transform: this._headHidden ? "translateY(-115%)" : "none",
++        opacity: this._headHidden ? 0 : 1,
++        pointerEvents: this._headHidden ? "none" : "auto",
+         transition: "transform 0.32s ease, opacity 0.26s ease"
+       }
+     }, React.createElement("div", {
+@@ -5115,24 +6409,21 @@
+         position: "relative",
+         display: "flex",
+         alignItems: "center",
+-        gap: 10
+-      }
+-    }, React.createElement("div", {
+-      className: "h-scroll",
+-      style: {
+-        display: "flex",
+-        gap: 8,
+-        flexWrap: "nowrap",
+-        overflowX: "auto",
++        gap: 8
++      }
++    }, React.createElement("span", {
++      className: "kicker",
++      style: {
++        marginBottom: 0,
+         flex: 1,
+-        minWidth: 0,
+-        padding: "2px 0"
+-      }
+-    }, React.createElement("button", {
++        minWidth: 0
++      }
++    }, "the feed"), React.createElement("button", {
+       key: "__sort",
+       className: "wf-chip",
+       onClick: () => this.setState({
+-        sort: sort === "hot" ? "top" : sort === "top" ? "new" : "hot"
++        sort: sort === "hot" ? "top" : sort === "top" ? "new" : "hot",
++        shown: WF_PAGE
+       }),
+       "aria-label": "Sort: " + sort,
+       style: {
+@@ -5151,9 +6442,69 @@
+         WebkitAppearance: "none",
+         whiteSpace: "nowrap"
+       }
+-    }, sort === "top" ? "top" : sort === "new" ? "new" : "hot"), chips.map((t, ci) => {
++    }, sort === "top" ? "top" : sort === "new" ? "new" : "hot"), (() => {
++      const off = chips.filter(t => cats[t.id] === false).length;
++      const lab = off === 0 ? "all topics" : chips.length - off + " of " + chips.length + " topics";
++      const open = !!this.state.topicsOpen;
++      return React.createElement("button", {
++        className: "wf-chip",
++        onClick: () => {
++          this._headHold = Date.now();
++          this.setHeadHidden(false);
++          this.setState({
++            topicsOpen: !open
++          });
++        },
++        "aria-expanded": open,
++        style: {
++          display: "inline-flex",
++          alignItems: "center",
++          gap: 6,
++          flexShrink: 0,
++          border: "0.5px solid " + (open || off ? "color-mix(in oklch, var(--ink) 22%, var(--rule))" : "var(--rule)"),
++          background: open ? "color-mix(in oklch, var(--ink) 9%, var(--surface-2))" : "var(--surface-2)",
++          color: "var(--ink)",
++          fontFamily: "var(--sans)",
++          fontWeight: 700,
++          fontSize: 12,
++          padding: "5px 11px",
++          borderRadius: 999,
++          cursor: "pointer",
++          WebkitAppearance: "none",
++          whiteSpace: "nowrap"
++        }
++      }, lab, React.createElement("span", {
++        "aria-hidden": "true",
++        style: {
++          width: 5,
++          height: 5,
++          borderRight: "1.5px solid currentColor",
++          borderBottom: "1.5px solid currentColor",
++          transform: open ? "translateY(1px) rotate(-135deg)" : "translateY(-1.5px) rotate(45deg)",
++          opacity: 0.7,
++          transition: "transform .2s"
++        }
++      }));
++    })()), this.state.topicsOpen && React.createElement("div", {
++      style: {
++        position: "relative",
++        display: "flex",
++        alignItems: "center",
++        gap: 10
++      }
++    }, React.createElement("div", {
++      className: "h-scroll",
++      style: {
++        display: "flex",
++        gap: 8,
++        flexWrap: "nowrap",
++        overflowX: "auto",
++        flex: 1,
++        minWidth: 0,
++        padding: "2px 0"
++      }
++    }, chips.map((t, ci) => {
+       const on = cats[t.id] !== false;
+-      const col = t.color;
+       return React.createElement(React.Fragment, {
+         key: t.id
+       }, React.createElement("button", {
+@@ -5163,10 +6514,10 @@
+         style: {
+           display: "inline-flex",
+           alignItems: "center",
+-          gap: 6,
+-          border: "0.5px solid " + (on ? col ? `color-mix(in oklch, ${col} 40%, var(--rule))` : "color-mix(in oklch, var(--rule), var(--ink) 22%)" : "var(--rule)"),
+-          background: on ? col ? `color-mix(in oklch, ${col} 10%, var(--surface-2))` : "var(--surface-2)" : "transparent",
+-          color: on ? "var(--ink-2)" : "var(--ink-3)",
++          gap: 5,
++          border: "0.5px solid " + (on ? "var(--ink)" : "var(--rule)"),
++          background: on ? "var(--ink)" : "transparent",
++          color: on ? "var(--surface)" : "var(--ink-3)",
+           fontFamily: "var(--sans)",
+           fontWeight: on ? 700 : 600,
+           fontSize: 12,
+@@ -5174,25 +6525,25 @@
+           borderRadius: 999,
+           cursor: "pointer",
+           WebkitAppearance: "none",
+-          whiteSpace: "nowrap"
+-        }
+-      }, col && on && React.createElement("span", {
++          whiteSpace: "nowrap",
++          transition: "background .15s ease, color .15s ease, border-color .15s ease"
++        }
++      }, on && React.createElement("svg", {
+         "aria-hidden": "true",
+-        style: t.know ? {
+-          width: 7,
+-          height: 7,
+-          borderRadius: "50%",
+-          background: "transparent",
+-          boxShadow: `inset 0 0 0 2px ${col}`,
++        width: "9",
++        height: "9",
++        viewBox: "0 0 10 10",
++        fill: "none",
++        stroke: "currentColor",
++        strokeWidth: "1.8",
++        strokeLinecap: "round",
++        strokeLinejoin: "round",
++        style: {
+           flexShrink: 0
+-        } : {
+-          width: 6,
+-          height: 6,
+-          borderRadius: "50%",
+-          background: col,
+-          flexShrink: 0
+-        }
+-      }), t.label.toLowerCase()));
++        }
++      }, React.createElement("path", {
++        d: "M1.5 5.2 4 7.6 8.6 2.4"
++      })), t.label.toLowerCase()));
+     })), React.createElement("span", {
+       "aria-hidden": "true",
+       style: {
+@@ -5234,11 +6585,18 @@
+       "aria-hidden": "true"
+     }, React.createElement("path", {
+       d: "M12 5 V19 M5 12 H19"
+-    }))))), feedList.map((q, i) => React.createElement(React.Fragment, {
++    }))))), feedList.slice(0, this.state.shown).map((q, i) => React.createElement(React.Fragment, {
+       key: q.id
+-    }, sugg && i === 2 && this.renderSuggestion(sugg, snap), this.renderCard(q, {
++    }, i === 0 && window.PathsCard && React.createElement(window.PathsCard, null), sugg && i === 2 && this.renderSuggestion(sugg, snap), i === 1 && this.opts.paid !== false && window.WF_PAID && this.renderCard(window.WF_PAID.today(), {}), (i + 1) % 4 === 0 && duePulses[(i + 1) / 4 - 1] && React.createElement(window.PulseCard, {
++      pid: duePulses[(i + 1) / 4 - 1]
++    }), this.renderCard(q, {
+       closing: q.id === closingId
+-    }))), sugg && feedList.length <= 2 && this.renderSuggestion(sugg, snap), feedList.length === 0 && React.createElement("div", {
++    }))), this.state.shown < feedList.length && React.createElement("div", {
++      style: {
++        height: 260
++      },
++      "aria-hidden": "true"
++    }), sugg && feedList.length <= 2 && this.renderSuggestion(sugg, snap), feedList.length === 0 && React.createElement("div", {
+       style: {
+         fontFamily: "var(--sans)",
+         fontSize: 12.5,

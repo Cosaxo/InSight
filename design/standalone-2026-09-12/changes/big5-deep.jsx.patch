@@ -1,0 +1,18 @@
+--- standalone-2026-09-07/big5-deep.jsx (normalised)
++++ 2026-09-12/big5-deep.jsx (normalised)
+@@ -441,14 +441,7 @@
+       }
+     }, React.createElement("span", {
+       style: kicker
+-    }, "Facets"), React.createElement("span", {
+-      style: {
+-        fontFamily: "var(--sans)",
+-        fontSize: 11.5,
+-        fontWeight: 600,
+-        color: "var(--ink-3)"
+-      }
+-    }, "tap one to read it")), React.createElement("div", {
++    }, "Facets")), React.createElement("div", {
+       style: {
+         position: "relative",
+         marginTop: 8

@@ -67,6 +67,25 @@ function watch() {
   return true;
 }
 
+// A new feed sitting forgets where you were (2026-09-12). The feed cannot
+// simply scroll itself to the top on the mount path: `restore()` above runs
+// two frames after the tab swap and would put the reader straight back, so
+// whoever ran last would win and it is not the feed. Forgetting is the only
+// version that does not depend on the race.
+//
+// EVERY scroller for the view, not just the feed's: a sitting that started
+// while you were on Mirror should not restore the Mirror's own offset from
+// two sittings ago either, and the daily tab's `data-view` is what the feed
+// is under.
+//
+// An event rather than an export, matching `insight:local-purge` one store
+// over: this module publishes nothing, is imported by nobody, and exists
+// only as a side effect — giving it its first export to serve one caller
+// would put it on the coupling meter for a signal an event already carries.
+window.addEventListener('insight:feed-sitting', () => {
+  for (const k of Object.keys(MEM)) delete MEM[k];
+});
+
 // the app mounts under React, so wait for .app to exist — and give up after
 // 12s rather than polling forever on a page that never mounts one
 let tries = 0;

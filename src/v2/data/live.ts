@@ -1514,9 +1514,9 @@ const listeners = new Set<() => void>();
 // carries the same note: derived on read rather than cached, so a
 // ranking cannot go stale against its own inputs. That reasoning is
 // right and it was being paid for on every render rather than on every
-// change. `kindredPeople()` walks every cached voter list and has 5
-// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2,
-// testNorms); each of those is inside a component that re-renders on
+// change. `kindredPeople()` walks every cached voter list and has 7
+// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2, testNorms,
+// friends + its overlay since 09-12); each of those is inside a component that re-renders on
 // every notify(), and none of them memoises. So one Mirror stop folded
 // the same voter cache four to six times per render — 14 ms a fold in
 // node at 120 cached questions × 200 voters, which is not 14 ms on a
@@ -8224,11 +8224,21 @@ const LIVE = {
    * `active` is filtered upstream, so an inactive pulse is simply not in
    * this list.
    */
-  pulseQs(): Array<{ id: string; prompt: string; options: string[] }> {
+  pulseQs(): Array<{ id: string; prompt: string; options: string[]; since?: string }> {
     return state.pulseBank.map((q) => ({
       id: q.id,
       prompt: String(q.prompt ?? ""),
       options: Array.isArray(q.options) ? q.options.map(String) : [],
+      // The first day this pulse existed, when the bank states one
+      // (data/pulse.ts `asksOn`). EMIT-WHEN-SET, the rule every other
+      // mapper in this file follows: none of the five shipped pulses
+      // carries it, and an absent field has to stay byte-for-byte absent
+      // so "the pulse predates the window" and "the bank forgot" are not
+      // the same value. Mapped here rather than left to the reader
+      // because a field this function does not name does not exist to
+      // anything downstream — the pulse roster rebuilds each entry field
+      // by field, so an unnamed one is dropped in silence.
+      ...(typeof q.since === "string" && q.since ? { since: q.since } : {}),
     }));
   },
   vote(qid: string, optionId: string): void {

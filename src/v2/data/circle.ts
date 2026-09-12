@@ -291,6 +291,48 @@ export async function fetchFollowersOf(
 }
 
 /**
+ * How many followers one read asks for (data/friends.ts).
+ *
+ * The other direction of the graph, read whole rather than as a membership
+ * test: the friends list's REQUESTS are the accounts that follow you and
+ * you do not follow back (VISION-2026-09-12 §2.2, D-2026-09-12d), and a
+ * request you cannot see is one you cannot answer. Bounded because the
+ * follower count is outside the viewer's control and rules cap it at
+ * nothing; past the cap the newest hundred are not what this returns — the
+ * page is Firestore's path order, the same limit `fetchFollowersOf` records
+ * for the old page — so a viewer with more followers than this sees a
+ * slice. The number is well above any count the app has seen; if it binds,
+ * page the read rather than raise it quietly.
+ */
+export const FOLLOWERS_CAP = 100;
+
+/**
+ * The accounts that follow `me`, as the uids that own the rows.
+ *
+ * `where("to", "==", me)` is the collection-group read the rules admit
+ * (`resource.data.to == request.auth.uid`, D65's lesson: a collection-group
+ * query carries the rule's own filter or is refused whole), on the
+ * collection-group index `firestore.indexes.json` already declares for
+ * `to`. The follower is the uid that OWNS the row —
+ * `v2_users/{follower}/following/{me}` — recovered from the path, which is
+ * how `fetchFollowersOf` reads the same rows.
+ */
+export async function fetchFollowers(db: Firestore, me: string, cap = FOLLOWERS_CAP): Promise<string[]> {
+  if (!me) return [];
+  const snap = await getDocs(query(
+    collectionGroup(db, "following"),
+    where("to", "==", me),
+    fsLimit(Math.max(1, cap)),
+  ));
+  const out: string[] = [];
+  for (const d of snap.docs) {
+    const owner = d.ref.parent.parent?.id;
+    if (owner && owner !== me && !out.includes(owner)) out.push(owner);
+  }
+  return out;
+}
+
+/**
  * One account's world answers, as qid → optionIdx.
  *
  * Carries the same `surface` filter voters.ts does, and for the same

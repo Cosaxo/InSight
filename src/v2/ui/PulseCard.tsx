@@ -7,14 +7,17 @@
 // chunk (check:bundle: the card is first-screen, the reading is not), and
 // its 21-day window is fetched on that tap rather than on every open.
 import React from "react";
-import PULSE, { CADENCES, CADENCE_LABEL, type Cadence } from "../data/pulse";
+import PULSE from "../data/pulse";
 
 const PulseTrendsLazy = React.lazy(() => import("./PulseTrends"));
 
 export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactElement | null {
   const [, bump] = React.useState(0);
   const [open, setOpen] = React.useState(false);
-  const [cadOpen, setCadOpen] = React.useState(false);
+  // Set when a pin is refused for being the fourth. Local to the card and
+  // cleared by the next tap: it is a sentence about THIS tap, and a
+  // refusal that outlived its tap would sit under a button that works.
+  const [pinFull, setPinFull] = React.useState(false);
   React.useEffect(() => {
     void PULSE.ensureToday().catch(() => { /* the ask renders without a crowd */ });
     return PULSE.subscribe(() => bump((x) => x + 1));
@@ -33,7 +36,7 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
   const st = PULSE.streak(id);
   const nToday = PULSE.todayN(id, "world");
   const bins = PULSE.bins(id, "world");
-  const cad = PULSE.cadence(id);
+  const isPinned = PULSE.pinned(id);
   const maxBin = Math.max(1, ...bins);
   // Rectangular mixing on purpose: an oklch mix from indigo (282°) into
   // the warm near-neutral surfaces takes the short way round the wheel
@@ -129,35 +132,47 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
     </div>
   );
 
-  // ── the rhythm (D203): how often this pulse asks, set where it asks.
-  // "Show up more often" is a cadence rather than a settings screen, so
-  // the control lives on the card and says only its current state until
-  // it is tapped — four chips standing open on every pulse would be more
-  // chrome than question.
-  const rhythm = (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      <button className="press" onClick={() => setCadOpen((o) => !o)} aria-expanded={cadOpen}
-        aria-label={"How often this pulse asks — " + CADENCE_LABEL[cad] + ". Change it."}
-        style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 650, color: "var(--ink-3)" }}>
-        {CADENCE_LABEL[cad]} {cadOpen ? "↑" : "↓"}
+  // ── the pin: "I am tracking this one."
+  //
+  // What stood here was D203's rhythm picker — a disclosure over four
+  // cadence chips, because a pulse that stacked above the feed needed a
+  // way to ask less often. Every pulse asks every day now and they ride
+  // the feed, so the question the control answers has changed from HOW
+  // OFTEN to WHERE: a pinned pulse is held near the head of the feed, an
+  // unpinned one takes whatever place the mix gives it.
+  //
+  // ONE BUTTON, NOT A DISCLOSURE OVER CHIPS. The state is binary and the
+  // word for it is the word on the button, so the fold the four chips
+  // needed buys nothing — `visual > word > sentence` (D182), and the old
+  // control spent a tap before it said anything.
+  //
+  // The refusal is the one sentence here, and it is a claim rather than a
+  // caption: a cap the card does not name is a button that silently does
+  // nothing. It renders only after a refused tap, which is the only
+  // moment it is true of anything the reader just did.
+  const pin = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <button className="press" aria-pressed={isPinned}
+        onClick={() => { setPinFull(!PULSE.setPinned(id, !isPinned)); }}
+        aria-label={isPinned ? "Tracking this pulse — it stays near the top of the feed. Stop tracking it." : "Track this pulse — it moves near the top of the feed."}
+        style={{
+          alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6,
+          border: "none", cursor: "pointer", WebkitAppearance: "none",
+          padding: "5px 11px", borderRadius: 999,
+          fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: isPinned ? 800 : 650,
+          color: isPinned ? "var(--accent-ink)" : "var(--ink-3)",
+          background: isPinned ? wash(16) : "var(--surface-3)",
+        }}>
+        <svg aria-hidden="true" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <path d="M6 7.6V11"></path>
+          <path d="M3.1 1h5.8l-.7 3.1 1.5 1.6v.9H2.3v-.9l1.5-1.6z"></path>
+        </svg>
+        {isPinned ? "tracking" : "track"}
       </button>
-      {cadOpen && (
-        <div role="radiogroup" aria-label="How often this pulse asks" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {CADENCES.map((c) => {
-            const on = c === cad;
-            return (
-              <button key={c} role="radio" aria-checked={on}
-                onClick={() => { PULSE.setCadence(id, c as Cadence); setCadOpen(false); }}
-                style={{
-                  border: "none", cursor: "pointer", WebkitAppearance: "none",
-                  padding: "5px 11px", borderRadius: 999,
-                  fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 650,
-                  color: on ? "var(--accent-ink)" : "var(--ink-3)",
-                  background: on ? wash(16) : "var(--surface-3)",
-                }}>{CADENCE_LABEL[c]}</button>
-            );
-          })}
-        </div>
+      {pinFull && (
+        <span role="status" style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          You’re tracking {PULSE.PIN_MAX} already — untrack one to swap.
+        </span>
       )}
     </div>
   );
@@ -173,7 +188,7 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
       </div>
       <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 21, lineHeight: 1.12, letterSpacing: "-0.03em", textWrap: "balance" }}>{q.text}</div>
       {mine == null ? ask : reveal}
-      {rhythm}
+      {pin}
       {open && (
         <div style={{ borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", paddingTop: 12 }}>
           <React.Suspense fallback={null}>

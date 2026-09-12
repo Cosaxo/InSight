@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Av, useDialog } from './primitives.jsx';
+import { useSubSwipe } from './sub-swipe.js';
 import { ownProgress, ResultProfileCard } from './result-card.jsx';
 import { RP_TESTS } from './result-rose.jsx';
 // Where the instrument currently stands, as a colour and a two-tone split
@@ -35,6 +36,12 @@ import { pushBackLayer } from '../data/backLayers';
 import { atHandle } from '../data/handles.ts';
 import { LensesPanel } from './lens-cards.jsx';
 import { GeneralPanel } from './profile-general.jsx';
+// The header's friends door (2026-09-12, VISION-2026-09-12 §2.3): a count
+// and a pending dot, from the demo's store or the live fold — the same
+// two the overlay itself reads — and the registry to open it.
+import { FRIENDS } from './follows.js';
+import { friendsView, loadFriends, subscribeFriends } from '../data/friends.ts';
+import NAV from '../data/nav';
 
 // The Roles tab (D204), behind a lazy boundary. When Roles shipped this
 // file was eager (spec-index imported it at top level) and MAX_EAGER_KB
@@ -204,6 +211,11 @@ function ProfileOverlay({ onClose, me }) {
   const validSub = (id) => SUBTABS.some(s => s.id === id) ? id : 'general';
   const [sub, setSubRaw] = React.useState(validSub(window.__profileSub));
   const setSub = (id) => { window.__profileSub = id; setSubRaw(id); };
+  // a horizontal swipe on the body steps the sub-tabs (2026-09-12):
+  // the body is the gesture's surface, the panel is what slides
+  const bodyRef = React.useRef(null);
+  const panelRef = React.useRef(null);
+  useSubSwipe(bodyRef, panelRef, SUBTABS.map((s) => s.id), sub, setSub);
   // The gear's sheet (D344). Deliberately NOT remembered the way `sub` is:
   // settings are an errand, and a profile that reopens onto them would be
   // the old General tab wearing a worse door.
@@ -255,6 +267,17 @@ function ProfileOverlay({ onClose, me }) {
   // card still returns null on its own for a test with no result or no
   // RP_TESTS entry.
 
+  // The friends door's two numbers. Live reads data/friends.ts, which
+  // needs the followers read to tell a request from a friend — one
+  // bounded query, session-cached, and the only cost this header adds.
+  const fLive = L.enabled;
+  const [, fBump] = React.useReducer((x) => x + 1, 0);
+  React.useEffect(() => (fLive ? subscribeFriends(fBump) : FRIENDS.subscribe(fBump)), [fLive]);
+  React.useEffect(() => { if (fLive) void loadFriends(); }, [fLive]);
+  const fv = fLive ? friendsView() : null;
+  const fN = fv ? fv.friends.length : FRIENDS.count();
+  const fReq = fv ? fv.requests.length : FRIENDS.requests().length;
+
   const dlg = useDialog(onClose, 'Your profile');
   return (
     // profile-ov (2026-09-06 §6.3) scopes the paper-section flatten in
@@ -263,14 +286,32 @@ function ProfileOverlay({ onClose, me }) {
     <div className="overlay surface-tint profile-ov" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
       <div className="app-header">
         <button className="avatar-btn" aria-label="Close" onClick={onClose}>✕</button>
+        {/* Balances the gear: with two controls on the right the title
+            would sit off-centre by one of them. Demo has one each side. */}
+        {L.enabled && <div style={{ width: 32, flexShrink: 0 }} />}
         <div className="h-title">Your <em>profile</em></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {/* Your friends (2026-09-12): the profile's door to the overlay,
+            with the count in its name and a dot while somebody is
+            waiting on you. Both builds draw it — the demo plays its
+            seeded store, live folds D101's rows. */}
+        <button className="avatar-btn" onClick={() => NAV.openOverlay('friends')}
+          aria-label={fN + ' friends' + (fReq > 0 ? ', ' + fReq + ' pending' : '')} title={fN + ' friends'}
+          style={{ position: 'relative', flexShrink: 0 }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="9.5" cy="8.5" r="3.4" />
+            <path d="M3.5 19.5c0-3.4 2.7-5.6 6-5.6s6 2.2 6 5.6" />
+            <path d="M15.2 5.6a3.2 3.2 0 0 1 0 5.8M17.4 14.4c2 .7 3.3 2.5 3.3 5.1" />
+          </svg>
+          {fReq > 0 && <span style={{ position: 'absolute', top: -1, right: -1, width: 9, height: 9, borderRadius: '50%', background: 'oklch(0.6 0.2 25)', boxShadow: '0 0 0 2px var(--surface-a, var(--surface))' }} />}
+        </button>
         {/* the corner gear (D344) — the door to Account & privacy since it
             left the General tab. Live only: the panel states facts about a
             real account and renders nothing in demo, and a gear opening an
             empty sheet is worse than no gear (D167's rule, one control
-            down). The spacer keeps the title centred when it is absent —
-            both are 32px, so the title does not shift between builds. */}
-        {L.enabled ? (
+            down). No spacer since the friends door arrived: the demo's
+            header is one control each side, the live one two. */}
+        {L.enabled && (
           <button className="icon-btn" aria-label="Account & privacy" onClick={() => setAcct(true)}>
             {/* the stroke idiom of the header's other icon buttons
                 (app-shell's ask/search): 24-grid, currentColor, 1.8.
@@ -282,11 +323,10 @@ function ProfileOverlay({ onClose, me }) {
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
           </button>
-        ) : (
-          <div style={{ width: 32, flexShrink: 0 }} />
         )}
+        </div>
       </div>
-      <div className="app-body" style={{ paddingTop: 0 }}>
+      <div ref={bodyRef} className="app-body" style={{ paddingTop: 0 }}>
         {/* compact identity row — the content is the star, not the header.
             Tightened 2026-08-12 with the double-inset fix above it: this
             row sat under ~146px of doubled status-bar padding, so its own
@@ -343,7 +383,7 @@ function ProfileOverlay({ onClose, me }) {
           </div>
         </div>
 
-        <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
+        <div key={sub} ref={panelRef} className="tab-swap" style={{ marginTop: 4 }}>
           {/* LivePrivacyPanel opened this tab from D98 to D344; it lives
               behind the header's gear now — see AccountSheet above. */}
           {sub === 'general' && <GeneralPanel onGo={setSub} />}

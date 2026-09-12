@@ -867,7 +867,7 @@ rather than compressed into this table.
 
 
 **Runs 55–59 delivered builds 33, 34 and 35, none of them recorded here,
-and build 32 never existed** (D479, 2026-09-12, build 36's pre-flight).
+and build 32 never existed** (D480, 2026-09-12, build 36's pre-flight).
 Five runs across two days, three of them uploads:
 
 | Run | id | dispatched | archived | `appBuild` there | step 17 |
@@ -953,7 +953,7 @@ resolves is the same; what moved is `CFBundleDisplayName`, now `Doxa`.
 
 
 **Runs 60 and 61 delivered build 36, and the bump landed off step 17's
-conclusion** (D479 amendment, 2026-09-12). Both archived `b1548dfb` six
+conclusion** (D480 amendment, 2026-09-12). Both archived `b1548dfb` six
 minutes apart — run 60 (`34714326335`, 19:29:42Z) step 17 `skipped`, the
 dry run, 5m 34s; run 61 (`34714631127`, 19:35:51Z) `success`, 19:40:57Z →
 19:42:19Z, 1m 22s of transfer. Fifteenth pair of this shape. `appBuild`

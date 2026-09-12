@@ -1,0 +1,450 @@
+[
+ {
+  "module": "src/sample-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/archetype-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/type-mix.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/compare-pop.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/daily-questions.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/pulse-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/demographics.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/follows.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/scenes.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/glyph-icons.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/subnav-thumb.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-branches.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-anchors.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-group-stats-mock.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/duels-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/haptics.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/swipe-back.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/sheet-escape.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/sheet-drag.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/scroll-memory.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/edge-fade.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/relationship-map-core.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/rm-test-lenses.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/votecuts.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/place-stats.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-palette.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-feed-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-catalogs.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-subtopics.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-feed-comments.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-feed-counters.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-feed-report.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/paid-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/patterns-core.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/paths-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/predict-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/trait-links.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/question-map.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/learn-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/learn-progress.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/learn-social.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/learn-feed.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/feed-read.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/test-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/passive-progress.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/test-feed-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/lens-defs.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/role-data.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-tab.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-groups.js",
+  "bundle": "core"
+ },
+ {
+  "module": "src/iOS.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/tweaks-panel.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/shared-primitives.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/viz-primitives.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/compare-breakdown.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/relationship-map-panels.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/relationship-map.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/type-marks.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/type-mix.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/result-rose.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/first-day.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/group-daily.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/read-run.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/duo-daily.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/learn-bits.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/consequence-beat.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/predict-cards.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/paths-card.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/world-feed.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/pulse-card.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/pulse-trends.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/daily-split.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/passive-meter.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/demographics.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/place-stats.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/mirror-answers.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/mirror-field.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/mirror-field-pops.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/question-map.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/oracle.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/people-lens.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/patterns-tab.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/group-role-map.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/group-mirror.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/segment-explorer.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/mirror-tab.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-card.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-learn-card.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-fore-card.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-people.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-find.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-chips.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/map-constellation.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/app.jsx",
+  "bundle": "core"
+ },
+ {
+  "module": "src/explain-sheet.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/test-viz.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/profile-test-viz.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/result-card.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/trait-web.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/search-overlay.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/friends-overlay.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/test-overlay.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/lens-cards.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/roles-panel.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/big5-deep.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/politics-deep.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/profile-overlay.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/person-mind-map.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/person-overlay.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/cityoverlay.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/logic-raven.jsx",
+  "bundle": "late"
+ },
+ {
+  "module": "src/general-tab.jsx",
+  "bundle": "late"
+ }
+]

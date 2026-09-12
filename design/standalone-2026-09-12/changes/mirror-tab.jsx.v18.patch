@@ -1,0 +1,52 @@
+--- v18/mirror-tab.jsx (compiled, normalised)
++++ 2026-09-12/mirror-tab.jsx (normalised)
+@@ -74,8 +74,9 @@
+   onPick,
+   big
+ }) {
+-  const n = MIRROR_STOPS.length;
+-  const idx = Math.max(0, MIRROR_STOPS.findIndex(p => p.id === stopId));
++  const STOPS = MIRROR_STOPS;
++  const n = STOPS.length;
++  const idx = Math.max(0, STOPS.findIndex(p => p.id === stopId));
+   const accent = stopAccent(stopId);
+   const H = big ? 54 : 44;
+   const railRef = React.useRef(null);
+@@ -100,7 +101,7 @@
+     if (j === drag.current.last) return;
+     drag.current.last = j;
+     if (window.HAPTIC) window.HAPTIC.tick();
+-    onPick(MIRROR_STOPS[j]);
++    onPick(STOPS[j]);
+   };
+   const scrub = clientX => {
+     const i = stopAt(clientX);
+@@ -188,7 +189,7 @@
+       height: 1,
+       background: "color-mix(in oklch, var(--rule), transparent 30%)"
+     }
+-  }), MIRROR_STOPS.map((p, i) => {
++  }), STOPS.map((p, i) => {
+     const on = i === idx;
+     const tick = (big ? 5.5 : 4.5) + i / (n - 1) * (big ? 8 : 5);
+     return React.createElement("button", {
+@@ -235,7 +236,7 @@
+         textAlign: "center",
+         whiteSpace: "nowrap",
+         fontFamily: "var(--sans)",
+-        fontSize: on ? big ? 14 : 12 : big ? 11.5 : 10.5,
++        fontSize: on ? big ? 14 : 13 : big ? 12.5 : 12,
+         fontWeight: on ? 800 : 600,
+         letterSpacing: "-0.02em",
+         color: on ? "var(--ink)" : "var(--ink-3)",
+@@ -281,7 +282,9 @@
+         minHeight: 0,
+         position: "relative"
+       }
+-    }, React.createElement(MapTab, null));
++    }, React.createElement(MapTab, {
++      onExit: () => window.goNav && window.goNav(backTo.current)
++    }));
+   } else if (isGroups) {
+     body = React.createElement("div", {
+       key: "groups-mirror",

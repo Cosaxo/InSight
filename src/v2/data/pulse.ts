@@ -23,16 +23,24 @@
 // that day. Every reading below takes a pulse id; nothing is singular any
 // more except the default the card opens on.
 //
-// EACH CARRIES ITS OWN CADENCE — daily · often (Mon/Wed/Fri) · weekly
-// (Sunday) · off — set on the card itself, because "show up more often"
-// is a rhythm rather than a settings screen. Cadence is DEVICE state and
-// deliberately has no server representation: `dueOn` is a pure function
-// of the cadence and the calendar, the reading is drawn on the device,
-// and putting it on the server would buy cross-device sync at the price
-// of a new field, a new rules arm, a new data-inventory row and a second
-// store-forms conversation about how often someone wants to be asked how
-// they slept. The rules do not fence it either — an "off" pulse is still
-// writable, exactly as a paused one should be.
+// EVERY ONE ASKS EVERY DAY, AND THEY RIDE THE FEED (2026-09-12). D203
+// gave each pulse its own cadence — daily · often (Mon/Wed/Fri) ·
+// weekly (Sunday) · off — set on the card, because a rhythm is not a
+// settings screen. That was right for a card STACKED ABOVE the feed,
+// where five at once is a wall; it is wrong for a card IN the feed,
+// where the mix already spaces them and a mute already silences them.
+// The owner's ruling: *"they should all be on everyday"*. What is set
+// on the card now is the PIN — see PIN_MAX below.
+//
+// The pin is DEVICE state and deliberately has no server
+// representation, for the reason the cadence had none: it is a pure
+// function of one local list, the reading is drawn on the device, and
+// putting it on the server would buy cross-device sync at the price of
+// a new field, a new rules arm, a new data-inventory row and a second
+// store-forms conversation about which wellbeing question someone is
+// tracking. The rules do not fence it either — an unpinned pulse is
+// exactly as writable as a pinned one, which is what makes the pin a
+// reading choice rather than a permission.
 //
 // The design's honesty rules are the contract, not decoration, and the
 // roster adds the fourth:
@@ -69,20 +77,35 @@ export const PULSE_QID = "pulse-pace";
 export const DAYS = 21; // three weeks — the window the reading covers
 export const THIN = 20; // fewer answers than this: counted, never placed
 
-/** How often a pulse asks. `off` is paused rather than retired — the
- * history stays readable, the question simply stops being due. */
-export type Cadence = "daily" | "often" | "weekly" | "off";
-export const CADENCES: Cadence[] = ["daily", "often", "weekly", "off"];
-/** What each cadence is called on the card. */
-export const CADENCE_LABEL: Record<Cadence, string> = {
-  daily: "every day", often: "Mon · Wed · Fri", weekly: "Sundays", off: "paused",
-};
+/**
+ * EVERY PULSE ASKS EVERY DAY, and the four-value cadence is gone (the
+ * owner, 2026-09-12: *"they should all be on everyday"*). What replaced
+ * it is the PIN, below.
+ *
+ * The cadence — daily · often (Mon/Wed/Fri) · weekly (Sunday) · off —
+ * was a rhythm picker on a card that stacked above the feed, and it
+ * existed because five cards on one screen needed thinning. Two of the
+ * five defaulted to Sundays and two to `off`, so three of the roster
+ * were invisible on six days in seven and two were invisible until
+ * somebody found the picker. Pulses ride the FEED now, where a card
+ * costs a place in a stream rather than a permanent slot above it, so
+ * the thinning has nothing left to buy: the mix places them and the
+ * topic mute is how you say "less of this", exactly as for every other
+ * question.
+ *
+ * How many pins one device may hold. Three, because the pin is a claim
+ * on the head of the feed and a head that is all pins is not a feed —
+ * the same reasoning `SPONSOR_EVERY` uses for the paid places, pointed
+ * at the reader's own choices. The cap is here rather than in the card
+ * so the store refuses a fourth whatever asks.
+ */
+export const PIN_MAX = 3;
 
 export interface PulseStep { v: number; label: string }
 export interface PulseDay {
   i: number; key: string; date: Date; label: string; today: boolean;
   weekStart: boolean; v: number | null;
-  /** False when the cadence did not ask on this day — absent, not missed. */
+  /** False when the pulse did not ask on this day — absent, not missed. */
   scheduled: boolean;
 }
 export interface ScopeDay {
@@ -105,7 +128,24 @@ export interface ScopeDay {
   scheduled: boolean;
 }
 export interface PulseScope { id: string; label: string; short: string; series: ScopeDay[] }
-export interface PulseQ { id: string; kicker: string; text: string; steps: PulseStep[] }
+export interface PulseQ {
+  id: string; kicker: string; text: string; steps: PulseStep[];
+  /**
+   * The first UTC day this pulse existed, `YYYY-MM-DD`, when the bank
+   * states one. Absent on all five shipped pulses, which predate any
+   * window that can be drawn — see `asksOn`.
+   *
+   * CARRIED THROUGH `roster()` IN BOTH ROOMS rather than read off the
+   * bank document at the gate, and that is the whole reason it is on this
+   * interface. `roster()` rebuilds each live entry field by field, so a
+   * field it does not name is silently dropped: `asksOn` would keep
+   * answering true on the very day the bank started stating otherwise,
+   * with tsc, eslint and check:globals all green. That is D280's failure
+   * exactly — a read that resolves to undefined on every build — and
+   * naming the field here is what makes the drop a type error instead.
+   */
+  since?: string;
+}
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -115,17 +155,19 @@ const DEMO_STEPS: PulseStep[] = [
   { v: 4, label: "Brisk" }, { v: 5, label: "Flying" },
 ];
 /** The demo roster mirrors the live bank so the two rooms have the same
- * shape — same ids, same order, same default cadences. */
-const DEMO_ROSTER: { id: string; kicker: string; text: string; steps: string[]; cad: Cadence }[] = [
-  { id: "pulse-pace", kicker: "daily pulse", text: "What pace was today?", cad: "daily",
+ * shape — same ids, same order. The `cad` field went with the cadence:
+ * all five ask every day, in both rooms, so there is nothing left for a
+ * per-pulse default to differ about. */
+const DEMO_ROSTER: { id: string; kicker: string; text: string; steps: string[] }[] = [
+  { id: "pulse-pace", kicker: "daily pulse", text: "What pace was today?",
     steps: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
-  { id: "pulse-energy", kicker: "energy pulse", text: "How was your energy today?", cad: "weekly",
+  { id: "pulse-energy", kicker: "energy pulse", text: "How was your energy today?",
     steps: ["Drained", "Low", "OK", "Charged", "Wired"] },
-  { id: "pulse-sleep", kicker: "sleep pulse", text: "How did you sleep?", cad: "weekly",
+  { id: "pulse-sleep", kicker: "sleep pulse", text: "How did you sleep?",
     steps: ["Badly", "Patchy", "OK", "Well", "Deeply"] },
-  { id: "pulse-focus", kicker: "focus pulse", text: "How clear was your head?", cad: "off",
+  { id: "pulse-focus", kicker: "focus pulse", text: "How clear was your head?",
     steps: ["Scattered", "Foggy", "OK", "Sharp", "Locked in"] },
-  { id: "pulse-social", kicker: "social pulse", text: "How connected did you feel?", cad: "off",
+  { id: "pulse-social", kicker: "social pulse", text: "How connected did you feel?",
     steps: ["Alone", "Distant", "OK", "Close", "Held"] },
 ];
 /** The demo room's seeded history. `null` is a day nobody answered — absent,
@@ -146,14 +188,19 @@ const DEMO_BINS: Record<string, number[]> = {
   city: [7, 12, 27, 35, 19], country: [8, 14, 28, 33, 17], world: [6, 13, 28, 34, 19],
 };
 const LS = "insight.pulse.v1";
-const CAD_LS = "insight.pulseCadence.v1";
+// Was `insight.pulseCadence.v1`. A NEW KEY rather than a reused one: the
+// old value is a map of ids to rhythm words and the new one is a list of
+// ids, so a device upgrading in place would parse four cadences as four
+// pinned pulses — past PIN_MAX, and pinned by nobody. The purge sweeps
+// both by prefix, and the stale cadence key is simply never read again.
+const PINS_LS = "insight.pulsePins.v1";
 
 // ── shared clock arithmetic ─────────────────────────────────────────────
 // Day keys are UTC — the rules window, the vote's utcDayKey and the
 // per-day agg ids are all UTC, so the reading has to bucket the same way
-// or a late evening answers into "tomorrow's" row. The cadence reads the
-// same clock for the same reason: a pulse due "Sundays" has to be due on
-// the Sunday its answer would be keyed to.
+// or a late evening answers into "tomorrow's" row. `asksOn` reads the
+// same clock for the same reason: whatever day a pulse is asked on has
+// to be the day its answer would be keyed to.
 const pad = (n: number) => String(n).padStart(2, "0");
 const utcKey = (d: Date) =>
   `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
@@ -166,17 +213,52 @@ const dayAt = (i: number): Date => {
 const dayLabel = (d: Date) => `${d.getUTCDate()} ${MON[d.getUTCMonth()]}`;
 
 /**
- * Whether a cadence asks on a given day. Pure, explainable, and the whole
+ * Whether a pulse asks on a given day. Pure, explainable, and the whole
  * of the scheduling model — there is no queue, no server job and nothing
  * to drift out of sync, because every device computes the same answer
  * from the same calendar.
+ *
+ * TRUE EVERYWHERE TODAY, and it is deliberately still a function rather
+ * than a deleted gate. Its three callers — `days`, `scope` and `streak`
+ * — each carry a comment about the day a pulse did NOT ask, and that
+ * rule is the file's fourth honesty rule: such a day is absent, never a
+ * miss, never zero-filled. Inlining `true` would delete the rule along
+ * with the cadence that happened to be its first instance, and there is
+ * a second instance already in sight: **a day before the pulse
+ * existed**. The roster is five hand-written questions today, so every
+ * day of the 21-day window is a day every pulse existed and the answer
+ * is true for all of them — but the owner wants a slow creation lane
+ * (QUESTION-FARM.md § "A pulse lane, very slow"), and the first pulse
+ * it writes will have a window that starts mid-history. That needs a
+ * `since` date on the bank document, which is schema this change does
+ * not touch; when it lands, it lands HERE, and every reading that must
+ * respect it already does.
  */
-export function dueOn(cad: Cadence, d: Date): boolean {
-  if (cad === "off") return false;
-  if (cad === "daily") return true;
-  const w = d.getUTCDay(); // 0 = Sunday
-  if (cad === "often") return w === 1 || w === 3 || w === 5;
-  return w === 0; // weekly — Sunday
+export function asksOn(pid: string, d: Date): boolean {
+  const from = startedOn(pid);
+  return from == null || d >= from;
+}
+
+/**
+ * The first day this pulse existed, or null when it predates the window.
+ *
+ * NULL FOR EVERY PULSE TODAY, and that is a fact about the bank rather
+ * than a stub: `pulse-questions.json` carries `id`, `type`, `prompt` and
+ * `options`, `LIVE.pulseQs()` maps exactly those four, and none of them
+ * is a date. The five shipped pulses all predate any 21-day window that
+ * can be drawn, so null is also the right answer for them — there is no
+ * day in the window on which `pace` did not exist.
+ *
+ * It is a function and not a constant because the answer stops being
+ * null the moment a pulse is WRITTEN rather than shipped, which is what
+ * the owner's slow creation lane does. One `since` on the bank document,
+ * mapped through `pulseQs`, read here.
+ */
+function startedOn(pid: string): Date | null {
+  const q = roster().find((x) => x.id === pid);
+  if (!q?.since) return null;
+  const t = Date.parse(q.since + "T00:00:00Z");
+  return Number.isNaN(t) ? null : new Date(t);
 }
 
 // ── state ───────────────────────────────────────────────────────────────
@@ -220,13 +302,14 @@ const demoSaved = (): Record<string, Record<string, number>> => {
  */
 export function roster(): PulseQ[] {
   if (LIVE.enabled) {
-    return (LIVE.pulseQs() as { id: string; prompt: string; options: string[] }[])
+    return (LIVE.pulseQs() as { id: string; prompt: string; options: string[]; since?: string }[])
       .filter((q) => q.options.length === 5)
       .map((q) => ({
         id: q.id,
         kicker: kickerFor(q.id),
         text: q.prompt,
         steps: q.options.map((label, i) => ({ v: i + 1, label })),
+        ...(q.since ? { since: q.since } : {}),
       }));
   }
   return DEMO_ROSTER.map((r) => ({
@@ -249,40 +332,95 @@ function kickerFor(pid: string): string {
 
 const qOf = (pid: string): PulseQ | null => roster().find((q) => q.id === pid) ?? null;
 
-// ── cadence ─────────────────────────────────────────────────────────────
-const defaultCad = (pid: string): Cadence =>
-  DEMO_ROSTER.find((r) => r.id === pid)?.cad ?? "daily";
-
-const savedCads = (): Record<string, Cadence> => {
+// ── the pin ─────────────────────────────────────────────────────────────
+//
+// "I am tracking this one." The owner's words for what a pin means
+// (2026-09-12): *"they can be pinned that means that the user wants to
+// track that so it shows up somewhere near the top of the feed"*.
+//
+// So a pin is a READING PLACEMENT, not a schedule: every pulse asks
+// every day either way, and what the pin buys is that you meet it near
+// the head of the feed instead of wherever the mix put it. That is the
+// whole of the difference, and it is why this replaced the cadence
+// rather than joining it — one control that moves a card beats four
+// that gate whether it is asked at all.
+//
+// Device state, like the cadence it replaces, and for the same reason:
+// `dueOn` was a pure function of the calendar and this is a pure
+// function of one list, so neither needs a server field, a rules arm, a
+// data-inventory row or a second store-forms conversation. The purge
+// (D51) sweeps it with every other `insight.*` key — by prefix, so this
+// key needed no line there — and it must, because "I track my sleep" is
+// a statement about the person rather than about the phone.
+//
+// ORDER IS THE PIN ORDER, oldest first, because the head of the feed is
+// a queue and a set has no head. Re-pinning an already-pinned id is a
+// no-op rather than a bump: a tap that silently reordered the two cards
+// above it would be the jump-under-the-thumb this whole change is about.
+const savedPins = (): string[] => {
   try {
-    const v = JSON.parse(localStorage.getItem(CAD_LS) || "{}");
-    return v && typeof v === "object" ? v : {};
-  } catch { return {}; }
+    const v = JSON.parse(localStorage.getItem(PINS_LS) || "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch { return []; }
 };
 
-export function cadence(pid: string): Cadence {
-  const c = savedCads()[pid];
-  return c && CADENCES.includes(c) ? c : defaultCad(pid);
+/**
+ * The pinned pulses, oldest pin first, filtered to the live roster.
+ *
+ * The filter is not tidiness. A pulse retired at the bank (`active:
+ * false`) leaves `roster()` and its pin would otherwise hold a place at
+ * the head of the feed for a card that can no longer render — the
+ * `PASSIVE.testFor()` shape one surface over, and the same failure it
+ * exists to stop. Sliced to `PIN_MAX` so a hand-edited key cannot buy a
+ * fourth place either.
+ */
+export function pins(): string[] {
+  const live = new Set(roster().map((q) => q.id));
+  return savedPins().filter((id) => live.has(id)).slice(0, PIN_MAX);
 }
 
-export function setCadence(pid: string, cad: Cadence): void {
-  if (!CADENCES.includes(cad)) return;
-  const all = savedCads();
-  all[pid] = cad;
-  try { localStorage.setItem(CAD_LS, JSON.stringify(all)); } catch { /* private mode — holds for the session */ }
-  notify();
+export function pinned(pid: string): boolean {
+  return pins().includes(pid);
 }
 
 /**
- * The pulses due today, in roster order.
+ * Pin or unpin. Returns whether the store now holds what was asked for,
+ * so a caller can say why nothing happened — a fourth pin is refused,
+ * and a refusal the card cannot see is a dead button.
  *
- * A pulse you have ALREADY answered today stays in the list — it is due,
- * and the card draws its reveal. Dropping it would make today's card
- * vanish under your own tap, which reads as a bug rather than as progress.
+ * The cap counts against `savedPins` filtered by `pins()`, so a stale id
+ * for a retired pulse never occupies one of the three.
+ */
+export function setPinned(pid: string, on: boolean): boolean {
+  const cur = pins();
+  const has = cur.includes(pid);
+  if (on === has) return true;
+  if (on && cur.length >= PIN_MAX) return false;
+  const next = on ? [...cur, pid] : cur.filter((id) => id !== pid);
+  try { localStorage.setItem(PINS_LS, JSON.stringify(next)); } catch { /* private mode — holds for the session */ }
+  notify();
+  return true;
+}
+
+/**
+ * The pulses to serve today, in roster order.
+ *
+ * ALL OF THEM, every day (the owner, 2026-09-12). This used to be the
+ * cadence filter and the name still fits, because the thing it answers
+ * is unchanged — which pulses does today's feed carry — and the honest
+ * answer is now "the roster". Kept as a function rather than collapsed
+ * into `roster()` at the call site: `asksOn` says why the schedule is
+ * still a question worth asking, and this is where its answer will be
+ * read when a `since` date makes it interesting again.
+ *
+ * A pulse you have ALREADY answered today stays in the list — the card
+ * draws its reveal. Dropping it would make today's card vanish under
+ * your own tap, which reads as a bug rather than as progress. The feed's
+ * answered partition knows this too and asks `mineToday`, not `answered`.
  */
 export function dueToday(): string[] {
   const d = dayAt(DAYS - 1);
-  return roster().filter((q) => dueOn(cadence(q.id), d)).map((q) => q.id);
+  return roster().filter((q) => asksOn(q.id, d)).map((q) => q.id);
 }
 
 // ── reads ───────────────────────────────────────────────────────────────
@@ -430,7 +568,6 @@ function mineOn(
 }
 
 function days(pid: string): PulseDay[] {
-  const cad = cadence(pid);
   const mineDemo = demoSaved()[pid] || {};
   const mineLive = LIVE.enabled ? LIVE.pulseVotes(pid) : {};
   const hist = LIVE.enabled
@@ -439,7 +576,7 @@ function days(pid: string): PulseDay[] {
   return hist.map((v: number | null, i: number) => {
     const d = dayAt(i);
     const k = utcKey(d);
-    const scheduled = dueOn(cad, d);
+    const scheduled = asksOn(pid, d);
     // A day the pulse never asked on carries no answer, even in the demo
     // room's seeded history — otherwise a weekly pulse would draw a
     // Tuesday it was never offered on. The SCHEDULE gate is this fold's,
@@ -548,17 +685,17 @@ function scope(pid: string, id: string): PulseScope {
       : id === "country"
         ? (a.country ? bucketLabel("country", a.country) : "Your country")
         : "World";
-    const cad = cadence(pid);
     // Once, not once per day: it reads the store and the answer is the
     // same for all 21. Only TODAY can carry an unfolded answer.
     const mineIdx = pendingIdx(pid, id);
     const series: ScopeDay[] = Array.from({ length: DAYS }, (_, i) => {
       const d = dayAt(i);
-      // An unscheduled day is absent for the crowd too. Everyone's cadence
-      // is their own, so the cell may well hold answers — but placing them
-      // on a day THIS reading does not draw would put a point on a line
-      // the reader has no row for.
-      if (!dueOn(cad, d)) return { i, n: 0, mean: null, placed: false, thin: false, scheduled: false };
+      // An unscheduled day is absent for the crowd too: the cell may well
+      // hold answers — but placing them on a day THIS reading does not
+      // draw would put a point on a line the reader has no row for. True
+      // of every day while `asksOn` is, and see its note for the day that
+      // changes.
+      if (!asksOn(pid, d)) return { i, n: 0, mean: null, placed: false, thin: false, scheduled: false };
       const agg = aggFor(pid, utcKey(d));
       // No document at all stays zero on the trend as it does on the card
       // (`todayN`): an absent reading is what the "first answer today" arm
@@ -578,9 +715,8 @@ function scope(pid: string, id: string): PulseScope {
   const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[0];
   const me: { location?: string; country?: string } = IS_DATA.me ?? {};
   const label = s.label || (s.id === "city" ? (me.location || "Your city") : s.id === "country" ? (me.country || "Your country") : "World");
-  const cad = cadence(pid);
   const series: ScopeDay[] = s.mean.map((m, i) => {
-    if (!dueOn(cad, dayAt(i))) return { i, mean: null, n: 0, placed: false, thin: false, scheduled: false };
+    if (!asksOn(pid, dayAt(i))) return { i, mean: null, n: 0, placed: false, thin: false, scheduled: false };
     const n = s.n[i] || 0;
     return { i, mean: n > 0 ? m : null, n, placed: n >= THIN && m != null, thin: n > 0 && n < THIN, scheduled: true };
   });
@@ -620,9 +756,9 @@ const fmtN = (n: number): string =>
         : String(n);
 
 export const PULSE = {
-  DAYS, THIN, CADENCES, CADENCE_LABEL,
+  DAYS, THIN, PIN_MAX,
   SCOPES: ["city", "country", "world"],
-  roster, dueToday, cadence, setCadence, dueOn,
+  roster, dueToday, pins, pinned, setPinned, asksOn,
   /** The default pulse — what a card with no id asks. */
   first(): string { return roster()[0]?.id ?? PULSE_QID; },
   q(pid: string): PulseQ | null { return qOf(pid); },
@@ -706,8 +842,8 @@ export const PULSE = {
   },
   mineToday(pid: string): number | null {
     // NOT `days(pid)[DAYS - 1].v` (D244). That fold nulls every day the
-    // cadence did not ask on, which is right for the trend line — a weekly
-    // pulse must not draw a Tuesday it never offered — and wrong here.
+    // pulse did not ask on, which is right for the trend line — a line
+    // must not draw a day it never offered — and wrong here.
     //
     // Whether you answered TODAY is a fact about what you did, not a
     // scheduling question. Read through the gate, changing a pulse's
@@ -716,6 +852,12 @@ export const PULSE = {
     // hid it outright, and switching to a rhythm that does not include
     // today did the same. Setting the cadence back made it reappear, so
     // nothing was ever lost except the card's word for what you had done.
+    //
+    // The rhythm picker that made that reachable is gone (every pulse
+    // asks every day), so the bug has no trigger TODAY — and the
+    // separation is still the point, because `asksOn` gates again the
+    // moment a pulse carries a `since` date and the first day of its
+    // window is a day it did not exist.
     const k = utcKey(dayAt(DAYS - 1));
     const hist = LIVE.enabled
       ? null
@@ -753,10 +895,12 @@ export const PULSE = {
   },
 };
 
-// The purge (D51): the demo answers and the cadence are device state; the
-// live caches are account state. All of it goes — the cadence included,
-// because "ask me about my sleep every day" is a statement about the
-// person, not about the device.
+// The purge (D51): the demo answers and the pins are device state; the
+// live caches are account state. All of it goes — the pins included,
+// because "I am tracking my sleep" is a statement about the person, not
+// about the device. Both localStorage keys go by prefix in
+// `purgeLocalTrace`, which is why neither is named here; what this
+// handler clears is the in-memory half the sweep cannot reach.
 window.addEventListener("insight:local-purge", () => {
   todayAggs = null;
   for (const k of Object.keys(trendAggs)) delete trendAggs[k];

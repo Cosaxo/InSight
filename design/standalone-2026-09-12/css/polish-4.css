@@ -1,0 +1,17 @@
+/* ── fourth pass (Sep 2026) ── */
+/* the last sub-44px controls get their slack from a pseudo, drawn size unchanged: the docked
+   header stops (32px), the meter chip (31), the feed's sort and topics chips (32), the map's
+   branch chips (35), the crossroads' "Walk again" (40) and the two text links under the ballot (23).
+   .h-dockstop already spends ::after on its underline, so the slack rides ::before. */
+.h-dockstop::before,.pm-chip::before,.wf-chip::before,.mmt-chipbtn::before,.ar-next::before,.ballot-link::before{content:"";position:absolute;left:0;right:0;top:50%;height:44px;transform:translateY(-50%);border-radius:999px}
+.pm-chip,.wf-chip,.mmt-chipbtn,.ar-next,.ballot-link{position:relative}
+.ballot-link::before{left:-6px;right:-6px}
+.app[data-docked] .pm-chip::before{display:none}
+/* form controls don't inherit the page face: the ballot's two answers, the feed's → and the
+   map's ⌖ were drawing in the browser's button font (Arial on Windows). Zero-specificity, so
+   every class rule and inline face still wins. */
+:where(.app,.overlay,.wf-sheet) :is(button,input,select,textarea){font-family:inherit}
+/* overlays leave the way they came (app.jsx useLeaveHold): a short slide-down instead of a cut */
+.ov-host{display:contents}
+.ov-host.is-leaving .overlay{animation:ovLeave .2s ease both;pointer-events:none}
+@keyframes ovLeave{to{transform:translateY(22px);opacity:0}}

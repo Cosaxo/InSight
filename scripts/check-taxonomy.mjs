@@ -67,13 +67,17 @@ import { TOPS, LEAVES, levelOf, isPlaced } from "./topic-budget.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...p) => readFileSync(join(root, ...p), "utf8");
 
-// The two WORLD_TOPICS ids that are formats rather than subjects, and so
+// The WORLD_TOPICS ids that are formats rather than subjects, and so
 // deliberately absent from the feed's own taxonomy: `fav` is the catalogue
-// picks' channel (D145 §4) and `places` the place-rating one. D97 §3 states
-// the relationship — "WORLD_CHANNELS in a live build is WORLD_TOPICS minus
-// `places` and `fav`, the two formats the bank mapper cannot emit". Named
-// here so the gate can tell a format from a topic somebody forgot to wire.
-export const FORMAT_ONLY = new Set(["places", "fav"]);
+// picks' channel (D145 §4), `places` the place-rating one, and `pulse` the
+// repeating self-readings' (2026-09-12). D97 §3 states the relationship —
+// "WORLD_CHANNELS in a live build is WORLD_TOPICS minus `places` and
+// `fav`, the two formats the bank mapper cannot emit". `pulse` is a third
+// of exactly that kind: its questions come from the PULSE bank lane, which
+// `splitBanks` keeps out of the feed bank, so the feed mapper cannot emit
+// one either. Named here so the gate can tell a format from a topic
+// somebody forgot to wire.
+export const FORMAT_ONLY = new Set(["places", "fav", "pulse"]);
 
 // The lightness tier each list is authored at. Not a mistake and not
 // normalisable: the wire list is read by a surface that renders the chip on
@@ -131,12 +135,16 @@ export const GROUPS_TODAY = 8;
 // Feed topics whose caption falls to "added to Interests" by design rather
 // than by omission: `now` is a time, not a subject (D231), and a time has no
 // branch. A new subject topic without a WF_BRANCH row fails rule 6.
-export const RIPPLES_TO_INTERESTS = new Set(["now"]);
+// `pulse` joins it for the format reason rather than the time one: a
+// ripple names the Map branch a topic's answers feed, and a pulse's
+// answers are a line through 21 days rather than a position on a branch —
+// its reading is PulseTrends, which the card itself opens.
+export const RIPPLES_TO_INTERESTS = new Set(["now", "pulse"]);
 
 // Topics that may not carry leaves: the two formats (FORMAT_ONLY) and `now`
 // (D231: a TIME, not a subject — its questions expire, and a leaf of a time
 // would be a subject that had been given an expiry it does not have).
-export const LEAFLESS = new Set([...["places", "fav"], "now"]);
+export const LEAFLESS = new Set([...FORMAT_ONLY, "now"]);
 
 export function checkTaxonomy(sources = loadSources()) {
   const { palette, wire, catMeta, seedBranches, learnFields, learnSubjects, subtopics, feedQuestions, groups, ripples,

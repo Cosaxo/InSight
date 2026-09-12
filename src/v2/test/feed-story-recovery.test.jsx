@@ -24,7 +24,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, render } from "@testing-library/react";
 import { installLive, PATH_TITLE } from "./live-fixture";
-import { growUntil } from "./mount-app";
+import { growUntil, resetSitting } from "./mount-app";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -43,6 +43,9 @@ beforeAll(async () => {
 
 afterEach(() => {
   cleanup();
+  // The feed's answered snapshot lives in module scope so it can outlive a
+  // tab swap, which means it outlives a case too. See mount-app's note.
+  resetSitting();
   live?.restore();
   live = undefined;
   localStorage.removeItem(WF_LS);

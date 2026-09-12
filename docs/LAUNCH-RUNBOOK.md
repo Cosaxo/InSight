@@ -613,7 +613,7 @@ arithmetic.
       on 2026-08-08 — but the shape is the expensive half of D159's trap:
       the bump landed *between a dry run and its upload*, so the number
       run 55 rehearsed is not the number run 56 sent, across a 47-file
-      diff that includes the wall itself. D479 and `IOS-RELEASE.md` have
+      diff that includes the wall itself. D480 and `IOS-RELEASE.md` have
       the arithmetic.
 
       **BUILD 34 UPLOADED 2026-09-07** (run 57, `9069f62`, upload step
@@ -631,7 +631,7 @@ arithmetic.
       step 17 in the same session, before the run's record was written —
       the convention's second half, done in the order it asks for.
 
-      **BUILD 36's PRE-FLIGHT FOUND NOTHING TO DO** (D479, 2026-09-12).
+      **BUILD 36's PRE-FLIGHT FOUND NOTHING TO DO** (D480, 2026-09-12).
       Run 59 is the highest run in `ios-release.yml`'s list, 59 of 59;
       its step 17 is `success`; `appBuild` at run 59's **own `head_sha`**
       `2d286f8` is **35**, against a tree reading **36**. 36 is greater

@@ -122,6 +122,20 @@ import { PathsCard } from './paths-card.jsx';
 // walk is a vote and rides the ordinary answer plumbing).
 import { PATHS } from './paths-data.js';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
+// The pulses (D139, roster at D203), dealt into the feed since 2026-09-12.
+// Same two-import shape as Crossroads directly above, and for the same two
+// reasons: the CARD because a pulse's reveal is a line through 21 days
+// rather than a split, so renderCard has nothing to say about it — and the
+// STORE because the feed has to ask three things no feed item can answer
+// for itself (which pulses the roster holds, which you have answered
+// TODAY, and which you have pinned).
+import PulseCard from '../ui/PulseCard.tsx';
+import PULSE from '../data/pulse.ts';
+// The sitting (2026-09-12) — read its header before touching anything in
+// this file that used to be a per-MOUNT field. The tab swap unmounts this
+// component, so "once per sitting" and "once per mount" were the same
+// sentence and are not any more.
+import SITTING from '../data/feedSitting.ts';
 // The app's ONE rounding rule (D277). Three splits in this file computed
 // their own — round each share, dump the residue on the largest bucket —
 // which is the rule pct.ts retired for drawing a smaller count at a larger
@@ -436,6 +450,33 @@ class WorldFeed extends React.Component {
   // The tab's scroller gets y-proximity snap while the feed is mounted; each
   // card fills most of the viewport (next one peeking) and snap-aligns to top.
   componentDidMount() {
+    // The sitting boundary, both ways in.
+    //
+    // THE MOUNT is the tab-swap case: back from Mirror, back from an
+    // overlay that replaced the tab. `enter()` answers whether enough time
+    // passed to make this a new sitting, and a new one is the only thing
+    // that may move the reader — hence `freshSitting`, read once here
+    // rather than re-asked during render.
+    this.freshSitting(SITTING.enter());
+    // THE VISIBILITY EVENT is the other case, and it is not the same one:
+    // backgrounding the app while the feed is on screen never unmounts
+    // anything, so without this a phone left in a pocket for an hour comes
+    // back to the sitting it left — the half of the owner's sentence that
+    // a mount hook cannot see. Ordinary DOM listeners, matching live.ts's
+    // own wake handling (both arms, because some WebViews resume from a
+    // kill without firing visibilitychange).
+    this._onVis = () => {
+      if (document.visibilityState === 'hidden') { SITTING.leave(); return; }
+      // `_mounted !== false`, which is this file's idiom and not a
+      // paraphrase of `this._mounted`: the flag is only ever WRITTEN, to
+      // false, on unmount — it is `undefined` the whole time the
+      // component is alive. A truthiness test here reads a live component
+      // as gone and the redraw never fires, which on this path means the
+      // rotation a returning reader just earned sits unread until they
+      // tap something.
+      if (this.freshSitting(SITTING.enter()) && this._mounted !== false) this.forceUpdate();
+    };
+    document.addEventListener('visibilitychange', this._onVis);
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
@@ -532,10 +573,14 @@ class WorldFeed extends React.Component {
       // The unanswered-first stickiness cache goes with the maps: it holds
       // the OLD account's answered-ness, and a new account inheriting it
       // would open on a feed sorted by someone else's history.
-      this._sunk = null;
-      // …and the deferral snapshot with it, for the same reason: it holds
-      // the OLD account's "later" list.
-      this._heldAtBuild = null;
+      // The sitting's maps are NOT cleared from here any more. They live
+      // in module scope and `data/feedSitting.ts` hears the purge itself,
+      // which is the only version that works: this handler is registered
+      // on mount and removed on unmount, and the account panel that fires
+      // a purge is on the MIRROR tab — so at the moment it fires, this
+      // component is unmounted and this listener does not exist. Caught by
+      // `check:purge`, which asks a store that persists an `insight.*` key
+      // to hear the event itself for exactly this reason.
       this.setState({ votes: {}, passed: {}, deferred: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
     };
     window.addEventListener('insight:local-purge', this._onPurge);
@@ -597,6 +642,11 @@ class WorldFeed extends React.Component {
     // The learn-agg prefetch (D125) resolves after an await, so it can land
     // on an unmounted feed — a tab switch mid-fetch is the ordinary case.
     this._mounted = false;
+    // The feed is off screen from here (D-less, 2026-09-12): a tab swap
+    // unmounts this whole subtree. Stamping rather than ending — being
+    // away is what ends a sitting and only the way back can measure it.
+    SITTING.leave();
+    if (this._onVis) document.removeEventListener('visibilitychange', this._onVis);
     clearTimeout(this._retry);
     clearTimeout(this._growT);
     clearTimeout(this._sheetT);
@@ -612,6 +662,39 @@ class WorldFeed extends React.Component {
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
     if (sc && this._onScroll) sc.removeEventListener('scroll', this._onScroll);
+  }
+  /**
+   * A new sitting has started (or has not). Everything a module cannot do
+   * for itself.
+   *
+   * SCROLL TO THE TOP OF THE FEED, not to the top of the tab: the daily
+   * card and the ruler above it are not part of what refreshed, and
+   * throwing the reader past them would be answering a question nobody
+   * asked. `scrollIntoView` on the feed's own root says exactly that.
+   *
+   * AND DROP THE REMEMBERED OFFSET, which is the half that is easy to
+   * miss. `scroll-memory.js` restores the outgoing view's scrollTop two
+   * frames after a tab swap, so on the mount path it would undo this a
+   * moment later — it wins, because it runs last. The event tells it to
+   * forget instead, and the new `.tab-swap` element then simply starts
+   * where a new element starts.
+   *
+   * ANSWERS `isNew` back, so the caller can redraw. It does not redraw
+   * itself: the mount path is about to render anyway, and re-rendering
+   * inside `componentDidMount` costs an extra pass for nothing. Only the
+   * visibility path needs one — see `_onVis`.
+   */
+  freshSitting(isNew) {
+    if (!isNew) return false;
+    try { window.dispatchEvent(new Event('insight:feed-sitting')); } catch { /* no window in plain-node tests */ }
+    // After the paint, or it measures the list it is replacing. One frame
+    // is enough — the window resets to WF_PAGE, so the tail it might have
+    // scrolled into is not mounted yet either way.
+    requestAnimationFrame(() => {
+      const el = this._root; if (!el || !el.scrollIntoView) return;
+      el.scrollIntoView({ block: 'start' });
+    });
+    return true;
   }
   applySnap() {
     const el = this._root; if (!el) return;
@@ -2660,6 +2743,22 @@ class WorldFeed extends React.Component {
       if (PATHS.walkOf(q.id).length >= 3) return true;
       return !!(q.live && LIVE.myVotes && (mine || LIVE.myVotes())[q.id] != null);
     }
+    // A pulse is answered when you have answered it TODAY, and that word is
+    // the whole carve-out. Every other feed question is answered once and
+    // then parks behind the Answered expander forever; a pulse is a
+    // standing question whose answer is a point on a line, so "answered"
+    // has to mean "answered in this day's row" or the second day of a
+    // pulse's life would be the last day you were ever asked.
+    //
+    // `PULSE.mineToday`, deliberately, and not `LIVE.myVotes()[q.id]`: a
+    // pulse answer is keyed `{qid}_{day}` (content/README.md), so the
+    // plain qid is in nobody's vote map and the generic read would report
+    // every pulse unanswered forever — the mirror image of the same bug.
+    //
+    // The same exemption the learn stream already carries, one surface
+    // over: "re-serving an answered card on its due day is that feature
+    // working, not the bug this partition removes".
+    if (q.type === 'pulse') return PULSE.mineToday(q.id) != null;
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
@@ -2676,7 +2775,43 @@ class WorldFeed extends React.Component {
   // exactly the failure spec-index.js records for the module-scope read in
   // daily-split. One read behind one name keeps D39's meter honest about
   // that: this file couples to the global once, not once per caller.
-  feedPool() { return window.WORLD_FEED_QS || []; }
+  feedPool() {
+    const bank = window.WORLD_FEED_QS || [];
+    // THE PULSES JOIN HERE, not in the pool itself, and the seam is
+    // deliberate. `WORLD_FEED_QS` means "the feed bank's questions" to
+    // five other readers — search, the segment explorer, the subtopic
+    // stock join, the topic sheet's counts and `buildFeedGlobals` itself,
+    // which REPLACES the array wholesale on boot. A pulse written into
+    // that array would have to survive being clobbered by the live build
+    // and would arrive at readers that assume an options list; joining it
+    // here instead gives one seam, one meaning per array, and identical
+    // behaviour in both rooms — `PULSE.roster()` already answers for the
+    // demo furniture and the live bank lane alike, which is the whole
+    // reason this is cheap.
+    //
+    // `cat: 'pulse'` is the channel added to WORLD_TOPICS for this: it is
+    // what makes the card mutable, chip-able and placeable by the mix,
+    // which is what the owner's "like any other question" asks for.
+    // `type: 'pulse'` is what the three dispatch sites route on — the
+    // `path` precedent (D341) exactly.
+    //
+    // NO `options` ON THE ITEM, for D341's stated reason one card over: an
+    // options array would invite every generic option consumer to treat a
+    // pulse's 1..5 step scale as a vote's split. The card reads its own
+    // steps from the store.
+    const pulses = PULSE.ready()
+      ? PULSE.dueToday().map((pid) => ({
+        id: pid,
+        cat: 'pulse',
+        type: 'pulse',
+        // What search and the topic sheet print for it. The card draws
+        // its own prompt from the store, so this is the only copy the
+        // feed itself ever renders for a pulse.
+        prompt: (PULSE.q(pid) || {}).text || '',
+      }))
+      : [];
+    return pulses.length ? bank.concat(pulses) : bank;
+  }
 
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
@@ -4414,7 +4549,9 @@ class WorldFeed extends React.Component {
               option apparatus over a walk (D341) */}
           {this.props.focus.filter(Boolean).map((q) => (q.type === 'path'
             ? <PathsCard key={q.id} q={q}></PathsCard>
-            : this.renderCard(q, {})))}
+            : q.type === 'pulse'
+              ? <PulseCard key={q.id} pid={q.id}></PulseCard>
+              : this.renderCard(q, {})))}
           {this.renderSheet()}
         </div>
       );
@@ -4445,21 +4582,66 @@ class WorldFeed extends React.Component {
     // interleave streams round-robin so the feed reads as a mix, not blocks.
     // In world-feed-math.js so TAGS-PLAN §1 — one card, one stream, however
     // many doors it carries — has a test that runs the real grouping.
-    const mixed = wfStreamMix(qs);
+    // The sitting's rotation (data/feedSitting.ts). Zero would be the
+    // pre-2026-09-12 order exactly; the counter is never zero on a real
+    // device, which is the point — the head you meet is a different one
+    // every sitting.
+    const mixed = wfStreamMix(qs, SITTING.sitting());
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
-    const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
-    // keep one continuum question (dial/field) pinned near the top of hot — the
-    // pin holds after answering, so the card doesn't jump away mid-read
-    if (sort === 'hot') {
-      if (!this._contPin || !sorted.some((q) => q.id === this._contPin)) {
-        const isCont = (q) => q.type === 'dial' || q.type === 'field';
-        const cq = sorted.find((q) => isCont(q) && this.state.votes[q.id] == null) || sorted.find(isCont);
-        this._contPin = cq && cq.id;
-      }
-      const ci = sorted.findIndex((q) => q.id === this._contPin);
-      if (ci > 1) { const [cq] = sorted.splice(ci, 1); sorted.splice(1, 0, cq); }
-    }
+    const unpinned = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
+    // THE ONE PIN, AND IT IS THE READER'S OWN (2026-09-12). A pinned pulse
+    // is the owner's stated exception to the paragraph below:
+    //
+    //   "they can be pinned that means that the user wants to track that
+    //    so it shows up somewhere near the top of the feed"
+    //
+    // So this is not the continuum pin under another name, and the
+    // difference is not a nuance — it is the whole ruling. That one was a
+    // constant choosing a card for everybody, forever, off its TYPE. This
+    // one holds exactly what a person tapped "track" on, at most
+    // `PULSE.PIN_MAX` of them, and it empties the day they untap. Nothing
+    // is pinned for a reader who has pinned nothing, which is the default
+    // and is what both screenshots were about.
+    //
+    // In every sort lens, not just `hot`. A pin is a standing instruction
+    // about WHERE TO PUT a card, which is orthogonal to what the lens
+    // orders the rest by — and under `top` it is also the only thing that
+    // keeps a pulse reachable at all, since a pulse item carries no `n`
+    // and `wfVotes` would sort every one of them to the floor.
+    //
+    // Pin order, oldest first (data/pulse.ts `pins`), because the head of
+    // a feed is a queue: re-deriving the order from the list would let two
+    // pinned cards swap places whenever the mix moved underneath them.
+    const pinIds = PULSE.ready() ? PULSE.pins() : [];
+    const heldPins = pinIds
+      .map((pid) => unpinned.find((q) => q.type === 'pulse' && q.id === pid))
+      .filter(Boolean);
+    // A copy, always. `unpinned` IS `mixed` under `hot` rather than a copy
+    // of it, so filtering in place would reorder the memo the rest of this
+    // render reads.
+    const sorted = heldPins.length
+      ? [...heldPins, ...unpinned.filter((q) => !heldPins.includes(q))]
+      : unpinned;
+    // NO CONTINUUM PIN. A dial and a field are question TYPES, and they take
+    // whatever place the mix gives them — this is D341's ruling one type
+    // family over, and the owner's report is the same report:
+    //
+    //   "the dial ... and the double axis question should not be pinned to
+    //    the top, they should appear like any other question"
+    //
+    // What stood here forced one dial-or-field into index 1 of `hot` on
+    // every build, re-picked whenever the held id left the list. Two cards
+    // in the bank could therefore never be met anywhere else: the feed
+    // opened on a slider or a plane every single time, which is what the
+    // screenshots caught. The comment justified the pin by the thing the
+    // pin itself caused ("so the card doesn't jump away mid-read") — a card
+    // no one moved cannot jump.
+    //
+    // `sorted` IS `mixed` under `hot` rather than a copy, and the splices
+    // above mutated it in place. Nothing mutates it now, so the aliasing is
+    // harmless — but it is aliasing, so anything added here reorders the
+    // memo too unless it copies first.
     // Fresh questions only, within whichever sort lens is on. The bank is
     // finite and served in a stable order, so every session used to open
     // on the same head of cards — the ones the user answered first — as a
@@ -4475,10 +4657,13 @@ class WorldFeed extends React.Component {
     // Passed cards deliberately do NOT move — a pass is "not now", already
     // rendered as one slim row, and parking it would turn "not now" into
     // "never".
-    if (!this._sunk) this._sunk = new Map();
+    // PER SITTING, not per mount — the map lives in the sitting store, and
+    // that one word is the whole of the fix for "my answered card vanished
+    // when I glanced at the Mirror". The sampling rule is unchanged.
+    const sunkMap = SITTING.sunkMap();
     const sunk = (q) => {
-      let v = this._sunk.get(q.id);
-      if (v === undefined) { v = this.answered(q); this._sunk.set(q.id, v); }
+      let v = sunkMap.get(q.id);
+      if (v === undefined) { v = this.answered(q); sunkMap.set(q.id, v); }
       return v;
     };
     const worldSplit = partitionAnswered(sorted, sunk);
@@ -4511,7 +4696,7 @@ class WorldFeed extends React.Component {
     // Filtered here rather than inside partitionAnswered because a deferral
     // is not an answer: it must not join the `done` half, which is the
     // record of what you have said.
-    // THE SET IS SAMPLED ONCE PER SITTING, the way `_sunk` above is, and
+    // THE SET IS SAMPLED ONCE PER SITTING, the way `sunk` above is, and
     // this line is why the paragraph above was false. It read
     // `this.state.deferred` LIVE, so `setDefer(id, true)` — which writes
     // `now + 20h` — made `isDeferred` true on the very next render and the
@@ -4539,8 +4724,8 @@ class WorldFeed extends React.Component {
     // slim row until the next rebuild — which is when "later" starts,
     // exactly as the paragraph above always claimed.
     const heldNow = Date.now();
-    if (!this._heldAtBuild) this._heldAtBuild = { ...(this.state.deferred || {}) };
-    const notHeld = (q) => !isDeferred(this._heldAtBuild, q.id, heldNow);
+    const heldAtBuild = SITTING.heldAtBuild(() => this.state.deferred || {});
+    const notHeld = (q) => !isDeferred(heldAtBuild, q.id, heldNow);
     const tqs = testSplit.fresh.filter(notHeld);
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
@@ -4640,7 +4825,13 @@ class WorldFeed extends React.Component {
     // Verified by running the shipped function: askWindow({ until }) is
     // null, askWindow({ from, until }) is a window. With a paid place after
     // every sixth card, one sits inside the eight this picks from.
-    const clockable = feedList.filter((q) => !askWindow(q) && !q.sponsor && q.type !== 'path');
+    // …and NOR A PULSE, for the story's exact reason one clause over: the
+    // ring is renderCard's to draw and PulseCard never would, so a hash
+    // that landed on one would silently spend the grace note on a card
+    // that cannot wear it. Found by feed-closing-ring the hour pulses were
+    // dealt into the pool, which is the only way this class is ever found
+    // — a missing ring looks like a feed that simply did not draw one.
+    const clockable = feedList.filter((q) => !askWindow(q) && !q.sponsor && q.type !== 'path' && q.type !== 'pulse');
     const closingId = this.opts.clock
       ? ((clockable.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || clockable[1] || {}).id)
       : null;
@@ -4742,7 +4933,9 @@ class WorldFeed extends React.Component {
               ? <AdCard ad={q.ad}></AdCard>
               : q.type === 'path'
                 ? <PathsCard q={q}></PathsCard>
-                : this.renderCard(q, { closing: q.id === closingId })}
+                : q.type === 'pulse'
+                  ? <PulseCard pid={q.id}></PulseCard>
+                  : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {/* Room to scroll INTO while the window is still short of the list.
@@ -4771,7 +4964,9 @@ class WorldFeed extends React.Component {
         )}
         {this.state.doneOpen && doneList.map((q) => (q.type === 'path'
           ? <PathsCard key={q.id} q={q}></PathsCard>
-          : this.renderCard(q, {})))}
+          : q.type === 'pulse'
+            ? <PulseCard key={q.id} pid={q.id}></PulseCard>
+            : this.renderCard(q, {})))}
         {this.renderSheet()}
       </div>
     );

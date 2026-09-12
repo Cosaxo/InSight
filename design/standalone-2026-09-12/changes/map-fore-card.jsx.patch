@@ -1,0 +1,11 @@
+--- standalone-v28/map-fore-card.jsx (normalised)
++++ 2026-09-12/map-fore-card.jsx (normalised)
+@@ -369,7 +369,7 @@
+       color: "var(--ink-3)",
+       textWrap: "pretty"
+     }
+-  }, "On the map, closer to the hub means you read them better — hollow dots sit below your average.") : null, React.createElement("div", {
++  }, "Solid dots sit at or above your average, hollow ones below — the callouts mark your sharpest read and blind spot.") : null, React.createElement("div", {
+     style: {
+       display: "flex",
+       flexDirection: "column",

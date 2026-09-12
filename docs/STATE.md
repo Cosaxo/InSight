@@ -39,9 +39,9 @@ produced.
 
 | List | Open | Ticked |
 | --- | ---: | ---: |
-| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 163 | 5 |
+| [`OWNER-LIST.md`](OWNER-LIST.md) — only the owner can | 165 | 5 |
 | [`MERGE-LIST.md`](MERGE-LIST.md) — approvals | 12 | 0 |
-| [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 39 |
+| [`WORKLIST.md`](WORKLIST.md) — items tagged by account | 31 | 45 |
 
 A tick is the mechanism the program runs on (`PROGRAM-PLAN.md` §2.4), so
 the ratio in the OWNER-LIST row is the throughput of the whole ask
@@ -52,9 +52,9 @@ channel — including every D334 privacy question a routine deferred into it.
 | | Count |
 | --- | ---: |
 | `check:*` gates | 54 |
-| Cloud Functions | 49 |
+| Cloud Functions | 50 |
 | …with an alert over them | 4 |
-| Decision records | 489 (31 amendments, 11 dated) |
+| Decision records | 491 (31 amendments, 12 dated) |
 
 ## Where to go next
 

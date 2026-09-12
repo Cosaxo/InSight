@@ -23,6 +23,7 @@
 // on. This file covers the module-scope stores.
 import { beforeEach, describe, expect, it } from "vitest";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_SKILL, patternsEarned } from "../data/patternsReady";
+import * as SITTING from "../data/feedSitting";
 // @ts-expect-error TS7016 — untyped spec module, the house pattern
 import { FEEDREAD } from "../spec/feed-read.js";
 import "../spec/follows.js";
@@ -104,6 +105,41 @@ describe("module stores drop their memory on the purge (D51)", () => {
     FEEDREAD.log("purge-w-2", { maj: false });
     expect(stored("insight.readRoom.v1")).toContain("purge-w-2");
     expect(stored("insight.readRoom.v1")).not.toContain("purge-w-1");
+  });
+
+  it("SITTING: the feed's sitting, counter and answered snapshot alike", () => {
+    // THE ONE WHOSE COMPONENT LISTENER CANNOT COVER IT. world-feed.jsx
+    // registers for the purge on mount, and the account panel that fires
+    // one is on the Mirror tab — the shell keys `.tab-swap` by tab, so
+    // the feed is unmounted and that listener is gone at exactly the
+    // moment it would be needed. The module's own listener is what runs.
+    //
+    // `sunk` is the half that matters: it is the previous account's
+    // answered-ness, and a new account inheriting it opens on a feed
+    // sorted by a stranger's history with a stranger's cards already
+    // parked behind the Answered expander.
+    SITTING.sunkMap().set("q-old", true);
+    SITTING.leave(0);
+    SITTING.enter(SITTING.AWAY_MS);         // a real sitting, counter and all
+    expect(SITTING.sitting()).toBeGreaterThan(0);
+    expect(stored("insight.feedSitting.v1")).not.toBeNull();
+
+    purge();
+    expect(SITTING.sunkMap().size, "the old account's answered-ness survived").toBe(0);
+    expect(SITTING.sitting(), "a new account did not open on the bank's own order").toBe(0);
+    // …and step 3's real claim: the listener did not save the key back.
+    expect(stored("insight.feedSitting.v1")).toBeNull();
+
+    // Step 4: one new-account mutation persists only the new data. The
+    // sitting is opened BEFORE the map is written, because opening one is
+    // itself what clears the map — the order a real feed uses (`enter()`
+    // on mount, then `sunk` sampled during the build that follows).
+    SITTING.leave(0);
+    SITTING.enter(SITTING.AWAY_MS);
+    SITTING.sunkMap().set("q-new", false);
+    expect(SITTING.sitting()).toBe(1);
+    expect([...SITTING.sunkMap().keys()]).toEqual(["q-new"]);
+    expect(stored("insight.feedSitting.v1"), "the new account's counter was not persisted").toBe("2");
   });
 
   it("FRIENDS: the circle returns to its seed", () => {

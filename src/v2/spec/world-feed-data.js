@@ -44,7 +44,7 @@ const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true
 // No window mirror (D249): world-feed.jsx was the only reader.
 export const WORLD_CHANNELS = WFD_LIVE_BUILD
   ? WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
-  : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
+  : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav', 'pulse'];
 
 // ── question pool ──
 // type: 'vote' (pick one, see the split) · 'rank' (order the items, compare

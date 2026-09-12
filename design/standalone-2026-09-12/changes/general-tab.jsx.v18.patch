@@ -1,0 +1,11 @@
+--- v18/MirrorFieldBody.js (compiled, normalised)
++++ 2026-09-12/general-tab.jsx (normalised)
+@@ -846,7 +846,7 @@
+       set: set
+     }), React.createElement(MapThumbCard, null), React.createElement(TestArcsCard, {
+       onGo: onGo
+-    }), React.createElement(LensesRowCard, {
++    }), window.TraitWebCard && React.createElement(window.TraitWebCard, null), React.createElement(LensesRowCard, {
+       onGo: onGo
+     }), React.createElement(LogicCard, null), typeof window.MirrorFieldBody === "function" && React.createElement("div", null, React.createElement(Chapter, null, "Scenes you follow"), React.createElement(window.MirrorFieldBody, {
+       pop: "groups",
