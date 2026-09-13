@@ -123,4 +123,29 @@ describe("the topic sheet counts the bank, not the page it happens to hold", () 
     expect(row(rows, "dilemma"), `dilemmas still advertised: ${JSON.stringify(rows)}`).toBeUndefined();
     expect(row(rows, "fav"), `rows drawn: ${JSON.stringify(rows)}`).toMatch(/^9 questions ·/);
   });
+
+  it("keeps a channel the ORDER cannot speak about — its zero is 'not ranked'", async () => {
+    // The published order is `v2_rank/feed`, and rank.ts ranks the feed
+    // and learn surfaces. The pulses joined the feed from their own bank
+    // when the cadence was retired, so the order has no entry for them:
+    // `feedTotals.pulse` is undefined, `?? 0` makes it a zero, `?? s.n`
+    // does not fire because 0 is not nullish, and the `n > 0` filter above
+    // dropped the row. On a live build the Pulses row, its counts and its
+    // Mute button were simply absent from this sheet — on the same day
+    // the pulse header promised the topic mute is how you say "less of
+    // this", exactly as for every other question.
+    //
+    // NOT a loosening of the case above: `dilemma` is still emptied by a
+    // published order that omits it, in this same render. A zero closes a
+    // shelf; a channel the order does not rank is a different fact.
+    live = installLive({ feedCards: 4 });
+    publishFeedTotals({ fav: 9 });
+
+    renderInApp();
+    await openSheet();
+
+    const rows = topicRows();
+    expect(row(rows, "pulses"), `the Pulses row is gone: ${JSON.stringify(rows)}`).toMatch(/^\d+ questions? ·/);
+    expect(row(rows, "dilemma"), "a published zero stopped closing its shelf").toBeUndefined();
+  });
 });

@@ -172,6 +172,13 @@ const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste'
 const WF_TOPICS = WORLD_TOPICS;
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = WORLD_CHANNELS;
+// Channels whose cards are NOT `surface: "feed"` and so are absent from
+// the published feed order — see the topic sheet's stock line, which is
+// the only place it matters. The pulses joined the feed from their own
+// bank when the cadence was retired (2026-09-12); rank.ts ranks feed and
+// learn, so the order has nothing to say about them and its zero is
+// "not ranked" rather than "empty shelf".
+const WF_UNRANKED = { pulse: true };
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
 // second level of the tree: colour comes from the parent topic, label from the leaf
 const WF_SUB = (id) => (id ? SUBTOPICS.get(id) : null);
@@ -3245,10 +3252,29 @@ class WorldFeed extends React.Component {
     //
     // Null (a demo build, or before the order loads) falls through to the
     // pool, which in a demo build IS the whole bank.
+    // …AND A CHANNEL THE ORDER CANNOT SPEAK ABOUT takes the pool's stock,
+    // not the order's zero. `feedTopicTotal` is `feedTotals[topic] ?? 0`
+    // and that 0 is deliberate — D96, pinned below: a published zero must
+    // close a shelf. But the published order is `v2_rank/feed`, and
+    // rank.ts ranks the feed and learn surfaces only, so it has no
+    // vocabulary for a channel whose cards are not `surface: "feed"`. The
+    // pulses became such a channel the day the cadence was retired and
+    // they joined the feed from their own bank: `feedTotals.pulse` is
+    // undefined, `?? 0` made it a zero, `?? s.n` did not fire because 0 is
+    // not nullish, and `.filter(n > 0)` dropped the row — so on a live
+    // build the Pulses row, its counts and its Mute button were simply
+    // not in the topic sheet, on the same day the pulse header promised
+    // "the topic mute is how you say 'less of this', exactly as for every
+    // other question". The chip rail's own toggle still muted it, which
+    // is why nothing else noticed.
+    //
+    // Listed rather than inferred: a channel belongs here when its cards
+    // are not ranked with the feed's, which is a fact about the bank and
+    // not something this component can read off a total.
     const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
       .map((t) => {
         const s = stock[t.id] || { n: 0, done: 0 };
-        return { ...t, ...s, n: feedTopicTotal(t.id) ?? s.n };
+        return { ...t, ...s, n: WF_UNRANKED[t.id] ? s.n : (feedTopicTotal(t.id) ?? s.n) };
       })
       .filter((t) => t.n > 0);
     const topicRow = (t) => {
