@@ -274,6 +274,7 @@ function seed() {
   // `fanoutBudgetId`: a disagreement between the two makes the round-trip
   // below return null instead of quietly agreeing with itself.
   set(`v2_ratelimits/fanout_${ME}`, { events: [4], pending: true });
+  set(`v2_ratelimits/friendping_${ME}`, { pings: { [OTHER]: 1_700_000_000_000 } });
   // 4d, 4e, 4f — suggestions, purchases with their pointers, bookings.
   set(`v2_suggestions/${ME}_s`, { uid: ME, prompt: "my suggestion" });
   set(`v2_suggestions/${OTHER}_s`, { uid: OTHER, prompt: "someone else's suggestion" });
@@ -316,8 +317,8 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
   // budget existed — `ratelimits` and `rateLimits` were both present, so
   // TWIN was satisfied by a pair whose halves had drifted apart inside.
   //
-  // Both walks read `rateLimitLedgers` now, so the only way back to five
-  // is a ledger deleted straight out of index.ts. That is what this reads
+  // Both walks read `rateLimitLedgers` now, so the only way back to a
+  // short list is a ledger deleted straight out of index.ts. That is what this reads
   // for: it is a source scan because the alternative is a second list, and
   // a second list is the defect.
   it("takes every rate-limit ledger through the one shared list", () => {
@@ -329,7 +330,7 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
     // cannot come from the phase having been deleted.
     expect(src).toContain("rateLimitLedgers(uid)");
     expect(rateLimitLedgers(ME).map(([key]) => key)).toEqual(
-      ["insight", "join", "invite", "suggest", "paidbook", "fanout"],
+      ["insight", "join", "invite", "suggest", "paidbook", "fanout", "friendping"],
     );
   });
 
@@ -429,6 +430,12 @@ describe("exportAccountV2 · the read-only twin of deleteAccount", () => {
       suggest: { events: [3] }, paidbook: null,
       // The one the export omitted while the erasure deleted it.
       fanout: { events: [4], pending: true },
+      // The friend-notice cooldown (D-2026-09-12d). Seeded below, because
+      // this is the one ledger that names OTHER people — who this account
+      // has asked to compare answers — and a right-of-access file that
+      // held it back would be the same omission as `fanout`'s, on data
+      // that actually says something about somebody.
+      friendping: { pings: { [OTHER]: 1_700_000_000_000 } },
     });
     expect(ids(b.suggestions)).toEqual([`${ME}_s`]);
     expect(ids(b.purchases.rows).sort()).toEqual([`${ME}_ad`, `${ME}_q`]);
