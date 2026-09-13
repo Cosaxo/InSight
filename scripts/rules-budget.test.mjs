@@ -7,21 +7,10 @@
 // the anchor doubled, a helper that does not exist — because those are the
 // failures that would otherwise print a number.
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import {
-  ablate,
-  bisect,
-  classify,
-  CREATE_TAIL,
-  delta,
-  evalCounts,
-  judge,
-  planGate,
-  UPDATE_TAIL,
-  unchanged,
-  withCalibrateBlock,
-  withFillers,
-} from "./rules-budget.mjs";
+import { CREATE_TAIL, PROBES, UPDATE_TAIL, ablate, bisect, classify, delta, evalCounts, judge, planGate, unchanged, withCalibrateBlock, withFillers } from "./rules-budget.mjs";
 
 const RULE = [
   // The profile's create rule ends with the SAME line as the answer's —
@@ -292,5 +281,41 @@ describe("judge and unchanged", () => {
     expect(judge({ probe: legal, n: 59, want: "budget" }, "compile").ok).toBe(false);
     expect(judge({ probe: legal, n: 59, want: "budget" }, "allowed").ok).toBe(false);
     expect(judge({ probe: legal, n: 58, want: "unchanged" }, "allowed")).toMatchObject({ n: 58, verdict: "allowed", ok: true });
+  });
+});
+
+// ── a probe may not carry a date ──────────────────────────────────────
+//
+// `isPulseAnswer` bounds a pulse answer's `day` to (now - 4d, now + 2d),
+// because a pulse answer is about a day. The pulse probe carried the
+// literal date it was written on, so four days later it fell out of that
+// window: the probe was refused at every filler count, the gate reported
+// a moved pin, and `npm run test:rules` went red on main — on the path
+// backend-checks.yml guards for production — and would have stayed red
+// every day after. Nothing about the rule or the app had changed, and
+// re-pinning would have recorded a fiction.
+//
+// The class is the one this repo keeps meeting: a fixture that expires.
+// It is cheap to refuse outright, so this refuses it outright — a probe
+// that needs a date computes it.
+describe("no probe carries a frozen date", () => {
+  it("has no literal YYYY-MM-DD in the probe table's own source", () => {
+    // Read off the SOURCE, not off the value: a computed date is a date
+    // string by the time the table is built, so only the text can tell a
+    // frozen one from a live one. Comment lines are stripped first —
+    // naming the day this went wrong is exactly what a comment is for.
+    const src = readFileSync(fileURLToPath(new URL("./rules-budget.mjs", import.meta.url)), "utf8");
+    const table = src.slice(src.indexOf("export const PROBES = ["));
+    const body = table.slice(0, table.indexOf("\n];"))
+      .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    expect(body.match(/\d{4}-\d{2}-\d{2}/g),
+      "a probe pins a date, and a rule that bounds a date window will age it out").toBeNull();
+  });
+
+  it("…and the pulse probe's day is today, so the window it is measured in is the live one", () => {
+    const pulse = PROBES.find((p) => p.name === "pulse");
+    expect(pulse, "the pulse probe is gone — this case is pinning nothing").toBeTruthy();
+    expect(pulse.data.day).toBe(new Date().toISOString().slice(0, 10));
+    expect(pulse.aid).toBe(`${pulse.data.baseQid}_${pulse.data.day}`);
   });
 });

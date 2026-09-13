@@ -253,6 +253,8 @@ export async function bisect(ok, lo, hi) {
 
 const U = { owner: "u_owner", friend: "u_friend", stranger: "u_stranger" };
 const GID = "g_budget";
+/** The pulse probe's day — see the probe. UTC, like the rule's own parse. */
+const TODAY = new Date().toISOString().slice(0, 10);
 export const FAT = {
   city: "c".repeat(80), country: "n".repeat(80), ageBand: "b".repeat(20),
   age: "999", gender: "g".repeat(40), profession: "p".repeat(80),
@@ -280,8 +282,18 @@ export const PROBES = [
     data: { qid: "feed-rank0", surface: "feed", order: [2, 0, 1, 3], anchors: FAT } },
   { name: "duel · 32-member room", expect: "allowed", uid: "m31", aid: "g_g_big_r2",
     data: { qid: "group-b0", surface: "group", optionIdx: 1, gid: "g_big", round: 2, anchors: FAT } },
-  { name: "pulse", expect: "allowed", uid: U.owner, aid: "pulse-pace_2026-09-09",
-    data: { qid: "pulse-pace_2026-09-09", baseQid: "pulse-pace", day: "2026-09-09", surface: "pulse", optionIdx: 1, anchors: FAT } },
+  // TODAY, not the day this was written. `isPulseAnswer` bounds `day` to
+  // (now - 4d, now + 2d) — a pulse answer is about a day, so the rule
+  // refuses one that is neither recent nor imminent. This probe carried
+  // the literal 2026-09-09 and therefore aged out of that window on
+  // 2026-09-13, four days later: the pin read "refused at every filler
+  // count", the gate reported a moved pin, and `npm run test:rules` went
+  // red on main and would have stayed red every day after. Nothing about
+  // the rule or the app was wrong. A fixture with a frozen date inside a
+  // rule with a moving window is a test that expires, and this one took
+  // the deploy path's gate with it (backend-checks.yml runs this).
+  { name: "pulse", expect: "allowed", uid: U.owner, aid: `pulse-pace_${TODAY}`,
+    data: { qid: `pulse-pace_${TODAY}`, baseQid: "pulse-pace", day: TODAY, surface: "pulse", optionIdx: 1, anchors: FAT } },
   // refusals, in the e2e's shapes
   { name: "REFUSE · round already revealed", expect: "refused", uid: U.owner, aid: `g_${GID}_r1`,
     data: { qid: "group-b0", surface: "group", optionIdx: 0, gid: GID, round: 1, anchors: FAT } },
