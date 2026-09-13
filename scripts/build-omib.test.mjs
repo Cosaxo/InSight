@@ -120,14 +120,37 @@ describe("the committed bank", () => {
     // The D57 posture, applied to a bank instead of a seed: the key is a
     // server-side file, so nothing under src/ may so much as name it.
     // git grep exits 1 on no matches, which is the passing case here.
+    //
+    // THREE NEEDLES, because one was narrower than the sentence above it.
+    // This grepped `omib-key` alone — the name of the JSON the generator
+    // reads. What actually ships is the SYMBOL `OMIB_KEY`, exported from
+    // `functions/src/omib-bank.ts`, so a client file importing it by name,
+    // or a hand-copied table under that symbol, passed a case whose own
+    // comment says "nothing under src/ may so much as name it". An
+    // anti-cheat assertion that does not assert what it claims is worse
+    // than none, because it is read as cover.
+    const NEEDLES = ["omib-key", "OMIB_KEY", "omib-bank"];
     let hits = "";
     try {
-      hits = execFileSync("git", ["grep", "-l", "omib-key", "--", "src", "index.html"], {
-        cwd: here, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
-      }).trim();
+      hits = execFileSync(
+        "git",
+        ["grep", "-l", ...NEEDLES.flatMap((n) => ["-e", n]), "--", "src", "index.html"],
+        { cwd: here, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      ).trim();
     } catch (e) {
       if (e.status !== 1) throw e;
     }
-    expect(hits).toBe("");
+    expect(hits, "a client file names the answer key or the module that holds it").toBe("");
+
+    // THE VACUITY GUARD. Every needle above has to still find the key on
+    // the SERVER side, or this case is refusing names nothing uses — which
+    // is how it would pass forever after a rename, in silence, on the one
+    // assertion in the tree whose whole job is to catch the key escaping.
+    const server = execFileSync(
+      "git",
+      ["grep", "-l", ...NEEDLES.flatMap((n) => ["-e", n]), "--", "functions/src", "content"],
+      { cwd: here, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    ).trim();
+    expect(server, "the key was renamed — these needles now guard nothing").not.toBe("");
   });
 });
