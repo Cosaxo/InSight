@@ -282,7 +282,7 @@ function ProfileOverlay({ onClose, me }) {
   // come back (or failed) — see friendsView — so a door labelled "0
   // friends" in the second case is the app stating something it has not
   // looked at. The demo store always knows.
-  const fKnown = fv ? fv.followersKnown : true;
+  const fKnown = fv ? fv.listsKnown : true;
   const fLabel = fKnown ? fN + ' friends' : 'Friends';
 
   const dlg = useDialog(onClose, 'Your profile');

@@ -230,6 +230,23 @@ describe("live — data/friends.ts over D101's rows", () => {
     expect(screen.queryByText(/Couldn’t read/)).toBeNull();
   });
 
+  it("a follow list that is momentarily NOT IN HAND names nobody a request", async () => {
+    // THE OTHER NULL, and the same bug one line up from the first one.
+    // `LIVE.follows()` is null "while unfetched or failed", and
+    // `setFollowing` nulls it unconditionally before re-reading — so the
+    // frame right after tapping Accept had an empty follow list and a
+    // perfectly good followers list. Nothing had failed, so no banner
+    // drew; the fold simply stated all three lists as fact, and every
+    // person who follows you — your real friends among them — was listed
+    // as an INCOMING request with an Accept pill, over "Friends 0".
+    LIVE.follows = () => null;
+    render(<LiveFriendsOverlay onClose={() => {}} />);
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.queryByText("Bo Lind"), "a mutual friend was drawn as an incoming request").toBeNull();
+    expect(screen.queryByText("Cy Moen"), "a follower was stated as a request off a list nothing had read").toBeNull();
+    expect(screen.queryByText(/No friends yet/), "the empty state was asserted over an unread list").toBeNull();
+  });
+
   it("removing a friend leaves the 1v1 we had and drops my row — nothing is sent to them", async () => {
     LIVE.social.groups = (kind?: string) => (kind === "duo" ? [{ id: "g-us", memberUids: ["me", "bo"] }] : []);
     render(<LiveFriendsOverlay onClose={() => {}} />);

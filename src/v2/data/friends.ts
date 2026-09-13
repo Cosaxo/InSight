@@ -73,13 +73,17 @@ export interface FriendsView {
   /** The followers read failed: requests and friends cannot be told from invited. */
   failed: boolean;
   /**
-   * Whether the followers list is IN HAND. False while the first read is
-   * in flight and false after it fails — and in both cases `requests`,
-   * `invited` and `friends` are empty because none of the three is
-   * decidable without it, not because there is nobody. A surface that
-   * prints a count must not print one while this is false.
+   * Whether BOTH lists are in hand — who you follow and who follows you.
+   * False while either read is in flight, after either fails, and in the
+   * window `setFollowing` opens by nulling the follow list before it
+   * re-reads. In every one of those cases `requests`, `invited`,
+   * `friends` and `suggested` are empty because none of them is decidable
+   * without both, not because there is nobody — so a surface that prints
+   * a count, or an empty state, must not print one while this is false.
+   * `failed` is narrower and says only that the followers READ failed;
+   * this is the flag to draw on.
    */
-  followersKnown: boolean;
+  listsKnown: boolean;
 }
 
 /** Mutual friends whose own follows are read for suggestions — bounded fan-out. */
@@ -142,7 +146,7 @@ export function isHidden(uid: string): boolean {
  */
 export function friendsView(): FriendsView {
   const me = LIVE.uid || "";
-  const following = LIVE.follows() || [];
+  const following = LIVE.follows();
   // NULL IS NOT EMPTY, and this fold used to spend it as if it were. The
   // read sets `state.followers = null` on failure, saying so in as many
   // words ("could not ask" is not "nobody follows you") — and `|| []` here
@@ -157,10 +161,21 @@ export function friendsView(): FriendsView {
   //
   // Without this list none of the three is DECIDABLE — that is what
   // `failed`'s own docstring says — so none of the three is stated. The
-  // view carries `followersKnown` for the surfaces that print a count.
+  // view carries `listsKnown` for the surfaces that print a count.
+  // BOTH DIRECTIONS, and the second one was the same bug one line up. The
+  // first fix here took `state.followers` off `|| []` and left
+  // `LIVE.follows()` on it — and that one is null too, "while unfetched
+  // or failed" by its own docstring, and `setFollowing` nulls it
+  // UNCONDITIONALLY before re-reading. So tapping Accept on a friend
+  // request emptied your follow list for the length of the circle fold,
+  // `known` stayed true because the followers list was fine, and the fold
+  // stated all three as fact: no friends, nobody invited, and every one
+  // of your followers — your real friends among them — listed as an
+  // INCOMING request with an Accept pill, over "Friends 0" and "No
+  // friends yet". No banner, because nothing had failed.
   const followers = state.followers;
-  const known = followers != null;
-  const iSet = new Set(following);
+  const known = following != null && followers != null;
+  const iSet = new Set(following || []);
   const tSet = new Set(followers || []);
   const friends = known ? following.filter((u) => tSet.has(u)) : [];
   const invited = known ? following.filter((u) => !tSet.has(u)) : [];
@@ -168,7 +183,11 @@ export function friendsView(): FriendsView {
   // Suggestions, in the design's order: reached through a friend first,
   // then by agreement. Dedupe across the three sources; drop me, anyone
   // already on a list, and the hidden.
-  const seen = new Set<string>([me, ...following, ...(followers || [])]);
+  // …and a suggestion is not offered against a list that is not in hand
+  // either: without `following` the dedupe below cannot tell a stranger
+  // from somebody you already follow, and the row it would draw is "add"
+  // for a person who is already there.
+  const seen = new Set<string>([me, ...(following || []), ...(followers || [])]);
   const out: Suggestion[] = [];
   const kindred = new Map<string, number>();
   for (const k of LIVE.kindredPeople()) kindred.set(k.uid, Math.round(k.like.pct));
@@ -182,7 +201,7 @@ export function friendsView(): FriendsView {
   for (const [uid] of kindred) add(uid, null, nearSet.has(uid));
   for (const uid of nearSet) add(uid, null, true);
   out.sort((a, b) => (b.via ? 1 : 0) - (a.via ? 1 : 0) || (b.like ?? -1) - (a.like ?? -1));
-  return { requests, invited, friends, suggested: out, loading: state.loading, failed: state.failed, followersKnown: known };
+  return { requests, invited, friends, suggested: known ? out : [], loading: state.loading, failed: state.failed, listsKnown: known };
 }
 
 /**

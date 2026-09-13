@@ -256,14 +256,17 @@ export default function LiveFriendsOverlay({ onClose, back, onPerson }: {
             person with none and for a read that has not answered, so the
             bare number said "Friends 0" over the failure banner. Group
             draws the label alone when `n` is undefined. */}
-        <Group label="Friends" n={view && !view.followersKnown ? undefined : L.friends.length}>
+        <Group label="Friends" n={view && !view.listsKnown ? undefined : L.friends.length}>
           {L.friends.length
             ? L.friends.map((r) => (
               <FriendRow key={r.id} r={r} onOpen={open(r)} right={
                 <button className="press tap44" aria-label={"Options for " + first(r.name)} style={{ ...ROUND, fontSize: 16, letterSpacing: "0.06em" }} onClick={() => setConfirm(r.id)}>⋯</button>
               } />
             ))
-            : (view && (view.loading || view.failed)) ? null
+            // …and NOT KNOWN is not empty either: `listsKnown` covers the
+            // failed read this used to ask about, the first frame, and
+            // the window an Accept opens by nulling the follow list.
+            : (view && !view.listsKnown) ? null
               : <div style={{ ...SANS, padding: "18px 6px", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" } as React.CSSProperties}>No friends yet — add someone from the suggestions above or from their page.</div>}
         </Group>
       </div>
