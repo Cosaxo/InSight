@@ -149,7 +149,15 @@ export const SIZE_BASELINE = {
   // because this component is unmounted whenever a purge fires), and what
   // is left here is the note saying so — one line longer than the code it
   // replaced. Which is the paragraph above, measuring itself.
-  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4979 },
+    //
+  // 4,979 -> 5,005 (+26) for the Pulses row the topic sheet was
+  // dropping. Two lines of it are the change — a lookup for a channel the
+  // published feed order has no vocabulary for, and the constant naming
+  // pulse as one. The rest is the two comments saying why a zero from
+  // that order means "not ranked" here and "empty shelf" everywhere
+  // else, which is the distinction the next person to touch this line
+  // will have to make again.
+  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 5005 },
   // +19 on 2026-09-12: the 1v1 sheet's door to the friends overlay and the
   // note on why the sheet has one (D-2026-09-12d's amendment).
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2396 },
