@@ -598,4 +598,44 @@ describe("LivePrivacyPanel · a blank Save clears a set name (D440)", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
     expect(save).not.toHaveBeenCalled();
   });
+
+  it("a panel opened BEFORE hydrate does not clear the name once it lands", async () => {
+    // The field's initial value comes from a `useState` initializer, which
+    // runs once per mount. On a device with no local profile mirror — a
+    // fresh install, a new phone, anything after the purge — the panel can
+    // open before hydrate, and the account's real name arrives afterwards.
+    //
+    // The field then still showed empty, which alone would be cosmetic.
+    // What made it data loss is that the blank guard in `saveName` re-reads
+    // the store FRESH: once the name has landed the guard stops refusing,
+    // so a Save on a field the reader never touched wrote "" — clearing the
+    // name and, since D440, deleting the directory row with it. They stop
+    // being findable by name, from a button they pressed on an empty box.
+    const save = vi.fn(async () => {});
+    LIVE.saveDisplayName = save;
+    LIVE.displayName = "";                       // pre-hydrate: nothing known
+    render(<LivePrivacyPanel />);
+    const field = screen.getByPlaceholderText("Add a name") as HTMLInputElement;
+    expect(field.value).toBe("");
+
+    LIVE.displayName = "Ola";                    // hydrate lands
+    act(() => { notifyAll(); });
+
+    expect(field.value, "the field ignored the name the store had just learned").toBe("Ola");
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(save).not.toHaveBeenCalledWith(""));
+  });
+
+  it("…but a name the reader is typing is not overwritten by a notify", async () => {
+    // The control. Tracking the store unconditionally would throw away a
+    // rename in flight — including the notify the save's own write causes.
+    const save = vi.fn(async () => {});
+    LIVE.saveDisplayName = save;
+    render(<LivePrivacyPanel />);
+    const field = screen.getByPlaceholderText("Add a name") as HTMLInputElement;
+    fireEvent.change(field, { target: { value: "Halvard" } });
+    LIVE.displayName = "Tester";
+    act(() => { notifyAll(); });
+    expect(field.value, "a notify overwrote what the reader was typing").toBe("Halvard");
+  });
 });

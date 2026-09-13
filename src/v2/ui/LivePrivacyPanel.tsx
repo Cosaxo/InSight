@@ -66,6 +66,34 @@ function LivePrivacyPanel() {
   // second source of truth, and reading it first showed a stale name to
   // anyone who had renamed on another device.
   const [name, setName] = React.useState(() => LIVE.displayName || localName());
+  // …AND IT RE-READS UNTIL THE READER TOUCHES IT, which the lazy
+  // initializer above cannot do on its own.
+  //
+  // This panel subscribes and re-renders on every store notify, but a
+  // `useState` initializer runs ONCE per mount — the same trap this file
+  // fixes twelve lines down for `politicalConsented` (D331). On a device
+  // with no `insight.ownProfile.v1` mirror — a fresh install, a new
+  // phone, anything after the purge — the panel mounted before hydrate
+  // shows an EMPTY field for an account that has a name, for the life of
+  // that mount.
+  //
+  // That alone would be cosmetic. What makes it data loss is that
+  // `saveName`'s blank guard re-reads the store FRESH: once hydrate has
+  // landed, `(LIVE.displayName || localName()).trim()` is truthy, so the
+  // guard stops refusing and `saveDisplayName("")` goes through — which
+  // since D440 clears the name AND deletes the `v2_directory` row. The
+  // person stops being findable by name, from a Save they pressed on a
+  // field they never edited. The guard is not at fault: its own comment
+  // says it exists so an account with NO name stays the no-op it was.
+  //
+  // `dirty` rather than a key or a controlled-from-store input, because
+  // a rename in flight must not be overwritten by the notify its own
+  // write causes.
+  const dirty = React.useRef(false);
+  const storeName = LIVE.displayName || localName();
+  React.useEffect(() => {
+    if (!dirty.current) setName(storeName);
+  }, [storeName]);
   const [saved, setSaved] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
@@ -143,6 +171,10 @@ function LivePrivacyPanel() {
       // owns that key (D190) — one writer, and a rename reaches every
       // reader of it.
       await LIVE.saveDisplayName(n);
+      // Back to tracking the store: what was just written IS the store's
+      // value now, and leaving the field dirty would make a later rename
+      // from another device invisible on this screen.
+      dirty.current = false;
       setSaved(true); setTimeout(() => setSaved(false), 1800);
     } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
@@ -255,7 +287,7 @@ function LivePrivacyPanel() {
 
       <LpRow title="Your name" sub="What group and 1v1 partners see in reveals.">
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a name"
+          <input value={name} onChange={(e) => { dirty.current = true; setName(e.target.value); }} placeholder="Add a name"
             style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
               fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
               background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
