@@ -155,6 +155,12 @@ export const rateLimitLedgers = (uid: string): [string, string][] => [
   // (profileFanout.ts). Its id comes from the module that writes it, so
   // the two spellings cannot part company.
   ["fanout", `v2_ratelimits/${fanoutBudgetId(uid)}`],
+  // The friend-notice cooldown (v2social.ts): who this account has asked
+  // to compare answers, and when it last rang them. Unlike its neighbours
+  // this one names OTHER uids in its keys rather than only in its own id,
+  // which is the more reason it is listed here — it is erased with the
+  // account and it is disclosed to the account, both from this list.
+  ["friendping", `v2_ratelimits/friendping_${uid}`],
 ];
 
 type Plain = null | boolean | number | string | Plain[] | { [k: string]: Plain };

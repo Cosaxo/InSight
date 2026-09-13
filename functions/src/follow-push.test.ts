@@ -23,9 +23,30 @@ const snap = (r: { path: string }) => ({
   exists: store.has(r.path),
   get: (f: string) => store.get(r.path)?.[f],
 });
+// `collection().doc()` and a transaction, for the notice cooldown's ledger
+// (`v2_ratelimits/friendping_{uid}`). The transaction is a real one only in
+// the sense that matters here — a get and a set against the same store —
+// because what the cases below assert is the LEDGER's arithmetic, not
+// Firestore's concurrency, which no fake can stand in for.
+//
+// `ledgerBroken` is the fail-open case. The cooldown is an anti-abuse
+// bound on a social notification and not a permission check, so a ledger
+// that cannot be read must not swallow a real friend request.
+let ledgerBroken = false;
 const fakeDb = {
   doc: (path: string) => ref(path),
+  collection: (c: string) => ({ doc: (id: string) => ref(`${c}/${id}`) }),
   async getAll(...refs: { path: string }[]) { return refs.map(snap); },
+  async runTransaction<T>(f: (tx: {
+    get: (r: { path: string }) => Promise<ReturnType<typeof snap>>;
+    set: (r: { path: string }, d: Doc) => void;
+  }) => Promise<T>): Promise<T> {
+    if (ledgerBroken) throw new Error("ledger unavailable");
+    return f({
+      get: async (r) => snap(r),
+      set: (r, d) => { store.set(r.path, d); },
+    });
+  },
 };
 const sends: Array<{ tokens: string[]; notification: { title: string; body: string }; data: Record<string, string>; android?: unknown }> = [];
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
@@ -49,6 +70,7 @@ async function created(uid: string, targetUid: string) {
 beforeEach(() => {
   store.clear();
   sends.length = 0;
+  ledgerBroken = false;
   store.set("v2_users/ada", { displayName: "Ada" });
   store.set("v2_users/bo/push/tokens", { fcmTokens: ["tok-bo-".padEnd(140, "x")] });
   store.set("v2_users/ada/push/tokens", { fcmTokens: ["tok-ada-".padEnd(140, "x")] });
@@ -86,5 +108,73 @@ describe("onV2FollowCreated — a friend request notifies", () => {
     store.delete("v2_users/bo/push/tokens");
     await expect(created("ada", "bo")).resolves.toBeUndefined();
     expect(sends).toHaveLength(0);
+  });
+});
+
+// ── the notice rings once per pair per day ────────────────────────────
+//
+// The follow row is a client write: `create` is shape-checked, `update` is
+// denied and `delete` is free, so create → delete → create is three legal
+// writes and, before the cooldown, two pushes. Nothing counted them — no
+// dedupe in the sender, no block list, and the fifty-follow ceiling this
+// trigger's comment leans on is the CLIENT's. One free account could ring
+// any uid it could name, as often as it liked, with text it chose.
+//
+// The bound is on the NOTICE and not on the row, and these cases hold that
+// line: the second follow still happens, it simply does not ring.
+describe("onV2FollowCreated — the notice is bounded, the follow is not", () => {
+  const DAY = 24 * 3600_000;
+  const ledger = () => store.get("v2_ratelimits/friendping_ada") as { pings?: Record<string, number> } | undefined;
+
+  it("rings once for a pair, and not again inside the day", async () => {
+    await created("ada", "bo");
+    expect(sends).toHaveLength(1);
+    // unfollow, refollow — the loop the rules permit
+    store.delete("v2_users/ada/following/bo");
+    await created("ada", "bo");
+    expect(sends, "a refollow inside the cooldown rang the same person again").toHaveLength(1);
+    expect(Object.keys(ledger()?.pings ?? {}), "the pair was not recorded").toEqual(["bo"]);
+  });
+
+  it("rings for a DIFFERENT person in the same breath", async () => {
+    // The cooldown is per pair. A bound that stopped an account asking two
+    // people in one sitting would break the ordinary case to fix the abuse.
+    store.set("v2_users/cy/push/tokens", { fcmTokens: ["tok-cy-".padEnd(140, "x")] });
+    await created("ada", "bo");
+    await created("ada", "cy");
+    expect(sends).toHaveLength(2);
+    expect(sends[1].tokens).toEqual(["tok-cy-".padEnd(140, "x")]);
+  });
+
+  it("never swallows the YES — the acceptance is the other direction", async () => {
+    // Ada asks Bo, then Bo follows back. That second row's sender is BO,
+    // so it is a different pair and a different ledger: an acceptance
+    // cannot be eaten by the asker's own cooldown.
+    store.set("v2_users/bo", { displayName: "Bo" });
+    await created("ada", "bo");
+    store.set("v2_users/ada/following/bo", { to: "bo" });
+    await created("bo", "ada");
+    expect(sends).toHaveLength(2);
+    expect(sends[1].notification.body).toBe("Bo said yes — you're comparing answers now.");
+    expect(sends[1].tokens).toEqual(["tok-ada-".padEnd(140, "x")]);
+  });
+
+  it("rings again once the day has passed", async () => {
+    // Written by aging the stored stamp rather than by moving a clock: the
+    // ledger is what the bound reads, so this is the same statement with
+    // fewer moving parts.
+    await created("ada", "bo");
+    store.set("v2_ratelimits/friendping_ada", { pings: { bo: Date.now() - DAY - 1000 } });
+    await created("ada", "bo");
+    expect(sends, "a request a day later was still treated as a repeat").toHaveLength(2);
+  });
+
+  it("rings when the ledger itself is unavailable", async () => {
+    // FAILS OPEN. Losing a real friend request to an unreadable counter is
+    // the worse of the two failures, and this is a bound on notification
+    // volume rather than a permission check.
+    ledgerBroken = true;
+    await expect(created("ada", "bo")).resolves.toBeUndefined();
+    expect(sends).toHaveLength(1);
   });
 });

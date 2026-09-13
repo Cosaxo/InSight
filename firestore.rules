@@ -681,21 +681,26 @@ service cloud.firestore {
       // answers with you", or the acceptance body when it completes a
       // pair). A delete fires nothing.
       //
-      // WHAT THAT COSTS, stated here because this is where it would be
-      // weighed: create is shape-checked and nothing else, update is
-      // denied so a repeat follow is refused — but create → delete →
-      // create is allowed and each create pushes again. There is no
-      // cooldown, no dedupe in `sendPushToUids`, no block list and no
-      // per-target preference, and the fifty-follow ceiling the trigger's
-      // own comment leans on is the CLIENT's (src/v2/data/circle.ts), not
-      // this file's. So one free anonymous account can deliver an
-      // unbounded stream of named pushes to any uid it can name. The fix
-      // is a per-pair cooldown on the PUSH rather than a new bound on the
-      // row — the row is honest, the notification is what repeats — and
-      // it is not in this commit because it wants a collection of its
-      // own, with its rules row, its data-inventory line, its export
-      // entry and its erasure arm. Tracked; do not read the silence above
-      // as a finding that it is fine.
+      // AND THE ROW IS STILL UNBOUNDED HERE, deliberately. Create is
+      // shape-checked and nothing else, update is denied so a repeat
+      // follow is refused, and delete is free — so create → delete →
+      // create is three legal writes, and each create used to push. That
+      // was an unbounded notification channel with attacker-chosen text
+      // until the NOTICE was bounded instead of the row:
+      // `shouldRingFriend` (functions/src/v2social.ts) rings at most once
+      // per pair per day, on a ledger at
+      // `v2_ratelimits/friendping_{uid}` that is erased with the account
+      // and disclosed to it through `rateLimitLedgers`.
+      //
+      // The cap is on the notice rather than on the row because following
+      // is the bookmark this paragraph opens by describing: bounding the
+      // row would take something honest away to fix something else. A
+      // second follow still lands and still shows in their Circle; it
+      // simply does not ring. What remains unbounded here — a client
+      // writing and deleting its own follow rows in a loop — costs one
+      // trigger invocation and one transaction each, and reaches nobody.
+      // The fifty-follow ceiling the trigger's comment leans on is still
+      // the CLIENT's (src/v2/data/circle.ts) and still not this file's.
       //
       // READABLE BY ANYONE, and this is a judgement call rather than a
       // consequence of D98 (which published answers, not the social

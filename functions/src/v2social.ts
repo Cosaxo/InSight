@@ -92,6 +92,30 @@ const GROUP_CAP = 32;
 const MEMBERSHIP_CAP = 20;      // groups+duos one account may belong to
 const JOIN_ATTEMPTS_PER_HOUR = 30; // invite codes are 31^8 — this makes
                                    // brute force astronomically slow
+// ONE FRIEND NOTICE PER PAIR PER DAY. The follow row is the request
+// (D-2026-09-12d) and the client writes it directly, as it always has —
+// `create` is shape-checked, `update` is denied, and `delete` is free, so
+// create → delete → create is three legal writes and, before this, two
+// pushes. Nothing counted them: no cooldown, no dedupe in
+// `sendPushToUids`, no block list, and the fifty-follow ceiling the
+// trigger leans on is the CLIENT's. One free anonymous account could
+// deliver an unbounded stream of named pushes to any uid it could name.
+//
+// The CAP IS ON THE NOTICE, not on the row: following is a bookmark that
+// grants no access (firestore.rules says why at length), so bounding the
+// row would take away something honest to fix something else. A second
+// follow of the same person still lands, still shows in their Circle,
+// and simply does not ring.
+//
+// A day rather than an hour: the legitimate second notice is somebody
+// re-asking after being ignored, which is not an hourly act. Their
+// acceptance is a different pair (uid and target swap), so a yes is never
+// swallowed by the asker's own cooldown.
+const FRIEND_PING_COOLDOWN_MS = 24 * 3600_000;
+// What one sender's ledger may hold. Fifty is the client's follow
+// ceiling; this is well past it, so a normal account never prunes a live
+// entry, and an abnormal one cannot grow the document without bound.
+const FRIEND_PING_MAX = 200;
 const GROUP_SCAN_CAP = 2000;    // total groups one reveal run will scan
 const PAGE_SIZE = 300;          // groups fetched per cursor page
 
@@ -731,6 +755,65 @@ export async function notifyTurn(
 //
 // Light options, not HOT_TRIGGER: one document read and one getAll per
 // follow, a few times a day per account at most.
+/**
+ * Whether this follow should RING, and the record that it did.
+ *
+ * One document per sender (`v2_ratelimits/friendping_{uid}`), a map of
+ * target → the ms this pair last rang, pruned on every write. Per sender
+ * rather than per pair because that is the shape `rateLimitLedgers`
+ * already erases and exports by exact id — a per-pair collection would
+ * want its own rules row, its own inventory line, its own export entry
+ * and its own erasure arm, and would be reachable by neither account's
+ * deletion without a query. The trade is a document that names who this
+ * account has asked; the ledgers beside it already carry recipient uids
+ * and timestamps, which is the stated reason erasure covers them.
+ *
+ * A transaction, because two follows of the same person can race — the
+ * row is a client write and nothing stops two devices issuing it at once,
+ * and a read-then-write would let both through.
+ *
+ * FAILS OPEN, deliberately. If the ledger cannot be read or written, the
+ * notice goes out: this is an anti-abuse bound on a social notification,
+ * not a permission check, and silently swallowing a real friend request
+ * because a counter was unavailable is the worse of the two failures.
+ */
+async function shouldRingFriend(
+  db: FirebaseFirestore.Firestore,
+  uid: string,
+  target: string,
+  nowMs: number,
+): Promise<boolean> {
+  const ref = db.collection("v2_ratelimits").doc(`friendping_${uid}`);
+  try {
+    return await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const raw = (snap.exists && snap.get("pings")) || {};
+      const cutoff = nowMs - FRIEND_PING_COOLDOWN_MS;
+      const pings: Record<string, number> = {};
+      for (const [u, at] of Object.entries(raw as Record<string, unknown>)) {
+        const t = Number(at);
+        if (Number.isFinite(t) && t > cutoff) pings[u] = t;
+      }
+      if (pings[target] !== undefined) return false;
+      // The cap is a document-size bound and never a reason to refuse a
+      // notice: past it the oldest live entry is dropped, which can only
+      // let a ping through early for somebody this account asked a very
+      // long list of people ago.
+      const keys = Object.keys(pings);
+      if (keys.length >= FRIEND_PING_MAX) {
+        keys.sort((a, b) => pings[a] - pings[b]);
+        for (const k of keys.slice(0, keys.length - FRIEND_PING_MAX + 1)) delete pings[k];
+      }
+      pings[target] = nowMs;
+      tx.set(ref, { pings, expireAt: new Date(nowMs + 2 * FRIEND_PING_COOLDOWN_MS) });
+      return true;
+    });
+  } catch (err) {
+    logger.warn(`[onV2FollowCreated] ping ledger unavailable for ${uid}: ${String(err)}`);
+    return true;
+  }
+}
+
 export const onV2FollowCreated = onDocumentCreated(
   { ...LIGHT_CALLABLE, region: REGION, database: FIRESTORE_DB_ID, document: "v2_users/{uid}/following/{targetUid}" },
   async (event) => {
@@ -741,6 +824,10 @@ export const onV2FollowCreated = onDocumentCreated(
     const [me, back] = await db.getAll(db.doc(`v2_users/${uid}`), db.doc(`v2_users/${target}/following/${uid}`));
     const who = String((me.exists && me.get("displayName")) || "").trim() || "Someone";
     const mutual = back.exists;
+    if (!(await shouldRingFriend(db, uid, target, Date.now()))) {
+      logger.info(`[onV2FollowCreated] ${uid} already rang ${target} inside the cooldown — row kept, no push`);
+      return;
+    }
     await sendPushToUids(
       db,
       [target],
