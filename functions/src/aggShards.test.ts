@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest";
 import { FieldValue } from "firebase-admin/firestore";
 import {
-  AGG_SHARDS, BASE_SHARD, COMPACT_DIRTY_CAP, SHARDED_QIDS,
-  baseFrom, capBreakdown, isShardedQid, publishedFrom, runAggCompaction, shardEditIncrements, shardIncrements, shardOf, sumShards,
+  AGG_SHARDS, AGG_SHARDS_COLLECTION, BASE_SHARD, COMPACT_DIRTY_CAP, SHARDED_QIDS,
+  baseFrom, capBreakdown, firestoreAggCompactStore, isShardedQid, publishedFrom, runAggCompaction, shardEditIncrements, shardIncrements, shardOf, sumShards,
   type AggCompactStore, type Published, type ShardDoc,
 } from "./aggShards";
 import { BREAKDOWN_MAX_BUCKETS, OVERFLOW_SHARDS, breakdownBucket, foldAnchors, overflowShard, type BreakdownCounts } from "./pure";
@@ -251,5 +251,98 @@ describe("runAggCompaction", () => {
     expect(lines[0].level).toBe("warn");
     expect(lines[0].msg).toMatch(/1 cell\(s\) summed below zero/);
     await runAggCompaction(f.store, NOW, quiet, { qids: ["daily-z"] });
+  });
+});
+
+
+// ── the real store's dirty-question query ────────────────────────────
+//
+// `compactAggShardsV2` runs every minute and is the ONLY thing that
+// publishes a daily aggregate since D467. Every scheduled run reaches the
+// questions through `dirtyQids`. Nothing executed it: the suite above
+// swaps in a fake AggCompactStore, and the e2e's phase-B helper always
+// calls the lever with an explicit `{qid}`, which takes the `opts.qids`
+// branch and skips this one entirely. So the query that decides whether
+// anything publishes at all ran in no test.
+//
+// The fake is Firestore's query builder, and it RECORDS the query rather
+// than only answering it — because the two ways this breaks silently are
+// a `>=` quietly becoming `>` (every question dirtied exactly on the
+// boundary stops publishing) and the `orderBy` going away (Firestore then
+// falls back to `__name__`, which for this group is qid-major, so above
+// the cap the same low-sorting questions are taken every minute and the
+// rest never publish). Neither shows up in the rows a fake returns.
+function fakeShardDb(rows: Array<{ id: string; dirtyAt: number; qid: unknown }>) {
+  const seen: { collection?: string; where?: [string, string, unknown]; orderBy?: string; limit?: number } = {};
+  const q = {
+    where(f: string, op: string, v: unknown) { seen.where = [f, op, v]; return q; },
+    orderBy(f: string) { seen.orderBy = f; return q; },
+    limit(n: number) { seen.limit = n; return q; },
+    async get() {
+      const [, op, v] = seen.where as [string, string, number];
+      let hit = rows.filter((r) => (op === ">=" ? r.dirtyAt >= v : r.dirtyAt > v));
+      hit = hit.sort((a, b) => (seen.orderBy === "dirtyAt" ? a.dirtyAt - b.dirtyAt : a.id < b.id ? -1 : 1));
+      hit = hit.slice(0, seen.limit ?? hit.length);
+      return { size: hit.length, docs: hit.map((r) => ({ get: (f: string) => (f === "qid" ? r.qid : r.dirtyAt) })) };
+    },
+  };
+  return { seen, db: { collection: (name: string) => { seen.collection = name; return q; } } };
+}
+
+describe("firestoreAggCompactStore.dirtyQids — the query nothing executed", () => {
+  it("asks the right question: the shard collection, >= the cursor, ordered, one past the cap", async () => {
+    const { seen, db } = fakeShardDb([{ id: "a", dirtyAt: 100, qid: "q1" }]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await firestoreAggCompactStore(db as any).dirtyQids(50, 10);
+    expect(seen.collection).toBe(AGG_SHARDS_COLLECTION);
+    expect(seen.where, "the cursor comparison moved — `>` drops every question dirtied exactly on the boundary")
+      .toEqual(["dirtyAt", ">=", 50]);
+    expect(seen.orderBy, "without this Firestore orders by __name__, which is qid-major: above the cap the same questions win every minute")
+      .toBe("dirtyAt");
+    expect(seen.limit, "the page must be cap+1, or `capped` is a guess").toBe(11);
+  });
+
+  it("returns the distinct qids, sorted, and takes only `cap` of them", async () => {
+    const { db } = fakeShardDb([
+      { id: "a", dirtyAt: 100, qid: "q2" },
+      { id: "b", dirtyAt: 101, qid: "q1" },
+      { id: "c", dirtyAt: 102, qid: "q1" },   // same question, second shard
+      { id: "d", dirtyAt: 103, qid: "q3" },
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out = await firestoreAggCompactStore(db as any).dirtyQids(0, 10);
+    expect(out.qids).toEqual(["q1", "q2", "q3"]);
+    expect(out.capped).toBe(false);
+  });
+
+  it("says `capped` when a full page came back, and drops the extra row", async () => {
+    // cap + 1 is fetched so a full page is a FACT rather than a guess; the
+    // extra row must not contribute a qid, or the caller compacts a
+    // question it never counted as read.
+    const rows = [1, 2, 3].map((n) => ({ id: `s${n}`, dirtyAt: 100 + n, qid: `q${n}` }));
+    const { db } = fakeShardDb(rows);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out = await firestoreAggCompactStore(db as any).dirtyQids(0, 2);
+    expect(out.capped, "a full page was not reported as capped").toBe(true);
+    expect(out.qids, "the cap+1 probe row leaked into the result").toEqual(["q1", "q2"]);
+  });
+
+  it("skips a row whose qid is missing or not a string", async () => {
+    const { db } = fakeShardDb([
+      { id: "a", dirtyAt: 100, qid: "q1" },
+      { id: "b", dirtyAt: 101, qid: undefined },
+      { id: "c", dirtyAt: 102, qid: "" },
+      { id: "d", dirtyAt: 103, qid: 7 },
+    ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out = await firestoreAggCompactStore(db as any).dirtyQids(0, 10);
+    expect(out.qids).toEqual(["q1"]);
+  });
+
+  it("a row dirtied exactly ON the cursor is included — the boundary the cap depends on", async () => {
+    const { db } = fakeShardDb([{ id: "a", dirtyAt: 50, qid: "q1" }]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out = await firestoreAggCompactStore(db as any).dirtyQids(50, 10);
+    expect(out.qids, "a question dirtied on the boundary was dropped").toEqual(["q1"]);
   });
 });
