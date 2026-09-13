@@ -70,6 +70,31 @@ describe("the cohort prior", () => {
     expect(skewed.shares[0]).toBeGreaterThan(0.5);
   });
 
+  it("a city cell of exactly PRIOR_SHRINK speaks; one answer fewer and the country does", () => {
+    // The boundary the nesting turns on, and the thing that changes is not
+    // a rounding — it is WHICH population your reading is scored against.
+    // Oslo and the country lean opposite ways below, so a city sitting
+    // exactly on the threshold gets one prior or the other depending on a
+    // single character of the comparison.
+    //
+    // Nothing exercised it: the case below uses thirty and three, so
+    // `>=` and `>` agree on both. A mutation sweep found this line
+    // surviving, which is what a boundary with no case around it looks
+    // like from the outside.
+    const map = by({
+      city: { "Oslo, NO": [PRIOR_SHRINK, 0], "Bergen, NO": [PRIOR_SHRINK - 1, 0] },
+      country: { NO: [0, 300] },
+    });
+    expect(
+      priorBuckets(map, { city: "Oslo, NO", country: "NO" }),
+      "a city holding exactly the threshold was sent to its country",
+    ).toEqual([{ dim: "city", bucket: "Oslo, NO" }]);
+    expect(
+      priorBuckets(map, { city: "Bergen, NO", country: "NO" }),
+      "a city one answer short of the threshold spoke anyway",
+    ).toEqual([{ dim: "country", bucket: "NO" }]);
+  });
+
   it("an opt-out or an empty anchor is not a group, and city and country are one nesting", () => {
     const map = by({
       gender: { "Prefer not to say": [90, 10], Other: [90, 10] },
