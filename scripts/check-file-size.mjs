@@ -136,7 +136,21 @@ export const SIZE_BASELINE = {
   // because this component is unmounted whenever a purge fires), and what
   // is left here is the note saying so — one line longer than the code it
   // replaced. Which is the paragraph above, measuring itself.
-  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4979 },
+  // 4,979 -> 4,992 on 2026-09-13 (+13): the sitting store's guard. The
+  // search overlay renders WorldFeed a SECOND time with `focus`, layered
+  // over a daily tab that stays mounted, and that instance's unmount was
+  // stamping D479's module-global sitting as ended while the reader was
+  // still reading — so a later tab hop reshuffled the feed under them.
+  // The fix is one condition on three lifecycle touches; the +13 is that
+  // condition, its brace, and the paragraph saying why a mount of this
+  // component is not always the feed.
+  //
+  // Signed for rather than absorbed, and trimmed first: the measured
+  // timeline and both controls moved to test/feed-sitting-focus.test.jsx,
+  // and an extracted `enterSitting()` method was reverted to an inline
+  // guard because the wrapper cost more lines than it saved. What is left
+  // is the smallest form that still says why.
+  "src/v2/spec/world-feed.jsx": { mode: "ratchet", lines: 4992 },
   // +19 on 2026-09-12: the 1v1 sheet's door to the friends overlay and the
   // note on why the sheet has one (D-2026-09-12d's amendment).
   "src/v2/ui/LiveDuelPanel.tsx": { mode: "ratchet", lines: 2396 },

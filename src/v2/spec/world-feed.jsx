@@ -449,58 +449,42 @@ class WorldFeed extends React.Component {
   // ── snap scrolling: cards arrive one at a time and snap into place ──
   // The tab's scroller gets y-proximity snap while the feed is mounted; each
   // card fills most of the viewport (next one peeking) and snap-aligns to top.
-  /** The sitting boundary, both ways in — the feed's own, never an
-   *  embedded `focus` instance's. See componentDidMount for why. */
-  enterSitting() {
-    // THE MOUNT is the tab-swap case: back from Mirror, back from an
-    // overlay that replaced the tab. `enter()` answers whether enough time
-    // passed to make this a new sitting, and a new one is the only thing
-    // that may move the reader — hence `freshSitting`, read once here
-    // rather than re-asked during render.
-    this.freshSitting(SITTING.enter());
-    // THE VISIBILITY EVENT is the other case, and it is not the same one:
-    // backgrounding the app while the feed is on screen never unmounts
-    // anything, so without this a phone left in a pocket for an hour comes
-    // back to the sitting it left — the half of the owner's sentence that
-    // a mount hook cannot see. Ordinary DOM listeners, matching live.ts's
-    // own wake handling (both arms, because some WebViews resume from a
-    // kill without firing visibilitychange).
-    this._onVis = () => {
-      if (document.visibilityState === 'hidden') { SITTING.leave(); return; }
-      // `_mounted !== false`, which is this file's idiom and not a
-      // paraphrase of `this._mounted`: the flag is only ever WRITTEN, to
-      // false, on unmount — it is `undefined` the whole time the
-      // component is alive. A truthiness test here reads a live component
-      // as gone and the redraw never fires, which on this path means the
-      // rotation a returning reader just earned sits unread until they
-      // tap something.
-      if (this.freshSitting(SITTING.enter()) && this._mounted !== false) this.forceUpdate();
-    };
-    document.addEventListener('visibilitychange', this._onVis);
-  }
-
   componentDidMount() {
-    // NOT EVERY MOUNT OF THIS COMPONENT IS THE FEED. `search-overlay.jsx`
-    // renders it a second time with `focus`, as a single-question card
-    // embedded in the overlay — and that overlay LAYERS OVER the daily tab
-    // rather than replacing it, so both instances are alive at once while
-    // the real feed is still on screen behind it.
-    //
-    // The sitting store is module-global and `leave()` is first-write-wins
-    // (`if (lastLeft == null)`), so the embedded instance's unmount stamped
-    // `lastLeft` while the reader was still reading — and the real feed's
-    // own later `leave()` then did nothing, because the stamp was taken.
-    // The next `enter()` measured from that stale moment, so a tab hop of a
-    // few seconds read as a new sitting: the mix rotates, the just-answered
-    // card leaves its place and the scroll offset goes. Which is precisely
-    // what D479's sitting store was written to stop.
-    //
-    // `focus` is the discriminator rather than a new prop because it is
-    // already what this component switches on to draw that view (render's
-    // early return, far below), and there is no third mount site to teach.
-    // The focused branch returns before every other read of this store, so
-    // these three are the whole surface.
-    if (!this.props.focus) this.enterSitting();
+    // THE FEED'S OWN MOUNT ONLY. search-overlay.jsx renders this component
+    // again with `focus`, layered OVER a daily tab that stays mounted, so
+    // that instance is not the reader arriving or leaving. The sitting
+    // store is module-global and `leave()` is first-write-wins, so letting
+    // the embedded card touch it ended a sitting while the reader was
+    // still reading — the failure D479 exists to stop. The focused branch
+    // returns before every other read of this store, so these are the
+    // whole surface. test/feed-sitting-focus.test.jsx has the timeline.
+    if (!this.props.focus) {
+      // THE MOUNT is the tab-swap case: back from Mirror, back from an
+      // overlay that replaced the tab. `enter()` answers whether enough time
+      // passed to make this a new sitting, and a new one is the only thing
+      // that may move the reader — hence `freshSitting`, read once here
+      // rather than re-asked during render.
+      this.freshSitting(SITTING.enter());
+      // THE VISIBILITY EVENT is the other case, and it is not the same one:
+      // backgrounding the app while the feed is on screen never unmounts
+      // anything, so without this a phone left in a pocket for an hour comes
+      // back to the sitting it left — the half of the owner's sentence that
+      // a mount hook cannot see. Ordinary DOM listeners, matching live.ts's
+      // own wake handling (both arms, because some WebViews resume from a
+      // kill without firing visibilitychange).
+      this._onVis = () => {
+        if (document.visibilityState === 'hidden') { SITTING.leave(); return; }
+        // `_mounted !== false`, which is this file's idiom and not a
+        // paraphrase of `this._mounted`: the flag is only ever WRITTEN, to
+        // false, on unmount — it is `undefined` the whole time the
+        // component is alive. A truthiness test here reads a live component
+        // as gone and the redraw never fires, which on this path means the
+        // rotation a returning reader just earned sits unread until they
+        // tap something.
+        if (this.freshSitting(SITTING.enter()) && this._mounted !== false) this.forceUpdate();
+      };
+      document.addEventListener('visibilitychange', this._onVis);
+    }
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
