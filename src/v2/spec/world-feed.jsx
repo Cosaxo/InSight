@@ -449,9 +449,9 @@ class WorldFeed extends React.Component {
   // ── snap scrolling: cards arrive one at a time and snap into place ──
   // The tab's scroller gets y-proximity snap while the feed is mounted; each
   // card fills most of the viewport (next one peeking) and snap-aligns to top.
-  componentDidMount() {
-    // The sitting boundary, both ways in.
-    //
+  /** The sitting boundary, both ways in — the feed's own, never an
+   *  embedded `focus` instance's. See componentDidMount for why. */
+  enterSitting() {
     // THE MOUNT is the tab-swap case: back from Mirror, back from an
     // overlay that replaced the tab. `enter()` answers whether enough time
     // passed to make this a new sitting, and a new one is the only thing
@@ -477,6 +477,30 @@ class WorldFeed extends React.Component {
       if (this.freshSitting(SITTING.enter()) && this._mounted !== false) this.forceUpdate();
     };
     document.addEventListener('visibilitychange', this._onVis);
+  }
+
+  componentDidMount() {
+    // NOT EVERY MOUNT OF THIS COMPONENT IS THE FEED. `search-overlay.jsx`
+    // renders it a second time with `focus`, as a single-question card
+    // embedded in the overlay — and that overlay LAYERS OVER the daily tab
+    // rather than replacing it, so both instances are alive at once while
+    // the real feed is still on screen behind it.
+    //
+    // The sitting store is module-global and `leave()` is first-write-wins
+    // (`if (lastLeft == null)`), so the embedded instance's unmount stamped
+    // `lastLeft` while the reader was still reading — and the real feed's
+    // own later `leave()` then did nothing, because the stamp was taken.
+    // The next `enter()` measured from that stale moment, so a tab hop of a
+    // few seconds read as a new sitting: the mix rotates, the just-answered
+    // card leaves its place and the scroll offset goes. Which is precisely
+    // what D479's sitting store was written to stop.
+    //
+    // `focus` is the discriminator rather than a new prop because it is
+    // already what this component switches on to draw that view (render's
+    // early return, far below), and there is no third mount site to teach.
+    // The focused branch returns before every other read of this store, so
+    // these three are the whole surface.
+    if (!this.props.focus) this.enterSitting();
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
@@ -645,7 +669,12 @@ class WorldFeed extends React.Component {
     // The feed is off screen from here (D-less, 2026-09-12): a tab swap
     // unmounts this whole subtree. Stamping rather than ending — being
     // away is what ends a sitting and only the way back can measure it.
-    SITTING.leave();
+    //
+    // …and only THE FEED's unmount means that. A `focus` instance is the
+    // search overlay's embedded card, layered over a daily tab that is
+    // still mounted and still on screen, so its unmount is not the reader
+    // leaving anything. See componentDidMount.
+    if (!this.props.focus) SITTING.leave();
     if (this._onVis) document.removeEventListener('visibilitychange', this._onVis);
     clearTimeout(this._retry);
     clearTimeout(this._growT);
