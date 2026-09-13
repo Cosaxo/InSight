@@ -299,6 +299,40 @@ describe("a verified attempt (D57)", () => {
     screen.getByText("Take again"); // still on the result screen
   });
 
+  it("the countdown runs from the attempt's START, as the server's rule does", () => {
+    // D478 is "one attempt every 30 days, from the START of the last", and
+    // the server applies it that way (`nowMs - prev.startedAtMs`). The
+    // stored `when` is stamped when the SCORE lands, so it is the end —
+    // and the gap between them is the attempt's own length, up to about
+    // thirty-nine minutes.
+    //
+    // Here the score landed ten minutes short of thirty days ago, after a
+    // thirty-minute sitting: the attempt STARTED thirty days and twenty
+    // minutes ago, so the server would accept a new one right now. Reading
+    // the end instead, the screen said "Next attempt in 1 day" — the ceil
+    // of ten minutes — and withheld the button over a refusal the app had
+    // invented.
+    const DAY = 86_400_000;
+    localStorage.setItem(LKEY, JSON.stringify(savedOmib({
+      when: Date.now() - 30 * DAY + 10 * 60_000,
+      durationMs: 30 * 60_000,
+    })));
+    render(<LogicOverlay onClose={() => {}} />);
+    screen.getByText("Take again");
+    expect(screen.queryByText(/Next attempt in/), "the app refused a start the server would have taken").toBeNull();
+  });
+
+  it("without a stored duration it still counts from the end — the honest fallback", () => {
+    // Results written before `durationMs` existed carry no start, and the
+    // end is then the only moment this device knows. The control, so the
+    // case above cannot pass by ignoring the window altogether.
+    const DAY = 86_400_000;
+    localStorage.setItem(LKEY, JSON.stringify(savedOmib({ when: Date.now() - 30 * DAY + 10 * 60_000 })));
+    render(<LogicOverlay onClose={() => {}} />);
+    screen.getByText("Next attempt in 1 day");
+    expect(screen.queryByText("Take again")).toBeNull();
+  });
+
   it("until the next attempt opens, the result screen says when instead of offering the button (D478)", () => {
     const DAY = 86_400_000;
     localStorage.setItem(LKEY, JSON.stringify(savedOmib({ when: Date.now() - 5 * DAY })));

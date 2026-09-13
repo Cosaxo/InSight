@@ -428,7 +428,25 @@ export let LOGIC;
     useEffect(() => {
       if (screen !== 'result') return;
       const DAY = 86_400_000;
-      setRetakeDays(result && result.when ? Math.max(0, Math.ceil((result.when + LOGIC_RETAKE_DAYS * DAY - Date.now()) / DAY)) : 0);
+      // FROM THE START OF THE LAST ATTEMPT, which is what the server
+      // counts from (D478: "one attempt every 30 days, from the START of
+      // the last"). `when` is stamped when the SCORE lands, so it is the
+      // attempt's end — and the difference is the attempt's own length,
+      // up to LOGIC_DEADLINE_MS (26 puzzles × 90 s ≈ 39 minutes).
+      //
+      // Reading the end left the screen saying "Next attempt in 1 day" —
+      // `Math.ceil` of a few minutes — and HIDING the button entirely,
+      // for up to that long after the server would already have accepted
+      // a start. A refusal the app invented, over a rule it was
+      // paraphrasing rather than applying.
+      //
+      // `durationMs` rides the same stored result. Absent on anything
+      // written before it did, and `|| 0` is then exactly the old
+      // behaviour for those, which is the honest fallback: without a
+      // duration the end is the only moment this device knows.
+      setRetakeDays(result && result.when
+        ? Math.max(0, Math.ceil((result.when - (result.durationMs || 0) + LOGIC_RETAKE_DAYS * DAY - Date.now()) / DAY))
+        : 0);
     }, [screen, result]);
     // The expiry path needs the CURRENT goal/phase/qi, not the ones from the
     // render that armed the interval — the latest-closure ref pattern.
