@@ -1072,7 +1072,22 @@ export const onV2AnswerCreated = onDocumentCreated(
           logger.warn(
             `[v2] catalog answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
           );
-          tx.set(snap.ref, { anchors }, { merge: true });
+          // `mergeFields`, NOT `merge: true`. A merge write masks the LEAF
+          // paths it carries — `{anchors:{city,country}}` emits
+          // ["anchors.city","anchors.country"] — and `honestAnchors` DROPS
+          // a key the profile does not carry rather than blanking it. So
+          // the one thing this write exists to do, taking an invented
+          // cohort back off the row, was the one thing it could not do:
+          // the invented key was never in the mask and survived, and only
+          // the all-dropped case ({} -> mask ["anchors"]) cleared
+          // anything. Naming the field replaces the whole map, which is
+          // what "corrected" has to mean, and still touches nothing else
+          // on the answer. Measured against the real SDK's mask rather
+          // than inferred. `merge: false` would be the wrong repair — it
+          // would wipe the document. The same line runs at the rank arm
+          // and the world arm below; D234's amendment thirty lines up is
+          // this file already knowing that merge cannot remove.
+          tx.set(snap.ref, { anchors }, { mergeFields: ["anchors"] });
         }
         // The leaderboard, cut to a DISPLAY size rather than a floor.
         // canonTopN keeps the N biggest entities and folds the remainder
@@ -1181,7 +1196,9 @@ export const onV2AnswerCreated = onDocumentCreated(
           logger.warn(
             `[v2] rank answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
           );
-          tx.set(snap.ref, { anchors: rankHonest }, { merge: true });
+          // `mergeFields` for the reason the catalog arm above spells out:
+          // a merge write cannot remove the invented key it exists to remove.
+          tx.set(snap.ref, { anchors: rankHonest }, { mergeFields: ["anchors"] });
         }
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         logged = logRow({ id: event.id, uid: event.params.uid, qid, atMs: Date.now(), surface: snap.get("surface") });
@@ -1308,7 +1325,10 @@ export const onV2AnswerCreated = onDocumentCreated(
         logger.warn(
           `[v2] answer ${event.params.uid}/${qid} claimed a cohort its profile does not carry; corrected`,
         );
-        tx.set(snap.ref, { anchors }, { merge: true });
+        // `mergeFields` for the reason the catalog arm spells out: a merge
+        // write cannot remove the invented key it exists to remove — and
+        // this is the arm the sharded daily edit lane then re-reads.
+        tx.set(snap.ref, { anchors }, { mergeFields: ["anchors"] });
       }
       // The ledger entry carries the anchors too, and the nightly passes
       // read them — so it takes the honest set, not the claim. And the

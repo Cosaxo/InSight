@@ -55,7 +55,21 @@ const fakeDb = {
       // answer, and a fake that replaced `a` whole would pass a write
       // that wiped every earlier answer — the plumbing being thinner
       // than the thing it stands in for, which this file's header names.
-      set: (r: { path: string }, data: Doc, opts?: { merge?: boolean }) => {
+      set: (r: { path: string }, data: Doc, opts?: { merge?: boolean; mergeFields?: string[] }) => {
+        // …and `mergeFields` replaces the NAMED top-level fields whole,
+        // leaving the rest, which is the difference the honest-anchor
+        // correction turns on: `merge` masks leaf paths and therefore
+        // cannot remove a key the write does not carry, while naming the
+        // field replaces the map. A fake that treated this option as
+        // "not a merge" would model `merge: false` and wipe the document
+        // — the repair the code's own comment says is the wrong one.
+        if (opts?.mergeFields) {
+          const prev = store.get(r.path) || {};
+          const next: Doc = { ...prev };
+          for (const f of opts.mergeFields) next[f] = data[f];
+          store.set(r.path, next);
+          return;
+        }
         if (!opts?.merge) { store.set(r.path, data); return; }
         const prev = store.get(r.path) || {};
         const next: Doc = { ...prev };
@@ -452,6 +466,39 @@ describe("an invented cohort is corrected, not folded (D410)", () => {
     const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
     expect(a?.anchors, "the catalog answer kept the cohort it invented")
       .toEqual({ ageBand: "25-34", country: "NO" });
+  });
+
+  // THE KEY THE PROFILE DOES NOT CARRY AT ALL, which is the half the two
+  // cases above could not see: both claim a WRONG value for a key the
+  // profile also has, so the honest set carries that key and the write's
+  // mask reaches it. `honestAnchors` DROPS a key the profile lacks
+  // instead of blanking it — and a `merge: true` write masks only the
+  // leaf paths it carries, so the dropped key was never in the mask and
+  // stayed on the row for good. The correction's own comment says a fold
+  // that ignored an invented cohort "would leave the invention on the
+  // screen", and the People lens reads these rows to say who someone is.
+  it("REMOVES a cohort key the profile does not carry, rather than leaving it", async () => {
+    store.clear();
+    // A profile with a band and no city — the ordinary state of an
+    // account that has never named where it is.
+    store.set("v2_users/u1", { anchors: { ageBand: "25-34" } });
+    // AND THE ANSWER ROW AS THE CLIENT WROTE IT. Without this the store
+    // has no document for the correction to correct, the write creates
+    // one from the honest set, and the case passes for a reason that has
+    // nothing to do with the mask — which is how it passed under the old
+    // `merge: true` the first time it was run.
+    const claimed = { ageBand: "25-34", city: "Oslo, NO" };
+    store.set(`v2_users/u1/answers/${QID}`, { surface: "daily", optionIdx: 1, anchors: claimed });
+    await deliver("e-invented-key", { surface: "daily", optionIdx: 1, anchors: claimed });
+    const a = store.get(`v2_users/u1/answers/${QID}`) as Doc | undefined;
+    expect(a?.anchors, "the invented city survived the correction that exists to remove it")
+      .toEqual({ ageBand: "25-34" });
+    // …and the board never carried it either.
+    const by = store.get(AGG)?.by as Record<string, Record<string, Record<string, number>>> | undefined;
+    expect(by?.city, "the public board published a city the profile does not claim").toBeUndefined();
+    // The vacuity guard: the honest key is still there, so this is not
+    // passing on a write that wiped the map.
+    expect(by?.ageBand?.["25-34"]).toEqual({ "1": 1 });
   });
 
   it("retargets an EDIT into the profile's cohort, not the one the event carries", async () => {
